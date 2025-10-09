@@ -1,0 +1,85 @@
+---
+import { getSession } from '../lib/auth';
+import { hasAnalyticsAccess, getUserRole } from '../lib/analytics';
+import AnalyticsDashboard from '../components/AnalyticsDashboard';
+import '../styles/global.css';
+
+// Check authentication
+const session = getSession(Astro);
+if (!session) {
+  return Astro.redirect('/');
+}
+
+// Check analytics access
+const userRole = getUserRole(session.email);
+if (!hasAnalyticsAccess(session.email, userRole)) {
+  return Astro.redirect('/home?error=access_denied');
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard - SalfaGPT</title>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+  <!-- Navigation Header -->
+  <nav class="bg-white/80 backdrop-blur-lg border-b border-slate-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-8">
+          <a href="/home" class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            SalfaGPT
+          </a>
+          <div class="hidden md:flex items-center space-x-6">
+            <a href="/home" class="text-slate-600 hover:text-slate-900 transition-colors">
+              Home
+            </a>
+            <a href="/analytics" class="text-blue-600 font-semibold border-b-2 border-blue-600 pb-1">
+              Analytics
+            </a>
+          </div>
+        </div>
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-slate-600">{session.email}</span>
+            {userRole === 'admin' && (
+              <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                Admin
+              </span>
+            )}
+            {userRole === 'analytics' && (
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                Analytics
+              </span>
+            )}
+          </div>
+          <a
+            href="/auth/logout"
+            class="px-4 py-2 text-slate-600 hover:text-slate-900 transition-colors"
+          >
+            Logout
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard Content -->
+  <main>
+    <AnalyticsDashboard client:load />
+  </main>
+
+  <!-- Footer -->
+  <footer class="mt-16 py-8 border-t border-slate-200 bg-white">
+    <div class="max-w-7xl mx-auto px-4 text-center text-slate-600 text-sm">
+      <p>&copy; 2025 SalfaGPT. All rights reserved.</p>
+      <p class="mt-2">
+        Analytics dashboard powered by Google Cloud BigQuery
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

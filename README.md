@@ -6,6 +6,11 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 - 🔐 **Secure Google OAuth authentication**
 - 💬 **ChatGPT-like interface** for AI conversations
+- 📊 **Analytics Dashboard** (admin/analytics users only)
+  - Daily, monthly, and yearly metrics
+  - User engagement tracking
+  - Data export (CSV/JSON)
+  - BigQuery table browser
 - ☁️ **Google Cloud Platform integration**
   - BigQuery for data storage
   - Vertex AI for AI/LLM capabilities
@@ -14,6 +19,7 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 - 🔒 **Security best practices** implemented
   - HTTPOnly cookies
   - JWT token authentication
+  - Role-based access control
   - Secure session management
   - CSRF protection
 
@@ -56,6 +62,7 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 - **[SETUP.md](./SETUP.md)** - Complete setup guide
 - **[OAUTH_CONFIG.md](./OAUTH_CONFIG.md)** - OAuth configuration reference
+- **[docs/ANALYTICS_SETUP.md](./docs/ANALYTICS_SETUP.md)** - Analytics dashboard setup and usage
 - **[Architecture](#architecture)** - System architecture overview
 
 ## 🏗️ Architecture
@@ -75,8 +82,8 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │
 │  │ Auth Routes  │  │  API Routes  │  │  Middleware     │  │
 │  │ - Login      │  │  - /api/chat │  │  - Sessions     │  │
-│  │ - Callback   │  │              │  │  - Auth Check   │  │
-│  │ - Logout     │  │              │  │                 │  │
+│  │ - Callback   │  │  - /api/     │  │  - Auth Check   │  │
+│  │ - Logout     │  │    analytics │  │  - RBAC         │  │
 │  └──────────────┘  └──────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -128,18 +135,31 @@ salfagpt/
 ├── src/
 │   ├── lib/
 │   │   ├── auth.ts          # Authentication utilities
+│   │   ├── analytics.ts     # Analytics & RBAC
 │   │   └── gcp.ts           # Google Cloud utilities
+│   ├── components/
+│   │   └── AnalyticsDashboard.tsx  # Analytics UI
 │   ├── pages/
 │   │   ├── index.astro      # Landing page
 │   │   ├── home.astro       # Chat interface
+│   │   ├── analytics.astro  # Analytics dashboard
 │   │   ├── auth/
 │   │   │   ├── login.ts     # OAuth login
 │   │   │   ├── callback.ts  # OAuth callback
 │   │   │   └── logout.ts    # Logout
 │   │   └── api/
-│   │       └── chat.ts      # Chat API endpoint
+│   │       ├── chat.ts      # Chat API endpoint
+│   │       └── analytics/   # Analytics endpoints
+│   │           ├── summary.ts
+│   │           ├── daily.ts
+│   │           ├── tables.ts
+│   │           └── table-sample.ts
 │   └── styles/
 │       └── global.css       # Global styles
+├── docs/
+│   ├── ANALYTICS_SETUP.md   # Analytics guide
+│   ├── BranchLog.md         # Development log
+│   └── features/            # Feature docs
 ├── scripts/
 │   └── setup-bigquery.js    # BigQuery setup
 ├── Dockerfile               # Container config
