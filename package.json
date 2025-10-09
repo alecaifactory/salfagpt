@@ -1,0 +1,40 @@
+{
+  "name": "salfagpt",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "setup:bigquery": "node scripts/setup-bigquery.js",
+    "deploy:build": "gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/salfagpt",
+    "deploy:run": "gcloud run deploy salfagpt --image gcr.io/${GOOGLE_CLOUD_PROJECT}/salfagpt --platform managed --region us-central1 --allow-unauthenticated"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.4.4",
+    "@astrojs/react": "^4.0.0",
+    "@astrojs/tailwind": "^6.0.0",
+    "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/firestore": "^7.10.0",
+    "@google-cloud/vertexai": "^1.10.0",
+    "@google/genai": "^1.23.0",
+    "astro": "^5.14.1",
+    "cookie": "^1.0.2",
+    "dotenv": "^17.2.3",
+    "google-auth-library": "^10.4.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/cookie": "^0.6.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17"
+  }
+}
