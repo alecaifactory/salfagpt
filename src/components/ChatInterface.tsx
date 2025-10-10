@@ -374,23 +374,33 @@ export default function ChatInterface({ userId }: { userId: string }) {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-3xl rounded-2xl px-6 py-4 ${
+                    className={`max-w-3xl rounded-2xl px-6 py-4 transition-all transform hover:scale-[1.02] ${
                       message.role === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-white border border-slate-200 text-slate-900'
+                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg'
+                        : 'bg-white border border-slate-200 text-slate-900 shadow-md'
                     }`}
                   >
+                    {message.role === 'assistant' && (
+                      <div className="flex items-center gap-2 mb-2 text-slate-500">
+                        <MessageSquare className="w-4 h-4" />
+                        <span className="text-xs font-semibold">AI Assistant</span>
+                      </div>
+                    )}
                     {renderMessage(message)}
                   </div>
                 </div>
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="max-w-3xl rounded-2xl px-6 py-4 bg-white border border-slate-200">
-                    <div className="flex items-center gap-2 text-slate-500">
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-100"></div>
-                      <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce delay-200"></div>
+                  <div className="max-w-3xl rounded-2xl px-6 py-4 bg-white border border-slate-200 shadow-md">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-4 h-4 text-blue-500 animate-pulse" />
+                      <div className="flex items-center gap-2 text-slate-500">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-100"></div>
+                        <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-200"></div>
+                        <span className="text-sm ml-2">Thinking...</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -399,60 +409,80 @@ export default function ChatInterface({ userId }: { userId: string }) {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-slate-200 bg-white p-4">
+            <div className="border-t border-slate-200 bg-gradient-to-br from-white to-slate-50 p-6 shadow-2xl">
               {/* Context Window Display */}
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between">
                 <button
                   onClick={() => setShowContextDetails(!showContextDetails)}
-                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-sm hover:shadow-md"
                 >
                   <Info className="w-4 h-4" />
                   <span>Context: {contextWindowUsage.toFixed(1)}%</span>
+                  <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden ml-2">
+                    <div 
+                      className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
+                      style={{ width: `${contextWindowUsage}%` }}
+                    />
+                  </div>
                   {showContextDetails ? (
-                    <ChevronDown className="w-4 h-4" />
+                    <ChevronDown className="w-4 h-4 ml-1" />
                   ) : (
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 ml-1" />
                   )}
                 </button>
 
                 {showContextDetails && (
-                  <div className="absolute bottom-24 left-4 right-4 bg-white border border-slate-200 rounded-lg shadow-xl p-4 max-h-96 overflow-y-auto">
-                    <h3 className="font-semibold text-slate-900 mb-3">Context Window Details</h3>
-                    <div className="space-y-2">
+                  <div className="absolute bottom-32 left-8 right-8 bg-white border border-slate-300 rounded-2xl shadow-2xl p-6 max-h-96 overflow-y-auto z-50">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-slate-900 text-lg">Context Window Details</h3>
+                      <button
+                        onClick={() => setShowContextDetails(false)}
+                        className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                      >
+                        <ChevronDown className="w-5 h-5 text-slate-500" />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
                       {contextSections.map(section => (
-                        <div key={section.name} className="border border-slate-200 rounded-lg">
+                        <div key={section.name} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                           <button
                             onClick={() => toggleSection(section.name)}
-                            className="w-full flex items-center justify-between p-3 text-left hover:bg-slate-50"
+                            className="w-full flex items-center justify-between p-4 text-left hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition-colors"
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               {expandedSections.has(section.name) ? (
-                                <ChevronDown className="w-4 h-4" />
+                                <ChevronDown className="w-5 h-5 text-blue-500" />
                               ) : (
-                                <ChevronRight className="w-4 h-4" />
+                                <ChevronRight className="w-5 h-5 text-slate-400" />
                               )}
-                              <span className="font-medium text-sm">{section.name}</span>
+                              <span className="font-semibold text-sm text-slate-900">{section.name}</span>
                             </div>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
                               {section.tokenCount.toLocaleString()} tokens
                             </span>
                           </button>
                           {expandedSections.has(section.name) && (
-                            <div className="px-3 pb-3 text-sm text-slate-600 border-t border-slate-200 pt-2 mt-2">
-                              <pre className="whitespace-pre-wrap">{section.content}</pre>
+                            <div className="px-4 pb-4 text-sm text-slate-600 border-t border-slate-200 bg-slate-50">
+                              <pre className="whitespace-pre-wrap pt-3">{section.content}</pre>
                             </div>
                           )}
                         </div>
                       ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <div className="text-sm text-slate-600">
+                        <span className="font-semibold">Total:</span> {contextSections.reduce((sum, s) => sum + s.tokenCount, 0).toLocaleString()} / 1,000,000 tokens
+                        <span className="ml-2 text-xs text-slate-500">({contextWindowUsage.toFixed(2)}%)</span>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Input Bar */}
-              <div className="flex items-end gap-3">
-                <button className="p-3 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                  <Paperclip className="w-5 h-5" />
+              <div className="flex items-end gap-4">
+                <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Paperclip className="w-6 h-6" />
                 </button>
                 
                 <div className="flex-1">
@@ -465,28 +495,38 @@ export default function ChatInterface({ userId }: { userId: string }) {
                         sendMessage();
                       }
                     }}
-                    placeholder="Type your message..."
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Type your message... (Shift+Enter for new line)"
+                    className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
                     rows={1}
-                    style={{ minHeight: '48px', maxHeight: '200px' }}
+                    style={{ minHeight: '56px', maxHeight: '200px' }}
                   />
                 </div>
 
                 <button
                   onClick={sendMessage}
                   disabled={!inputMessage.trim() || isLoading}
-                  className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="p-4 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-6 h-6" />
                 </button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Select a conversation or start a new one</p>
+          <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+            <div className="text-center p-8">
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transform hover:scale-110 transition-transform">
+                <MessageSquare className="w-12 h-12 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to SalfaGPT!</h2>
+              <p className="text-lg text-slate-600 mb-6">Select a conversation or start a new one</p>
+              <button
+                onClick={createNewConversation}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+              >
+                <Plus className="w-5 h-5 inline-block mr-2" />
+                Start Chatting
+              </button>
             </div>
           </div>
         )}
