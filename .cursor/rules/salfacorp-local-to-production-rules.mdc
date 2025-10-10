@@ -1,0 +1,30 @@
+---
+alwaysApply: true
+---
+Use the following files and docs for the salfacorp project to make sure we know how to work locally and how to deploy to gcp production.
+
+📚 Documentation Created
+LocalToProduction.md (1,095 lines)
+Complete local development setup
+Step-by-step production deployment
+All technical challenges & solutions
+OAuth configuration guide
+Secret management best practices
+Testing & verification procedures
+Maintenance & monitoring commands
+Lessons learned & key takeaways
+DEPLOYMENT_SUCCESS.md (235 lines)
+Production deployment summary
+Security configuration details
+Infrastructure setup
+Performance metrics
+Success criteria verification
+docs/BranchLog.md (Updated)
+Complete achievement summary
+What was accomplished
+Verified functionality checklist
+Daily progress tracking
+Additional Docs
+docs/CI_CD_SETUP.md
+docs/CI_CD_QUICK_REFERENCE.md
+docs/features/cicd-automation-2025-10-10.md

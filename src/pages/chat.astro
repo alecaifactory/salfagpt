@@ -5,7 +5,7 @@ import '../styles/global.css';
 
 // Check authentication
 const cookies = Astro.cookies;
-const token = cookies.get('auth_token')?.value;
+const token = cookies.get('salfagpt_session')?.value;
 
 // For development: allow test user without authentication
 const isDevelopment = import.meta.env.DEV;
@@ -16,15 +16,16 @@ if (isDevelopment && !token) {
   userId = 'test-user-dev-123';
   console.log('🔧 Development mode: Using test user ID:', userId);
 } else if (!token) {
-  // Production: require authentication
-  return Astro.redirect('/auth/login');
+  // Production: require authentication, preserve current URL
+  return Astro.redirect('/auth/login?redirect=/chat');
 } else {
   // Verify token
   try {
     const decoded = verifyJWT(token);
     userId = decoded.sub || decoded.id;
   } catch (error) {
-    return Astro.redirect('/auth/login');
+    // Token invalid, redirect to login with current URL
+    return Astro.redirect('/auth/login?redirect=/chat');
   }
 }
 ---

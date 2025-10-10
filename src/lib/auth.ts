@@ -82,13 +82,18 @@ export function getSession(context: APIContext) {
 export function setSession(context: APIContext, userData: any) {
   const token = generateJWT(userData);
   
+  // Check if running in production (Cloud Run sets NODE_ENV)
+  const isProduction = process.env.NODE_ENV === 'production' || !import.meta.env.DEV;
+  
   context.cookies.set('salfagpt_session', token, {
     httpOnly: true,
-    secure: import.meta.env.NODE_ENV === 'production',
+    secure: isProduction,
     sameSite: 'lax',
     maxAge: 86400, // 24 hours
     path: '/',
   });
+  
+  console.log(`Session cookie set (secure: ${isProduction})`);
 }
 
 // Clear session

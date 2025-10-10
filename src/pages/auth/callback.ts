@@ -50,8 +50,14 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
       // Continue anyway - don't block user login
     }
 
-    // Redirect to home page
-    return redirect('/home');
+    // Get the original redirect destination or default to /chat
+    const redirectTo = cookies.get('auth_redirect')?.value || '/chat';
+    
+    // Clear the redirect cookie
+    cookies.delete('auth_redirect', { path: '/' });
+    
+    // Redirect to the original destination
+    return redirect(redirectTo);
   } catch (error) {
     console.error('Authentication error:', error);
     return redirect('/?error=auth_processing_failed');
