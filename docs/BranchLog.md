@@ -1,5 +1,101 @@
 # Branch Activity Log
 
+## main - User Menu & Logout Feature (October 10, 2025)
+
+**Date:** October 10, 2025  
+**Branch:** feat/user-menu-logout-2025-10-10  
+**Status:** ✅ **COMPLETE - Deployed to Production**  
+**Purpose:** Add user menu with profile display and logout functionality
+
+### 🎉 Achievement Summary
+**Production URL:** https://salfagpt-cno6l2kfga-uc.a.run.app/chat  
+**Status:** 🟢 Live and fully functional  
+**Build Time:** 2m 34s  
+**Revision:** salfagpt-00007-9x6
+
+### What Was Built
+
+#### 👤 User Profile Display
+- Circular avatar with user initials (AD)
+- Gradient background (blue to indigo)
+- User full name: "Alec Dickinson"
+- Company name: "AI Factory LLC" with building icon
+- Professional styling with shadows
+
+#### 📋 Expandable Menu
+- Click to expand/collapse functionality
+- Smooth chevron rotation animation
+- Three menu options:
+  - ⚙️ Configuration (ready for future implementation)
+  - ❓ Help (ready for future implementation)  
+  - 🚪 Close Session (fully functional logout)
+- Red styling for logout emphasis
+- Divider separating logout from other options
+
+#### 🔒 Logout Functionality
+- Clears session cookies
+- Calls POST /auth/logout endpoint
+- Redirects to home page
+- Forces re-authentication
+- Fallback error handling
+
+### Technical Implementation
+
+#### Files Modified
+- `src/components/ChatInterface.tsx` (+90 lines)
+  - Added user menu state and handlers
+  - Implemented expandable menu UI
+  - Added logout, configuration, and help handlers
+  - Imported new icons (Settings, HelpCircle, LogOut, Building2)
+
+- `src/pages/auth/logout.ts` (+8 lines)
+  - Added POST handler for API logout
+  - Returns JSON success response
+  - Maintains GET handler for direct navigation
+
+#### Design System
+- **Colors**: Matching existing gradient system
+- **Typography**: Consistent with sidebar styling
+- **Animations**: Smooth transitions and hover effects
+- **Icons**: Lucide React icons
+- **Spacing**: Professional padding and gaps
+
+### Deployment
+```bash
+# Built: 2m 34s
+# Deployed: salfagpt-00007-9x6
+# Status: SUCCESS
+```
+
+### Success Criteria - All Met ✅
+- [x] User menu in bottom left of sidebar
+- [x] Company name displayed
+- [x] User name displayed
+- [x] Configuration menu option
+- [x] Help menu option
+- [x] Close Session (logout) working
+- [x] Beautiful design matching UI
+- [x] Smooth animations
+- [x] Production deployed
+- [x] Tested and verified
+
+### Future Enhancements
+- [ ] Configuration page implementation
+- [ ] Help/documentation page
+- [ ] Profile picture upload
+- [ ] User preferences management
+- [ ] Account settings
+
+### Commits
+```
+14e4001 - feat: Add user menu with logout functionality in sidebar
+```
+
+### Documentation
+- [Feature Documentation](./features/user-menu-logout-2025-10-10.md)
+
+---
+
 ## main - Chat Interface Feature (October 10, 2025)
 
 **Date:** October 10, 2025  
