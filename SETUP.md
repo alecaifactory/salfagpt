@@ -80,7 +80,9 @@ JWT_SECRET=your_generated_jwt_secret
 
 # Google Cloud Project Configuration
 GOOGLE_CLOUD_PROJECT=your_gcp_project_id
-GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
+# GOOGLE_APPLICATION_CREDENTIALS not needed for Workload Identity
+# Only set if using service account key file:
+# GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # BigQuery Configuration
 BIGQUERY_DATASET=salfagpt_dataset
@@ -107,14 +109,31 @@ openssl rand -base64 32
 
 ### Create Service Account
 
+**Important**: Modern GCP security best practices recommend using Workload Identity instead of service account keys. This approach is more secure and doesn't require managing key files.
+
+#### Option A: Workload Identity (Recommended - No Keys!)
+
 1. Go to **IAM & Admin** > **Service Accounts**
 2. Click **Create Service Account**
 3. Name: "salfagpt-service"
 4. Grant these roles:
-   - BigQuery Admin
-   - Vertex AI User
-5. Click **Create Key** > **JSON**
-6. Save the key as `gcp-service-account-key.json` in the project root
+   - **BigQuery Admin** (`roles/bigquery.admin`)
+   - **Vertex AI User** (`roles/aiplatform.user`)
+   - **Cloud Datastore User** (`roles/datastore.user`)
+   - **Logs Writer** (`roles/logging.logWriter`) - Optional
+5. Click **Done** (no need to create keys!)
+
+Your Cloud Run deployment will automatically authenticate using this service account.
+
+#### Option B: Service Account Key (If Required)
+
+If your organization allows service account keys:
+1. Follow steps 1-4 above
+2. Click **Create Key** > **JSON**
+3. Save as `gcp-service-account-key.json` in project root
+4. Add to `.gitignore`: `echo "gcp-service-account-key.json" >> .gitignore`
+
+**⚠️ Security Note**: If you see "Service account key creation is disabled" error, use Option A (Workload Identity) instead.
 
 ### Enable Required APIs
 
@@ -143,7 +162,37 @@ npm run setup:bigquery
 npm install
 ```
 
-## 5. Run Locally
+## 5. Local Development Authentication
+
+For local development, authenticate using your own Google Cloud credentials:
+
+```bash
+# Authenticate with your Google account
+gcloud auth application-default login
+
+# Set your default project
+gcloud config set project YOUR_PROJECT_ID
+```
+
+This creates Application Default Credentials (ADC) that the app will use automatically.
+
+**Important**: Make sure your Google account has the same permissions as the service account:
+```bash
+# Grant yourself the necessary roles
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="user:your-email@gmail.com" \
+  --role="roles/bigquery.admin"
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="user:your-email@gmail.com" \
+  --role="roles/aiplatform.user"
+
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="user:your-email@gmail.com" \
+  --role="roles/datastore.user"
+```
+
+## 6. Run Locally
 
 ```bash
 npm run dev
@@ -151,7 +200,12 @@ npm run dev
 
 Visit `http://localhost:3000`
 
-## 6. Production Deployment to Google Cloud Run
+**Troubleshooting Local Auth**:
+- If you see authentication errors, run `gcloud auth application-default login` again
+- Verify your project is set: `gcloud config get-value project`
+- Check your credentials: `gcloud auth list`
+
+## 7. Production Deployment to Google Cloud Run
 
 ### Build the Docker Image
 
@@ -182,19 +236,22 @@ CMD ["node", "./dist/server/entry.mjs"]
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/salfagpt
 ```
 
-2. Deploy to Cloud Run:
+2. Deploy to Cloud Run with Workload Identity:
 ```bash
 gcloud run deploy salfagpt \
   --image gcr.io/YOUR_PROJECT_ID/salfagpt \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
+  --service-account salfagpt-service@YOUR_PROJECT_ID.iam.gserviceaccount.com \
   --set-env-vars "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
   --set-env-vars "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
   --set-env-vars "JWT_SECRET=${JWT_SECRET}" \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}" \
   --set-env-vars "NODE_ENV=production"
 ```
+
+**Key Addition**: The `--service-account` flag enables Workload Identity - Cloud Run will automatically authenticate as this service account without needing key files!
 
 3. Update your `.env` for production:
    - Set `PUBLIC_BASE_URL` to your Cloud Run URL
@@ -211,7 +268,7 @@ Update in Google Cloud Console:
    - **Authorized JavaScript origins:** `https://salfagpt-xxx-uc.a.run.app`
    - **Authorized redirect URIs:** `https://salfagpt-xxx-uc.a.run.app/auth/callback`
 
-## 7. Security Best Practices
+## 8. Security Best Practices
 
 ✅ **Implemented:**
 - HTTPOnly cookies for session management
@@ -230,7 +287,7 @@ Update in Google Cloud Console:
 - Add Content Security Policy headers
 - Regular security audits
 
-## 8. Monitoring and Logging
+## 9. Monitoring and Logging
 
 View logs:
 ```bash

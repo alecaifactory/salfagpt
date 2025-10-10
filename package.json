@@ -4,19 +4,25 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
+    "dev:emulator": "firebase emulators:start --only firestore,pubsub",
+    "dev:local": "FIRESTORE_EMULATOR_HOST=localhost:8080 PUBSUB_EMULATOR_HOST=localhost:8085 astro dev",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
     "setup:bigquery": "node scripts/setup-bigquery.js",
+    "setup:emulators": "firebase init emulators",
     "deploy:build": "gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/salfagpt",
-    "deploy:run": "gcloud run deploy salfagpt --image gcr.io/${GOOGLE_CLOUD_PROJECT}/salfagpt --platform managed --region us-central1 --allow-unauthenticated"
+    "deploy:run": "gcloud run deploy salfagpt --image gcr.io/${GOOGLE_CLOUD_PROJECT}/salfagpt --platform managed --region us-central1 --allow-unauthenticated",
+    "test:emulators": "firebase emulators:exec --only firestore 'npm run build'"
   },
   "dependencies": {
     "@astrojs/node": "^9.4.4",
     "@astrojs/react": "^4.4.0",
     "@astrojs/tailwind": "^6.0.2",
     "@google-cloud/bigquery": "^8.1.1",
+    "@google-cloud/error-reporting": "^3.0.5",
     "@google-cloud/firestore": "^7.10.0",
+    "@google-cloud/logging": "^11.2.1",
     "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.23.0",
     "astro": "^5.14.1",
@@ -35,6 +41,7 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "autoprefixer": "^10.4.21",
+    "firebase-tools": "^14.19.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"

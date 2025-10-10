@@ -1,21 +1,30 @@
 ---
 import ChatInterface from '../components/ChatInterface';
-import { verifyToken } from '../lib/auth';
+import { verifyJWT } from '../lib/auth';
 
 // Check authentication
 const cookies = Astro.cookies;
 const token = cookies.get('auth_token')?.value;
 
-if (!token) {
-  return Astro.redirect('/auth/login');
-}
-
+// For development: allow test user without authentication
+const isDevelopment = import.meta.env.DEV;
 let userId: string;
-try {
-  const decoded = verifyToken(token);
-  userId = decoded.sub;
-} catch (error) {
+
+if (isDevelopment && !token) {
+  // Development mode: use test user
+  userId = 'test-user-dev-123';
+  console.log('🔧 Development mode: Using test user ID:', userId);
+} else if (!token) {
+  // Production: require authentication
   return Astro.redirect('/auth/login');
+} else {
+  // Verify token
+  try {
+    const decoded = verifyJWT(token);
+    userId = decoded.sub || decoded.id;
+  } catch (error) {
+    return Astro.redirect('/auth/login');
+  }
 }
 ---
 
@@ -74,4 +83,3 @@ try {
     animation-delay: 0.2s;
   }
 </style>
-
