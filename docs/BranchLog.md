@@ -1,5 +1,74 @@
 # Branch Activity Log
 
+## feat/cicd-automation-2025-10-10
+
+**Created:** October 10, 2025  
+**Status:** 🚧 In Progress  
+**Purpose:** Set up CI/CD pipeline for automated deployments to Google Cloud Run
+
+### Objective
+Implement a complete CI/CD pipeline that automates testing, building, and deployment of the SalfaGPT application to Google Cloud Run, with proper authentication and security best practices.
+
+### Files to Touch
+- `.github/workflows/deploy.yml` (new) - GitHub Actions workflow
+- `.github/workflows/pr-checks.yml` (new) - PR validation workflow
+- `cloudbuild.yaml` (new) - Google Cloud Build configuration
+- `docs/features/cicd-automation-2025-10-10.md` (new) - Feature documentation
+- `docs/CI_CD_SETUP.md` (new) - Setup guide
+- `package.json` - Add CI/CD scripts
+- `README.md` - Update with CI/CD documentation
+
+### Dependencies
+- Requires GCP project and service account setup
+- Depends on existing OAuth configuration
+- No conflicts with other active branches
+
+### Risk
+**Low** - This is purely additive infrastructure code. Does not modify application logic.
+
+### Technical Approach
+1. **GitHub Actions Workflows**:
+   - PR validation (linting, type checking, tests)
+   - Automated deployments on merge to main
+   - Manual deployment triggers for staging/production
+
+2. **Google Cloud Build**:
+   - Build Docker containers
+   - Run integration tests
+   - Deploy to Cloud Run
+   - Manage secrets and environment variables
+
+3. **Security**:
+   - Workload Identity Federation (no service account keys)
+   - Secret management via Google Secret Manager
+   - Environment-specific configurations
+
+4. **Quality Gates**:
+   - Type checking must pass
+   - No linter errors
+   - All tests must pass
+   - Build must succeed
+
+### Success Criteria
+- [ ] PR validation workflow runs on all pull requests
+- [ ] Automated deployment to staging on merge to main
+- [ ] Manual production deployment trigger available
+- [ ] Secrets properly managed (no keys in repo)
+- [ ] Build times < 3 minutes
+- [ ] Zero-downtime deployments
+- [ ] Rollback capability implemented
+- [ ] Documentation complete
+
+### Daily Progress
+
+#### October 10, 2025 - Initial Setup
+- **Done:** Created branch and initial documentation
+- **Next:** Create GitHub Actions workflows and Cloud Build configuration
+- **Blockers:** None
+- **Metrics:** N/A
+
+---
+
 ## feat/gcp-observability-2025-10-09
 
 **Created:** October 9, 2025  
