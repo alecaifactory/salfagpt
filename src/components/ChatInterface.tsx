@@ -10,7 +10,12 @@ import {
   Paperclip,
   Image as ImageIcon,
   Code,
-  Info
+  Info,
+  Settings,
+  HelpCircle,
+  LogOut,
+  User,
+  Building2
 } from 'lucide-react';
 
 interface Message {
@@ -83,6 +88,12 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const [showContextDetails, setShowContextDetails] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [useMockData, setUseMockData] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [userInfo, setUserInfo] = useState({
+    name: 'Alec Dickinson',
+    email: 'alec@getaifactory.com',
+    company: 'AI Factory LLC'
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +278,29 @@ export default function ChatInterface({ userId }: { userId: string }) {
     });
   };
 
+  const handleLogout = async () => {
+    try {
+      // Call logout API
+      await fetch('/auth/logout', { method: 'POST' });
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Fallback: still redirect
+      window.location.href = '/';
+    }
+  };
+
+  const handleConfiguration = () => {
+    // TODO: Implement configuration page navigation
+    console.log('Opening configuration...');
+  };
+
+  const handleHelp = () => {
+    // TODO: Implement help page navigation
+    console.log('Opening help...');
+  };
+
   const renderMessage = (message: Message) => {
     if (message.content.type === 'text') {
       return <p className="whitespace-pre-wrap">{message.content.text}</p>;
@@ -359,6 +393,60 @@ export default function ChatInterface({ userId }: { userId: string }) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* User Menu */}
+        <div className="border-t border-slate-200 bg-gradient-to-br from-white to-slate-50">
+          {/* User Menu Dropdown */}
+          {showUserMenu && (
+            <div className="p-2 space-y-1">
+              <button
+                onClick={handleConfiguration}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
+              >
+                <Settings className="w-5 h-5 text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">Configuration</span>
+              </button>
+
+              <button
+                onClick={handleHelp}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
+              >
+                <HelpCircle className="w-5 h-5 text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">Help</span>
+              </button>
+
+              <div className="h-px bg-slate-200 my-2" />
+
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 rounded-lg transition-all transform hover:scale-[1.02] group"
+              >
+                <LogOut className="w-5 h-5 text-red-600 group-hover:text-red-700" />
+                <span className="text-sm font-medium text-red-600 group-hover:text-red-700">Close Session</span>
+              </button>
+            </div>
+          )}
+
+          {/* User Info Button */}
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="w-full p-4 flex items-center gap-3 hover:bg-slate-100 transition-all"
+          >
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg">
+              {userInfo.name.split(' ').map(n => n[0]).join('')}
+            </div>
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-semibold text-slate-800 truncate">{userInfo.name}</p>
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <Building2 className="w-3 h-3" />
+                <span className="truncate">{userInfo.company}</span>
+              </div>
+            </div>
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${
+              showUserMenu ? 'rotate-180' : ''
+            }`} />
+          </button>
         </div>
       </div>
 
