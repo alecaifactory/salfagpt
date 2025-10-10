@@ -6,14 +6,20 @@ const LOCATION = import.meta.env.VERTEX_AI_LOCATION || 'us-central1';
 const DATASET_ID = import.meta.env.BIGQUERY_DATASET || 'salfagpt_dataset';
 
 // Initialize BigQuery client
+// In production (Cloud Run), uses Workload Identity automatically
+// In development, uses Application Default Credentials (gcloud auth)
 export const bigquery = new BigQuery({
   projectId: PROJECT_ID,
+  // No keyFilename needed - uses automatic authentication
 });
 
 // Initialize Vertex AI client
+// In production (Cloud Run), uses Workload Identity automatically
+// In development, uses Application Default Credentials (gcloud auth)
 export const vertexAI = new VertexAI({
   project: PROJECT_ID,
   location: LOCATION,
+  // No credentials needed - uses automatic authentication
 });
 
 // BigQuery helper functions

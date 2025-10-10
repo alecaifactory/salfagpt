@@ -60,10 +60,27 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 ## 📚 Documentation
 
-- **[SETUP.md](./SETUP.md)** - Complete setup guide
+### Setup Guides
+- **[SETUP_SUMMARY.md](./SETUP_SUMMARY.md)** - 📋 **Quick overview** - Everything in one page
+- **[NO_KEYS_SETUP.md](./NO_KEYS_SETUP.md)** - 🔥 **Start here!** Quick setup commands (no keys!)
+- **[ENV_VARIABLES_REFERENCE.md](./ENV_VARIABLES_REFERENCE.md)** - 💡 Environment variables explained
+- **[WORKLOAD_IDENTITY_GUIDE.md](./WORKLOAD_IDENTITY_GUIDE.md)** - 📖 Complete Workload Identity guide
+- **[SETUP.md](./SETUP.md)** - 🔧 Full setup guide
 - **[OAUTH_CONFIG.md](./OAUTH_CONFIG.md)** - OAuth configuration reference
+
+### Feature Documentation
 - **[docs/ANALYTICS_SETUP.md](./docs/ANALYTICS_SETUP.md)** - Analytics dashboard setup and usage
 - **[Architecture](#architecture)** - System architecture overview
+
+### 🔐 Authentication: No Keys Required!
+
+This project uses **Workload Identity** for secure, keyless authentication:
+- ✅ No service account key files to manage
+- ✅ More secure than traditional JSON keys
+- ✅ Compliant with organization security policies
+- ✅ Automatic credential rotation by Google
+
+See **[NO_KEYS_SETUP.md](./NO_KEYS_SETUP.md)** for quick setup instructions.
 
 ## 🏗️ Architecture
 
@@ -119,6 +136,7 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 Security best practices implemented:
 
+- ✅ **Workload Identity** - No service account keys (more secure!)
 - ✅ HTTPOnly cookies for session tokens
 - ✅ Secure cookie flag in production
 - ✅ SameSite cookie policy (CSRF protection)
@@ -127,6 +145,7 @@ Security best practices implemented:
 - ✅ Service account with minimal permissions
 - ✅ Input validation and sanitization
 - ✅ No sensitive data in client-side code
+- ✅ Organization policy compliant
 
 ## 📦 Project Structure
 

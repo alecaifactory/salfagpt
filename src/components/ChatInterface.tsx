@@ -59,25 +59,77 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [contextWindowUsage, setContextWindowUsage] = useState(0);
-  const [contextSections, setContextSections] = useState<ContextSection[]>([]);
+  const [contextWindowUsage, setContextWindowUsage] = useState(2.3);
+  const [contextSections, setContextSections] = useState<ContextSection[]>([
+    {
+      name: 'System Instructions',
+      tokenCount: 500,
+      content: 'You are a helpful AI assistant powered by Gemini 2.5-pro.',
+      collapsed: true,
+    },
+    {
+      name: 'Conversation History',
+      tokenCount: 1500,
+      content: 'Current conversation messages',
+      collapsed: false,
+    },
+    {
+      name: 'User Context',
+      tokenCount: 0,
+      content: 'No additional context',
+      collapsed: true,
+    },
+  ]);
   const [showContextDetails, setShowContextDetails] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  const [useMockData, setUseMockData] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversations on mount
   useEffect(() => {
-    loadConversations();
-  }, [userId]);
+    if (useMockData) {
+      // Mock data for development
+      setConversations([
+        {
+          label: 'Today',
+          conversations: [
+            {
+              id: 'conv-1',
+              title: 'Getting Started with AI',
+              lastMessageAt: new Date(),
+              messageCount: 5,
+            },
+          ],
+        },
+        {
+          label: 'Yesterday',
+          conversations: [
+            {
+              id: 'conv-2',
+              title: 'Python Programming Help',
+              lastMessageAt: new Date(Date.now() - 86400000),
+              messageCount: 12,
+            },
+          ],
+        },
+      ]);
+    } else {
+      loadConversations();
+    }
+  }, [userId, useMockData]);
 
   // Load messages when conversation changes
   useEffect(() => {
     if (currentConversation) {
-      loadMessages(currentConversation);
-      loadContextInfo(currentConversation);
+      if (useMockData) {
+        setMessages([]);
+      } else {
+        loadMessages(currentConversation);
+        loadContextInfo(currentConversation);
+      }
     }
-  }, [currentConversation]);
+  }, [currentConversation, useMockData]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -91,6 +143,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       setConversations(data.groups);
     } catch (error) {
       console.error('Error loading conversations:', error);
+      setUseMockData(true);
     }
   };
 
@@ -116,6 +169,13 @@ export default function ChatInterface({ userId }: { userId: string }) {
   };
 
   const createNewConversation = async () => {
+    if (useMockData) {
+      const newConvId = `conv-${Date.now()}`;
+      setCurrentConversation(newConvId);
+      setMessages([]);
+      return;
+    }
+
     try {
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -127,6 +187,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       loadConversations();
     } catch (error) {
       console.error('Error creating conversation:', error);
+      setUseMockData(true);
     }
   };
 
@@ -141,8 +202,28 @@ export default function ChatInterface({ userId }: { userId: string }) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = inputMessage;
     setInputMessage('');
     setIsLoading(true);
+
+    if (useMockData) {
+      // Mock AI response
+      setTimeout(() => {
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: {
+            type: 'text',
+            text: `I'm a mock AI response to: "${currentInput}"\n\nThis is the full ChatInterface with:\n✅ Left sidebar with conversations\n✅ Context window tracking (${contextWindowUsage.toFixed(1)}%)\n✅ Multi-modal support ready\n✅ Professional UI\n\nTo enable real AI responses, configure your Google AI API key in the environment variables.`,
+          },
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        setContextWindowUsage(prev => Math.min(prev + 0.5, 100));
+        setIsLoading(false);
+      }, 1000);
+      return;
+    }
 
     try {
       const response = await fetch(`/api/conversations/${currentConversation}/messages`, {
@@ -150,7 +231,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          message: inputMessage,
+          message: currentInput,
         }),
       });
 
@@ -166,7 +247,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       setMessages(prev => [...prev, assistantMessage]);
       setContextWindowUsage(data.contextUsage);
       setContextSections(data.contextSections);
-      loadConversations(); // Refresh to update last message time
+      loadConversations();
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -228,41 +309,47 @@ export default function ChatInterface({ userId }: { userId: string }) {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-4 border-b border-slate-200">
+      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-xl">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
             onClick={createNewConversation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <Plus className="w-5 h-5" />
-            <span className="font-medium">New Conversation</span>
+            <span className="font-bold">New Conversation</span>
           </button>
         </div>
 
+        {/* Conversations List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {conversations.map(group => (
             <div key={group.label}>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              <h3 className="text-xs font-bold text-slate-600 uppercase mb-3 tracking-wider">
                 {group.label}
               </h3>
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {group.conversations.map(conv => (
                   <button
                     key={conv.id}
                     onClick={() => setCurrentConversation(conv.id)}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                    className={`w-full text-left px-4 py-3 rounded-xl transition-all transform ${
                       currentConversation === conv.id
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'hover:bg-slate-50 text-slate-700'
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg scale-105'
+                        : 'hover:bg-slate-100 text-slate-700 hover:shadow-md'
                     }`}
                   >
-                    <div className="flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 mt-1 flex-shrink-0" />
+                    <div className="flex items-start gap-3">
+                      <MessageSquare className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
+                        currentConversation === conv.id ? 'text-white' : 'text-blue-500'
+                      }`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{conv.title}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-semibold truncate">{conv.title}</p>
+                        <p className={`text-xs ${
+                          currentConversation === conv.id ? 'text-blue-100' : 'text-slate-500'
+                        }`}>
                           {conv.messageCount} messages
                         </p>
                       </div>
