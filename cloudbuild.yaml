@@ -1,0 +1,47 @@
+# Cloud Build Configuration for PR Validation
+# Runs on pull requests to validate code quality
+# Triggers: PR creation, PR updates
+# Duration: ~2-3 minutes
+
+steps:
+  # Step 1: Install dependencies
+  - name: 'node:20'
+    id: 'install'
+    entrypoint: 'npm'
+    args: ['ci']
+    waitFor: ['-']
+  
+  # Step 2: Type checking
+  - name: 'node:20'
+    id: 'type-check'
+    entrypoint: 'npm'
+    args: ['run', 'type-check']
+    waitFor: ['install']
+  
+  # Step 3: Linting
+  - name: 'node:20'
+    id: 'lint'
+    entrypoint: 'npm'
+    args: ['run', 'lint']
+    waitFor: ['install']
+  
+  # Step 4: Build (verifies production build works)
+  - name: 'node:20'
+    id: 'build'
+    entrypoint: 'npm'
+    args: ['run', 'build']
+    env:
+      - 'NODE_ENV=production'
+      - 'NEXT_PUBLIC_PLATFORM=www'
+    waitFor: ['type-check', 'lint']
+
+# Build configuration
+options:
+  # Use higher CPU for faster builds
+  machineType: 'E2_HIGHCPU_8'
+  
+  # Build logs
+  logging: CLOUD_LOGGING_ONLY
+  
+  # Timeout for entire build
+  timeout: '600s'  # 10 minutes

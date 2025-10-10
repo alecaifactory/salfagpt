@@ -2,10 +2,12 @@ import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import type { APIContext } from 'astro';
 
-const GOOGLE_CLIENT_ID = import.meta.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = import.meta.env.GOOGLE_CLIENT_SECRET;
-const JWT_SECRET = import.meta.env.JWT_SECRET;
-const BASE_URL = import.meta.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+// Use process.env for runtime secrets (works with Secret Manager)
+// Fallback to import.meta.env for local development
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || import.meta.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || import.meta.env.GOOGLE_CLIENT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || import.meta.env.JWT_SECRET;
+const BASE_URL = process.env.PUBLIC_BASE_URL || import.meta.env.PUBLIC_BASE_URL || 'http://localhost:3000';
 
 // Initialize OAuth2 client
 export const oauth2Client = new OAuth2Client(
