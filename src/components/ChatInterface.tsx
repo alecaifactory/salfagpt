@@ -733,7 +733,7 @@ ${userInfo.company}`;
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations & Context */}
-      <div className="w-[440px] bg-white border-r border-slate-200 flex flex-col shadow-xl relative">
+      <div className={`${selectedSourceId ? 'w-[600px]' : 'w-[440px]'} bg-white border-r border-slate-200 flex flex-col shadow-xl relative transition-all duration-300`}>
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -746,7 +746,7 @@ ${userInfo.company}`;
         </div>
 
         {/* Conversations List - Limited height to give more space to Context */}
-        <div className="flex-none h-64 overflow-y-auto p-4 space-y-4">
+        <div className={`flex-none ${selectedSourceId ? 'h-48' : 'h-64'} overflow-y-auto p-4 space-y-4 transition-all duration-300`}>
           {conversations.map(group => (
             <div key={group.label}>
               <h3 className="text-xs font-bold text-slate-600 uppercase mb-3 tracking-wider">
