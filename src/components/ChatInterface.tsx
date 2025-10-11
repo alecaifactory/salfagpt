@@ -451,12 +451,12 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
   const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
     const newSource: ContextSource = {
       id: `source-${Date.now()}`,
-      name: file ? file.name : url || apiConfig?.endpoint || 'Nueva Fuente',
+      name: file ? file.name : url || apiConfig?.apiEndpoint || 'Nueva Fuente',
       type,
       enabled: true,
       status: 'processing',
       addedAt: new Date(),
-      metadata: file ? { fileSize: file.size } : url ? { url } : { apiEndpoint: apiConfig?.endpoint },
+      metadata: file ? { fileSize: file.size } : url ? { url } : { apiEndpoint: apiConfig?.apiEndpoint },
     };
 
     setContextSources(prev => [...prev, newSource]);
@@ -465,7 +465,10 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     try {
       let extractedData = '';
       const workflow = workflows.find(w => w.sourceType === type);
-      const config = workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 };
+      const config = {
+        ...(workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 }),
+        model: apiConfig?.model || 'gemini-2.5-flash' // Use model from config or default to Flash
+      };
 
       if (type === 'pdf-text' && file) {
         extractedData = await extractors.extractPdfText(file, config);

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight } from 'lucide-react';
+import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight, Sparkles, Info } from 'lucide-react';
 import type { SourceType } from '../types/context';
 
 interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddSource: (type: SourceType, file?: File, url?: string, apiConfig?: any) => Promise<void>;
+  onAddSource: (type: SourceType, file?: File, url?: string, config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string }) => Promise<void>;
 }
 
 type StepType = 'select-type' | 'configure' | 'processing';
@@ -17,6 +17,8 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
   const [url, setUrl] = useState('');
   const [apiEndpoint, setApiEndpoint] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [showModelTooltip, setShowModelTooltip] = useState(false);
 
   if (!isOpen) return null;
 
@@ -75,10 +77,12 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
     setCurrentStep('processing');
 
     try {
+      const config = { model: selectedModel };
+      
       if (selectedType === 'web-url') {
-        await onAddSource(selectedType, undefined, url);
+        await onAddSource(selectedType, undefined, url, config);
       } else if (selectedType === 'api') {
-        await onAddSource(selectedType, undefined, undefined, { endpoint: apiEndpoint });
+        await onAddSource(selectedType, undefined, undefined, { ...config, apiEndpoint });
       } else {
         // Use real file if available, otherwise create a mock file for testing
         const fileToUse = file || new File(
@@ -86,7 +90,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
           `documento-prueba-${Date.now()}.pdf`, 
           { type: "application/pdf" }
         );
-        await onAddSource(selectedType, fileToUse);
+        await onAddSource(selectedType, fileToUse, undefined, config);
       }
       
       // Reset and close
@@ -105,6 +109,8 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
     setUrl('');
     setApiEndpoint('');
     setIsProcessing(false);
+    setSelectedModel('gemini-2.5-flash');
+    setShowModelTooltip(false);
     onClose();
   };
 
@@ -229,6 +235,100 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
                       </div>
                     )}
                   </label>
+                </div>
+              </div>
+
+              {/* Model Selection */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Modelo de IA para Extracción
+                  </label>
+                  <div className="relative">
+                    <button
+                      onMouseEnter={() => setShowModelTooltip(true)}
+                      onMouseLeave={() => setShowModelTooltip(false)}
+                      className="text-slate-400 hover:text-blue-600 transition-colors"
+                    >
+                      <Info className="w-4 h-4" />
+                    </button>
+                    {showModelTooltip && (
+                      <div className="absolute left-6 top-0 w-80 bg-slate-900 text-white text-xs rounded-lg p-3 z-50 shadow-xl">
+                        <p className="font-semibold mb-2">💡 Recomendación</p>
+                        <p className="mb-2">Comienza con <strong>Flash</strong> para validar tu caso de uso:</p>
+                        <ul className="space-y-1 ml-4 list-disc">
+                          <li><strong>94% más económico</strong> ($0.001875 vs $0.03125 por 1M tokens)</li>
+                          <li>Ideal para documentos simples</li>
+                          <li>Respuesta 2x más rápida</li>
+                        </ul>
+                        <p className="mt-2 text-blue-300">Usa <strong>Pro</strong> cuando necesites:</p>
+                        <ul className="space-y-1 ml-4 list-disc">
+                          <li>Mayor precisión en documentos complejos</li>
+                          <li>Análisis de contexto profundo</li>
+                        </ul>
+                        <div className="mt-2 pt-2 border-t border-slate-700">
+                          <p className="text-slate-300">💸 Ahorro típico: <span className="text-green-400 font-semibold">$28 USD</span> por cada millón de tokens con Flash</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setSelectedModel('gemini-2.5-flash')}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      selectedModel === 'gemini-2.5-flash'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-slate-200 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className={`w-5 h-5 ${selectedModel === 'gemini-2.5-flash' ? 'text-green-600' : 'text-slate-400'}`} />
+                      <span className="font-semibold text-slate-800">Flash</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        Recomendado
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">Rápido y económico</p>
+                    <p className="text-xs text-green-600 font-medium mt-1">
+                      Ahorra 94% 💰
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedModel('gemini-2.5-pro')}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      selectedModel === 'gemini-2.5-pro'
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className={`w-5 h-5 ${selectedModel === 'gemini-2.5-pro' ? 'text-purple-600' : 'text-slate-400'}`} />
+                      <span className="font-semibold text-slate-800">Pro</span>
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
+                        Avanzado
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">Mayor precisión</p>
+                    <p className="text-xs text-purple-600 font-medium mt-1">
+                      Documentos complejos
+                    </p>
+                  </button>
+                </div>
+
+                <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-blue-800">
+                      <p className="font-medium">Próximamente: Sistema de Evaluación de Expertos</p>
+                      <p className="mt-1 text-blue-700">
+                        Los expertos podrán evaluar la calidad de las extracciones, comparar modelos A/B, 
+                        y proporcionar feedback automático sobre qué modelo usar según el caso de uso.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

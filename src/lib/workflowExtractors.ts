@@ -8,7 +8,8 @@ export async function extractPdfText(file: File, config?: WorkflowConfig): Promi
     const pdfParse = await import('pdf-parse');
     
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // Use Uint8Array instead of Buffer (works in browser)
+    const buffer = new Uint8Array(arrayBuffer);
     
     // @ts-ignore - pdf-parse has export issues with ESM
     const parseFunction = pdfParse.default || pdfParse;
@@ -46,7 +47,7 @@ export async function extractPdfWithImages(file: File, config?: WorkflowConfig):
     const pdfParse = await import('pdf-parse');
     
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = new Uint8Array(arrayBuffer);
     
     // @ts-ignore - pdf-parse has export issues with ESM
     const parseFunction = pdfParse.default || pdfParse;
@@ -86,7 +87,7 @@ export async function extractPdfTables(file: File, config?: WorkflowConfig): Pro
     const pdfParse = await import('pdf-parse');
     
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const buffer = new Uint8Array(arrayBuffer);
     
     // @ts-ignore - pdf-parse has export issues with ESM
     const parseFunction = pdfParse.default || pdfParse;

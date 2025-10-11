@@ -25,6 +25,7 @@ export interface WorkflowConfig {
   extractTables?: boolean;
   ocrEnabled?: boolean;
   language?: string;
+  model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // AI model for extraction
 }
 
 export interface Workflow {
