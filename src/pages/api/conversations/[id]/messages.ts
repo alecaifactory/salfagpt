@@ -43,7 +43,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     const conversationId = params.id;
     const body = await request.json();
-    const { userId, message } = body;
+    const { userId, message, model, systemPrompt } = body;
 
     if (!conversationId || !userId || !message) {
       return new Response(
@@ -79,9 +79,10 @@ export const POST: APIRoute = async ({ params, request }) => {
       .map(item => `${item.name}: ${item.content}`)
       .join('\n\n') || '';
 
-    // Generate AI response
+    // Generate AI response with user-selected model and system prompt
     const aiResponse = await generateAIResponse(message, {
-      systemInstruction: 'You are a helpful AI assistant powered by Gemini 2.5-pro. Provide clear, accurate, and helpful responses.',
+      model: model || 'gemini-2.5-flash', // Use user-selected model or default to flash
+      systemInstruction: systemPrompt || 'You are a helpful, accurate, and friendly AI assistant. Provide clear and concise responses while being thorough when needed. Be respectful and professional in all interactions.',
       conversationHistory,
       userContext: contextString,
       temperature: 0.7,

@@ -97,7 +97,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
   ]);
   const [showContextDetails, setShowContextDetails] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [useMockData, setUseMockData] = useState(true);
+  const [useMockData, setUseMockData] = useState(false); // Real API responses enabled
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [userInfo, setUserInfo] = useState({
     name: 'Alec Dickinson',
@@ -321,6 +321,8 @@ export default function ChatInterface({ userId }: { userId: string }) {
         body: JSON.stringify({
           userId,
           message: currentInput,
+          model: userConfig.model,              // ✅ Pass selected model
+          systemPrompt: userConfig.systemPrompt // ✅ Pass selected system prompt
         }),
       });
 

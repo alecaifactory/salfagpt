@@ -1,0 +1,370 @@
+---
+alwaysApply: true
+---
+
+# Production Configuration Validation Rules
+
+## 🚨 CRITICAL: Runtime Configuration Must Be Production-Ready
+
+This rule prevents configuration errors that break functionality even when code is present.
+
+---
+
+## Golden Rules
+
+### 1. NO Mock Data in Production Code
+**RULE**: `useMockData` must be `false` unless explicitly for testing.
+
+**Check**: Search for `useMockData.*=.*useState(true)`
+
+**Why**: Mock mode breaks real AI responses.
+
+### 2. ALL User Config Must Pass Through API Chain
+**RULE**: If user can configure it, API must receive and use it.
+
+**Chain Validation**:
+- User Config (ChatInterface) → API Call → API Endpoint → Service Function
+
+**Example**:
+```typescript
+// ✅ CORRECT Chain
+// 1. User Config
+const [userConfig, setUserConfig] = useState({ model: 'gemini-2.5-flash', ... });
+
+// 2. Pass to API
+body: JSON.stringify({
+  model: userConfig.model,  // ✅ Passed
+  systemPrompt: userConfig.systemPrompt // ✅ Passed
+})
+
+// 3. Extract in API
+const { model, systemPrompt } = body; // ✅ Extracted
+
+// 4. Use in Service
+generateAIResponse(message, {
+  model: model, // ✅ Used
+  systemInstruction: systemPrompt // ✅ Used
+})
+```
+
+### 3. Gemini SDK Usage Must Be Correct
+**RULE**: Always use patterns from `gemini-api-usage.mdc`.
+
+**❌ FORBIDDEN**:
+```typescript
+import { GoogleGenerativeAI } from '@google/genai';
+const genAI = new GoogleGenerativeAI(API_KEY);
+const model = genAI.getGenerativeModel({...});
+const chat = model.startChat({...});
+```
+
+**✅ REQUIRED**:
+```typescript
+import { GoogleGenAI } from '@google/genai';
+const genAI = new GoogleGenAI({ apiKey: API_KEY });
+const result = await genAI.models.generateContent({
+  model: model,
+  contents: contents,
+  config: { systemInstruction, temperature, maxOutputTokens }
+});
+```
+
+---
+
+## Configuration Validation Checklist
+
+### Before Committing Code:
+
+**1. Check useMockData**
+```bash
+grep -n "useMockData.*useState(true)" src/components/*.tsx
+```
+**Expected**: No results (or only in test files)
+
+**2. Check Model Passing**
+```bash
+# Frontend passes model?
+grep -A5 "fetch.*messages" src/components/ChatInterface.tsx | grep "model:"
+
+# API extracts model?
+grep "const.*model.*=.*body" src/pages/api/conversations/*/messages.ts
+
+# Service uses model?
+grep "model:" src/lib/gemini.ts
+```
+**Expected**: All 3 present
+
+**3. Check Gemini SDK**
+```bash
+# Correct import?
+grep "import.*GoogleGenAI" src/lib/gemini.ts
+
+# No forbidden methods?
+grep "getGenerativeModel\|startChat" src/lib/gemini.ts
+```
+**Expected**: Correct import, no forbidden methods
+
+---
+
+## AI Assistant Validation Protocol
+
+### BEFORE Modifying Config-Related Code:
+
+**Step 1: Identify Configuration**
+```
+Ask yourself:
+- Is this a user-configurable value?
+- Does it affect runtime behavior?
+- Is it passed through multiple layers?
+```
+
+**Step 2: Validate Full Chain**
+```
+For each config value:
+1. ✅ Where is it defined? (UI component)
+2. ✅ Where is it passed? (API call)
+3. ✅ Where is it extracted? (API endpoint)
+4. ✅ Where is it used? (Service function)
+```
+
+**Step 3: Check for Mock Mode**
+```
+grep -r "useMockData\|mock.*mode\|USE_MOCK" src/
+```
+**Action**: If found, verify it's `false` in production code.
+
+**Step 4: Verify SDK Usage**
+```
+Read: .cursor/rules/gemini-api-usage.mdc
+Compare: Current code vs documented patterns
+```
+
+---
+
+## Specific Checks by File Type
+
+### ChatInterface.tsx (Frontend)
+```typescript
+// ✅ REQUIRED Checks
+
+// 1. useMockData must be false
+const [useMockData] = useState(false); // Not true!
+
+// 2. All userConfig fields passed to API
+body: JSON.stringify({
+  userId,
+  message,
+  model: userConfig.model,              // ✅ Present
+  systemPrompt: userConfig.systemPrompt // ✅ Present
+})
+
+// 3. Config display matches what's sent
+// Model shown in UI = Model sent to API
+```
+
+### API Endpoints (Backend)
+```typescript
+// ✅ REQUIRED Checks
+
+// 1. Extract all config from request
+const { userId, message, model, systemPrompt } = body;
+
+// 2. Pass config to service functions
+const aiResponse = await generateAIResponse(message, {
+  model: model,                   // ✅ Passed
+  systemInstruction: systemPrompt // ✅ Passed
+});
+
+// 3. No hardcoded values
+// ❌ systemInstruction: 'You are...' // Hardcoded
+// ✅ systemInstruction: systemPrompt || 'default...' // From user
+```
+
+### Service Functions (gemini.ts)
+```typescript
+// ✅ REQUIRED Checks
+
+// 1. Correct SDK import
+import { GoogleGenAI } from '@google/genai'; // Not GoogleGenerativeAI
+
+// 2. Correct initialization
+const genAI = new GoogleGenAI({ apiKey: API_KEY }); // Object, not string
+
+// 3. Correct API calls
+await genAI.models.generateContent({...});  // Not getGenerativeModel()
+await genAI.models.generateContentStream({...}); // Not startChat()
+
+// 4. Use passed model
+model: options.model || 'gemini-2.5-flash', // From options, not hardcoded
+```
+
+---
+
+## Common Mistakes to Avoid
+
+### Mistake 1: Mock Mode Left On
+```typescript
+// ❌ WRONG: Development default in production
+const [useMockData] = useState(true);
+
+// ✅ CORRECT: Production default
+const [useMockData] = useState(false);
+
+// OR: Remove mock mode entirely
+// Delete useMockData state and all if (useMockData) blocks
+```
+
+### Mistake 2: Config Not Passed
+```typescript
+// ❌ WRONG: Missing config in API call
+body: JSON.stringify({ userId, message })
+
+// ✅ CORRECT: All config included
+body: JSON.stringify({ 
+  userId, 
+  message, 
+  model: userConfig.model,
+  systemPrompt: userConfig.systemPrompt 
+})
+```
+
+### Mistake 3: Config Not Used
+```typescript
+// ❌ WRONG: Extracted but not used
+const { model, systemPrompt } = body;
+const aiResponse = await generateAIResponse(message, {
+  systemInstruction: 'Hardcoded value' // Ignoring systemPrompt!
+});
+
+// ✅ CORRECT: Actually use it
+const aiResponse = await generateAIResponse(message, {
+  model: model,
+  systemInstruction: systemPrompt
+});
+```
+
+### Mistake 4: Wrong SDK Patterns
+```typescript
+// ❌ WRONG: Old SDK patterns
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+const chat = model.startChat({...});
+const result = await chat.sendMessage(message);
+
+// ✅ CORRECT: New SDK patterns
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-pro',
+  contents: [...],
+  config: {...}
+});
+```
+
+---
+
+## Testing Configuration
+
+### Manual Testing Checklist:
+
+```
+□ Start dev server: npm run dev
+□ Open browser: http://localhost:3000/chat
+□ Send test message: "hola"
+□ Verify response is NOT mock response
+□ Check model display matches selected model
+□ Change model in config
+□ Send another message
+□ Verify new model is used
+```
+
+### Expected Behavior:
+```
+✅ Real AI response (not mock)
+✅ Response matches selected model capabilities
+✅ Model change reflected in responses
+✅ System prompt affects response tone
+```
+
+### Red Flags:
+```
+🚩 Response starts with "I'm a mock AI response"
+🚩 Same response regardless of model
+🚩 Config changes don't affect output
+🚩 Console shows "Using mock data"
+```
+
+---
+
+## Recovery Procedure
+
+### If Configuration Error Detected:
+
+**Step 1: Identify Broken Link**
+```bash
+# Check each layer
+echo "1. Frontend Config:"
+grep "userConfig" src/components/ChatInterface.tsx
+
+echo "2. API Call:"
+grep -A10 "fetch.*messages" src/components/ChatInterface.tsx | grep "model:"
+
+echo "3. API Endpoint:"
+grep "const.*model.*body" src/pages/api/conversations/*/messages.ts
+
+echo "4. Service Function:"
+grep "model:" src/lib/gemini.ts
+```
+
+**Step 2: Fix Broken Link**
+- If missing in API call: Add to body
+- If missing in endpoint: Extract from body
+- If missing in service: Add to options and use
+
+**Step 3: Verify Chain**
+```bash
+# Trace a value through entire chain
+# Example: model value
+grep -n "model" src/components/ChatInterface.tsx \
+  src/pages/api/conversations/*/messages.ts \
+  src/lib/gemini.ts
+```
+
+---
+
+## Integration with Other Rules
+
+### Works With:
+- `gemini-api-usage.mdc` - SDK correctness
+- `code-change-protocol.mdc` - Change safety
+- `ui-features-protection.mdc` - Feature preservation
+
+### Complements:
+- Branch safety system - Prevents code loss
+- Error prevention checklist - Prevents common errors
+
+### Gap Filled:
+- **Configuration correctness** (previous rules didn't check this)
+- **Runtime behavior** (previous rules only checked code presence)
+- **Integration completeness** (previous rules didn't validate full chain)
+
+---
+
+## Summary
+
+### This Rule Prevents:
+1. ❌ Mock mode in production
+2. ❌ Config not passed through layers
+3. ❌ Config extracted but not used
+4. ❌ Wrong SDK usage patterns
+5. ❌ Hardcoded values overriding user config
+
+### By Enforcing:
+1. ✅ useMockData = false
+2. ✅ Full config chain validation
+3. ✅ Correct SDK patterns
+4. ✅ User config always used
+5. ✅ Testing checklist completed
+
+---
+
+**Last Updated**: January 11, 2025  
+**Reason**: Configuration error caused complete AI failure  
+**Priority**: CRITICAL - Must validate before every commit

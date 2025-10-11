@@ -34,9 +34,16 @@ This directory contains rules that guide the AI assistant to prevent common erro
    - Ask user before switching
    - Risk assessment and recommendations
 
+6. **production-config-validation.mdc** ⭐ NEW
+   - Validates runtime configuration correctness
+   - Ensures useMockData is false
+   - Verifies config passes through full chain
+   - Checks Gemini SDK usage patterns
+   - Prevents integration breakage
+
 ### Configuration
 
-6. **localhost-port.mdc**
+7. **localhost-port.mdc**
    - Always use port 3000 for this project
 
 ## How Cursor Rules Work
