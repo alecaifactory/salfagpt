@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Power, AlertCircle, CheckCircle, Loader, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -21,19 +21,6 @@ export default function ContextManager({
   onSourceClick,
 }: ContextManagerProps) {
   const [collapsed, setCollapsed] = useState(false);
-
-  const getStatusIcon = (status: ContextSource['status']) => {
-    switch (status) {
-      case 'active':
-        return <CheckCircle className="w-4 h-4 text-green-500" />;
-      case 'processing':
-        return <Loader className="w-4 h-4 text-blue-500 animate-spin" />;
-      case 'error':
-        return <AlertCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Power className="w-4 h-4 text-gray-400" />;
-    }
-  };
 
   const getSourceTypeLabel = (type: ContextSource['type']): string => {
     const labels: Record<ContextSource['type'], string> = {
@@ -92,9 +79,21 @@ export default function ContextManager({
                       e.stopPropagation();
                       onToggleSource(source.id);
                     }}
-                    className="flex-shrink-0"
+                    className="flex-shrink-0 relative inline-flex items-center"
+                    title={source.enabled ? 'Desactivar fuente' : 'Activar fuente'}
                   >
-                    {getStatusIcon(source.status)}
+                    {/* Toggle Switch */}
+                    <div
+                      className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                        source.enabled ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                          source.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                        } mt-0.5`}
+                      />
+                    </div>
                   </button>
 
                   <div className="flex-1 min-w-0">
