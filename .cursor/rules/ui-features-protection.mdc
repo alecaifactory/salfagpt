@@ -1,0 +1,333 @@
+---
+alwaysApply: true
+---
+
+# UI Features Protection Rules
+
+## 🚨 CRITICAL: Never Remove Working UI Features
+
+This file protects user-facing features that have been explicitly implemented and verified.
+
+---
+
+## Protected UI Features - DO NOT REMOVE
+
+### 1. Model Display Indicator (ChatInterface.tsx)
+
+**Location**: Next to Context Window button  
+**Format**: `Context: 0.0% • ✨ Gemini 2.5 Flash`
+
+**Required Elements**:
+```typescript
+// Required import
+import { Sparkles } from 'lucide-react';
+
+// Required state
+const [userConfig, setUserConfig] = useState<{
+  model: 'gemini-2.5-pro' | 'gemini-2.5-flash';
+  systemPrompt: string;
+}>({
+  model: 'gemini-2.5-flash',
+  systemPrompt: '...',
+});
+
+// Required in JSX (around line 515-520)
+<span className="mx-2 text-slate-400">•</span>
+<Sparkles className="w-4 h-4 text-blue-600" />
+<span className="text-sm font-medium text-slate-700">
+  {userConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+</span>
+```
+
+**WHY**: Users need to see which AI model is responding to their messages.
+
+**NEVER**:
+- Remove the Sparkles icon import
+- Remove the userConfig state
+- Remove the model display from the context button
+- Change without user explicit request
+
+---
+
+### 2. Disclaimer Text (ChatInterface.tsx)
+
+**Location**: Below chat input field  
+**Text**: "SalfaGPT puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas."
+
+**Required Elements**:
+```typescript
+// Required wrapper (around line 576)
+<div className="space-y-3">
+  <div className="flex items-end gap-4">
+    {/* Input field */}
+  </div>
+  
+  {/* Disclaimer - REQUIRED */}
+  <div className="text-center text-xs text-slate-500 px-4">
+    SalfaGPT puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas.
+  </div>
+</div>
+```
+
+**WHY**: Legal compliance and user expectations management.
+
+**NEVER**:
+- Remove the disclaimer div
+- Change the Spanish text without approval
+- Remove the space-y-3 wrapper
+
+---
+
+### 3. Folders Section (ChatInterface.tsx)
+
+**Location**: Top of sidebar, above conversation timeline
+
+**Required Elements**:
+```typescript
+// Required imports
+import { Folder, FolderPlus, X } from 'lucide-react';
+
+// Required state
+const [folders, setFolders] = useState<Folder[]>([]);
+const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+const [newFolderName, setNewFolderName] = useState('');
+
+// Required functions
+loadFolders()
+createNewFolder()
+selectFolder()
+```
+
+**WHY**: Core feature for conversation organization.
+
+**NEVER**:
+- Remove folder-related imports
+- Remove folder state variables
+- Remove folder UI section
+- Remove folder API calls
+
+---
+
+### 4. Context Window with Full History (ChatInterface.tsx)
+
+**Location**: Context details panel
+
+**Required Elements**:
+```typescript
+// Required function for temporary conversations
+const calculateLocalContext = () => {
+  // Builds full conversation history with timestamps
+  // Updates contextWindowUsage and contextSections
+}
+
+// Required useEffect
+useEffect(() => {
+  if (currentConversation && currentConversation.startsWith('temp-')) {
+    calculateLocalContext();
+  }
+}, [messages, userConfig]);
+```
+
+**WHY**: Users need full visibility into conversation history and token usage.
+
+**NEVER**:
+- Remove calculateLocalContext function
+- Remove the useEffect that updates context
+- Simplify context display to just message count
+
+---
+
+## Rules for AI Assistant
+
+### BEFORE Making Changes to ChatInterface.tsx
+
+1. **Check for Protected Features**:
+   - Search for "Model Display Indicator" comments
+   - Search for "Disclaimer" comments
+   - Search for "Folders" state
+   - Search for "calculateLocalContext" function
+
+2. **Read This File**: Always read this file before modifying ChatInterface.tsx
+
+3. **Verify Imports**: Check that these imports are present:
+   ```typescript
+   Sparkles, Folder, FolderPlus, X
+   ```
+
+4. **Verify State**: Check that these states exist:
+   ```typescript
+   userConfig, folders, selectedFolder, showNewFolderDialog
+   ```
+
+### DURING Changes
+
+1. **Never Remove**:
+   - Working UI features without explicit user request
+   - State variables that are being used
+   - Import statements that are required
+   - Event handlers for existing features
+
+2. **Always Preserve**:
+   - Model display in context button
+   - Disclaimer below input
+   - Folders section
+   - Context calculation for temporary conversations
+
+3. **Always Ask** before:
+   - Removing any UI component
+   - Removing any state variable
+   - Removing any function
+   - Simplifying existing features
+
+### AFTER Changes
+
+1. **Verify Features Still Work**:
+   ```bash
+   # Check imports
+   grep "Sparkles" src/components/ChatInterface.tsx
+   grep "userConfig" src/components/ChatInterface.tsx
+   grep "SalfaGPT puede cometer" src/components/ChatInterface.tsx
+   grep "calculateLocalContext" src/components/ChatInterface.tsx
+   
+   # Run linter
+   npm run type-check
+   ```
+
+2. **Test in Browser**:
+   - Model name visible next to context
+   - Disclaimer visible below input
+   - Folders section present
+   - Context shows full history
+
+---
+
+## Common Mistakes to Avoid
+
+### ❌ WRONG: Simplifying without asking
+```typescript
+// DON'T DO THIS
+<span>Context: {contextWindowUsage}%</span>
+// Missing: Model display, Sparkles icon
+```
+
+### ✅ CORRECT: Keep all elements
+```typescript
+<span>Context: {contextWindowUsage}%</span>
+<span className="mx-2 text-slate-400">•</span>
+<Sparkles className="w-4 h-4 text-blue-600" />
+<span>{userConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}</span>
+```
+
+### ❌ WRONG: Removing disclaimer wrapper
+```typescript
+// DON'T DO THIS
+<div className="flex items-end gap-4">
+  {/* input */}
+</div>
+// Missing: space-y-3 wrapper and disclaimer
+```
+
+### ✅ CORRECT: Keep wrapper and disclaimer
+```typescript
+<div className="space-y-3">
+  <div className="flex items-end gap-4">
+    {/* input */}
+  </div>
+  <div className="text-center text-xs text-slate-500 px-4">
+    SalfaGPT puede cometer errores...
+  </div>
+</div>
+```
+
+---
+
+## Recovery Checklist
+
+If features are missing, restore in this order:
+
+1. **Check imports**:
+   ```typescript
+   Sparkles, Folder, FolderPlus, X
+   ```
+
+2. **Restore state variables**:
+   ```typescript
+   userConfig, folders, selectedFolder, showNewFolderDialog, newFolderName
+   ```
+
+3. **Restore UI elements**:
+   - Model display in context button
+   - Disclaimer below input
+   - Folders section in sidebar
+
+4. **Restore functions**:
+   - calculateLocalContext()
+   - loadFolders()
+   - createNewFolder()
+   - selectFolder()
+
+5. **Run tests**:
+   ```bash
+   npm run type-check
+   npm run dev
+   # Test in browser
+   ```
+
+---
+
+## Documentation References
+
+- `docs/features/model-display-2025-01-11.md` - Model display feature
+- `docs/features/folders-organization-2025-01-11.md` - Folders feature
+- `docs/features/context-window-improvement-2025-01-11.md` - Context feature
+- `UX_IMPROVEMENTS_SUMMARY.md` - All UX features summary
+
+---
+
+## Version Control Protection
+
+### Before Committing Changes to ChatInterface.tsx
+
+Run this checklist:
+```bash
+# 1. Check protected features are present
+grep -q "Sparkles" src/components/ChatInterface.tsx && echo "✅ Sparkles import" || echo "❌ Missing Sparkles"
+grep -q "userConfig\.model" src/components/ChatInterface.tsx && echo "✅ Model display" || echo "❌ Missing model display"
+grep -q "SalfaGPT puede cometer" src/components/ChatInterface.tsx && echo "✅ Disclaimer" || echo "❌ Missing disclaimer"
+grep -q "calculateLocalContext" src/components/ChatInterface.tsx && echo "✅ Context calculation" || echo "❌ Missing context calc"
+
+# 2. Run type check
+npm run type-check
+
+# 3. Visual inspection
+echo "Open http://localhost:3000/chat and verify:"
+echo "  - Model name visible next to Context"
+echo "  - Disclaimer below input"
+echo "  - Folders section present"
+```
+
+---
+
+## Emergency Restoration
+
+If features are lost, use git to restore:
+
+```bash
+# Find last known good version
+git log --all --oneline -- src/components/ChatInterface.tsx
+
+# Check diff to see what changed
+git diff <commit-hash> src/components/ChatInterface.tsx
+
+# Restore specific features from commit
+git checkout <commit-hash> -- src/components/ChatInterface.tsx
+
+# Or manually restore from this documentation
+```
+
+---
+
+**Last Updated**: January 11, 2025  
+**Reason**: Features were accidentally removed, creating protection rules  
+**Severity**: CRITICAL - These features are user-facing and must be preserved

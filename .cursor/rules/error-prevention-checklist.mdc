@@ -1,0 +1,328 @@
+---
+alwaysApply: true
+---
+
+# Error Prevention Checklist - SalfaGPT
+
+## 🚨 CRITICAL: Read Before Making Changes
+
+This file contains rules learned from actual errors encountered during development. Following these rules prevents hours of debugging.
+
+---
+
+## 1. External API Integration Rules
+
+### When Using Google Cloud SDKs
+
+**ALWAYS verify the EXACT import and usage patterns:**
+
+```typescript
+// ✅ CORRECT for @google/genai v1.23.0
+import { GoogleGenAI } from '@google/genai'; // NOT GoogleGenerativeAI
+
+const genAI = new GoogleGenAI({ apiKey: key }); // Object with apiKey property
+const result = await genAI.models.generateContent({ // Use .models.generateContent
+  model: 'gemini-2.5-pro',
+  contents: message,
+  config: { systemInstruction, temperature, maxOutputTokens }
+});
+const text = result.text || ''; // Always use fallback
+```
+
+**NEVER assume:**
+- Class names from other Google SDKs
+- Method names from older versions
+- API patterns from examples (check version!)
+
+**VERIFY by:**
+1. Reading `node_modules/@package/README.md`
+2. Checking `.d.ts` files: `grep -r "class.*Gen" node_modules/@google/genai/dist/*.d.ts`
+3. Testing with actual API call
+
+---
+
+## 2. Development vs Production Rules
+
+### Rule: Services Must Degrade Gracefully
+
+**ALWAYS check if in development mode:**
+
+```typescript
+const IS_DEVELOPMENT = import.meta.env.DEV;
+
+// For optional services (analytics, logging, etc.)
+if (IS_DEVELOPMENT) {
+  console.log('[DEV] Skipping service X');
+  return;
+}
+
+// For core services with fallbacks
+try {
+  return await coreService.call();
+} catch (error) {
+  if (IS_DEVELOPMENT) {
+    console.warn('Service unavailable, using fallback');
+    return fallbackData;
+  }
+  throw error;
+}
+```
+
+**NEVER:**
+- Make external services required for local development
+- Use mock mode as automatic fallback
+- Crash the app if optional service fails
+
+**CHECKLIST for new external services:**
+- [ ] Define dev behavior (skip / mock / optional)
+- [ ] Add try-catch with fallback
+- [ ] Log what would happen in dev
+- [ ] Document setup in `docs/`
+
+---
+
+## 3. React State Management Rules
+
+### Rule: States Must Always Have Valid Values
+
+**ALWAYS initialize with valid values:**
+
+```typescript
+// ✅ CORRECT
+const [count, setCount] = useState(0); // NOT undefined
+const [items, setItems] = useState<Item[]>([]); // NOT undefined
+const [user, setUser] = useState<User | null>(null); // Explicit null OK
+```
+
+**ALWAYS use fallbacks when updating:**
+
+```typescript
+// ✅ CORRECT
+setCount(data.count || 0);
+setItems(data.items || []);
+setContextUsage(data.usage || 0);
+```
+
+**ALWAYS reset in error handlers:**
+
+```typescript
+try {
+  const data = await fetch(url);
+  setState(data.value);
+} catch (error) {
+  setState(defaultValue); // ✅ Reset to safe value
+}
+```
+
+**NEVER:**
+- Initialize state as `undefined`
+- Update state without fallback
+- Ignore errors (always catch and reset)
+
+---
+
+## 4. API Endpoint Rules
+
+### Rule: Required Parameters Must Be Validated
+
+**On the server - ALWAYS validate:**
+
+```typescript
+export const GET: APIRoute = async ({ params, request }) => {
+  const url = new URL(request.url);
+  const userId = url.searchParams.get('userId');
+  const id = params.id;
+
+  // ✅ Validate ALL required params
+  if (!userId || !id) {
+    return new Response(
+      JSON.stringify({ error: 'userId and id are required' }),
+      { status: 400 }
+    );
+  }
+  
+  // Continue...
+};
+```
+
+**On the client - ALWAYS include:**
+
+```typescript
+// ✅ Include all required params
+const response = await fetch(
+  `/api/endpoint?userId=${userId}&id=${id}`
+);
+```
+
+**CHECKLIST for new endpoints:**
+- [ ] List all required parameters
+- [ ] Validate on server (return 400 if missing)
+- [ ] Include in client call
+- [ ] TypeScript interfaces for request/response
+
+---
+
+## 5. Error Handling Rules
+
+### Rule: Errors Must Be Helpful
+
+**ALWAYS log with context:**
+
+```typescript
+// ✅ Helpful logging
+console.log('🔥 Service initialized successfully');
+console.warn('⚠️ Service unavailable, using fallback');
+console.error('❌ Failed to X:', error);
+
+// ✅ With emoji indicators
+if (IS_DEVELOPMENT) {
+  console.log('📝 [DEV] Would insert:', data);
+}
+```
+
+**ALWAYS handle TypeScript unknown error type:**
+
+```typescript
+catch (error) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  throw new Error(`Failed to X: ${errorMessage}`);
+}
+```
+
+**NEVER:**
+- Silently catch errors without logging
+- Log without context (`console.log(error)`)
+- Assume error is Error type (use `instanceof`)
+
+---
+
+## 6. Temporary ID Pattern Rules
+
+### Rule: Detect and Handle Temporary IDs
+
+**ALWAYS check for temp IDs in endpoints:**
+
+```typescript
+// Pattern: temp-{timestamp}
+if (conversationId.startsWith('temp-')) {
+  // Return fallback data, don't query Firestore
+  return new Response(JSON.stringify({
+    messages: [],
+    usage: 0,
+  }));
+}
+```
+
+**ALWAYS document temp ID behavior:**
+- Prefix: `temp-`
+- Created when: Firestore unavailable
+- Limitations: No persistence, no history
+- User-facing: Works transparently
+
+---
+
+## 7. TypeScript Strict Mode Rules
+
+### Rule: Handle All Possible undefined Cases
+
+**ALWAYS check data before using:**
+
+```typescript
+// ❌ WRONG
+const data = doc.data();
+return data.field.toFixed(1); // Crash if data undefined
+
+// ✅ CORRECT
+const data = doc.data();
+if (!data) return null;
+return (data.field || 0).toFixed(1);
+```
+
+**ALWAYS use optional chaining:**
+
+```typescript
+// ✅ Safe navigation
+const value = response?.data?.field ?? defaultValue;
+```
+
+---
+
+## 8. Pre-Commit Checklist
+
+**Before committing ANY changes, verify:**
+
+- [ ] `npm run type-check` - Zero errors
+- [ ] `npm run build` - Successful build
+- [ ] Dev server starts without errors
+- [ ] Tested manually in browser
+- [ ] Console shows no errors
+- [ ] Checked logs are helpful
+- [ ] Updated relevant docs if needed
+
+---
+
+## 9. Pre-Deploy Checklist
+
+**Before deploying to production:**
+
+- [ ] All tests pass
+- [ ] No TypeScript errors
+- [ ] Clean build succeeds
+- [ ] Environment variables documented
+- [ ] Migration plan if breaking changes
+- [ ] Rollback plan defined
+- [ ] Monitoring/alerts configured
+
+---
+
+## 10. Code Review Checklist
+
+**When reviewing code, verify:**
+
+- [ ] No hardcoded credentials
+- [ ] Error handling present
+- [ ] Logs are helpful
+- [ ] States initialized properly
+- [ ] API params validated
+- [ ] Dev mode handled
+- [ ] TypeScript strict checks pass
+- [ ] No commented-out code left
+
+---
+
+## 🎯 Quick Reference
+
+### Common Mistakes to Avoid
+
+1. ❌ Wrong Gemini import/usage
+2. ❌ Mock mode as automatic fallback  
+3. ❌ Required external services in dev
+4. ❌ States initialized as undefined
+5. ❌ Missing API param validation
+6. ❌ No error handling
+7. ❌ Silent failures
+8. ❌ Assuming data exists
+
+### Safety Patterns to Use
+
+1. ✅ Check IS_DEVELOPMENT
+2. ✅ Try-catch with fallbacks
+3. ✅ States with valid defaults
+4. ✅ `data || fallback` everywhere
+5. ✅ Validate required params
+6. ✅ Log with emoji indicators
+7. ✅ Handle temp IDs
+8. ✅ TypeScript strict mode
+
+---
+
+## 📚 Related Documentation
+
+- `docs/CHAT_INTEGRATION_LESSONS.md` - Detailed lessons learned
+- `docs/GEMINI_API_MIGRATION.md` - Gemini API guide
+- `docs/LOCAL_TESTING_GUIDE.md` - Local setup guide
+- `.cursor/rules/gemini-api-usage.mdc` - Gemini-specific rules
+
+---
+
+**When in doubt, check these rules. They save hours of debugging!**

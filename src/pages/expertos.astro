@@ -1,0 +1,108 @@
+---
+import { getUserRole, UserRole, hasAnyRole } from '../lib/access-control';
+
+// Get session cookie
+const sessionCookie = Astro.cookies.get('salfagpt_session');
+
+// Check if user is authenticated
+if (!sessionCookie) {
+  return Astro.redirect('/auth/login?redirect=/expertos');
+}
+
+// For now, we'll allow access in development mode
+// In production, this would decode the JWT and verify the user
+const IS_DEVELOPMENT = import.meta.env.DEV;
+
+if (!IS_DEVELOPMENT) {
+  // In production, verify the user role from JWT
+  // TODO: Decode JWT and check user role
+  // For now, redirect to home if not authorized
+  // return Astro.redirect('/home');
+}
+
+// Get user info (in production, from JWT)
+const userEmail = 'expert@salfacorp.com'; // TODO: Extract from JWT
+const userRole = getUserRole(userEmail);
+
+// Verify Expert role or higher
+const allowedRoles = [UserRole.EXPERT, UserRole.ADMIN, UserRole.SUPERADMIN];
+if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
+  return Astro.redirect('/home');
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expert Evaluation - SalfaGPT</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-gray-50">
+    <div class="min-h-screen">
+      <!-- Navigation -->
+      <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between h-16">
+            <div class="flex items-center">
+              <h1 class="text-xl font-bold text-gray-900">SalfaGPT</h1>
+              <span class="ml-4 px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
+                👨‍💼 Expert
+              </span>
+            </div>
+            <div class="flex items-center gap-4">
+              <a
+                href="/chat"
+                class="text-gray-600 hover:text-gray-900 text-sm font-medium"
+              >
+                💬 Chat
+              </a>
+              <a
+                href="/analytics"
+                class="text-gray-600 hover:text-gray-900 text-sm font-medium"
+              >
+                📊 Analytics
+              </a>
+              {(userRole === UserRole.SUPERADMIN) && (
+                <a
+                  href="/superadmin"
+                  class="text-gray-600 hover:text-gray-900 text-sm font-medium"
+                >
+                  🔧 SuperAdmin
+                </a>
+              )}
+              <a
+                href="/home"
+                class="text-gray-600 hover:text-gray-900 text-sm font-medium"
+              >
+                🏠 Home
+              </a>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="experts-root"></div>
+      </main>
+    </div>
+
+    <script>
+      import { createRoot } from 'react-dom/client';
+      import React from 'react';
+      import ExpertsEvaluation from '../components/ExpertsEvaluation';
+
+      const root = document.getElementById('experts-root');
+      if (root) {
+        createRoot(root).render(React.createElement(ExpertsEvaluation));
+      }
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>
+

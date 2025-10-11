@@ -4,6 +4,8 @@ import {
   Plus, 
   Send, 
   Folder, 
+  FolderPlus,
+  X,
   Clock,
   ChevronDown,
   ChevronRight,
@@ -15,7 +17,8 @@ import {
   HelpCircle,
   LogOut,
   User,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react';
 
 interface Message {
@@ -64,7 +67,14 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [contextWindowUsage, setContextWindowUsage] = useState(2.3);
+  const [contextWindowUsage, setContextWindowUsage] = useState(0);
+  const [userConfig, setUserConfig] = useState<{
+    model: 'gemini-2.5-pro' | 'gemini-2.5-flash';
+    systemPrompt: string;
+  }>({
+    model: 'gemini-2.5-flash',
+    systemPrompt: 'You are a helpful, accurate, and friendly AI assistant. Provide clear and concise responses while being thorough when needed. Be respectful and professional in all interactions.',
+  });
   const [contextSections, setContextSections] = useState<ContextSection[]>([
     {
       name: 'System Instructions',
@@ -147,6 +157,13 @@ export default function ChatInterface({ userId }: { userId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Calculate local context for temporary conversations when messages or config change
+  useEffect(() => {
+    if (currentConversation && currentConversation.startsWith('temp-')) {
+      calculateLocalContext();
+    }
+  }, [messages, userConfig]);
+
   const loadConversations = async () => {
     try {
       const response = await fetch(`/api/conversations?userId=${userId}`);
@@ -168,12 +185,73 @@ export default function ChatInterface({ userId }: { userId: string }) {
     }
   };
 
+  const calculateLocalContext = () => {
+    // Calculate context window usage locally for temporary conversations
+    const MODEL_CONTEXT_WINDOW = 1000000; // Gemini 2.5 has 1M token context window
+    
+    // System prompt tokens
+    const systemPrompt = userConfig.systemPrompt;
+    const systemTokens = Math.ceil(systemPrompt.length / 4);
+    
+    // Message tokens (rough estimate: 4 chars = 1 token)
+    const messageTokens = messages.reduce((sum, msg) => {
+      const text = msg.content.text || JSON.stringify(msg.content);
+      return sum + Math.ceil(text.length / 4);
+    }, 0);
+    
+    // Build conversation history content
+    const conversationHistoryContent = messages
+      .map((msg, index) => {
+        const role = msg.role === 'user' ? '👤 User' : '🤖 Assistant';
+        const text = msg.content.text || JSON.stringify(msg.content);
+        const timestamp = msg.timestamp instanceof Date 
+          ? msg.timestamp.toLocaleString() 
+          : new Date(msg.timestamp).toLocaleString();
+        return `[${index + 1}] ${role} (${timestamp}):\n${text}`;
+      })
+      .join('\n\n---\n\n');
+    
+    // Build context sections
+    const sections = [
+      {
+        name: 'System Instructions',
+        tokenCount: systemTokens,
+        content: `Model: ${userConfig.model}\n\nSystem Prompt:\n${systemPrompt}`,
+        collapsed: true,
+      },
+      {
+        name: 'Conversation History',
+        tokenCount: messageTokens,
+        content: conversationHistoryContent || 'No messages yet',
+        collapsed: false,
+      },
+      {
+        name: 'User Context',
+        tokenCount: 0, // Local calculation doesn't have user context items
+        content: 'No context items',
+        collapsed: true,
+      },
+    ];
+    
+    const totalTokens = systemTokens + messageTokens;
+    const usage = (totalTokens / MODEL_CONTEXT_WINDOW) * 100;
+    
+    setContextWindowUsage(usage);
+    setContextSections(sections);
+  };
+
   const loadContextInfo = async (conversationId: string) => {
+    // For temporary conversations, calculate context locally
+    if (conversationId.startsWith('temp-')) {
+      calculateLocalContext();
+      return;
+    }
+    
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/context`);
+      const response = await fetch(`/api/conversations/${conversationId}/context?userId=${userId}`);
       const data = await response.json();
-      setContextWindowUsage(data.usage);
-      setContextSections(data.sections);
+      setContextWindowUsage(data.usage || 0);
+      setContextSections(data.sections || []);
     } catch (error) {
       console.error('Error loading context info:', error);
     }
@@ -512,6 +590,11 @@ export default function ChatInterface({ userId }: { userId: string }) {
                       style={{ width: `${contextWindowUsage}%` }}
                     />
                   </div>
+                  <span className="mx-2 text-slate-400">•</span>
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {userConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                  </span>
                   {showContextDetails ? (
                     <ChevronDown className="w-4 h-4 ml-1" />
                   ) : (
@@ -568,35 +651,42 @@ export default function ChatInterface({ userId }: { userId: string }) {
               </div>
 
               {/* Input Bar */}
-              <div className="flex items-end gap-4">
-                <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm hover:shadow-md">
-                  <Paperclip className="w-6 h-6" />
-                </button>
-                
-                <div className="flex-1">
-                  <textarea
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    placeholder="Type your message... (Shift+Enter for new line)"
-                    className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
-                    rows={1}
-                    style={{ minHeight: '56px', maxHeight: '200px' }}
-                  />
+              <div className="space-y-3">
+                <div className="flex items-end gap-4">
+                  <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm hover:shadow-md">
+                    <Paperclip className="w-6 h-6" />
+                  </button>
+                  
+                  <div className="flex-1">
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      placeholder="Type your message... (Shift+Enter for new line)"
+                      className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
+                      rows={1}
+                      style={{ minHeight: '56px', maxHeight: '200px' }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim() || isLoading}
+                    className="p-4 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+                  >
+                    <Send className="w-6 h-6" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={sendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
-                  className="p-4 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
-                >
-                  <Send className="w-6 h-6" />
-                </button>
+                {/* Disclaimer */}
+                <div className="text-center text-xs text-slate-500 px-4">
+                  SalfaGPT puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas.
+                </div>
               </div>
             </div>
           </>

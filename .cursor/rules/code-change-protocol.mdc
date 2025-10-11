@@ -1,0 +1,333 @@
+---
+alwaysApply: true
+---
+
+# Code Change Protocol
+
+## Purpose
+Prevent accidental removal of working features and ensure changes are intentional and documented.
+
+---
+
+## BEFORE Making ANY Changes
+
+### 1. Read Current State
+```bash
+# Always read the file completely before making changes
+# NEVER make changes based on assumptions
+```
+
+**RULE**: Read the entire file or at least 100 lines around the change area.
+
+### 2. Check for Protected Features
+Before modifying any file, check if it contains protected features:
+
+**Protected Files**:
+- `src/components/ChatInterface.tsx` - Main chat UI (see ui-features-protection.mdc)
+- `src/lib/firestore.ts` - Database operations
+- `src/lib/gemini.ts` - AI integration (see gemini-api-usage.mdc)
+- `src/lib/gcp.ts` - Cloud services
+
+**Check**: Does this file have a protection rule? Read it first!
+
+### 3. Understand User Intent
+Ask yourself:
+- Did user explicitly request removing this feature?
+- Is this a simplification that might break something?
+- Are there dependencies on this code?
+
+**RULE**: When in doubt, ASK the user before removing anything.
+
+---
+
+## DURING Changes
+
+### Code Deletion Rules
+
+#### ❌ NEVER Delete Without Asking:
+1. **UI Components**: Buttons, text, modals, sections
+2. **State Variables**: useState, useEffect hooks
+3. **Event Handlers**: onClick, onChange, onSubmit
+4. **Import Statements**: Unless 100% sure they're unused
+5. **API Calls**: fetch(), axios(), any network requests
+6. **Type Definitions**: interfaces, types
+7. **Functions**: Any function that's exported or used
+
+#### ✅ Safe to Delete (but verify first):
+1. **Comments**: Only if they're outdated
+2. **Console.logs**: Debug statements (but check if intentional)
+3. **Unused Variables**: Only if linter confirms unused
+4. **Dead Code**: Code in unreachable branches (verify first)
+
+### Refactoring Rules
+
+When refactoring:
+
+1. **Keep Functionality Identical**:
+   ```typescript
+   // ❌ WRONG: Changing behavior while refactoring
+   // Before:
+   const text = userConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash';
+   
+   // After: DON'T DO THIS
+   const text = 'Gemini'; // Simplified but lost information
+   
+   // ✅ CORRECT: Same functionality, cleaner code
+   const modelDisplay = MODEL_NAMES[userConfig.model];
+   ```
+
+2. **Preserve All Features**:
+   - If UI shows 5 elements, keep 5 elements
+   - If function has 3 parameters, keep 3 parameters
+   - If component has 4 states, keep 4 states
+
+3. **Test After Refactoring**:
+   ```bash
+   npm run type-check
+   npm run lint
+   # Visual inspection in browser
+   ```
+
+---
+
+## Type-Specific Rules
+
+### Modifying ChatInterface.tsx
+
+**ALWAYS**:
+1. Read `ui-features-protection.mdc` first
+2. Verify these elements exist before AND after changes:
+   - Sparkles import
+   - userConfig state
+   - Model display in UI
+   - Disclaimer text
+   - Folders functionality
+3. Test in browser after changes
+
+**NEVER**:
+1. Remove working UI elements without explicit request
+2. Simplify state management without understanding full impact
+3. Remove imports without checking usage
+4. Change user-facing text without asking
+
+### Modifying Firestore.ts
+
+**ALWAYS**:
+1. Understand data schema before changes
+2. Check if functions are used in API routes
+3. Verify backward compatibility
+4. Test with both dev and prod data
+
+**NEVER**:
+1. Remove collection names without checking usage
+2. Change function signatures without updating callers
+3. Remove error handling
+4. Remove type definitions
+
+### Modifying API Routes
+
+**ALWAYS**:
+1. Understand full request/response flow
+2. Check frontend code that calls this API
+3. Verify error handling is preserved
+4. Test with real API calls
+
+**NEVER**:
+1. Remove query parameter validation
+2. Remove error responses
+3. Change response format without frontend update
+4. Remove authentication checks
+
+---
+
+## AFTER Changes
+
+### Mandatory Verification Steps
+
+#### 1. Type Check
+```bash
+npm run type-check
+# Must show 0 errors
+```
+
+#### 2. Lint Check
+```bash
+npm run lint
+# Must show 0 errors
+```
+
+#### 3. Visual Inspection
+```bash
+# Start dev server (if not running)
+npm run dev
+
+# Open browser
+open http://localhost:3000/chat
+
+# Verify checklist:
+# [ ] Page loads without errors
+# [ ] Console shows no errors
+# [ ] UI looks correct
+# [ ] All features present
+# [ ] No missing text/buttons
+```
+
+#### 4. Feature-Specific Tests
+
+For ChatInterface.tsx changes:
+- [ ] Model name visible next to Context
+- [ ] Disclaimer visible below input
+- [ ] Folders section present and functional
+- [ ] Can send messages
+- [ ] Context panel opens and shows data
+
+For API changes:
+- [ ] Test endpoint with curl/Postman
+- [ ] Verify response format
+- [ ] Check error cases
+- [ ] Verify authentication
+
+#### 5. Git Diff Review
+```bash
+git diff src/components/ChatInterface.tsx
+
+# Review and ask:
+# - Did I remove anything important?
+# - Are all changes intentional?
+# - Does this match what user asked for?
+```
+
+---
+
+## Red Flags - Stop and Ask User
+
+If you see any of these, STOP and ASK the user:
+
+🚩 **Removing a large block of code** (>10 lines)
+🚩 **Deleting a state variable** that was working
+🚩 **Removing an import** that seems related to UI
+🚩 **Simplifying** complex logic without understanding it
+🚩 **Changing user-facing text** without request
+🚩 **Removing error handling**
+🚩 **Deleting API endpoints**
+🚩 **Removing type definitions**
+
+### Example Stop-and-Ask Scenarios
+
+#### Scenario 1: State Removal
+```typescript
+// You see:
+const [userConfig, setUserConfig] = useState<{...}>({...});
+
+// And you're about to delete it
+```
+**STOP**: This state might be used for model display. Check usage first.
+
+#### Scenario 2: UI Simplification
+```typescript
+// Current:
+<span>Context: {usage}%</span>
+<span>•</span>
+<Sparkles />
+<span>Model Name</span>
+
+// You're planning to simplify to:
+<span>Context: {usage}%</span>
+```
+**STOP**: This removes the model display feature. Ask user first.
+
+#### Scenario 3: Function Deletion
+```typescript
+// You see a function that seems unused
+const calculateLocalContext = () => {
+  // 50 lines of code
+}
+```
+**STOP**: Check if it's used in useEffect or event handlers. Don't assume it's unused.
+
+---
+
+## Documentation Requirements
+
+### When Adding Features
+1. Update relevant `.mdc` rule file if needed
+2. Create feature documentation in `docs/features/`
+3. Update `UX_IMPROVEMENTS_SUMMARY.md` or similar
+4. Document in `docs/BranchLog.md`
+
+### When Removing Features
+1. User MUST explicitly request removal
+2. Document WHY it was removed
+3. Update all documentation to reflect removal
+4. Consider deprecation path instead of immediate removal
+
+---
+
+## Emergency Recovery
+
+### If Something Goes Wrong
+
+1. **Check Git Status**:
+   ```bash
+   git status
+   git diff
+   ```
+
+2. **Restore from Git**:
+   ```bash
+   # Discard unstaged changes
+   git restore <file>
+   
+   # Or restore from specific commit
+   git checkout <commit> -- <file>
+   ```
+
+3. **Restore from Documentation**:
+   - Check `.cursor/rules/ui-features-protection.mdc`
+   - Check feature docs in `docs/features/`
+   - Check `UX_IMPROVEMENTS_SUMMARY.md`
+
+4. **Ask for Help**:
+   - Show user the git diff
+   - Explain what changed
+   - Ask how to proceed
+
+---
+
+## Summary Checklist
+
+Before ANY code change:
+- [ ] Read the file completely
+- [ ] Check for protection rules
+- [ ] Understand user intent
+- [ ] Identify what will be affected
+
+During changes:
+- [ ] Never delete without being sure
+- [ ] Ask when in doubt
+- [ ] Preserve all working features
+- [ ] Test incrementally
+
+After changes:
+- [ ] Run type-check (0 errors)
+- [ ] Run linter (0 errors)
+- [ ] Test in browser
+- [ ] Review git diff
+- [ ] Document changes
+
+---
+
+**Remember**: 
+- Working code > Clean code
+- Ask questions > Make assumptions
+- Test thoroughly > Trust blindly
+- Document changes > Rely on memory
+
+**The cost of restoring lost features is HIGH.**  
+**The cost of asking a question is LOW.**
+
+---
+
+**Last Updated**: January 11, 2025  
+**Reason**: Features were lost, creating strict change protocol  
+**Priority**: CRITICAL - Must be followed for all changes

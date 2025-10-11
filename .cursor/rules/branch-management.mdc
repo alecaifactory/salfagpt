@@ -1,0 +1,450 @@
+---
+alwaysApply: true
+---
+
+# Branch Management & Safety Protocol
+
+## 🚨 CRITICAL: Never Switch Branches Without Validation
+
+This rule prevents loss of work and feature conflicts when switching between branches.
+
+---
+
+## Golden Rules
+
+### 1. NEVER Switch Branches Without Permission
+**RULE**: AI must ALWAYS ask user before switching branches.
+
+**Exception**: NONE. Always ask.
+
+### 2. NEVER Switch With Uncommitted Changes
+**RULE**: All changes must be committed or stashed before switching.
+
+### 3. ALWAYS Validate Branch State
+**RULE**: Check for conflicts, divergence, and protected features before switching.
+
+### 4. ALWAYS Inform User of Risks
+**RULE**: Tell user what could be lost or overwritten.
+
+---
+
+## BEFORE Switching Branches
+
+### Step 1: Check Current State
+```bash
+# Check for uncommitted changes
+git status --short
+
+# If any output: DO NOT SWITCH
+# Ask user: "You have uncommitted changes. What should we do?"
+```
+
+**Uncommitted Changes? STOP and ASK**:
+- "Commit changes first?"
+- "Stash changes?"
+- "Discard changes?" (dangerous!)
+
+### Step 2: Identify Protected Features
+```bash
+# Check if current branch has protected features
+grep "Sparkles" src/components/ChatInterface.tsx
+grep "userConfig" src/components/ChatInterface.tsx
+grep "SalfaGPT puede cometer" src/components/ChatInterface.tsx
+```
+
+**If protected features exist**: Warn user they might be lost.
+
+### Step 3: Check Branch Relationship
+```bash
+# Check if branch is ahead/behind main
+git fetch origin
+git rev-list --left-right --count main...HEAD
+
+# Output: "X  Y" where X=behind, Y=ahead
+```
+
+**Interpret Results**:
+- `0 0` = Branch is up to date with main ✅
+- `0 N` = Branch is N commits ahead (has new work) ⚠️
+- `N 0` = Branch is N commits behind (main has new work) ⚠️
+- `N M` = Branch has diverged (potential conflicts) 🚨
+
+### Step 4: Check Target Branch State
+```bash
+# What's in the target branch?
+git log target-branch --oneline -5
+
+# Any conflicts with current branch?
+git merge-tree $(git merge-base HEAD target-branch) HEAD target-branch
+```
+
+**If conflicts exist**: Tell user EXACTLY what will conflict.
+
+### Step 5: Ask User for Permission
+**Template**:
+```
+🔄 Branch Switch Request
+
+Current Branch: feat/admin-analytics-sections-2025-10-11
+Target Branch:  feat/chat-config-persistence-2025-10-10
+
+Status:
+- Uncommitted changes: 2 files (ChatInterface.tsx, BranchLog.md)
+- Protected features: 4 (Model Display, Disclaimer, Folders, Context)
+- Untracked files: 30 (docs, new features)
+- Branch divergence: 5 commits ahead, 3 commits behind main
+- Potential conflicts: src/components/ChatInterface.tsx
+
+⚠️  RISK: Switching may overwrite protected features!
+
+What would you like to do?
+A) Commit current changes first
+B) Stash current changes
+C) Discard current changes (DANGEROUS)
+D) Cancel branch switch
+```
+
+---
+
+## Protected Branches
+
+### Main Branch
+**Status**: Production-validated code  
+**Protection**: NEVER push without user approval  
+**Merging**: Requires user confirmation
+
+**Before Merging to Main**:
+1. All tests pass
+2. All features verified
+3. Documentation complete
+4. User explicitly approves
+
+### Feature Branches Already Merged
+**Check**:
+```bash
+# List branches merged to main
+git branch --merged main
+
+# If target branch is in this list:
+# It's been validated and merged. Switching back is safe.
+```
+
+**Already Merged? ✅ SAFE**:
+- Branch is validated
+- No risk of losing main features
+- Can switch freely
+
+**Not Merged? ⚠️ CAREFUL**:
+- Branch may have experimental code
+- May conflict with main
+- Protected features might be missing
+
+---
+
+## Branch Switch Protocol
+
+### Protocol Flow
+
+```
+1. User says: "Switch to branch X"
+   ↓
+2. AI checks current state:
+   - Uncommitted changes?
+   - Protected features present?
+   - Branch relationship?
+   ↓
+3. AI checks target branch:
+   - Is it merged to main?
+   - Any conflicts?
+   - What features does it have?
+   ↓
+4. AI presents findings to user:
+   - Current state
+   - Risks
+   - Recommendations
+   ↓
+5. User decides:
+   - Proceed with switch
+   - Commit first
+   - Stash changes
+   - Cancel
+   ↓
+6. AI executes user's decision
+   ↓
+7. AI verifies switch successful:
+   - Protected features present?
+   - No errors?
+   - Server still running?
+```
+
+---
+
+## Decision Matrix
+
+| Situation | Action | Risk |
+|-----------|--------|------|
+| No uncommitted changes + Target merged to main | ✅ Safe to switch | Low |
+| No uncommitted changes + Target not merged | ⚠️ Ask user first | Medium |
+| Uncommitted changes + Target merged | 🚨 Commit/stash first | High |
+| Uncommitted changes + Target not merged | 🚨 STOP - High risk | Critical |
+| Protected features + Target unknown | 🚨 Verify first | Critical |
+| Diverged branches | 🚨 User decision required | Critical |
+
+---
+
+## Safe Branch Switching Commands
+
+### With Uncommitted Changes - Commit First
+```bash
+# 1. Show user what will be committed
+git status
+
+# 2. Ask user for commit message
+# User provides: "feat: Add folders and model display"
+
+# 3. Commit
+git add .
+git commit -m "feat: Add folders and model display"
+
+# 4. Now safe to switch
+git checkout target-branch
+```
+
+### With Uncommitted Changes - Stash
+```bash
+# 1. Stash with descriptive message
+git stash push -m "WIP: Folders feature on admin branch"
+
+# 2. Switch branch
+git checkout target-branch
+
+# 3. To restore later:
+git stash list
+git stash pop stash@{0}
+```
+
+### With Uncommitted Changes - Discard (DANGEROUS)
+```bash
+# ⚠️  WARNING: This DELETES all changes!
+# Ask user: "Are you SURE? This cannot be undone!"
+
+# If user confirms:
+git checkout -- .
+git clean -fd
+
+# Then switch
+git checkout target-branch
+```
+
+---
+
+## Validation After Switch
+
+**IMMEDIATELY After Switching**:
+
+```bash
+# 1. Verify protected features
+grep -q "Sparkles" src/components/ChatInterface.tsx && echo "✅ Sparkles" || echo "❌ MISSING"
+grep -q "userConfig" src/components/ChatInterface.tsx && echo "✅ UserConfig" || echo "❌ MISSING"
+grep -q "SalfaGPT puede cometer" src/components/ChatInterface.tsx && echo "✅ Disclaimer" || echo "❌ MISSING"
+
+# 2. Check for TypeScript errors
+npm run type-check
+
+# 3. Check server
+curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/chat
+
+# 4. Report to user
+```
+
+**If Features Missing**:
+```
+⚠️  ALERT: Protected features missing after branch switch!
+
+Missing:
+- ❌ Model Display Indicator
+- ❌ Disclaimer Text
+
+Actions:
+A) Restore features from previous branch
+B) Cherry-pick commits with features
+C) Manually re-add features
+
+What would you like to do?
+```
+
+---
+
+## Creating New Branches
+
+### From Main (Recommended)
+```bash
+# 1. Ensure main is up to date
+git checkout main
+git pull origin main
+
+# 2. Create new branch
+git checkout -b feat/new-feature-name-YYYY-MM-DD
+
+# 3. Verify clean state
+git status
+```
+
+### From Feature Branch (Careful)
+```bash
+# ⚠️  Ask user first!
+# "You're creating a branch from a feature branch. 
+#  This branch will include all uncommitted work from feat/X.
+#  Is this what you want?"
+
+# If yes:
+git checkout -b feat/new-feature-name-YYYY-MM-DD
+```
+
+---
+
+## Merging Branches
+
+### Before Merging to Main
+
+**Requirements Checklist**:
+- [ ] All features working
+- [ ] All tests pass
+- [ ] Documentation complete
+- [ ] No TypeScript errors
+- [ ] No linter errors
+- [ ] Protected features present
+- [ ] User tested in browser
+- [ ] User explicitly approves merge
+
+**Merge Process**:
+```bash
+# 1. Switch to main
+git checkout main
+
+# 2. Pull latest
+git pull origin main
+
+# 3. Merge feature branch
+git merge --no-ff feat/branch-name
+
+# 4. If conflicts:
+#    STOP and show conflicts to user
+#    Ask how to resolve
+
+# 5. After merge:
+#    Verify all protected features present
+#    Run tests
+#    Ask user to confirm
+```
+
+---
+
+## Branch Naming Convention
+
+**Format**: `type/description-YYYY-MM-DD`
+
+**Types**:
+- `feat/` - New feature
+- `fix/` - Bug fix
+- `docs/` - Documentation only
+- `refactor/` - Code refactoring
+- `test/` - Adding tests
+- `chore/` - Maintenance
+
+**Examples**:
+- `feat/folders-organization-2025-01-11`
+- `fix/context-calculation-2025-01-11`
+- `docs/api-documentation-2025-01-11`
+
+---
+
+## Emergency Recovery
+
+### If Features Lost After Switch
+
+**Step 1: Don't Panic**
+```bash
+# Check git reflog
+git reflog
+
+# Find the commit before switch
+# Look for: "checkout: moving from X to Y"
+```
+
+**Step 2: Recover**
+```bash
+# Option A: Cherry-pick specific commits
+git cherry-pick <commit-hash>
+
+# Option B: Restore specific file
+git checkout <commit-hash> -- src/components/ChatInterface.tsx
+
+# Option C: Restore entire branch state
+git reset --hard <commit-hash>
+```
+
+**Step 3: Verify**
+```bash
+# Check protected features restored
+npm run type-check
+grep "Sparkles" src/components/ChatInterface.tsx
+```
+
+---
+
+## Summary Checklist
+
+**BEFORE Switching Branches**:
+- [ ] Check uncommitted changes
+- [ ] Identify protected features
+- [ ] Check branch relationship
+- [ ] Check target branch state
+- [ ] Ask user permission with full context
+
+**DURING Switch**:
+- [ ] Commit or stash if needed
+- [ ] Execute switch command
+- [ ] Monitor for errors
+
+**AFTER Switch**:
+- [ ] Verify protected features present
+- [ ] Run type-check
+- [ ] Test server
+- [ ] Report to user
+
+---
+
+## User Communication Template
+
+```
+🔄 Branch Switch Analysis
+
+Current State:
+- Branch: feat/admin-analytics-sections-2025-10-11
+- Uncommitted: 2 files modified, 30 files untracked
+- Protected features: ✅ All present (4/4)
+- Branch status: 5 commits ahead of main
+
+Target Branch: feat/chat-config-persistence-2025-10-10
+- Last commit: 8923756 "docs: Add master data access guide"
+- Merged to main: ❌ No
+- Estimated conflicts: 1 file (ChatInterface.tsx)
+- Has protected features: ⚠️ Unknown (need to check)
+
+Recommendation: Commit current changes first to preserve your work.
+
+Options:
+A) Commit changes now with message (recommended)
+B) Stash changes for later
+C) Check target branch features first
+D) Cancel switch
+
+What would you like to do?
+```
+
+---
+
+**Last Updated**: January 11, 2025  
+**Reason**: Implement robust branch management to prevent feature loss  
+**Priority**: CRITICAL - Must follow for ALL branch operations

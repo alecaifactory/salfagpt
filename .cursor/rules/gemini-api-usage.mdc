@@ -1,0 +1,246 @@
+---
+alwaysApply: true
+---
+
+# Gemini API Usage Rules
+
+## Package Information
+- Package: `@google/genai` v1.23.0
+- Documentation: https://googleapis.github.io/js-genai/
+
+## CRITICAL: Always Use Correct API Pattern
+
+### ✅ CORRECT Usage Pattern
+
+```typescript
+import { GoogleGenAI } from '@google/genai';
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// Generate content
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-pro',
+  contents: 'user message' or [{ role: 'user', parts: [{ text: 'message' }] }],
+  config: {
+    systemInstruction: 'You are a helpful assistant.',
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+  }
+});
+
+const text = result.text || '';
+```
+
+### ❌ FORBIDDEN Patterns
+
+**NEVER use these patterns - they will cause compilation errors:**
+
+```typescript
+// ❌ WRONG: This class doesn't exist
+import { GoogleGenerativeAI } from '@google/genai';
+
+// ❌ WRONG: Constructor must take object
+const genAI = new GoogleGenAI(apiKey);
+
+// ❌ WRONG: This method doesn't exist
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+
+// ❌ WRONG: This pattern is not supported
+const chat = model.startChat({ history: [] });
+
+// ❌ WRONG: Response structure is different
+const text = result.response.text();
+```
+
+## Rules for AI Assistant
+
+When writing or modifying code that uses Gemini AI:
+
+1. **Always** import `GoogleGenAI` (not `GoogleGenerativeAI`)
+2. **Always** initialize with object: `new GoogleGenAI({ apiKey })`
+3. **Always** use `genAI.models.generateContent()` for generation
+4. **Always** use `genAI.models.generateContentStream()` for streaming
+5. **Always** access response with `result.text` (handle undefined: `result.text || ''`)
+6. **Never** use `getGenerativeModel()` - this method doesn't exist
+7. **Never** use `startChat()` - pass full conversation in contents array
+8. **Always** put system instructions in `config.systemInstruction`
+9. **Always** refer to `docs/GEMINI_API_MIGRATION.md` when unsure
+
+## Streaming Pattern
+
+```typescript
+const stream = await genAI.models.generateContentStream({
+  model: 'gemini-2.5-pro',
+  contents: contents,
+  config: {
+    systemInstruction: systemInstruction,
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+  }
+});
+
+for await (const chunk of stream) {
+  if (chunk.text) {
+    yield chunk.text;
+  }
+}
+```
+
+## Multi-Turn Conversation Pattern
+
+```typescript
+const contents = [
+  { role: 'user', parts: [{ text: 'First message' }] },
+  { role: 'model', parts: [{ text: 'First response' }] },
+  { role: 'user', parts: [{ text: 'Second message' }] },
+];
+
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-pro',
+  contents: contents,
+  config: { systemInstruction: '...' }
+});
+```
+
+## Error Prevention Checklist
+
+Before committing any changes to Gemini integration:
+
+- [ ] Verify using `GoogleGenAI` class (not `GoogleGenerativeAI`)
+- [ ] Verify using `genAI.models.generateContent()` (not `getGenerativeModel()`)
+- [ ] Verify response access uses `result.text` (not `result.response.text()`)
+- [ ] Verify handling undefined: `result.text || ''`
+- [ ] Run `npm run type-check` to verify no TypeScript errors
+- [ ] Test with actual API call in development
+
+## Related Files
+
+- `src/lib/gemini.ts` - Main implementation
+- `docs/GEMINI_API_MIGRATION.md` - Complete migration guide
+- `src/pages/api/chat.ts` - Chat API endpoint
+
+---
+
+**Last Updated**: October 11, 2025  
+**Reason**: Fixed incorrect API usage causing TypeScript compilation errors
+# Gemini API Usage Rules
+
+## Package Information
+- Package: `@google/genai` v1.23.0
+- Documentation: https://googleapis.github.io/js-genai/
+
+## CRITICAL: Always Use Correct API Pattern
+
+### ✅ CORRECT Usage Pattern
+
+```typescript
+import { GoogleGenAI } from '@google/genai';
+
+const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// Generate content
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-pro',
+  contents: 'user message' or [{ role: 'user', parts: [{ text: 'message' }] }],
+  config: {
+    systemInstruction: 'You are a helpful assistant.',
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+  }
+});
+
+const text = result.text || '';
+```
+
+### ❌ FORBIDDEN Patterns
+
+**NEVER use these patterns - they will cause compilation errors:**
+
+```typescript
+// ❌ WRONG: This class doesn't exist
+import { GoogleGenerativeAI } from '@google/genai';
+
+// ❌ WRONG: Constructor must take object
+const genAI = new GoogleGenAI(apiKey);
+
+// ❌ WRONG: This method doesn't exist
+const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+
+// ❌ WRONG: This pattern is not supported
+const chat = model.startChat({ history: [] });
+
+// ❌ WRONG: Response structure is different
+const text = result.response.text();
+```
+
+## Rules for AI Assistant
+
+When writing or modifying code that uses Gemini AI:
+
+1. **Always** import `GoogleGenAI` (not `GoogleGenerativeAI`)
+2. **Always** initialize with object: `new GoogleGenAI({ apiKey })`
+3. **Always** use `genAI.models.generateContent()` for generation
+4. **Always** use `genAI.models.generateContentStream()` for streaming
+5. **Always** access response with `result.text` (handle undefined: `result.text || ''`)
+6. **Never** use `getGenerativeModel()` - this method doesn't exist
+7. **Never** use `startChat()` - pass full conversation in contents array
+8. **Always** put system instructions in `config.systemInstruction`
+9. **Always** refer to `docs/GEMINI_API_MIGRATION.md` when unsure
+
+## Streaming Pattern
+
+```typescript
+const stream = await genAI.models.generateContentStream({
+  model: 'gemini-2.5-pro',
+  contents: contents,
+  config: {
+    systemInstruction: systemInstruction,
+    temperature: 0.7,
+    maxOutputTokens: 8192,
+  }
+});
+
+for await (const chunk of stream) {
+  if (chunk.text) {
+    yield chunk.text;
+  }
+}
+```
+
+## Multi-Turn Conversation Pattern
+
+```typescript
+const contents = [
+  { role: 'user', parts: [{ text: 'First message' }] },
+  { role: 'model', parts: [{ text: 'First response' }] },
+  { role: 'user', parts: [{ text: 'Second message' }] },
+];
+
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-pro',
+  contents: contents,
+  config: { systemInstruction: '...' }
+});
+```
+
+## Error Prevention Checklist
+
+Before committing any changes to Gemini integration:
+
+- [ ] Verify using `GoogleGenAI` class (not `GoogleGenerativeAI`)
+- [ ] Verify using `genAI.models.generateContent()` (not `getGenerativeModel()`)
+- [ ] Verify response access uses `result.text` (not `result.response.text()`)
+- [ ] Verify handling undefined: `result.text || ''`
+- [ ] Run `npm run type-check` to verify no TypeScript errors
+- [ ] Test with actual API call in development
+
+## Related Files
+
+- `src/lib/gemini.ts` - Main implementation
+- `docs/GEMINI_API_MIGRATION.md` - Complete migration guide
+- `src/pages/api/chat.ts` - Chat API endpoint
+
+---
+
+**Last Updated**: October 11, 2025  
+**Reason**: Fixed incorrect API usage causing TypeScript compilation errors

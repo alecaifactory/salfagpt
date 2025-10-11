@@ -29,6 +29,12 @@ GOOGLE_CLOUD_PROJECT=my-salfagpt-project-12345
 # Other configuration...
 BIGQUERY_DATASET=salfagpt_dataset
 VERTEX_AI_LOCATION=us-central1
+
+# Role-Based Access Control
+SUPERADMIN_EMAILS=admin@salfacorp.com,cto@salfacorp.com
+ADMIN_EMAILS=manager@salfacorp.com
+EXPERT_EMAILS=expert1@salfacorp.com,expert2@salfacorp.com
+ANALYTICS_EMAILS=analyst@salfacorp.com
 ```
 
 ### Corresponding commands:
@@ -228,4 +234,147 @@ If you're unsure about any values:
 ---
 
 **Remember**: `PROJECT_ID` in commands = `GOOGLE_CLOUD_PROJECT` in .env ✨
+
+---
+
+## Role-Based Access Control (RBAC)
+
+### Overview
+
+The SalfaGPT platform now includes role-based access control to provide different levels of access to various sections of the application.
+
+### User Roles
+
+| Role | Access Level | Routes Accessible |
+|------|--------------|-------------------|
+| `user` | Standard | `/chat`, `/home` |
+| `expert` | Evaluation | All standard + `/expertos` |
+| `analytics` | Analytics | All standard + `/analytics` |
+| `admin` | Management | All expert + All analytics |
+| `superadmin` | Full System | All routes including `/superadmin` |
+
+### Environment Variables
+
+Add these variables to your `.env` file to assign roles to users:
+
+```bash
+# SuperAdmin - Full system access
+SUPERADMIN_EMAILS=admin@salfacorp.com,cto@salfacorp.com
+
+# Admin - User management and all analytics
+ADMIN_EMAILS=manager@salfacorp.com,director@salfacorp.com
+
+# Expert - Quality evaluation access
+EXPERT_EMAILS=expert1@salfacorp.com,expert2@salfacorp.com,qa@salfacorp.com
+
+# Analytics - Analytics dashboard access
+ANALYTICS_EMAILS=analyst@salfacorp.com,data@salfacorp.com
+```
+
+### Important Notes
+
+1. **Email Format**: Use comma-separated email addresses with no spaces
+2. **Case Insensitive**: Emails are normalized to lowercase
+3. **Priority**: SuperAdmin > Admin > Expert/Analytics > User
+4. **Defaults**: Any authenticated user without a role assignment defaults to `user`
+5. **Multiple Roles**: If an email appears in multiple variables, the highest priority role is assigned
+
+### Section Descriptions
+
+#### `/superadmin` - SuperAdmin Dashboard
+**Access**: SuperAdmin only
+
+Features:
+- Real-time system health monitoring
+- API performance metrics (p50, p95, p99)
+- Model performance analytics
+- Infrastructure metrics (Cloud Run, Firestore, BigQuery)
+- Cost analysis and projections
+
+#### `/expertos` - Expert Evaluation
+**Access**: Expert, Admin, SuperAdmin
+
+Features:
+- Review conversation quality
+- Rate conversations on multiple dimensions
+- Provide detailed feedback
+- Flag conversations for review
+- Track evaluation metrics
+
+#### `/analytics` - Enhanced Analytics
+**Access**: Analytics, Admin, SuperAdmin
+
+Features:
+- Conversation quality metrics
+- Token usage and cost analysis
+- User feedback aggregation
+- Agent performance comparison
+- Quality trends over time
+
+### Setup Example
+
+```bash
+# 1. Add to your .env file
+cat >> .env << EOF
+
+# Role-Based Access Control
+SUPERADMIN_EMAILS=admin@salfacorp.com
+ADMIN_EMAILS=manager@salfacorp.com
+EXPERT_EMAILS=expert1@salfacorp.com,expert2@salfacorp.com
+ANALYTICS_EMAILS=analyst@salfacorp.com
+EOF
+
+# 2. Deploy with new environment variables
+npx pame-core-cli deploy www --production
+
+# 3. Verify role assignments
+# Log in with each email and verify access to appropriate sections
+```
+
+### Testing Roles Locally
+
+```bash
+# 1. Set environment variables
+export SUPERADMIN_EMAILS=your-email@gmail.com
+export EXPERT_EMAILS=your-email@gmail.com
+export ANALYTICS_EMAILS=your-email@gmail.com
+
+# 2. Start dev server
+npm run dev
+
+# 3. Test each section
+# - Navigate to http://localhost:3000/superadmin
+# - Navigate to http://localhost:3000/expertos
+# - Navigate to http://localhost:3000/analytics
+```
+
+### Security Considerations
+
+1. **Environment Variables**: Never commit role assignments to version control
+2. **Production Secrets**: Store in Google Secret Manager
+3. **Regular Audits**: Review role assignments monthly
+4. **Least Privilege**: Assign minimum necessary role for each user
+5. **Logging**: All access attempts are logged for security auditing
+
+### Troubleshooting
+
+**Problem**: User can't access assigned section
+```bash
+# Check environment variables are set
+echo $SUPERADMIN_EMAILS
+echo $EXPERT_EMAILS
+echo $ANALYTICS_EMAILS
+
+# Verify user's email is in the correct list
+# Check case sensitivity (emails are normalized to lowercase)
+```
+
+**Problem**: Wrong role assigned
+```bash
+# Roles are assigned by priority: SuperAdmin > Admin > Expert/Analytics > User
+# If email appears in multiple lists, highest priority wins
+# Remove from lower priority lists if needed
+```
+
+---
 
