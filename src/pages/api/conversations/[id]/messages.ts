@@ -23,6 +23,14 @@ export const GET: APIRoute = async ({ params }) => {
       );
     }
 
+    // Handle temporary conversations (no Firestore)
+    if (conversationId.startsWith('temp-')) {
+      return new Response(
+        JSON.stringify({ messages: [] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const messages = await getMessages(conversationId);
 
     return new Response(
@@ -52,6 +60,42 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    // Handle temporary conversations (no Firestore persistence)
+    if (conversationId.startsWith('temp-')) {
+      console.log('📝 Processing message for temporary conversation:', conversationId);
+      
+      // Generate AI response without Firestore
+      const aiResponse = await generateAIResponse(message, {
+        model: model || 'gemini-2.5-flash',
+        systemInstruction: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
+        conversationHistory: [], // No history for temp conversations
+        userContext: '',
+        temperature: 0.7,
+      });
+
+      // Return mock message structure
+      const assistantMessage = {
+        id: `msg-${Date.now()}`,
+        conversationId,
+        userId,
+        role: 'assistant' as const,
+        content: aiResponse.content,
+        timestamp: new Date(),
+        tokenCount: aiResponse.tokenCount,
+        contextSections: aiResponse.contextSections,
+      };
+
+      return new Response(
+        JSON.stringify({
+          message: assistantMessage,
+          contextUsage: 0.5,
+          contextSections: aiResponse.contextSections || [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Normal flow for persisted conversations
     // Save user message
     const userMessage = await addMessage(
       conversationId,
@@ -82,7 +126,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     // Generate AI response with user-selected model and system prompt
     const aiResponse = await generateAIResponse(message, {
       model: model || 'gemini-2.5-flash', // Use user-selected model or default to flash
-      systemInstruction: systemPrompt || 'You are a helpful, accurate, and friendly AI assistant. Provide clear and concise responses while being thorough when needed. Be respectful and professional in all interactions.',
+      systemInstruction: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
       conversationHistory,
       userContext: contextString,
       temperature: 0.7,

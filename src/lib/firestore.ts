@@ -98,7 +98,7 @@ export async function createConversation(
     id: conversationRef.id,
     userId,
     title,
-    folderId,
+    ...(folderId && { folderId }), // Only include folderId if it's defined
     createdAt: new Date(),
     updatedAt: new Date(),
     lastMessageAt: new Date(),
@@ -142,6 +142,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
   if (!doc.exists) return null;
 
   const data = doc.data();
+  if (!data) return null;
+  
   return {
     ...data,
     createdAt: data.createdAt.toDate(),
@@ -294,6 +296,8 @@ export async function getUserContext(userId: string): Promise<UserContext | null
   if (!doc.exists) return null;
 
   const data = doc.data();
+  if (!data) return null;
+  
   return {
     ...data,
     updatedAt: data.updatedAt.toDate(),

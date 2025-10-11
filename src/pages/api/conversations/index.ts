@@ -66,12 +66,33 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const conversation = await createConversation(userId, title, folderId);
+    try {
+      const conversation = await createConversation(userId, title, folderId);
 
-    return new Response(
-      JSON.stringify({ conversation }),
-      { status: 201, headers: { 'Content-Type': 'application/json' } }
-    );
+      return new Response(
+        JSON.stringify({ conversation }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (firestoreError) {
+      // Firestore not available (dev mode) - return temporary conversation
+      console.warn('⚠️ Firestore unavailable, creating temporary conversation');
+      const tempConversation = {
+        id: `temp-${Date.now()}`,
+        userId,
+        title: title || 'Nuevo Agente',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastMessageAt: new Date(),
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: 'gemini-2.5-flash',
+      };
+
+      return new Response(
+        JSON.stringify({ conversation: tempConversation }),
+        { status: 201, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
   } catch (error: any) {
     console.error('Error creating conversation:', error);
     return new Response(

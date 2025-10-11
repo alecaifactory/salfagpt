@@ -73,25 +73,25 @@ export default function ChatInterface({ userId }: { userId: string }) {
     systemPrompt: string;
   }>({
     model: 'gemini-2.5-flash',
-    systemPrompt: 'You are a helpful, accurate, and friendly AI assistant. Provide clear and concise responses while being thorough when needed. Be respectful and professional in all interactions.',
+    systemPrompt: 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
   });
   const [contextSections, setContextSections] = useState<ContextSection[]>([
     {
-      name: 'System Instructions',
+      name: 'Instrucciones del Sistema',
       tokenCount: 500,
-      content: 'You are a helpful AI assistant powered by Gemini 2.5-pro.',
+      content: 'Eres un asistente de IA útil impulsado por Gemini 2.5-pro.',
       collapsed: true,
     },
     {
-      name: 'Conversation History',
+      name: 'Historial de Conversación',
       tokenCount: 1500,
-      content: 'Current conversation messages',
+      content: 'Mensajes de conversación actuales',
       collapsed: false,
     },
     {
-      name: 'User Context',
+      name: 'Contexto del Usuario',
       tokenCount: 0,
-      content: 'No additional context',
+      content: 'Sin contexto adicional',
       collapsed: true,
     },
   ]);
@@ -113,22 +113,22 @@ export default function ChatInterface({ userId }: { userId: string }) {
       // Mock data for development
       setConversations([
         {
-          label: 'Today',
+          label: 'Hoy',
           conversations: [
             {
               id: 'conv-1',
-              title: 'Getting Started with AI',
+              title: 'Comenzando con IA',
               lastMessageAt: new Date(),
               messageCount: 5,
             },
           ],
         },
         {
-          label: 'Yesterday',
+          label: 'Ayer',
           conversations: [
             {
               id: 'conv-2',
-              title: 'Python Programming Help',
+              title: 'Ayuda con Programación Python',
               lastMessageAt: new Date(Date.now() - 86400000),
               messageCount: 12,
             },
@@ -219,21 +219,21 @@ export default function ChatInterface({ userId }: { userId: string }) {
     // Build context sections
     const sections = [
       {
-        name: 'System Instructions',
+        name: 'Instrucciones del Sistema',
         tokenCount: systemTokens,
-        content: `Model: ${userConfig.model}\n\nSystem Prompt:\n${systemPrompt}`,
+        content: `Modelo: ${userConfig.model}\n\nPrompt del Sistema:\n${systemPrompt}`,
         collapsed: true,
       },
       {
-        name: 'Conversation History',
+        name: 'Historial de Conversación',
         tokenCount: messageTokens,
-        content: conversationHistoryContent || 'No messages yet',
+        content: conversationHistoryContent || 'Aún no hay mensajes',
         collapsed: false,
       },
       {
-        name: 'User Context',
+        name: 'Contexto del Usuario',
         tokenCount: 0, // Local calculation doesn't have user context items
-        content: 'No context items',
+        content: 'Sin elementos de contexto',
         collapsed: true,
       },
     ];
@@ -274,13 +274,13 @@ export default function ChatInterface({ userId }: { userId: string }) {
       const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, title: 'Nuevo Agente' }),
       });
       const data = await response.json();
       setCurrentConversation(data.conversation.id);
       loadConversations();
     } catch (error) {
-      console.error('Error creating conversation:', error);
+      console.error('Error al crear conversación:', error);
       setUseMockData(true);
     }
   };
@@ -308,7 +308,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
           role: 'assistant',
           content: {
             type: 'text',
-            text: `I'm a mock AI response to: "${currentInput}"\n\nThis is the full ChatInterface with:\n✅ Left sidebar with conversations\n✅ Context window tracking (${contextWindowUsage.toFixed(1)}%)\n✅ Multi-modal support ready\n✅ Professional UI\n\nTo enable real AI responses, configure your Google AI API key in the environment variables.`,
+            text: `Soy una respuesta simulada de IA para: "${currentInput}"\n\nEsta es la interfaz completa de Chat con:\n✅ Barra lateral izquierda con conversaciones\n✅ Seguimiento de ventana de contexto (${contextWindowUsage.toFixed(1)}%)\n✅ Soporte multi-modal listo\n✅ Interfaz profesional\n\nPara habilitar respuestas reales de IA, configura tu clave API de Google AI en las variables de entorno.`,
           },
           timestamp: new Date(),
         };
@@ -378,12 +378,12 @@ export default function ChatInterface({ userId }: { userId: string }) {
 
   const handleConfiguration = () => {
     // TODO: Implement configuration page navigation
-    console.log('Opening configuration...');
+    console.log('Abriendo configuración...');
   };
 
   const handleHelp = () => {
     // TODO: Implement help page navigation
-    console.log('Opening help...');
+    console.log('Abriendo ayuda...');
   };
 
   const renderMessage = (message: Message) => {
@@ -424,7 +424,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       );
     }
 
-    return <p>Unsupported content type</p>;
+    return <p>Tipo de contenido no soportado</p>;
   };
 
   return (
@@ -438,7 +438,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <Plus className="w-5 h-5" />
-            <span className="font-bold">New Conversation</span>
+            <span className="font-bold">Nuevo Agente</span>
           </button>
         </div>
 
@@ -469,7 +469,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                         <p className={`text-xs ${
                           currentConversation === conv.id ? 'text-blue-100' : 'text-slate-500'
                         }`}>
-                          {conv.messageCount} messages
+                          {conv.messageCount} mensajes
                         </p>
                       </div>
                     </div>
@@ -490,7 +490,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
               >
                 <Settings className="w-5 h-5 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">Configuration</span>
+                <span className="text-sm font-medium text-slate-700">Configuración</span>
               </button>
 
               <button
@@ -498,7 +498,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
               >
                 <HelpCircle className="w-5 h-5 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">Help</span>
+                <span className="text-sm font-medium text-slate-700">Ayuda</span>
               </button>
 
               <div className="h-px bg-slate-200 my-2" />
@@ -508,7 +508,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 rounded-lg transition-all transform hover:scale-[1.02] group"
               >
                 <LogOut className="w-5 h-5 text-red-600 group-hover:text-red-700" />
-                <span className="text-sm font-medium text-red-600 group-hover:text-red-700">Close Session</span>
+                <span className="text-sm font-medium text-red-600 group-hover:text-red-700">Cerrar Sesión</span>
               </button>
             </div>
           )}
@@ -556,7 +556,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                     {message.role === 'assistant' && (
                       <div className="flex items-center gap-2 mb-2 text-slate-500">
                         <MessageSquare className="w-4 h-4" />
-                        <span className="text-xs font-semibold">AI Assistant</span>
+                        <span className="text-xs font-semibold">Asistente IA</span>
                       </div>
                     )}
                     {renderMessage(message)}
@@ -572,7 +572,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-100"></div>
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-200"></div>
-                        <span className="text-sm ml-2">Thinking...</span>
+                        <span className="text-sm ml-2">Pensando...</span>
                       </div>
                     </div>
                   </div>
@@ -590,7 +590,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-sm hover:shadow-md"
                 >
                   <Info className="w-4 h-4" />
-                  <span>Context: {contextWindowUsage.toFixed(1)}%</span>
+                  <span>Contexto: {contextWindowUsage.toFixed(1)}%</span>
                   <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden ml-2">
                     <div 
                       className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
@@ -612,7 +612,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 {showContextDetails && (
                   <div className="absolute bottom-32 left-8 right-8 bg-white border border-slate-300 rounded-2xl shadow-2xl p-6 max-h-96 overflow-y-auto z-50">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-slate-900 text-lg">Context Window Details</h3>
+                      <h3 className="font-bold text-slate-900 text-lg">Detalles de Ventana de Contexto</h3>
                       <button
                         onClick={() => setShowContextDetails(false)}
                         className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
@@ -674,7 +674,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                           sendMessage();
                         }
                       }}
-                      placeholder="Type your message... (Shift+Enter for new line)"
+                      placeholder="Escribe tu mensaje... (Shift+Enter para nueva línea)"
                       className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
                       rows={1}
                       style={{ minHeight: '56px', maxHeight: '200px' }}
@@ -703,14 +703,14 @@ export default function ChatInterface({ userId }: { userId: string }) {
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transform hover:scale-110 transition-transform">
                 <MessageSquare className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to SalfaGPT!</h2>
-              <p className="text-lg text-slate-600 mb-6">Select a conversation or start a new one</p>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Bienvenido a SalfaGPT!</h2>
+              <p className="text-lg text-slate-600 mb-6">Selecciona una conversación o inicia una nueva</p>
               <button
                 onClick={createNewConversation}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <Plus className="w-5 h-5 inline-block mr-2" />
-                Start Chatting
+                Comenzar a Chatear
               </button>
             </div>
           </div>
