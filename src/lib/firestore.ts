@@ -1,6 +1,9 @@
 import { Firestore } from '@google-cloud/firestore';
 
-const PROJECT_ID = import.meta.env.GOOGLE_CLOUD_PROJECT;
+// Support both Astro (import.meta.env) and Node.js (process.env)
+const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env 
+  ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+  : process.env.GOOGLE_CLOUD_PROJECT;
 
 // Initialize Firestore client
 export const firestore = new Firestore({
@@ -13,6 +16,7 @@ export const COLLECTIONS = {
   MESSAGES: 'messages',
   FOLDERS: 'folders',
   USER_CONTEXT: 'user_context',
+  USERS: 'users',
 } as const;
 
 // Types
@@ -445,6 +449,197 @@ export function groupConversationsByTime(conversations: Conversation[]): {
     lastMonth: [] as Conversation[],
     older: [] as Conversation[],
   });
+}
+
+// ==================== USER MANAGEMENT ====================
+
+import type { User, UserRole } from '../types/users';
+import { getDefaultPermissions } from '../types/users';
+
+/**
+ * Create a new user
+ */
+export async function createUser(
+  email: string,
+  name: string,
+  role: UserRole,
+  company: string,
+  department?: string
+): Promise<User> {
+  const now = new Date();
+  const userId = email.replace(/[@.]/g, '_');
+  
+  const newUser: Omit<User, 'id'> = {
+    email,
+    name,
+    role,
+    permissions: getDefaultPermissions(role),
+    company,
+    department,
+    createdAt: now,
+    updatedAt: now,
+    isActive: true,
+  };
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).set({
+    ...newUser,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  return {
+    id: userId,
+    ...newUser,
+  };
+}
+
+/**
+ * Get user by email
+ */
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const userId = email.replace(/[@.]/g, '_');
+  const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+
+  const data = doc.data();
+  if (!data) return null;
+
+  return {
+    id: doc.id,
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    permissions: data.permissions,
+    company: data.company,
+    department: data.department,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+    isActive: data.isActive,
+    avatarUrl: data.avatarUrl,
+  };
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserById(userId: string): Promise<User | null> {
+  const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+
+  const data = doc.data();
+  if (!data) return null;
+
+  return {
+    id: doc.id,
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    permissions: data.permissions,
+    company: data.company,
+    department: data.department,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+    isActive: data.isActive,
+    avatarUrl: data.avatarUrl,
+  };
+}
+
+/**
+ * Get all users
+ */
+export async function getAllUsers(): Promise<User[]> {
+  const snapshot = await firestore.collection(COLLECTIONS.USERS).get();
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      permissions: data.permissions,
+      company: data.company,
+      department: data.department,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
+      lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+      isActive: data.isActive,
+      avatarUrl: data.avatarUrl,
+    };
+  });
+}
+
+/**
+ * Update user
+ */
+export async function updateUser(
+  userId: string,
+  updates: Partial<Omit<User, 'id' | 'email' | 'createdAt'>>
+): Promise<void> {
+  const updateData: any = {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Convert dates to ISO strings
+  if (updates.lastLoginAt) {
+    updateData.lastLoginAt = updates.lastLoginAt.toISOString();
+  }
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update(updateData);
+}
+
+/**
+ * Update user role
+ */
+export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    role,
+    permissions: getDefaultPermissions(role),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Activate/deactivate user
+ */
+export async function setUserActive(userId: string, isActive: boolean): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    isActive,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Delete user
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).delete();
+}
+
+/**
+ * Update last login time
+ */
+export async function updateLastLogin(userId: string): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    lastLoginAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Check if user is admin
+ */
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  const user = await getUserById(userId);
+  return user?.role === 'admin' || false;
 }
 
 

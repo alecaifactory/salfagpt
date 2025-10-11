@@ -1,0 +1,11 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AdminPanel from '../components/AdminPanel';
+
+const currentUserId = 'alec_getaifactory_com'; // This should come from auth session
+---
+
+<Layout title="Administración - SalfaGPT">
+  <AdminPanel client:load currentUserId={currentUserId} />
+</Layout>
+
