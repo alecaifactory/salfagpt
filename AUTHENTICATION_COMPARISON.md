@@ -97,7 +97,7 @@ Your organization blocked key creation **to protect you**. They made the right c
 # 3. Create .env file
 cat > .env << 'ENVFILE'
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=openflow_dataset
 VERTEX_AI_LOCATION=us-central1
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret

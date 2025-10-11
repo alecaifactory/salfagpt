@@ -68,7 +68,7 @@ export function verifyJWT(token: string): any {
 
 // Get session from request
 export function getSession(context: APIContext) {
-  const sessionCookie = context.cookies.get('salfagpt_session');
+  const sessionCookie = context.cookies.get('openflow_session');
   
   if (!sessionCookie) {
     return null;
@@ -85,7 +85,7 @@ export function setSession(context: APIContext, userData: any) {
   // Check if running in production (Cloud Run sets NODE_ENV)
   const isProduction = process.env.NODE_ENV === 'production' || !import.meta.env.DEV;
   
-  context.cookies.set('salfagpt_session', token, {
+  context.cookies.set('openflow_session', token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: 'lax',
@@ -98,7 +98,7 @@ export function setSession(context: APIContext, userData: any) {
 
 // Clear session
 export function clearSession(context: APIContext) {
-  context.cookies.delete('salfagpt_session', {
+  context.cookies.delete('openflow_session', {
     path: '/',
   });
 }

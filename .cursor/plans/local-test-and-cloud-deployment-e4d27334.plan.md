@@ -13,7 +13,7 @@
 
 Test these routes using curl and verify responses:
 
-- **`/`** (Landing page) - Should return HTML with "SalfaGPT" title and OAuth button
+- **`/`** (Landing page) - Should return HTML with "OpenFlow" title and OAuth button
 - **`/chat`** (Dev mode) - Should work without OAuth, uses test user
 - **`/home`** (Protected) - Will redirect to auth since no OAuth configured
 - **`/api/chat`** (API endpoint) - Test with POST request
@@ -39,7 +39,7 @@ Expected results:
 **Command:**
 
 ```bash
-gcloud run deploy salfagpt \
+gcloud run deploy openflow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -62,8 +62,8 @@ gcloud run deploy salfagpt \
 2. Provide instructions to upload to Cloud Shell
 3. Command for Cloud Shell:
    ```bash
-   unzip salfagpt-deploy.zip && cd salfagpt
-   gcloud run deploy salfagpt --source . --region us-central1 --allow-unauthenticated
+   unzip openflow-deploy.zip && cd openflow
+   gcloud run deploy openflow --source . --region us-central1 --allow-unauthenticated
    ```
 
 
@@ -77,12 +77,12 @@ gcloud run deploy salfagpt \
 
 1. Use Cloud Build to build image separately:
    ```bash
-   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/salfagpt
+   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
    ```
 
 2. Deploy pre-built image:
    ```bash
-   gcloud run deploy salfagpt --image gcr.io/gen-lang-client-0986191192/salfagpt --region us-central1
+   gcloud run deploy openflow --image gcr.io/gen-lang-client-0986191192/openflow --region us-central1
    ```
 
 
@@ -111,8 +111,8 @@ gcloud run deploy salfagpt \
 2. Configure Docker to use gcr.io
 3. Deploy using Container Registry path:
    ```bash
-   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/salfagpt
-   gcloud run deploy salfagpt --image gcr.io/gen-lang-client-0986191192/salfagpt
+   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
+   gcloud run deploy openflow --image gcr.io/gen-lang-client-0986191192/openflow
    ```
 
 

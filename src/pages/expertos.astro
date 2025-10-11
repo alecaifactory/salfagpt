@@ -2,7 +2,7 @@
 import { getUserRole, UserRole, hasAnyRole } from '../lib/access-control';
 
 // Get session cookie
-const sessionCookie = Astro.cookies.get('salfagpt_session');
+const sessionCookie = Astro.cookies.get('openflow_session');
 
 // Check if user is authenticated
 if (!sessionCookie) {
@@ -36,7 +36,7 @@ if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Expert Evaluation - SalfaGPT</title>
+    <title>Expert Evaluation - OpenFlow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body class="bg-gray-50">
@@ -46,7 +46,7 @@ if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between h-16">
             <div class="flex items-center">
-              <h1 class="text-xl font-bold text-gray-900">SalfaGPT</h1>
+              <h1 class="text-xl font-bold text-gray-900">OpenFlow</h1>
               <span class="ml-4 px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
                 👨‍💼 Expert
               </span>

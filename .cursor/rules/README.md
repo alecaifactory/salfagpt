@@ -1,4 +1,4 @@
-# Cursor AI Rules for SalfaGPT
+# Cursor AI Rules for OpenFlow
 
 This directory contains rules that guide the AI assistant to prevent common errors and maintain code quality.
 
@@ -80,7 +80,7 @@ Files that require extra caution (read protection rules first):
 
 2. **Disclaimer Text**
    - Location: Below chat input
-   - Text: "SalfaGPT puede cometer errores..."
+   - Text: "OpenFlow puede cometer errores..."
    - Required wrapper: space-y-3 div
 
 3. **Folders Section**
@@ -105,7 +105,7 @@ git diff src/components/ChatInterface.tsx
 # 3. Verify protected features present
 grep "Sparkles" src/components/ChatInterface.tsx
 grep "userConfig" src/components/ChatInterface.tsx
-grep "SalfaGPT puede cometer" src/components/ChatInterface.tsx
+grep "OpenFlow puede cometer" src/components/ChatInterface.tsx
 ```
 
 ### After Making Changes

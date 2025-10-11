@@ -1,4 +1,4 @@
-# 🎉 SalfaGPT Deployment Summary
+# 🎉 OpenFlow Deployment Summary
 
 ## ✅ Completion Status
 
@@ -63,7 +63,7 @@ All features have been successfully implemented! The application is running loca
 ## 📁 Project Structure
 
 ```
-salfagpt/
+openflow/
 ├── src/
 │   ├── lib/
 │   │   ├── auth.ts              ✅ OAuth & JWT utilities
@@ -277,8 +277,8 @@ npm run deploy:run    # Deploy to Cloud Run
 
 ### 4. Docker (Any Platform)
 ```bash
-docker build -t salfagpt .
-docker run -p 8080:8080 --env-file .env salfagpt
+docker build -t openflow .
+docker run -p 8080:8080 --env-file .env openflow
 ```
 
 ---

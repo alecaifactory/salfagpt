@@ -20,7 +20,7 @@ Your server is running on: **http://localhost:3000**
 
 Then:
 - User Type: **External** → Click **CREATE**
-- App name: `SalfaGPT` 
+- App name: `OpenFlow` 
 - User support email: `alec@getaifactory.com`
 - Developer contact: `alec@getaifactory.com`
 - Click **SAVE AND CONTINUE** (3 times to skip optional steps)
@@ -36,7 +36,7 @@ Fill in the form:
 
 **Application type:** Web application
 
-**Name:** `SalfaGPT Local`
+**Name:** `OpenFlow Local`
 
 **Authorized JavaScript origins:**
 ```
@@ -115,7 +115,7 @@ npm run dev
 After logging in:
 - ✅ No "Unauthorized" errors
 - ✅ You can send chat messages
-- ✅ Browser DevTools shows `salfagpt_session` cookie
+- ✅ Browser DevTools shows `openflow_session` cookie
 
 ---
 

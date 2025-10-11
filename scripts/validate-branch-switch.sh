@@ -93,7 +93,7 @@ else
 fi
 
 # Check for disclaimer
-if grep -q "SalfaGPT puede cometer" src/components/ChatInterface.tsx 2>/dev/null; then
+if grep -q "OpenFlow puede cometer" src/components/ChatInterface.tsx 2>/dev/null; then
     echo -e "   ${CHECK} Disclaimer text present"
     PROTECTED_COUNT=$((PROTECTED_COUNT + 1))
 else
@@ -190,7 +190,7 @@ echo "5. Checking protected features in target branch..."
         TARGET_FEATURES=$((TARGET_FEATURES + 1))
     fi
     
-    if grep -q "SalfaGPT puede cometer" src/components/ChatInterface.tsx 2>/dev/null; then
+    if grep -q "OpenFlow puede cometer" src/components/ChatInterface.tsx 2>/dev/null; then
         TARGET_FEATURES=$((TARGET_FEATURES + 1))
     fi
     

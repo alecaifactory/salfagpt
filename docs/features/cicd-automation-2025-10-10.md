@@ -6,7 +6,7 @@
 
 ## Objective
 
-Implement a production-ready CI/CD pipeline that automates the entire deployment lifecycle of SalfaGPT to Google Cloud Run, ensuring code quality, security, and zero-downtime deployments.
+Implement a production-ready CI/CD pipeline that automates the entire deployment lifecycle of OpenFlow to Google Cloud Run, ensuring code quality, security, and zero-downtime deployments.
 
 ## Business Value
 
@@ -155,8 +155,8 @@ SESSION_SECRET        # Session encryption
 
 ### Staging Environment
 ```yaml
-Service: salfagpt-staging
-URL: https://staging-salfagpt-xyz.run.app
+Service: openflow-staging
+URL: https://staging-openflow-xyz.run.app
 Env: NODE_ENV=staging
 Resources:
   CPU: 1
@@ -166,7 +166,7 @@ Resources:
 
 ### Production Environment
 ```yaml
-Service: salfagpt-production
+Service: openflow-production
 URL: https://www.pame.ai
 Env: NODE_ENV=production
 Resources:
@@ -196,7 +196,7 @@ Manual rollback:
 ```bash
 # GitHub UI: Re-run previous successful deployment
 # Or via CLI:
-gcloud run services update-traffic salfagpt-production \
+gcloud run services update-traffic openflow-production \
   --to-revisions=PREVIOUS_REVISION=100
 ```
 

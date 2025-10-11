@@ -37,7 +37,7 @@ export default function ChatInterfaceSimple({ userId }: { userId: string }) {
         fontWeight: 'bold',
         fontSize: '18px'
       }}>
-        🤖 SalfaGPT Chat - Simple Test
+        🤖 OpenFlow Chat - Simple Test
       </div>
 
       {/* Messages */}

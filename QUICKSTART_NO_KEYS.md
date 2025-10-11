@@ -24,7 +24,7 @@ cat > .env << 'ENVFILE'
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
 
 # BigQuery
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=openflow_dataset
 
 # Vertex AI
 VERTEX_AI_LOCATION=us-central1
@@ -57,7 +57,7 @@ npm run dev
 **Production (Cloud Run):**
 - Uses the service account automatically
 - No keys needed!
-- Deploy with: `--service-account salfagpt-service@PROJECT_ID.iam.gserviceaccount.com`
+- Deploy with: `--service-account openflow-service@PROJECT_ID.iam.gserviceaccount.com`
 
 ## Benefits
 

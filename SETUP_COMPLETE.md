@@ -3,7 +3,7 @@
 ## What We Just Did
 
 ### 1. ✅ Created Service Account (No Keys!)
-- **Service Account**: `salfagpt-service@gen-lang-client-0986191192.iam.gserviceaccount.com`
+- **Service Account**: `openflow-service@gen-lang-client-0986191192.iam.gserviceaccount.com`
 - **Permissions**:
   - BigQuery Admin (analytics & data)
   - Vertex AI User (Gemini AI)
@@ -42,14 +42,14 @@ You need to create OAuth credentials for Google Sign-In:
 
 3. **Configure OAuth Consent Screen** (if prompted):
    - User Type: External
-   - App name: SalfaGPT
+   - App name: OpenFlow
    - User support email: alec@getaifactory.com
    - Developer contact: alec@getaifactory.com
    - Save and Continue
 
 4. **Create OAuth Client ID:**
    - Application type: Web application
-   - Name: SalfaGPT Web Client
+   - Name: OpenFlow Web Client
    - Authorized redirect URIs:
      - `http://localhost:4321/auth/callback` (for local dev)
      - `https://your-domain.com/auth/callback` (for production later)
@@ -132,7 +132,7 @@ Your App → Application Default Credentials → Your Google Account → GCP API
 Cloud Run → Workload Identity → Service Account → GCP APIs
 ```
 - No key files!
-- Specified with: `--service-account salfagpt-service@...`
+- Specified with: `--service-account openflow-service@...`
 - Secure and automatic
 
 ---
@@ -143,15 +143,15 @@ When you're ready to deploy:
 
 ```bash
 # Build the container
-gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/salfagpt
+gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
 
 # Deploy to Cloud Run (with Workload Identity)
-gcloud run deploy salfagpt \
-  --image gcr.io/gen-lang-client-0986191192/salfagpt \
+gcloud run deploy openflow \
+  --image gcr.io/gen-lang-client-0986191192/openflow \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --service-account salfagpt-service@gen-lang-client-0986191192.iam.gserviceaccount.com \
+  --service-account openflow-service@gen-lang-client-0986191192.iam.gserviceaccount.com \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192" \
   --set-env-vars "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
   --set-env-vars "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \

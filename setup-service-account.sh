@@ -3,14 +3,14 @@ set -e
 
 # Configuration
 export PROJECT_ID="gen-lang-client-0986191192"
-export SERVICE_ACCOUNT_EMAIL="salfagpt-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "🚀 Creating service account (no keys needed)..."
 
 # Create service account
-gcloud iam service-accounts create salfagpt-service \
-  --display-name="SalfaGPT Service Account" \
-  --description="Service account for SalfaGPT with BigQuery, Vertex AI, and Firestore access" \
+gcloud iam service-accounts create openflow-service \
+  --display-name="OpenFlow Service Account" \
+  --description="Service account for OpenFlow with BigQuery, Vertex AI, and Firestore access" \
   --project=${PROJECT_ID}
 
 echo "✅ Service account created: ${SERVICE_ACCOUNT_EMAIL}"

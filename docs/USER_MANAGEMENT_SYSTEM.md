@@ -430,7 +430,7 @@ GOOGLE_CLOUD_PROJECT=ocr-kaufmann-legal
 GOOGLE_APPLICATION_CREDENTIALS=/secrets/service-account.json
 
 # 2. Deploy aplicación
-gcloud run deploy salfagpt ...
+gcloud run deploy openflow ...
 
 # 3. SSH a Cloud Run instance o ejecutar localmente con credenciales prod
 npm run seed:users
@@ -511,5 +511,5 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 
 **Última actualización**: 11 de octubre de 2025  
 **Versión**: 1.0.0  
-**Autor**: SalfaGPT Team
+**Autor**: OpenFlow Team
 

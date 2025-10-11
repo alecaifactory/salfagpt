@@ -106,7 +106,7 @@ Context: 0.0% • ✨ Gemini 2.5 Flash ▼
 
 **Text** (Spanish):
 ```
-SalfaGPT puede cometer errores. Ante cualquier duda, 
+OpenFlow puede cometer errores. Ante cualquier duda, 
 consulta las respuestas con un experto antes de tomar decisiones críticas.
 ```
 
@@ -270,7 +270,7 @@ createNewConversation() - Assigns to selected folder
 1. Look at bottom of chat input
 2. Should see gray disclaimer text below input box
 3. Text should be centered
-4. Should read: "SalfaGPT puede cometer errores..."
+4. Should read: "OpenFlow puede cometer errores..."
 
 ---
 

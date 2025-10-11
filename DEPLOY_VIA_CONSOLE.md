@@ -1,4 +1,4 @@
-# Deploy SalfaGPT via Google Cloud Console
+# Deploy OpenFlow via Google Cloud Console
 
 ## Quick Deploy Instructions
 
@@ -10,14 +10,14 @@ The local network has persistent issues pushing to Container Registry. Deploy vi
    https://console.cloud.google.com/run/create?project=gen-lang-client-0986191192
 
 2. **Configure:**
-   - Service name: `salfagpt`
+   - Service name: `openflow`
    - Region: `us-central1`
    - Select "Deploy one revision from source"
    - Click "Set up with Cloud Build"
 
 3. **Source:**
    - Repository provider: Upload files
-   - Upload the zip: `/Users/alec/salfagpt-deploy.zip`
+   - Upload the zip: `/Users/alec/openflow-deploy.zip`
    
 4. **Build Configuration:**
    - Build type: Dockerfile
@@ -39,12 +39,12 @@ The local network has persistent issues pushing to Container Registry. Deploy vi
 
 ```bash
 # Open Cloud Shell
-# Upload salfagpt-deploy.zip
+# Upload openflow-deploy.zip
 
-unzip salfagpt-deploy.zip
-cd salfagpt
+unzip openflow-deploy.zip
+cd openflow
 
-gcloud run deploy salfagpt \
+gcloud run deploy openflow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -56,7 +56,7 @@ This will work because Cloud Shell has direct, fast connectivity to GCP services
 ### Success Criteria
 
 After deployment:
-- You'll receive a URL: `https://salfagpt-[hash]-uc.a.run.app`
+- You'll receive a URL: `https://openflow-[hash]-uc.a.run.app`
 - Landing page should load with the gradient design
 - Chat interface accessible at `/chat`
 

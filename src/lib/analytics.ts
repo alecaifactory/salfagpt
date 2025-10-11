@@ -5,7 +5,7 @@ const bigquery = new BigQuery({
   projectId: import.meta.env.GOOGLE_CLOUD_PROJECT,
 });
 
-const DATASET_ID = 'salfagpt_analytics';
+const DATASET_ID = 'openflow_analytics';
 
 // User role types
 export type UserRole = 'admin' | 'analytics' | 'user';

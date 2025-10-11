@@ -1,20 +1,20 @@
 #!/bin/bash
-# SalfaGPT - Cloud Shell Deployment Script
-# Run this in Google Cloud Shell after uploading salfagpt-deploy.zip
+# OpenFlow - Cloud Shell Deployment Script
+# Run this in Google Cloud Shell after uploading openflow-deploy.zip
 
 set -e
 
-echo "🚀 SalfaGPT Cloud Shell Deployment"
+echo "🚀 OpenFlow Cloud Shell Deployment"
 echo "==================================="
 echo ""
 
 # Unzip if needed
-if [ ! -d "salfagpt" ]; then
-  echo "📦 Extracting salfagpt-deploy.zip..."
-  unzip -q salfagpt-deploy.zip
+if [ ! -d "openflow" ]; then
+  echo "📦 Extracting openflow-deploy.zip..."
+  unzip -q openflow-deploy.zip
 fi
 
-cd salfagpt
+cd openflow
 
 echo "📋 Project: gen-lang-client-0986191192"
 echo "📍 Region: us-central1"
@@ -22,7 +22,7 @@ echo ""
 
 # Deploy
 echo "🔨 Deploying to Cloud Run..."
-gcloud run deploy salfagpt \
+gcloud run deploy openflow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \

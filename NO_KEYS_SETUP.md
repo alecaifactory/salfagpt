@@ -26,11 +26,11 @@ When creating your service account, grant these roles:
 ```bash
 # Set your project (this is the GOOGLE_CLOUD_PROJECT from your .env file)
 export PROJECT_ID="your-project-id"  # Replace with your actual GCP project ID
-export SERVICE_ACCOUNT_EMAIL="salfagpt-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Create service account
-gcloud iam service-accounts create salfagpt-service \
-  --display-name="SalfaGPT Service Account" \
+gcloud iam service-accounts create openflow-service \
+  --display-name="OpenFlow Service Account" \
   --project=${PROJECT_ID}
 
 # Grant all required permissions
@@ -79,7 +79,7 @@ GOOGLE_CLOUD_PROJECT=your-project-id  # This is YOUR_PROJECT_ID used in commands
 # GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # Keep the rest of your config
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=openflow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -96,11 +96,11 @@ npm run dev
 
 ```bash
 # Build
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/salfagpt
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/openflow
 
 # Deploy with service account (Workload Identity)
-gcloud run deploy salfagpt \
-  --image gcr.io/${PROJECT_ID}/salfagpt \
+gcloud run deploy openflow \
+  --image gcr.io/${PROJECT_ID}/openflow \
   --region us-central1 \
   --service-account ${SERVICE_ACCOUNT_EMAIL} \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
@@ -114,7 +114,7 @@ After setup, verify everything works:
 
 ```bash
 # 1. Check service account exists
-gcloud iam service-accounts list --project=${PROJECT_ID} | grep salfagpt
+gcloud iam service-accounts list --project=${PROJECT_ID} | grep openflow
 
 # 2. Check service account permissions
 gcloud projects get-iam-policy ${PROJECT_ID} \
@@ -189,7 +189,7 @@ gcloud auth application-default login
 ### "Error: PERMISSION_DENIED" on Cloud Run
 ```bash
 # Verify Cloud Run is using the service account
-gcloud run services describe salfagpt \
+gcloud run services describe openflow \
   --region=us-central1 \
   --format="value(spec.template.spec.serviceAccountName)"
 ```

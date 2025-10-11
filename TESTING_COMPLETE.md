@@ -19,7 +19,7 @@
 - **Test Results**: BigQuery connected successfully
 
 ### BigQuery Integration ✅
-- **Dataset**: salfagpt_dataset created
+- **Dataset**: openflow_dataset created
 - **Tables**:
   - ✅ user_sessions (partitioned by created_at)
   - ✅ chat_messages (partitioned by timestamp)
@@ -52,7 +52,7 @@ GET /api/analytics/summary   → 401 Unauthorized (expected, needs OAuth)
   "bigquery": {
     "status": "success",
     "message": "Connected! Found 1 dataset(s)",
-    "datasets": ["salfagpt_dataset"]
+    "datasets": ["openflow_dataset"]
   },
   "firestore": {
     "status": "needs_init",

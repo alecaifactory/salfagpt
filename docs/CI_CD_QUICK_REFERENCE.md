@@ -49,10 +49,10 @@ gcloud builds triggers run deploy-production --branch=main --region=us-central1
 ### Check Service Status
 ```bash
 # Staging
-gcloud run services describe salfagpt-staging --region=us-central1
+gcloud run services describe openflow-staging --region=us-central1
 
 # Production
-gcloud run services describe salfagpt-production --region=us-central1
+gcloud run services describe openflow-production --region=us-central1
 
 # Get URLs
 gcloud run services list --platform=managed
@@ -62,7 +62,7 @@ gcloud run services list --platform=managed
 ```bash
 # Recent Cloud Run logs
 gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=salfagpt-production" \
+  AND resource.labels.service_name=openflow-production" \
   --limit=50
 
 # Build logs
@@ -73,11 +73,11 @@ gcloud logging read "resource.type=build" --limit=20
 ```bash
 # List revisions
 gcloud run revisions list \
-  --service=salfagpt-production \
+  --service=openflow-production \
   --region=us-central1
 
 # Rollback to previous
-gcloud run services update-traffic salfagpt-production \
+gcloud run services update-traffic openflow-production \
   --region=us-central1 \
   --to-revisions=PREVIOUS_REVISION=100
 ```
@@ -148,8 +148,8 @@ gcloud secrets add-iam-policy-binding ANTHROPIC_API_KEY \
 ### Deployment Fails: "Service not found"
 ```bash
 # Create the service first
-gcloud run deploy salfagpt-staging \
-  --image=us-central1-docker.pkg.dev/$PROJECT_ID/salfagpt/placeholder:latest \
+gcloud run deploy openflow-staging \
+  --image=us-central1-docker.pkg.dev/$PROJECT_ID/openflow/placeholder:latest \
   --region=us-central1 \
   --platform=managed \
   --allow-unauthenticated
@@ -159,7 +159,7 @@ gcloud run deploy salfagpt-staging \
 ```bash
 # Check service logs for errors
 gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=salfagpt-staging \
+  AND resource.labels.service_name=openflow-staging \
   AND severity>=ERROR" --limit=20
 ```
 
@@ -179,7 +179,7 @@ gcloud logging read "resource.type=cloud_run_revision \
 ### Reduce Costs
 1. Clean old images:
    ```bash
-   gcloud artifacts docker images list us-central1-docker.pkg.dev/$PROJECT_ID/salfagpt \
+   gcloud artifacts docker images list us-central1-docker.pkg.dev/$PROJECT_ID/openflow \
      --filter="create_time<-P30D" \
      --format="get(image)" | \
      xargs -I {} gcloud artifacts docker images delete {} --quiet

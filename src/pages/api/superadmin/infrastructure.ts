@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ request }) => {
     // In production, these would come from GCP APIs
     const infrastructure = {
       cloudRun: {
-        service: 'salfagpt',
+        service: 'openflow',
         region: 'us-central1',
         instances: 3,
         minInstances: 1,
@@ -28,8 +28,8 @@ export const GET: APIRoute = async ({ request }) => {
         memory: 45,
         containerConcurrency: 80,
         revisions: {
-          current: 'salfagpt-00007-9x6',
-          previous: 'salfagpt-00006-2a4',
+          current: 'openflow-00007-9x6',
+          previous: 'openflow-00006-2a4',
         },
         traffic: {
           current: 100,
@@ -37,7 +37,7 @@ export const GET: APIRoute = async ({ request }) => {
         },
       },
       firestore: {
-        database: 'salfagpt-production',
+        database: 'openflow-production',
         location: 'us-central',
         reads: 125_456,
         writes: 34_567,
@@ -54,7 +54,7 @@ export const GET: APIRoute = async ({ request }) => {
         ],
       },
       bigQuery: {
-        project: 'salfagpt-production',
+        project: 'openflow-production',
         dataset: 'analytics',
         queriesPerHour: 45,
         avgQueryTime: 234,
@@ -90,14 +90,14 @@ export const GET: APIRoute = async ({ request }) => {
       storage: {
         buckets: [
           {
-            name: 'salfagpt-uploads',
+            name: 'openflow-uploads',
             location: 'us-central1',
             storageClass: 'STANDARD',
             size: 45.6, // GB
             objects: 8_934,
           },
           {
-            name: 'salfagpt-backups',
+            name: 'openflow-backups',
             location: 'us-central1',
             storageClass: 'NEARLINE',
             size: 234.5, // GB

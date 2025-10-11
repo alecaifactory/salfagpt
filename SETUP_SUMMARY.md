@@ -31,14 +31,14 @@ export PROJECT_ID="your-project-id"
 export YOUR_EMAIL="your-email@gmail.com"
 
 # Auto-generated
-export SERVICE_ACCOUNT_EMAIL="salfagpt-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 ```
 
 ### Step 2: Create Service Account
 
 ```bash
-gcloud iam service-accounts create salfagpt-service \
-  --display-name="SalfaGPT Service Account" \
+gcloud iam service-accounts create openflow-service \
+  --display-name="OpenFlow Service Account" \
   --project=${PROJECT_ID}
 ```
 
@@ -205,11 +205,11 @@ gcloud projects get-iam-policy ${PROJECT_ID} \
 
 ```bash
 # Build
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/salfagpt
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/openflow
 
 # Deploy with service account
-gcloud run deploy salfagpt \
-  --image gcr.io/${PROJECT_ID}/salfagpt \
+gcloud run deploy openflow \
+  --image gcr.io/${PROJECT_ID}/openflow \
   --region us-central1 \
   --service-account ${SERVICE_ACCOUNT_EMAIL} \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"

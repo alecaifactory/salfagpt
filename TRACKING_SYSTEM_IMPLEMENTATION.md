@@ -361,7 +361,7 @@ SELECT
   COUNT(*) as interactions,
   SUM(total_tokens) as total_tokens,
   SUM(total_cost_usd) as total_cost
-FROM `salfagpt.analytics.ai_interactions`
+FROM `openflow.analytics.ai_interactions`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 GROUP BY user_id
 ORDER BY total_cost DESC;
@@ -376,7 +376,7 @@ SELECT
   AVG(latency_ms) as avg_latency,
   AVG(output_tokens) as avg_output_tokens,
   AVG(total_cost_usd) as avg_cost
-FROM `salfagpt.analytics.ai_interactions`
+FROM `openflow.analytics.ai_interactions`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
 GROUP BY model;
 ```
@@ -390,7 +390,7 @@ SELECT
   total_tokens,
   total_cost_usd,
   latency_ms
-FROM `salfagpt.analytics.ai_interactions`
+FROM `openflow.analytics.ai_interactions`
 WHERE date >= CURRENT_DATE()
   AND total_cost_usd > 0.01
 ORDER BY total_cost_usd DESC

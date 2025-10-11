@@ -1,19 +1,19 @@
 #!/bin/bash
 
 # ============================================
-# SalfaGPT Quick Start Script
+# OpenFlow Quick Start Script
 # ============================================
 
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                                                              ║"
-echo "║              🚀 SalfaGPT Quick Start Check 🚀               ║"
+echo "║              🚀 OpenFlow Quick Start Check 🚀               ║"
 echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Check 1: Service Account
 echo "1️⃣  Checking Service Account..."
-if gcloud iam service-accounts list --filter="email:salfagpt-service@*" --format="value(email)" | grep -q "salfagpt-service"; then
+if gcloud iam service-accounts list --filter="email:openflow-service@*" --format="value(email)" | grep -q "openflow-service"; then
     echo "   ✅ Service account exists"
 else
     echo "   ❌ Service account missing"

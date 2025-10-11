@@ -144,7 +144,7 @@
 # Before changes - verify features present
 grep -q "Sparkles" src/components/ChatInterface.tsx && echo "✅ Sparkles" || echo "❌ Missing"
 grep -q "userConfig\.model" src/components/ChatInterface.tsx && echo "✅ Model display" || echo "❌ Missing"
-grep -q "SalfaGPT puede cometer" src/components/ChatInterface.tsx && echo "✅ Disclaimer" || echo "❌ Missing"
+grep -q "OpenFlow puede cometer" src/components/ChatInterface.tsx && echo "✅ Disclaimer" || echo "❌ Missing"
 
 # After changes - verify still working
 npm run type-check

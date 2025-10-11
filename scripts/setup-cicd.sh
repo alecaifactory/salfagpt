@@ -10,7 +10,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== SalfaGPT Cloud Build CI/CD Setup ===${NC}\n"
+echo -e "${GREEN}=== OpenFlow Cloud Build CI/CD Setup ===${NC}\n"
 
 # Check if gcloud is installed
 if ! command -v gcloud &> /dev/null; then
@@ -47,13 +47,13 @@ echo -e "${GREEN}✓ APIs enabled${NC}\n"
 
 # Step 2: Create Artifact Registry
 echo -e "${YELLOW}Step 2: Creating Artifact Registry repository...${NC}"
-if gcloud artifacts repositories describe salfagpt --location=us-central1 &>/dev/null; then
+if gcloud artifacts repositories describe openflow --location=us-central1 &>/dev/null; then
     echo -e "${GREEN}✓ Artifact Registry repository already exists${NC}"
 else
-    gcloud artifacts repositories create salfagpt \
+    gcloud artifacts repositories create openflow \
       --repository-format=docker \
       --location=us-central1 \
-      --description="SalfaGPT Docker images" \
+      --description="OpenFlow Docker images" \
       --quiet
     echo -e "${GREEN}✓ Artifact Registry repository created${NC}"
 fi
@@ -89,13 +89,13 @@ echo -e "${GREEN}✓ Cloud Build permissions granted${NC}\n"
 # Step 4: Create runtime service account
 echo -e "${YELLOW}Step 4: Creating Cloud Run runtime service account...${NC}"
 
-RUNTIME_SA="salfagpt-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
+RUNTIME_SA="openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com"
 
 if gcloud iam service-accounts describe $RUNTIME_SA &>/dev/null; then
     echo -e "${GREEN}✓ Runtime service account already exists${NC}"
 else
-    gcloud iam service-accounts create salfagpt-runtime \
-      --display-name="SalfaGPT Runtime Service Account" \
+    gcloud iam service-accounts create openflow-runtime \
+      --display-name="OpenFlow Runtime Service Account" \
       --quiet
     echo -e "${GREEN}✓ Runtime service account created${NC}"
 fi

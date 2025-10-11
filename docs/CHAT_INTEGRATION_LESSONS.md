@@ -1,7 +1,7 @@
 # Lecciones Aprendidas: Integración de Chat con Gemini AI
 
 **Fecha**: 11 de octubre de 2025  
-**Contexto**: Integración completa de Gemini 2.5 en SalfaGPT  
+**Contexto**: Integración completa de Gemini 2.5 en OpenFlow  
 **Estado**: ✅ COMPLETADO
 
 ---

@@ -167,10 +167,10 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 **Purpose:** Add user menu with profile display and logout functionality
 
 ### 🎉 Achievement Summary
-**Production URL:** https://salfagpt-cno6l2kfga-uc.a.run.app/chat  
+**Production URL:** https://openflow-cno6l2kfga-uc.a.run.app/chat  
 **Status:** 🟢 Live and fully functional  
 **Build Time:** 2m 34s  
-**Revision:** salfagpt-00007-9x6
+**Revision:** openflow-00007-9x6
 
 ### What Was Built
 
@@ -222,7 +222,7 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 ### Deployment
 ```bash
 # Built: 2m 34s
-# Deployed: salfagpt-00007-9x6
+# Deployed: openflow-00007-9x6
 # Status: SUCCESS
 ```
 
@@ -262,7 +262,7 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 **Purpose:** Implement complete ChatGPT-like interface with authentication and beautiful UI
 
 ### 🎉 Achievement Summary
-**Production URL:** https://salfagpt-cno6l2kfga-uc.a.run.app/chat  
+**Production URL:** https://openflow-cno6l2kfga-uc.a.run.app/chat  
 **Status:** 🟢 Live and fully functional  
 **Verification:** ✅ End-to-end user testing successful
 
@@ -327,7 +327,7 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 ### Critical Fixes Implemented
 
 #### 1. Cookie Name Mismatch ✅
-**Problem:** Login set `salfagpt_session`, chat looked for `auth_token`  
+**Problem:** Login set `openflow_session`, chat looked for `auth_token`  
 **Solution:** Updated chat.astro to use correct cookie name  
 **Impact:** Authentication now persists correctly
 
@@ -412,7 +412,7 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 6. Callback:
    - Exchanges code for tokens
    - Gets user info
-   - Sets salfagpt_session cookie
+   - Sets openflow_session cookie
    - Reads redirect cookie → /chat
    - Redirects to /chat
 7. User arrives at /chat ✅
@@ -478,10 +478,10 @@ export type UserRole = 'user' | 'expert' | 'analytics' | 'admin' | 'superadmin';
 **Purpose:** Set up CI/CD pipeline for automated deployments to Google Cloud Run
 
 ### Objective
-Implement a complete CI/CD pipeline that automates testing, building, and deployment of the SalfaGPT application to Google Cloud Run, with proper authentication and security best practices.
+Implement a complete CI/CD pipeline that automates testing, building, and deployment of the OpenFlow application to Google Cloud Run, with proper authentication and security best practices.
 
 ### 🎉 Achievement Summary
-**Production URL:** https://salfagpt-cno6l2kfga-uc.a.run.app  
+**Production URL:** https://openflow-cno6l2kfga-uc.a.run.app  
 **Status:** 🟢 Live and operational  
 **Verification:** ✅ Full end-to-end testing successful
 

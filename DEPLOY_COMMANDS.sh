@@ -1,14 +1,14 @@
 #!/bin/bash
-# SalfaGPT - Cloud Run Deployment Script
+# OpenFlow - Cloud Run Deployment Script
 # Project: gen-lang-client-0986191192
 
 set -e
 
 PROJECT_ID="gen-lang-client-0986191192"
 REGION="us-central1"
-SERVICE_NAME="salfagpt"
+SERVICE_NAME="openflow"
 
-echo "=== SalfaGPT Cloud Run Deployment ==="
+echo "=== OpenFlow Cloud Run Deployment ==="
 echo "Project: $PROJECT_ID"
 echo "Region: $REGION"
 echo ""

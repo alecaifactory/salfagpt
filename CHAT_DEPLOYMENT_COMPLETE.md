@@ -2,13 +2,13 @@
 
 **Date:** October 10, 2025  
 **Status:** ✅ **PRODUCTION READY**  
-**URL:** https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+**URL:** https://openflow-cno6l2kfga-uc.a.run.app/chat
 
 ---
 
 ## 🌟 What We Built
 
-A **beautiful, fully functional ChatGPT-like interface** for SalfaGPT, now live in production with:
+A **beautiful, fully functional ChatGPT-like interface** for OpenFlow, now live in production with:
 
 ### ✨ Key Features
 1. **Modern UI Design**
@@ -95,7 +95,7 @@ A **beautiful, fully functional ChatGPT-like interface** for SalfaGPT, now live 
 ## 🐛 Critical Issues Fixed
 
 ### 1. ❌ Cookie Name Mismatch → ✅ Fixed
-**Problem:** Authentication was setting `salfagpt_session` but chat was looking for `auth_token`
+**Problem:** Authentication was setting `openflow_session` but chat was looking for `auth_token`
 
 **Impact:** Users couldn't access chat after logging in
 
@@ -105,7 +105,7 @@ A **beautiful, fully functional ChatGPT-like interface** for SalfaGPT, now live 
 const token = cookies.get('auth_token')?.value;
 
 // After
-const token = cookies.get('salfagpt_session')?.value;
+const token = cookies.get('openflow_session')?.value;
 ```
 
 **Result:** Authentication now works correctly ✅
@@ -233,18 +233,18 @@ docs/
 # Container built successfully
 Duration: 2m 31s - 2m 58s
 Status: SUCCESS
-Image: us-central1-docker.pkg.dev/gen-lang-client-0986191192/salfagpt/salfagpt:latest
+Image: us-central1-docker.pkg.dev/gen-lang-client-0986191192/openflow/openflow:latest
 ```
 
 ### Cloud Run Deployment
 ```bash
-Service: salfagpt
+Service: openflow
 Region: us-central1
 Platform: managed
 Port: 8080
 Access: public (allow-unauthenticated)
-Revision: salfagpt-00006-4m6
-URL: https://salfagpt-cno6l2kfga-uc.a.run.app
+Revision: openflow-00006-4m6
+URL: https://openflow-cno6l2kfga-uc.a.run.app
 ```
 
 ### Environment Configuration
@@ -278,11 +278,11 @@ PORT=8080
 ### API Testing
 ```bash
 # Authentication flow
-curl -I https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+curl -I https://openflow-cno6l2kfga-uc.a.run.app/chat
 → 302 redirect to /auth/login?redirect=/chat ✅
 
 # Login with redirect
-curl -I "https://salfagpt-cno6l2kfga-uc.a.run.app/auth/login?redirect=/chat"
+curl -I "https://openflow-cno6l2kfga-uc.a.run.app/auth/login?redirect=/chat"
 → Sets auth_redirect cookie
 → Redirects to Google OAuth ✅
 ```
@@ -453,7 +453,7 @@ cfe510e - Fix authentication flow: preserve redirect URL and fix cookie name mis
 
 ## 🌟 Production URL
 
-**Live at:** https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+**Live at:** https://openflow-cno6l2kfga-uc.a.run.app/chat
 
 **Try it now!** Sign in with Google and experience the beautiful chat interface.
 
@@ -462,7 +462,7 @@ cfe510e - Fix authentication flow: preserve redirect URL and fix cookie name mis
 **Deployment Date:** October 10, 2025  
 **Version:** 1.0.0  
 **Status:** ✅ Production Ready  
-**Maintained By:** SalfaGPT Development Team
+**Maintained By:** OpenFlow Development Team
 
 🎊 **Congratulations on a successful deployment!** 🎊
 

@@ -13,7 +13,7 @@
 
 **What to check:**
 - [ ] Page loads without errors
-- [ ] See "SalfaGPT" branding
+- [ ] See "OpenFlow" branding
 - [ ] Navigation works
 - [ ] Design looks professional
 
@@ -32,7 +32,7 @@
 **What should happen:**
 1. [ ] Browser redirects to Google sign-in page
 2. [ ] See Google OAuth consent screen
-3. [ ] Shows: "SalfaGPT wants to access your Google Account"
+3. [ ] Shows: "OpenFlow wants to access your Google Account"
 4. [ ] Permissions requested:
    - See your email address
    - See your personal info
@@ -44,7 +44,7 @@
 2. [ ] You're now logged in!
 3. [ ] Check browser DevTools (F12):
    - Go to: Application → Cookies → http://localhost:3000
-   - [ ] See cookie named: `salfagpt_session`
+   - [ ] See cookie named: `openflow_session`
    - [ ] Cookie has a JWT token value
 
 ### Test 5: Chat with Authentication ✅
@@ -80,7 +80,7 @@ http://localhost:3000/auth/callback
 ### Issue 2: "This app isn't verified"
 **Solution**: 
 - Click "Advanced"
-- Click "Go to SalfaGPT (unsafe)" 
+- Click "Go to OpenFlow (unsafe)" 
 - This is normal for development apps
 
 ### Issue 3: Login works but chat still gives 401

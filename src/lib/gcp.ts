@@ -3,7 +3,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 
 const PROJECT_ID = import.meta.env.GOOGLE_CLOUD_PROJECT;
 const LOCATION = import.meta.env.VERTEX_AI_LOCATION || 'us-central1';
-const DATASET_ID = import.meta.env.BIGQUERY_DATASET || 'salfagpt_dataset';
+const DATASET_ID = import.meta.env.BIGQUERY_DATASET || 'openflow_dataset';
 
 // Initialize BigQuery client
 // In production (Cloud Run), uses Workload Identity automatically
