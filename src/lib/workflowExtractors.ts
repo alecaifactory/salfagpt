@@ -1,21 +1,30 @@
 // Real document extractors using proper libraries
 import type { WorkflowConfig } from '../types/context';
 
-// PDF extraction using pdf-parse
+// PDF extraction using pdfjs-dist (browser-compatible)
 export async function extractPdfText(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    // Dynamically import pdf-parse (works better with Astro)
-    const pdfParse = await import('pdf-parse');
+    // Dynamically import pdfjs-dist
+    const pdfjsLib = await import('pdfjs-dist');
+    
+    // Set worker path
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     
     const arrayBuffer = await file.arrayBuffer();
-    // Use Uint8Array instead of Buffer (works in browser)
-    const buffer = new Uint8Array(arrayBuffer);
     
-    // @ts-ignore - pdf-parse has export issues with ESM
-    const parseFunction = pdfParse.default || pdfParse;
-    const data = await parseFunction(buffer);
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
     
-    let extractedText = data.text;
+    let extractedText = '';
+    
+    // Extract text from all pages
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      extractedText += pageText + '\n\n';
+    }
     
     // Apply maxOutputLength if specified
     if (config?.maxOutputLength && extractedText.length > config.maxOutputLength) {
@@ -23,16 +32,15 @@ export async function extractPdfText(file: File, config?: WorkflowConfig): Promi
     }
     
     // Add metadata
-    const metadata = `
-📄 Archivo: ${file.name}
-📊 Total de páginas: ${data.numpages}
+    const metadata = `📄 Archivo: ${file.name}
+📊 Total de páginas: ${pdf.numPages}
 📝 Caracteres extraídos: ${extractedText.length}
+🤖 Modelo: ${config?.model || 'gemini-2.5-flash'}
 📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-${extractedText}
-`;
+${extractedText}`;
     
     return metadata;
   } catch (error) {
@@ -44,37 +52,9 @@ ${extractedText}
 // PDF with images extraction (OCR would be needed for images)
 export async function extractPdfWithImages(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    const pdfParse = await import('pdf-parse');
-    
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-    
-    // @ts-ignore - pdf-parse has export issues with ESM
-    const parseFunction = pdfParse.default || pdfParse;
-    const data = await parseFunction(buffer);
-    
-    let extractedText = data.text;
-    
-    if (config?.maxOutputLength && extractedText.length > config.maxOutputLength) {
-      extractedText = extractedText.substring(0, config.maxOutputLength) + '\n\n[Texto truncado...]';
-    }
-    
-    const metadata = `
-📄 Archivo: ${file.name}
-📊 Total de páginas: ${data.numpages}
-🖼️ Modo: Extracción con imágenes (OCR disponible próximamente)
-📝 Caracteres extraídos: ${extractedText.length}
-📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${extractedText}
-
-ℹ️ Nota: Las imágenes requieren procesamiento OCR adicional.
-Para habilitar OCR, contacta al administrador del sistema.
-`;
-    
-    return metadata;
+    // Use same extraction as text for now (images would need OCR)
+    const result = await extractPdfText(file, { ...config, extractImages: true });
+    return result + '\n\nℹ️ Nota: Las imágenes requieren procesamiento OCR adicional (próximamente).';
   } catch (error) {
     console.error('Error extracting PDF with images:', error);
     return `❌ Error al extraer PDF con imágenes: ${error instanceof Error ? error.message : 'Error desconocido'}`;
@@ -84,47 +64,17 @@ Para habilitar OCR, contacta al administrador del sistema.
 // PDF tables extraction
 export async function extractPdfTables(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    const pdfParse = await import('pdf-parse');
+    // Extract text first
+    const result = await extractPdfText(file, { ...config, extractTables: true });
     
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-    
-    // @ts-ignore - pdf-parse has export issues with ESM
-    const parseFunction = pdfParse.default || pdfParse;
-    const data = await parseFunction(buffer);
-    
-    let extractedText = data.text;
-    
-    // Try to identify table-like structures
-    const lines = extractedText.split('\n');
+    // Try to identify table-like structures in the extracted text
+    const lines = result.split('\n');
     const tableLines = lines.filter((line: string) => {
       // Simple heuristic: lines with multiple spaces or tabs might be tables
       return line.includes('\t') || /\s{2,}/.test(line);
     });
     
-    const tableText = tableLines.join('\n');
-    
-    let result = tableText || extractedText;
-    
-    if (config?.maxOutputLength && result.length > config.maxOutputLength) {
-      result = result.substring(0, config.maxOutputLength) + '\n\n[Texto truncado...]';
-    }
-    
-    const metadata = `
-📄 Archivo: ${file.name}
-📊 Total de páginas: ${data.numpages}
-📋 Tablas identificadas: ${tableLines.length} líneas con estructura tabular
-📝 Caracteres extraídos: ${result.length}
-📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${result}
-
-ℹ️ Nota: Detección básica de tablas. Para extracción avanzada, usa herramientas especializadas.
-`;
-    
-    return metadata;
+    return result + `\n\nℹ️ Nota: ${tableLines.length} líneas con estructura tabular identificadas. Para extracción avanzada de tablas, usa herramientas especializadas.`;
   } catch (error) {
     console.error('Error extracting PDF tables:', error);
     return `❌ Error al extraer tablas del PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;

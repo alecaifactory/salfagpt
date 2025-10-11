@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, Sparkles, Info } from 'lucide-react';
 import type { Workflow, WorkflowConfig } from '../types/context';
 
 interface WorkflowConfigModalProps {
@@ -23,8 +23,10 @@ export default function WorkflowConfigModal({
       extractTables: false,
       ocrEnabled: false,
       language: 'es',
+      model: 'gemini-2.5-flash', // Default model
     }
   );
+  const [showModelTooltip, setShowModelTooltip] = useState(false);
 
   if (!isOpen || !workflow) return null;
 
@@ -91,6 +93,69 @@ export default function WorkflowConfigModal({
             <p className="text-xs text-slate-500 mt-1">
               Controla cuánto texto se extrae del documento
             </p>
+          </div>
+
+          {/* AI Model Selection */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Modelo de IA
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onMouseEnter={() => setShowModelTooltip(true)}
+                  onMouseLeave={() => setShowModelTooltip(false)}
+                  className="text-slate-400 hover:text-blue-600 transition-colors"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+                {showModelTooltip && (
+                  <div className="absolute left-6 top-0 w-72 bg-slate-900 text-white text-xs rounded-lg p-3 z-50 shadow-xl">
+                    <p className="font-semibold mb-2">💡 Recomendación</p>
+                    <p className="mb-2"><strong>Flash</strong>: 94% más económico, ideal para documentos simples</p>
+                    <p className="text-blue-300"><strong>Pro</strong>: Mayor precisión en documentos complejos</p>
+                    <div className="mt-2 pt-2 border-t border-slate-700">
+                      <p className="text-slate-300">💸 Ahorro: <span className="text-green-400 font-semibold">$28 USD</span> por millón de tokens con Flash</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setConfig({ ...config, model: 'gemini-2.5-flash' })}
+                className={`p-3 border-2 rounded-lg transition-all text-left ${
+                  config.model === 'gemini-2.5-flash' || !config.model
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-slate-200 hover:border-green-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className={`w-4 h-4 ${config.model === 'gemini-2.5-flash' || !config.model ? 'text-green-600' : 'text-slate-400'}`} />
+                  <span className="font-semibold text-slate-800">Flash</span>
+                </div>
+                <p className="text-xs text-slate-600">Económico y rápido</p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConfig({ ...config, model: 'gemini-2.5-pro' })}
+                className={`p-3 border-2 rounded-lg transition-all text-left ${
+                  config.model === 'gemini-2.5-pro'
+                    ? 'border-purple-500 bg-purple-50'
+                    : 'border-slate-200 hover:border-purple-300'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className={`w-4 h-4 ${config.model === 'gemini-2.5-pro' ? 'text-purple-600' : 'text-slate-400'}`} />
+                  <span className="font-semibold text-slate-800">Pro</span>
+                </div>
+                <p className="text-xs text-slate-600">Mayor precisión</p>
+              </button>
+            </div>
           </div>
 
           {/* Extract Images (for PDF workflows) */}
