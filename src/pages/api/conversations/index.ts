@@ -19,24 +19,33 @@ export const GET: APIRoute = async ({ request }) => {
       );
     }
 
-    const conversations = await getConversations(userId, folderId);
-    const grouped = groupConversationsByTime(conversations);
+    try {
+      const conversations = await getConversations(userId, folderId);
+      const grouped = groupConversationsByTime(conversations);
 
-    // Format for frontend
-    const groups = [
-      { label: 'Today', conversations: grouped.today },
-      { label: 'Yesterday', conversations: grouped.yesterday },
-      { label: 'Last 7 Days', conversations: grouped.lastWeek },
-      { label: 'Last 30 Days', conversations: grouped.lastMonth },
-      { label: 'Older', conversations: grouped.older },
-    ].filter(group => group.conversations.length > 0);
+      // Format for frontend
+      const groups = [
+        { label: 'Today', conversations: grouped.today },
+        { label: 'Yesterday', conversations: grouped.yesterday },
+        { label: 'Last 7 Days', conversations: grouped.lastWeek },
+        { label: 'Last 30 Days', conversations: grouped.lastMonth },
+        { label: 'Older', conversations: grouped.older },
+      ].filter(group => group.conversations.length > 0);
 
-    return new Response(
-      JSON.stringify({ groups }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+      return new Response(
+        JSON.stringify({ groups }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (firestoreError) {
+      // Firestore not available (dev mode) - return empty conversations
+      console.warn('⚠️ Firestore unavailable, returning empty conversations');
+      return new Response(
+        JSON.stringify({ groups: [] }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
   } catch (error: any) {
-    console.error('Error fetching conversations:', error);
+    console.error('Error in conversations API:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to fetch conversations' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

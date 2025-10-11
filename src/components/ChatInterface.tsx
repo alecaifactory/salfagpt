@@ -167,11 +167,16 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const loadConversations = async () => {
     try {
       const response = await fetch(`/api/conversations?userId=${userId}`);
+      if (!response.ok) {
+        console.warn('⚠️ Conversations API error, using empty state');
+        setConversations([]);
+        return;
+      }
       const data = await response.json();
-      setConversations(data.groups);
+      setConversations(data.groups || []);
     } catch (error) {
       console.error('Error loading conversations:', error);
-      setUseMockData(true);
+      setConversations([]); // Set empty array to prevent undefined errors
     }
   };
 
