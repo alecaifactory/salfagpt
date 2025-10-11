@@ -97,5 +97,60 @@ export const DEFAULT_JOB_ROLES: JobRole[] = [
       'Implementar 4 programas de desarrollo',
     ],
   },
+  {
+    id: 'product',
+    name: 'Product Team',
+    description: 'Desarrollo y estrategia de producto',
+    okrs: [
+      'Lanzar 3 nuevas features estratégicas',
+      'Aumentar adopción de usuarios en 35%',
+      'Reducir tiempo de go-to-market en 40%',
+      'Alcanzar 4.5 estrellas en satisfacción',
+    ],
+  },
+  {
+    id: 'tech',
+    name: 'Tech Team',
+    description: 'Desarrollo técnico e infraestructura',
+    okrs: [
+      'Reducir deuda técnica en 30%',
+      'Alcanzar 99.9% uptime en producción',
+      'Implementar 5 mejoras de performance',
+      'Reducir bugs críticos a <2 por mes',
+    ],
+  },
+  {
+    id: 'compliance',
+    name: 'Compliance Team',
+    description: 'Cumplimiento normativo y regulatorio',
+    okrs: [
+      'Lograr 100% cumplimiento en auditorías',
+      'Actualizar 10 políticas corporativas',
+      'Completar 4 certificaciones clave',
+      'Reducir riesgos regulatorios en 50%',
+    ],
+  },
+  {
+    id: 'collections',
+    name: 'Collections Team',
+    description: 'Gestión de cobranzas y cuentas por cobrar',
+    okrs: [
+      'Reducir DSO (Days Sales Outstanding) a 35 días',
+      'Recuperar 90% de cuentas vencidas',
+      'Disminuir incobrables a <2% de ventas',
+      'Automatizar 60% de recordatorios',
+    ],
+  },
+  {
+    id: 'treasury',
+    name: 'Treasury Team',
+    description: 'Gestión de tesorería y liquidez',
+    okrs: [
+      'Optimizar flujo de caja en 20%',
+      'Reducir costos financieros en 15%',
+      'Mantener ratio de liquidez >1.5',
+      'Mejorar forecasting de cash flow a 95%',
+    ],
+  },
 ];
 
