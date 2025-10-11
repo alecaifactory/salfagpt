@@ -114,7 +114,7 @@ export default function ContextManager({
                     </div>
                     {source.metadata && (
                       <p className="text-xs text-slate-500 mt-0.5">
-                        {source.metadata.fileSize && `${(source.metadata.fileSize / 1024 / 1024).toFixed(1)} MB`}
+                        {source.metadata.originalFileSize && `${(source.metadata.originalFileSize / 1024 / 1024).toFixed(1)} MB`}
                         {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
                       </p>
                     )}

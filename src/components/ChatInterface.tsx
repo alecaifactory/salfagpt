@@ -129,7 +129,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       type: 'pdf-text',
       addedAt: new Date(),
       metadata: {
-        fileSize: 125000,
+        originalFileSize: 125000,
       },
       extractedData: `Contenido extraído del PDF:
 
@@ -552,6 +552,14 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
 
   // Context and Workflows handlers
   const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
+    const workflow = workflows.find(w => w.sourceType === type);
+    const config: WorkflowConfig = {
+      ...(workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 }),
+      model: apiConfig?.model || 'gemini-2.5-flash' // Use model from config or default to Flash
+    };
+
+    const extractionStartTime = Date.now();
+
     const newSource: ContextSource = {
       id: `source-${Date.now()}`,
       name: file ? file.name : url || apiConfig?.apiEndpoint || 'Nueva Fuente',
@@ -559,7 +567,18 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       enabled: true,
       status: 'processing',
       addedAt: new Date(),
-      metadata: file ? { fileSize: file.size } : url ? { url } : { apiEndpoint: apiConfig?.apiEndpoint },
+      originalFile: file, // Store original file for re-extraction
+      metadata: {
+        originalFileName: file?.name,
+        originalFileType: file?.type,
+        originalFileSize: file?.size,
+        workflowId: workflow?.id,
+        workflowName: workflow?.name,
+        extractionConfig: config,
+        extractionDate: new Date(),
+        url,
+        apiEndpoint: apiConfig?.apiEndpoint,
+      },
     };
 
     setContextSources(prev => [...prev, newSource]);
@@ -567,11 +586,6 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     // Process the source based on type
     try {
       let extractedData = '';
-      const workflow = workflows.find(w => w.sourceType === type);
-      const config = {
-        ...(workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 }),
-        model: apiConfig?.model || 'gemini-2.5-flash' // Use model from config or default to Flash
-      };
 
       if (type === 'pdf-text' && file) {
         extractedData = await extractors.extractPdfText(file, config);
@@ -591,17 +605,30 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
         extractedData = await extractors.extractFromApi(apiConfig.endpoint, config);
       }
 
-      // Update source with extracted data
+      const extractionTime = Date.now() - extractionStartTime;
+      const tokensEstimate = Math.floor(extractedData.length / 4);
+
+      // Update source with extracted data and complete metadata
       setContextSources(prev =>
         prev.map(s =>
           s.id === newSource.id
-            ? { ...s, status: 'active', extractedData }
+            ? {
+                ...s,
+                status: 'active',
+                extractedData,
+                metadata: {
+                  ...s.metadata,
+                  extractionTime,
+                  charactersExtracted: extractedData.length,
+                  tokensEstimate,
+                  modelUsed: config.model || 'gemini-2.5-flash',
+                },
+              }
             : s
         )
       );
 
       // Update context sections
-      const tokensEstimate = Math.floor(extractedData.length / 4);
       setContextSections(prev => [
         ...prev.filter(s => s.name !== `Fuente: ${newSource.name}`),
         {
@@ -611,8 +638,17 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
           collapsed: true,
         },
       ]);
+
+      console.log('✅ Source processed successfully:', {
+        name: newSource.name,
+        type,
+        extractionTime: `${extractionTime}ms`,
+        characters: extractedData.length,
+        tokens: tokensEstimate,
+        model: config.model,
+      });
     } catch (error) {
-      console.error('Error processing source:', error);
+      console.error('❌ Error processing source:', error);
       setContextSources(prev =>
         prev.map(s =>
           s.id === newSource.id ? { ...s, status: 'error' } : s
@@ -744,6 +780,110 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       setSourceToShare(source);
       setShowShareModal(true);
       setSelectedSourceId(null); // Close detail panel
+    }
+  };
+
+  const handleSourceSettings = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      setSourceToConfig(source);
+      setShowSettingsModal(true);
+    }
+  };
+
+  const handleReExtract = async (sourceId: string, newConfig: WorkflowConfig) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (!source || !source.originalFile) {
+      console.error('Cannot re-extract: source or original file not found');
+      return;
+    }
+
+    console.log('🔄 Re-extracting source with new config:', {
+      sourceId,
+      sourceName: source.name,
+      newConfig,
+    });
+
+    // Update source status to processing
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId ? { ...s, status: 'processing' as const } : s
+      )
+    );
+
+    const extractionStartTime = Date.now();
+
+    try {
+      let extractedData = '';
+      const { originalFile, type } = source;
+
+      // Re-extract based on type
+      if (type === 'pdf-text') {
+        extractedData = await extractors.extractPdfText(originalFile!, newConfig);
+      } else if (type === 'pdf-images') {
+        extractedData = await extractors.extractPdfWithImages(originalFile!, newConfig);
+      } else if (type === 'pdf-tables') {
+        extractedData = await extractors.extractPdfTables(originalFile!, newConfig);
+      } else if (type === 'csv') {
+        extractedData = await extractors.extractCsv(originalFile!, newConfig);
+      } else if (type === 'excel') {
+        extractedData = await extractors.extractExcel(originalFile!, newConfig);
+      } else if (type === 'word') {
+        extractedData = await extractors.extractWord(originalFile!, newConfig);
+      }
+
+      const extractionTime = Date.now() - extractionStartTime;
+      const tokensEstimate = Math.floor(extractedData.length / 4);
+
+      // Update source with new extracted data and metadata
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === sourceId
+            ? {
+                ...s,
+                status: 'active' as const,
+                extractedData,
+                metadata: {
+                  ...s.metadata,
+                  extractionConfig: newConfig,
+                  extractionDate: new Date(),
+                  extractionTime,
+                  charactersExtracted: extractedData.length,
+                  tokensEstimate,
+                  modelUsed: newConfig.model || 'gemini-2.5-flash',
+                },
+              }
+            : s
+        )
+      );
+
+      // Update context sections if source is enabled
+      if (source.enabled) {
+        setContextSections(prev => [
+          ...prev.filter(s => s.name !== `Fuente: ${source.name}`),
+          {
+            name: `Fuente: ${source.name}`,
+            tokenCount: tokensEstimate,
+            content: extractedData,
+            collapsed: true,
+          },
+        ]);
+      }
+
+      console.log('✅ Re-extraction successful:', {
+        sourceId,
+        extractionTime: `${extractionTime}ms`,
+        characters: extractedData.length,
+        tokens: tokensEstimate,
+        model: newConfig.model,
+      });
+    } catch (error) {
+      console.error('❌ Error during re-extraction:', error);
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === sourceId ? { ...s, status: 'error' as const } : s
+        )
+      );
     }
   };
 
@@ -914,6 +1054,7 @@ ${userInfo.company}`;
                 onToggleSource={handleToggleSource}
                 onRemoveSource={handleRemoveSource}
                 onSourceClick={handleSourceClick}
+                onSourceSettings={handleSourceSettings}
               />
             </div>
           ) : (
@@ -1234,6 +1375,16 @@ ${userInfo.company}`;
           setSourceToShare(null);
         }}
         onGenerateEmail={handleGenerateShareEmail}
+      />
+
+      <ContextSourceSettingsModal
+        source={sourceToConfig!}
+        isOpen={showSettingsModal && sourceToConfig !== null}
+        onClose={() => {
+          setShowSettingsModal(false);
+          setSourceToConfig(null);
+        }}
+        onReExtract={handleReExtract}
       />
     </div>
   );
