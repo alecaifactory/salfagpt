@@ -31,6 +31,7 @@
     "@google-cloud/firestore": "^7.10.0",
     "@google-cloud/logging": "^11.2.1",
     "@google-cloud/vertexai": "^1.10.0",
+    "@google-cloud/vision": "^5.3.3",
     "@google/genai": "^1.23.0",
     "astro": "^5.14.1",
     "cookie": "^1.0.2",
@@ -41,7 +42,6 @@
     "mammoth": "^1.11.0",
     "papaparse": "^5.5.3",
     "pdf-parse": "^2.2.9",
-    "pdfjs-dist": "^5.4.296",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "xlsx": "^0.18.5"

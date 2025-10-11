@@ -1,60 +1,50 @@
-// Real document extractors using proper libraries
+// Real document extractors using Google Cloud Vision API
 import type { WorkflowConfig } from '../types/context';
 
-// PDF extraction using pdfjs-dist (browser-compatible)
+// PDF extraction using Google Cloud Vision API
 export async function extractPdfText(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    // Dynamically import pdfjs-dist
-    const pdfjsLib = await import('pdfjs-dist');
-    
-    // Set worker path
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-    const pdf = await loadingTask.promise;
-    
-    let extractedText = '';
-    
-    // Extract text from all pages
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items.map((item: any) => item.str).join(' ');
-      extractedText += pageText + '\n\n';
+    // Call our API endpoint that uses Google Cloud Vision
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('model', config?.model || 'gemini-2.5-flash');
+
+    const response = await fetch('/api/extract-document', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.details || error.error || 'Failed to extract document');
     }
+
+    const result = await response.json();
     
+    if (!result.success) {
+      throw new Error(result.error || 'Extraction failed');
+    }
+
+    let extractedText = result.text;
+
     // Apply maxOutputLength if specified
     if (config?.maxOutputLength && extractedText.length > config.maxOutputLength) {
       extractedText = extractedText.substring(0, config.maxOutputLength) + '\n\n[Texto truncado...]';
     }
-    
-    // Add metadata
-    const metadata = `📄 Archivo: ${file.name}
-📊 Total de páginas: ${pdf.numPages}
-📝 Caracteres extraídos: ${extractedText.length}
-🤖 Modelo: ${config?.model || 'gemini-2.5-flash'}
-📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${extractedText}`;
-    
-    return metadata;
+    return extractedText;
   } catch (error) {
     console.error('Error extracting PDF text:', error);
     return `❌ Error al extraer texto del PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;
   }
 }
 
-// PDF with images extraction (OCR would be needed for images)
+// PDF with images extraction using Google Cloud Vision (includes OCR automatically)
 export async function extractPdfWithImages(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    // Use same extraction as text for now (images would need OCR)
+    // Vision API automatically handles OCR for images in PDFs
     const result = await extractPdfText(file, { ...config, extractImages: true });
-    return result + '\n\nℹ️ Nota: Las imágenes requieren procesamiento OCR adicional (próximamente).';
+    return result + '\n\n✅ Nota: Google Cloud Vision incluye OCR automático para imágenes.';
   } catch (error) {
     console.error('Error extracting PDF with images:', error);
     return `❌ Error al extraer PDF con imágenes: ${error instanceof Error ? error.message : 'Error desconocido'}`;
