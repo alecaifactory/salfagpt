@@ -163,6 +163,12 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
   const [showShareModal, setShowShareModal] = useState(false);
   const [sourceToShare, setSourceToShare] = useState<ContextSource | null>(null);
 
+  // Panel resizing state
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(440); // Default width
+  const [rightPanelWidth, setRightPanelWidth] = useState<number>(320); // Default width
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
   // Load conversations on mount
   useEffect(() => {
     if (useMockData) {
@@ -219,6 +225,38 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       calculateLocalContext();
     }
   }, [messages, userConfig]);
+
+  // Handle panel resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft) {
+        const newWidth = Math.max(320, Math.min(800, e.clientX));
+        setLeftPanelWidth(newWidth);
+      } else if (isResizingRight) {
+        const newWidth = Math.max(280, Math.min(600, window.innerWidth - e.clientX));
+        setRightPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false);
+      setIsResizingRight(false);
+    };
+
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingLeft, isResizingRight]);
 
   const loadConversations = async () => {
     try {
@@ -733,7 +771,10 @@ ${userInfo.company}`;
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations & Context */}
-      <div className={`${selectedSourceId ? 'w-[600px]' : 'w-[440px]'} bg-white border-r border-slate-200 flex flex-col shadow-xl relative transition-all duration-300`}>
+      <div 
+        className="bg-white border-r border-slate-200 flex flex-col shadow-xl relative"
+        style={{ width: `${leftPanelWidth}px` }}
+      >
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -746,7 +787,7 @@ ${userInfo.company}`;
         </div>
 
         {/* Conversations List - Limited height to give more space to Context */}
-        <div className={`flex-none ${selectedSourceId ? 'h-48' : 'h-64'} overflow-y-auto p-4 space-y-4 transition-all duration-300`}>
+        <div className="flex-none h-64 overflow-y-auto p-4 space-y-4">
           {conversations.map(group => (
             <div key={group.label}>
               <h3 className="text-xs font-bold text-slate-600 uppercase mb-3 tracking-wider">
@@ -873,6 +914,17 @@ ${userInfo.company}`;
               showUserMenu ? 'rotate-180' : ''
             }`} />
           </button>
+        </div>
+      </div>
+
+      {/* Left Resizer */}
+      <div
+        className="w-1 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-colors relative group"
+        onMouseDown={() => setIsResizingLeft(true)}
+      >
+        <div className="absolute inset-y-0 -left-1 -right-1" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-12 bg-slate-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-1 h-8 bg-white rounded-full"></div>
         </div>
       </div>
 
@@ -1058,13 +1110,26 @@ ${userInfo.company}`;
         )}
       </div>
 
+      {/* Right Resizer */}
+      <div
+        className="w-1 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-colors relative group"
+        onMouseDown={() => setIsResizingRight(true)}
+      >
+        <div className="absolute inset-y-0 -left-1 -right-1" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-12 bg-slate-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-1 h-8 bg-white rounded-full"></div>
+        </div>
+      </div>
+
       {/* Right Panel - Workflows */}
-      <WorkflowsPanel
-        workflows={workflows}
-        onRunWorkflow={handleRunWorkflow}
-        onConfigureWorkflow={handleConfigureWorkflow}
-        onSaveTemplate={handleSaveTemplate}
-      />
+      <div style={{ width: `${rightPanelWidth}px` }}>
+        <WorkflowsPanel
+          workflows={workflows}
+          onRunWorkflow={handleRunWorkflow}
+          onConfigureWorkflow={handleConfigureWorkflow}
+          onSaveTemplate={handleSaveTemplate}
+        />
+      </div>
 
       {/* Modals */}
       <AddSourceModal
