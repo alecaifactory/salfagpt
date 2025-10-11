@@ -17,8 +17,17 @@ export const GET: APIRoute = async ({ request }) => {
     // In production, these would come from actual system monitoring
     // For now, we'll return mock data with realistic values
     
-    const systemHealth = {
-      status: 'healthy' as const,
+    const systemHealth: {
+      status: 'healthy' | 'warning' | 'critical';
+      timestamp: string;
+      api: any;
+      database: any;
+      memory: any;
+      cpu: any;
+      disk: any;
+      network: any;
+    } = {
+      status: 'healthy',
       timestamp: new Date().toISOString(),
       api: {
         status: 'healthy',
