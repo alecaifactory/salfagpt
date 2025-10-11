@@ -20,6 +20,13 @@ import {
   Building2,
   Sparkles
 } from 'lucide-react';
+import ContextManager from './ContextManager';
+import WorkflowsPanel from './WorkflowsPanel';
+import AddSourceModal from './AddSourceModal';
+import WorkflowConfigModal from './WorkflowConfigModal';
+import type { ContextSource, Workflow, WorkflowConfig, SourceType } from '../types/context';
+import { DEFAULT_WORKFLOWS } from '../types/context';
+import * as extractors from '../lib/workflowExtractors';
 
 interface Message {
   id: string;
@@ -106,6 +113,19 @@ export default function ChatInterface({ userId }: { userId: string }) {
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Context and Workflows state
+  const [contextSources, setContextSources] = useState<ContextSource[]>([]);
+  const [workflows, setWorkflows] = useState<Workflow[]>(
+    DEFAULT_WORKFLOWS.map((w, i) => ({
+      ...w,
+      id: `workflow-${i}`,
+      status: 'available' as const,
+    }))
+  );
+  const [showAddSourceModal, setShowAddSourceModal] = useState(false);
+  const [showWorkflowConfigModal, setShowWorkflowConfigModal] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
 
   // Load conversations on mount
   useEffect(() => {
@@ -386,6 +406,151 @@ export default function ChatInterface({ userId }: { userId: string }) {
     console.log('Abriendo ayuda...');
   };
 
+  // Context and Workflows handlers
+  const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
+    const newSource: ContextSource = {
+      id: `source-${Date.now()}`,
+      name: file ? file.name : url || apiConfig?.endpoint || 'Nueva Fuente',
+      type,
+      enabled: true,
+      status: 'processing',
+      addedAt: new Date(),
+      metadata: file ? { fileSize: file.size } : url ? { url } : { apiEndpoint: apiConfig?.endpoint },
+    };
+
+    setContextSources(prev => [...prev, newSource]);
+
+    // Process the source based on type
+    try {
+      let extractedData = '';
+      const workflow = workflows.find(w => w.sourceType === type);
+      const config = workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 };
+
+      if (type === 'pdf-text' && file) {
+        extractedData = await extractors.extractPdfText(file, config);
+      } else if (type === 'pdf-images' && file) {
+        extractedData = await extractors.extractPdfWithImages(file, config);
+      } else if (type === 'pdf-tables' && file) {
+        extractedData = await extractors.extractPdfTables(file, config);
+      } else if (type === 'csv' && file) {
+        extractedData = await extractors.extractCsv(file, config);
+      } else if (type === 'excel' && file) {
+        extractedData = await extractors.extractExcel(file, config);
+      } else if (type === 'word' && file) {
+        extractedData = await extractors.extractWord(file, config);
+      } else if (type === 'web-url' && url) {
+        extractedData = await extractors.extractFromUrl(url, config);
+      } else if (type === 'api' && apiConfig) {
+        extractedData = await extractors.extractFromApi(apiConfig.endpoint, config);
+      }
+
+      // Update source with extracted data
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === newSource.id
+            ? { ...s, status: 'active', extractedData }
+            : s
+        )
+      );
+
+      // Update context sections
+      const tokensEstimate = Math.floor(extractedData.length / 4);
+      setContextSections(prev => [
+        ...prev.filter(s => s.name !== `Fuente: ${newSource.name}`),
+        {
+          name: `Fuente: ${newSource.name}`,
+          tokenCount: tokensEstimate,
+          content: extractedData,
+          collapsed: true,
+        },
+      ]);
+    } catch (error) {
+      console.error('Error processing source:', error);
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === newSource.id ? { ...s, status: 'error' } : s
+        )
+      );
+    }
+  };
+
+  const handleToggleSource = (sourceId: string) => {
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId ? { ...s, enabled: !s.enabled } : s
+      )
+    );
+
+    // Update context sections visibility
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      if (source.enabled) {
+        // Removing from context
+        setContextSections(prev =>
+          prev.filter(s => s.name !== `Fuente: ${source.name}`)
+        );
+      } else {
+        // Adding to context
+        const tokensEstimate = Math.floor((source.extractedData?.length || 0) / 4);
+        setContextSections(prev => [
+          ...prev,
+          {
+            name: `Fuente: ${source.name}`,
+            tokenCount: tokensEstimate,
+            content: source.extractedData || '',
+            collapsed: true,
+          },
+        ]);
+      }
+    }
+  };
+
+  const handleRemoveSource = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    setContextSources(prev => prev.filter(s => s.id !== sourceId));
+    
+    if (source) {
+      setContextSections(prev =>
+        prev.filter(s => s.name !== `Fuente: ${source.name}`)
+      );
+    }
+  };
+
+  const handleRunWorkflow = (workflowId: string) => {
+    setWorkflows(prev =>
+      prev.map(w =>
+        w.id === workflowId ? { ...w, status: 'running', startedAt: new Date() } : w
+      )
+    );
+
+    // Open file picker based on workflow type
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (workflow) {
+      setShowAddSourceModal(true);
+    }
+  };
+
+  const handleConfigureWorkflow = (workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    setSelectedWorkflow(workflow || null);
+    setShowWorkflowConfigModal(true);
+  };
+
+  const handleSaveWorkflowConfig = (workflowId: string, config: WorkflowConfig) => {
+    setWorkflows(prev =>
+      prev.map(w => (w.id === workflowId ? { ...w, config } : w))
+    );
+  };
+
+  const handleSaveTemplate = (workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (workflow) {
+      // TODO: Implement template saving to localStorage or backend
+      console.log('Guardando plantilla:', workflow);
+      alert(`Plantilla "${workflow.name}" guardada exitosamente!`);
+    }
+  };
+
   const renderMessage = (message: Message) => {
     if (message.content.type === 'text') {
       return <p className="whitespace-pre-wrap">{message.content.text}</p>;
@@ -479,6 +644,14 @@ export default function ChatInterface({ userId }: { userId: string }) {
             </div>
           ))}
         </div>
+
+        {/* Context Manager */}
+        <ContextManager
+          sources={contextSources}
+          onAddSource={() => setShowAddSourceModal(true)}
+          onToggleSource={handleToggleSource}
+          onRemoveSource={handleRemoveSource}
+        />
 
         {/* User Menu */}
         <div className="border-t border-slate-200 bg-gradient-to-br from-white to-slate-50">
@@ -716,6 +889,31 @@ export default function ChatInterface({ userId }: { userId: string }) {
           </div>
         )}
       </div>
+
+      {/* Right Panel - Workflows */}
+      <WorkflowsPanel
+        workflows={workflows}
+        onRunWorkflow={handleRunWorkflow}
+        onConfigureWorkflow={handleConfigureWorkflow}
+        onSaveTemplate={handleSaveTemplate}
+      />
+
+      {/* Modals */}
+      <AddSourceModal
+        isOpen={showAddSourceModal}
+        onClose={() => setShowAddSourceModal(false)}
+        onAddSource={handleAddSource}
+      />
+
+      <WorkflowConfigModal
+        workflow={selectedWorkflow}
+        isOpen={showWorkflowConfigModal}
+        onClose={() => {
+          setShowWorkflowConfigModal(false);
+          setSelectedWorkflow(null);
+        }}
+        onSave={handleSaveWorkflowConfig}
+      />
     </div>
   );
 }
