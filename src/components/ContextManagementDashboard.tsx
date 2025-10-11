@@ -25,6 +25,8 @@ import type {
   ContextAccessStats,
 } from '../types/contextAccess';
 import { GROUP_LABELS, GROUP_COLORS } from '../types/contextAccess';
+import CreateGroupModal from './CreateGroupModal';
+import AssignAccessModal from './AssignAccessModal';
 
 interface ContextManagementDashboardProps {
   currentUserId: string;
@@ -148,6 +150,55 @@ export default function ContextManagementDashboard({
       </div>
     );
   }
+
+  // Handlers for modals
+  const handleCreateGroup = (name: string, type: GroupType, description: string) => {
+    console.log('✨ Creating group:', { name, type, description });
+    
+    // TODO: Call API to create group in Firestore
+    // For now, add to local state
+    const newGroup: Group = {
+      id: `grp-${Date.now()}`,
+      name,
+      type,
+      description,
+      memberIds: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: currentUserId,
+      isActive: true,
+    };
+    
+    setGroups(prev => [...prev, newGroup]);
+    
+    // TODO: Show success toast
+    console.log('✅ Group created successfully');
+  };
+
+  const handleAssignAccess = (
+    contextId: string,
+    targetType: 'user' | 'group',
+    targetId: string,
+    permissions: string[],
+    expiresAt?: Date,
+    duration?: number
+  ) => {
+    console.log('🔐 Assigning access:', {
+      contextId,
+      targetType,
+      targetId,
+      permissions,
+      expiresAt,
+      duration,
+    });
+    
+    // TODO: Call API to create access rule in Firestore
+    // For now, just log
+    console.log('✅ Access assigned successfully');
+    
+    // Reload data to reflect changes
+    loadData();
+  };
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100">
@@ -414,7 +465,20 @@ export default function ContextManagementDashboard({
         )}
       </div>
 
-      {/* TODO: Add modals for creating contexts, groups, and access rules */}
+      {/* Modals */}
+      <CreateGroupModal
+        isOpen={showCreateGroupModal}
+        onClose={() => setShowCreateGroupModal(false)}
+        onCreateGroup={handleCreateGroup}
+      />
+
+      <AssignAccessModal
+        isOpen={showAccessRuleModal}
+        onClose={() => setShowAccessRuleModal(false)}
+        contexts={contexts}
+        groups={groups}
+        onAssignAccess={handleAssignAccess}
+      />
     </div>
   );
 }
