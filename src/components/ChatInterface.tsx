@@ -210,6 +210,7 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       } else {
         loadMessages(currentConversation);
         loadContextInfo(currentConversation);
+        loadConversationContextSources(currentConversation);
       }
     }
   }, [currentConversation, useMockData]);
@@ -353,6 +354,55 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       setContextSections(data.sections || []);
     } catch (error) {
       console.error('Error loading context info:', error);
+    }
+  };
+
+  const loadConversationContextSources = async (conversationId: string) => {
+    // Skip for temporary conversations
+    if (conversationId.startsWith('temp-')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/context-sources`);
+      if (!response.ok) {
+        console.warn('⚠️ Could not load conversation context sources');
+        return;
+      }
+
+      const data = await response.json();
+      const activeSourceIds = data.activeContextSourceIds || [];
+      
+      console.log('📥 Loaded active context sources for conversation:', activeSourceIds);
+
+      // Update contextSources enabled state based on loaded IDs
+      setContextSources(prev =>
+        prev.map(source => ({
+          ...source,
+          enabled: activeSourceIds.includes(source.id),
+        }))
+      );
+    } catch (error) {
+      console.error('Error loading conversation context sources:', error);
+    }
+  };
+
+  const saveConversationContextSources = async (conversationId: string, activeSourceIds: string[]) => {
+    // Skip for temporary conversations
+    if (conversationId.startsWith('temp-')) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/conversations/${conversationId}/context-sources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeContextSourceIds: activeSourceIds }),
+      });
+      
+      console.log('💾 Saved active context sources for conversation:', activeSourceIds);
+    } catch (error) {
+      console.error('Error saving conversation context sources:', error);
     }
   };
 
@@ -597,6 +647,19 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
         ]);
       }
     }
+
+    // Save the new context configuration for this conversation
+    // Use setTimeout to ensure state has updated
+    setTimeout(() => {
+      if (currentConversation) {
+        const activeSourceIds = contextSources
+          .map(s => s.id === sourceId ? { ...s, enabled: !s.enabled } : s)
+          .filter(s => s.enabled)
+          .map(s => s.id);
+        
+        saveConversationContextSources(currentConversation, activeSourceIds);
+      }
+    }, 0);
   };
 
   const handleRemoveSource = (sourceId: string) => {

@@ -34,6 +34,7 @@ export interface Conversation {
   messageCount: number;
   contextWindowUsage: number; // Percentage 0-100
   agentModel: string; // e.g., "gemini-2.5-pro"
+  activeContextSourceIds?: string[]; // IDs of active context sources for this conversation
 }
 
 export interface Message {
@@ -643,6 +644,50 @@ export async function updateLastLogin(userId: string): Promise<void> {
 export async function isUserAdmin(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
   return user?.role === 'admin' || false;
+}
+
+/**
+ * Save active context sources for a conversation
+ */
+export async function saveConversationContext(
+  conversationId: string,
+  activeContextSourceIds: string[]
+): Promise<void> {
+  // Skip for temporary conversations
+  if (conversationId.startsWith('temp-')) {
+    console.log('⏭️ Skipping context save for temporary conversation');
+    return;
+  }
+
+  try {
+    await updateConversation(conversationId, {
+      activeContextSourceIds,
+    });
+    console.log('💾 Saved context for conversation:', conversationId, activeContextSourceIds);
+  } catch (error) {
+    console.error('Error saving conversation context:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load active context sources for a conversation
+ */
+export async function loadConversationContext(
+  conversationId: string
+): Promise<string[]> {
+  // Return empty array for temporary conversations
+  if (conversationId.startsWith('temp-')) {
+    return [];
+  }
+
+  try {
+    const conversation = await getConversation(conversationId);
+    return conversation?.activeContextSourceIds || [];
+  } catch (error) {
+    console.error('Error loading conversation context:', error);
+    return [];
+  }
 }
 
 
