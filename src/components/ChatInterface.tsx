@@ -575,9 +575,12 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
   };
 
   const handleConfigureWorkflow = (workflowId: string) => {
+    console.log('⚙️ Configure workflow clicked:', workflowId);
     const workflow = workflows.find(w => w.id === workflowId);
+    console.log('🔍 Found workflow:', workflow?.name);
     setSelectedWorkflow(workflow || null);
     setShowWorkflowConfigModal(true);
+    console.log('✅ Modal state set to open');
   };
 
   const handleSaveWorkflowConfig = (workflowId: string, config: WorkflowConfig) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Save, Sparkles, Info } from 'lucide-react';
 import type { Workflow, WorkflowConfig } from '../types/context';
 
@@ -15,20 +15,36 @@ export default function WorkflowConfigModal({
   onClose,
   onSave,
 }: WorkflowConfigModalProps) {
-  const [config, setConfig] = useState<WorkflowConfig>(
-    workflow?.config || {
-      maxFileSize: 50,
-      maxOutputLength: 10000,
-      extractImages: false,
-      extractTables: false,
-      ocrEnabled: false,
-      language: 'es',
-      model: 'gemini-2.5-flash', // Default model
-    }
-  );
+  const [config, setConfig] = useState<WorkflowConfig>({
+    maxFileSize: 50,
+    maxOutputLength: 10000,
+    extractImages: false,
+    extractTables: false,
+    ocrEnabled: false,
+    language: 'es',
+    model: 'gemini-2.5-flash',
+  });
   const [showModelTooltip, setShowModelTooltip] = useState(false);
 
-  if (!isOpen || !workflow) return null;
+  // Reset config when workflow changes
+  useEffect(() => {
+    if (workflow && isOpen) {
+      setConfig(workflow.config || {
+        maxFileSize: 50,
+        maxOutputLength: 10000,
+        extractImages: false,
+        extractTables: false,
+        ocrEnabled: false,
+        language: 'es',
+        model: 'gemini-2.5-flash',
+      });
+      console.log('🔧 WorkflowConfigModal opened for:', workflow.name);
+    }
+  }, [workflow, isOpen]);
+
+  if (!isOpen || !workflow) {
+    return null;
+  }
 
   const handleSave = () => {
     onSave(workflow.id, config);
@@ -36,7 +52,7 @@ export default function WorkflowConfigModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
@@ -111,7 +127,7 @@ export default function WorkflowConfigModal({
                   <Info className="w-4 h-4" />
                 </button>
                 {showModelTooltip && (
-                  <div className="absolute left-6 top-0 w-72 bg-slate-900 text-white text-xs rounded-lg p-3 z-50 shadow-xl">
+                  <div className="absolute left-6 top-0 w-72 bg-slate-900 text-white text-xs rounded-lg p-3 z-[1000] shadow-xl">
                     <p className="font-semibold mb-2">💡 Recomendación</p>
                     <p className="mb-2"><strong>Flash</strong>: 94% más económico, ideal para documentos simples</p>
                     <p className="text-blue-300"><strong>Pro</strong>: Mayor precisión en documentos complejos</p>
