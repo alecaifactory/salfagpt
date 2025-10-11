@@ -18,7 +18,8 @@ import {
   LogOut,
   User,
   Building2,
-  Sparkles
+  Sparkles,
+  Shield
 } from 'lucide-react';
 import ContextManager from './ContextManager';
 import WorkflowsPanel from './WorkflowsPanel';
@@ -26,6 +27,7 @@ import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import SourceDetailPanel from './SourceDetailPanel';
 import ShareSourceModal from './ShareSourceModal';
+import ContextManagementDashboard from './ContextManagementDashboard';
 import type { ContextSource, Workflow, WorkflowConfig, SourceType } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { SourceValidation, JobRole, EmailTemplate } from '../types/sharing';
@@ -109,6 +111,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [useMockData, setUseMockData] = useState(false); // Real API responses enabled
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [currentView, setCurrentView] = useState<'chat' | 'contextManagement'>('chat');
   const [userInfo, setUserInfo] = useState({
     name: 'Alec Dickinson',
     email: 'alec@getaifactory.com',
@@ -124,7 +127,9 @@ export default function ChatInterface({ userId }: { userId: string }) {
       name: 'Documento de Prueba.pdf',
       type: 'pdf-text',
       addedAt: new Date(),
-      fileSize: 125000,
+      metadata: {
+        fileSize: 125000,
+      },
       extractedData: `Contenido extraído del PDF:
 
 Sección 1: Introducción
@@ -138,7 +143,7 @@ Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu 
 
 Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de contexto.`,
       enabled: true,
-      status: 'processed'
+      status: 'active'
     }
   ]);
   const [workflows, setWorkflows] = useState<Workflow[]>(
@@ -437,6 +442,11 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     console.log('Abriendo ayuda...');
   };
 
+  const handleContextManagement = () => {
+    setCurrentView(currentView === 'chat' ? 'contextManagement' : 'chat');
+    setShowUserMenu(false);
+  };
+
   // Context and Workflows handlers
   const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
     const newSource: ContextSource = {
@@ -703,6 +713,17 @@ ${userInfo.company}`;
     return <p>Tipo de contenido no soportado</p>;
   };
 
+  // Show Context Management Dashboard if selected
+  if (currentView === 'contextManagement') {
+    return (
+      <ContextManagementDashboard 
+        currentUserId={userInfo.email} 
+        currentUserName={userInfo.name}
+        onBackToChat={() => setCurrentView('chat')}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations */}
@@ -789,6 +810,14 @@ ${userInfo.company}`;
           {/* User Menu Dropdown */}
           {showUserMenu && (
             <div className="p-2 space-y-1">
+              <button
+                onClick={handleContextManagement}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
+              >
+                <Shield className="w-5 h-5 text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">Gestión de Contexto</span>
+              </button>
+
               <button
                 onClick={handleConfiguration}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
