@@ -727,7 +727,7 @@ ${userInfo.company}`;
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations */}
-      <div className={`${selectedSourceId ? 'w-[600px]' : 'w-80'} bg-white border-r border-slate-200 flex flex-col shadow-xl transition-all duration-300 relative`}>
+      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-xl relative">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -777,31 +777,33 @@ ${userInfo.company}`;
           ))}
         </div>
 
-        {/* Context Section - Expands when source is selected */}
+        {/* Context Section - Toggle between list and detail */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Context Manager - Always visible */}
-          <div className={`${selectedSourceId ? 'w-80' : 'flex-1'} flex flex-col transition-all duration-300`}>
-            <ContextManager
-              sources={contextSources}
-              validations={sourceValidations}
-              onAddSource={() => setShowAddSourceModal(true)}
-              onToggleSource={handleToggleSource}
-              onRemoveSource={handleRemoveSource}
-              onSourceClick={handleSourceClick}
-            />
-          </div>
-
-          {/* Source Detail Panel - Expands to the right */}
-          {selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
-            <div className="flex-1 border-l border-slate-200">
-              <SourceDetailPanel
-                source={contextSources.find(s => s.id === selectedSourceId)!}
-                validation={sourceValidations.get(selectedSourceId)}
-                onClose={() => setSelectedSourceId(null)}
-                onValidate={handleValidateSource}
-                onShare={handleShareSource}
+          {!selectedSourceId ? (
+            /* Context Manager - List of sources */
+            <div className="flex-1 flex flex-col">
+              <ContextManager
+                sources={contextSources}
+                validations={sourceValidations}
+                onAddSource={() => setShowAddSourceModal(true)}
+                onToggleSource={handleToggleSource}
+                onRemoveSource={handleRemoveSource}
+                onSourceClick={handleSourceClick}
               />
             </div>
+          ) : (
+            /* Source Detail Panel - Full view of selected source */
+            selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
+              <div className="flex-1 flex flex-col">
+                <SourceDetailPanel
+                  source={contextSources.find(s => s.id === selectedSourceId)!}
+                  validation={sourceValidations.get(selectedSourceId)}
+                  onClose={() => setSelectedSourceId(null)}
+                  onValidate={handleValidateSource}
+                  onShare={handleShareSource}
+                />
+              </div>
+            )
           )}
         </div>
 

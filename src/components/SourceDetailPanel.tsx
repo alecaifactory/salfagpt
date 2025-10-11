@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, FileText, Calendar, User, MessageSquare, Share2, Copy } from 'lucide-react';
+import { X, Check, FileText, Calendar, User, MessageSquare, Share2, Copy, ArrowLeft } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -35,8 +35,18 @@ export default function SourceDetailPanel({
 
   return (
     <div className="h-full bg-white flex flex-col overflow-hidden">
-      {/* Header */}
+      {/* Header with Back Button */}
       <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-2 px-3 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all hover:scale-105"
+            title="Volver a fuentes de contexto"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm font-medium">Volver</span>
+          </button>
+        </div>
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-1">
@@ -49,12 +59,6 @@ export default function SourceDetailPanel({
               {source.type.replace('-', ' ').toUpperCase()}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors flex-shrink-0"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
         </div>
       </div>
 
