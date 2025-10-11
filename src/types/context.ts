@@ -2,6 +2,30 @@
 
 export type SourceType = 'pdf-text' | 'pdf-images' | 'pdf-tables' | 'csv' | 'excel' | 'word' | 'folder' | 'web-url' | 'api';
 
+export interface ExtractionMetadata {
+  // Original file info
+  originalFileName?: string;
+  originalFileType?: string;
+  originalFileSize?: number;
+  
+  // Extraction details
+  workflowId?: string;
+  workflowName?: string;
+  extractionConfig?: WorkflowConfig;
+  extractionDate?: Date;
+  extractionTime?: number; // milliseconds
+  
+  // Output details
+  charactersExtracted?: number;
+  tokensEstimate?: number;
+  modelUsed?: string;
+  
+  // Quality metadata
+  pageCount?: number;
+  url?: string;
+  apiEndpoint?: string;
+}
+
 export interface ContextSource {
   id: string;
   name: string;
@@ -9,13 +33,11 @@ export interface ContextSource {
   enabled: boolean;
   status: 'active' | 'processing' | 'error' | 'disabled';
   addedAt: Date;
-  metadata?: {
-    fileSize?: number;
-    pageCount?: number;
-    url?: string;
-    apiEndpoint?: string;
-  };
+  metadata?: ExtractionMetadata;
   extractedData?: string;
+  
+  // For re-extraction
+  originalFile?: File;
 }
 
 export interface WorkflowConfig {

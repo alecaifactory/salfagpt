@@ -28,6 +28,7 @@ import WorkflowConfigModal from './WorkflowConfigModal';
 import SourceDetailPanel from './SourceDetailPanel';
 import ShareSourceModal from './ShareSourceModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
+import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import type { ContextSource, Workflow, WorkflowConfig, SourceType } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { SourceValidation, JobRole, EmailTemplate } from '../types/sharing';
@@ -162,6 +163,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [sourceToShare, setSourceToShare] = useState<ContextSource | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [sourceToConfig, setSourceToConfig] = useState<ContextSource | null>(null);
 
   // Panel resizing state
   const [leftPanelWidth, setLeftPanelWidth] = useState<number>(440); // Default width

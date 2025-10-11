@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Settings } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -10,6 +10,7 @@ interface ContextManagerProps {
   onToggleSource: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
   onSourceClick: (sourceId: string) => void;
+  onSourceSettings: (sourceId: string) => void;
 }
 
 export default function ContextManager({
@@ -19,6 +20,7 @@ export default function ContextManager({
   onToggleSource,
   onRemoveSource,
   onSourceClick,
+  onSourceSettings,
 }: ContextManagerProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -121,9 +123,21 @@ export default function ContextManager({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      onSourceSettings(source.id);
+                    }}
+                    className="flex-shrink-0 p-1 text-slate-400 hover:text-blue-500 transition-colors"
+                    title="Configurar extracción"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onRemoveSource(source.id);
                     }}
                     className="flex-shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
+                    title="Eliminar fuente"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
