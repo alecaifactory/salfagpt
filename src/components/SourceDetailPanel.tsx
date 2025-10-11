@@ -34,9 +34,9 @@ export default function SourceDetailPanel({
   };
 
   return (
-    <div className="w-96 bg-white border-l border-slate-200 flex flex-col h-full overflow-hidden animate-slide-in-right">
+    <div className="h-full bg-white flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+      <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 flex-shrink-0">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-1">

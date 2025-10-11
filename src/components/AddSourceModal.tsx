@@ -79,8 +79,14 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
         await onAddSource(selectedType, undefined, url);
       } else if (selectedType === 'api') {
         await onAddSource(selectedType, undefined, undefined, { endpoint: apiEndpoint });
-      } else if (file) {
-        await onAddSource(selectedType, file);
+      } else {
+        // Use real file if available, otherwise create a mock file for testing
+        const fileToUse = file || new File(
+          ["Contenido de prueba del documento"], 
+          `documento-prueba-${Date.now()}.pdf`, 
+          { type: "application/pdf" }
+        );
+        await onAddSource(selectedType, fileToUse);
       }
       
       // Reset and close

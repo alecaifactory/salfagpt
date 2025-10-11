@@ -118,7 +118,29 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Context and Workflows state
-  const [contextSources, setContextSources] = useState<ContextSource[]>([]);
+  const [contextSources, setContextSources] = useState<ContextSource[]>([
+    {
+      id: `source-demo-${Date.now()}`,
+      name: 'Documento de Prueba.pdf',
+      type: 'pdf-text',
+      addedAt: new Date(),
+      fileSize: 125000,
+      extractedData: `Contenido extraído del PDF:
+
+Sección 1: Introducción
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Sección 2: Desarrollo
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Sección 3: Conclusión
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+
+Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de contexto.`,
+      enabled: true,
+      status: 'processed'
+    }
+  ]);
   const [workflows, setWorkflows] = useState<Workflow[]>(
     DEFAULT_WORKFLOWS.map((w, i) => ({
       ...w,
@@ -684,7 +706,7 @@ ${userInfo.company}`;
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Left Sidebar - Conversations */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-xl">
+      <div className={`${selectedSourceId ? 'w-[600px]' : 'w-80'} bg-white border-r border-slate-200 flex flex-col shadow-xl transition-all duration-300 relative`}>
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -734,15 +756,33 @@ ${userInfo.company}`;
           ))}
         </div>
 
-        {/* Context Manager */}
-        <ContextManager
-          sources={contextSources}
-          validations={sourceValidations}
-          onAddSource={() => setShowAddSourceModal(true)}
-          onToggleSource={handleToggleSource}
-          onRemoveSource={handleRemoveSource}
-          onSourceClick={handleSourceClick}
-        />
+        {/* Context Section - Expands when source is selected */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Context Manager - Always visible */}
+          <div className={`${selectedSourceId ? 'w-80' : 'flex-1'} flex flex-col transition-all duration-300`}>
+            <ContextManager
+              sources={contextSources}
+              validations={sourceValidations}
+              onAddSource={() => setShowAddSourceModal(true)}
+              onToggleSource={handleToggleSource}
+              onRemoveSource={handleRemoveSource}
+              onSourceClick={handleSourceClick}
+            />
+          </div>
+
+          {/* Source Detail Panel - Expands to the right */}
+          {selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
+            <div className="flex-1 border-l border-slate-200">
+              <SourceDetailPanel
+                source={contextSources.find(s => s.id === selectedSourceId)!}
+                validation={sourceValidations.get(selectedSourceId)}
+                onClose={() => setSelectedSourceId(null)}
+                onValidate={handleValidateSource}
+                onShare={handleShareSource}
+              />
+            </div>
+          )}
+        </div>
 
         {/* User Menu */}
         <div className="border-t border-slate-200 bg-gradient-to-br from-white to-slate-50">
@@ -988,17 +1028,6 @@ ${userInfo.company}`;
         onConfigureWorkflow={handleConfigureWorkflow}
         onSaveTemplate={handleSaveTemplate}
       />
-
-      {/* Source Detail Panel (slides in from right) */}
-      {selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
-        <SourceDetailPanel
-          source={contextSources.find(s => s.id === selectedSourceId)!}
-          validation={sourceValidations.get(selectedSourceId)}
-          onClose={() => setSelectedSourceId(null)}
-          onValidate={handleValidateSource}
-          onShare={handleShareSource}
-        />
-      )}
 
       {/* Modals */}
       <AddSourceModal
