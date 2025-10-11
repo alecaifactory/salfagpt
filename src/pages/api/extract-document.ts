@@ -1,56 +1,33 @@
 import type { APIRoute } from 'astro';
-import { ImageAnnotatorClient } from '@google-cloud/vision';
+import { GoogleGenAI } from '@google/genai';
 
-// Initialize Vision API client
-// Uses same credentials as Firestore (service account or Application Default Credentials)
+// Initialize Gemini AI client
 const IS_DEVELOPMENT = import.meta.env.DEV;
 
-let visionClient: ImageAnnotatorClient | null = null;
+let geminiClient: GoogleGenAI | null = null;
 
-function getVisionClient() {
-  if (!visionClient) {
+function getGeminiClient() {
+  if (!geminiClient) {
     try {
-      // Use same pattern as firestore.ts for credentials
-      const projectId = process.env.GOOGLE_CLOUD_PROJECT || 
-                        import.meta.env.GOOGLE_CLOUD_PROJECT;
+      const apiKey = process.env.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
       
-      visionClient = new ImageAnnotatorClient({
-        projectId,
-        // In production, uses Application Default Credentials
-        // In development, uses GOOGLE_APPLICATION_CREDENTIALS env var
-      });
+      if (!apiKey) {
+        throw new Error('GEMINI_API_KEY not configured');
+      }
       
-      console.log('✅ Vision API client initialized');
+      geminiClient = new GoogleGenAI({ apiKey });
+      console.log('✅ Gemini AI client initialized');
     } catch (error) {
-      console.error('❌ Failed to initialize Vision API client:', error);
+      console.error('❌ Failed to initialize Gemini AI client:', error);
       throw error;
     }
   }
-  return visionClient;
+  return geminiClient;
 }
 
-// POST /api/extract-document - Extract text from PDF/image using Google Cloud Vision API
+// POST /api/extract-document - Extract text from PDF/image using Gemini AI
 export const POST: APIRoute = async ({ request }) => {
   try {
-    // Check if we're in development without credentials
-    if (IS_DEVELOPMENT) {
-      try {
-        const client = getVisionClient();
-        // Test if credentials are available
-        await client.getProjectId();
-      } catch (error) {
-        console.warn('⚠️ Vision API not available in development, using fallback');
-        return new Response(
-          JSON.stringify({
-            error: 'Vision API not configured locally',
-            fallback: true,
-            message: 'Please configure GOOGLE_APPLICATION_CREDENTIALS for local development'
-          }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
-    }
-
     // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -88,25 +65,49 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    console.log(`📄 Extracting text from: ${file.name} (${file.type}, ${file.size} bytes)`);
+    console.log(`📄 Extracting text from: ${file.name} (${file.type}, ${file.size} bytes) using ${model}`);
 
-    // Convert file to buffer
+    // Convert file to base64
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    const base64Data = buffer.toString('base64');
 
-    // Call Vision API
-    const client = getVisionClient();
+    // Determine mime type
+    const mimeType = file.type;
+
+    // Call Gemini AI
+    const client = getGeminiClient();
     const startTime = Date.now();
 
-    const [result] = await client.documentTextDetection({
-      image: { content: buffer },
+    // Use Gemini's native PDF/image processing
+    const result = await client.models.generateContent({
+      model: model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              },
+            },
+            {
+              text: 'Por favor, extrae TODO el texto de este documento de manera estructurada. Mantén el formato original tanto como sea posible, incluyendo títulos, párrafos, listas, y cualquier contenido de tablas. No resumas, extrae todo el texto completo.',
+            },
+          ],
+        },
+      ],
+      config: {
+        temperature: 0.1, // Low temperature for accurate extraction
+        maxOutputTokens: 8192,
+      },
     });
 
     const extractionTime = Date.now() - startTime;
-    const detections = result.textAnnotations;
-    const fullText = result.fullTextAnnotation;
+    const extractedText = result.text || '';
 
-    if (!fullText || !fullText.text) {
+    if (!extractedText || extractedText.trim().length === 0) {
       return new Response(
         JSON.stringify({ 
           error: 'No text found in document',
@@ -116,15 +117,12 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    const extractedText = fullText.text;
-    const pages = fullText.pages?.length || 1;
-
     // Build metadata
     const metadata = `📄 Archivo: ${file.name}
-📊 Total de páginas: ${pages}
+📊 Tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB
 📝 Caracteres extraídos: ${extractedText.length}
 🤖 Modelo: ${model}
-☁️ Procesado con: Google Cloud Vision API
+🔥 Procesado con: Gemini AI
 ⚡ Tiempo de extracción: ${extractionTime}ms
 📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
 
@@ -132,7 +130,7 @@ export const POST: APIRoute = async ({ request }) => {
 
 ${extractedText}`;
 
-    console.log(`✅ Text extracted: ${extractedText.length} characters in ${extractionTime}ms`);
+    console.log(`✅ Text extracted: ${extractedText.length} characters in ${extractionTime}ms using ${model}`);
 
     return new Response(
       JSON.stringify({
@@ -142,11 +140,10 @@ ${extractedText}`;
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
-          pages,
           characters: extractedText.length,
           extractionTime,
           model,
-          service: 'Google Cloud Vision API'
+          service: 'Gemini AI'
         }
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
