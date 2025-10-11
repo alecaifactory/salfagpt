@@ -726,8 +726,8 @@ ${userInfo.company}`;
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Left Sidebar - Conversations */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-xl relative">
+      {/* Left Sidebar - Conversations & Context */}
+      <div className="w-[440px] bg-white border-r border-slate-200 flex flex-col shadow-xl relative">
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -739,8 +739,8 @@ ${userInfo.company}`;
           </button>
         </div>
 
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Conversations List - Limited height to give more space to Context */}
+        <div className="flex-none h-64 overflow-y-auto p-4 space-y-4">
           {conversations.map(group => (
             <div key={group.label}>
               <h3 className="text-xs font-bold text-slate-600 uppercase mb-3 tracking-wider">
@@ -777,8 +777,8 @@ ${userInfo.company}`;
           ))}
         </div>
 
-        {/* Context Section - Toggle between list and detail */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* Context Section - Expands to fill remaining vertical space */}
+        <div className="flex-1 flex overflow-hidden border-t border-slate-200">
           {!selectedSourceId ? (
             /* Context Manager - List of sources */
             <div className="flex-1 flex flex-col">
