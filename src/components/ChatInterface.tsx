@@ -414,6 +414,17 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     }
 
     try {
+      // Collect active context sources
+      const activeContextSources = contextSources
+        .filter(source => source.enabled && source.extractedData)
+        .map(source => ({
+          name: source.name,
+          type: source.type,
+          content: source.extractedData || ''
+        }));
+
+      console.log('📤 Sending message with context sources:', activeContextSources.length);
+
       const response = await fetch(`/api/conversations/${currentConversation}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -421,7 +432,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
           userId,
           message: currentInput,
           model: userConfig.model,              // ✅ Pass selected model
-          systemPrompt: userConfig.systemPrompt // ✅ Pass selected system prompt
+          systemPrompt: userConfig.systemPrompt, // ✅ Pass selected system prompt
+          contextSources: activeContextSources   // ✅ Pass active context sources
         }),
       });
 

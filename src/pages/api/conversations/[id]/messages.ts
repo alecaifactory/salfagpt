@@ -51,13 +51,24 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     const conversationId = params.id;
     const body = await request.json();
-    const { userId, message, model, systemPrompt } = body;
+    const { userId, message, model, systemPrompt, contextSources } = body;
 
     if (!conversationId || !userId || !message) {
       return new Response(
         JSON.stringify({ error: 'conversationId, userId, and message are required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Build additional context from active sources
+    const additionalContext = contextSources && contextSources.length > 0
+      ? contextSources
+          .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+          .join('\n')
+      : '';
+    
+    if (additionalContext) {
+      console.log('📎 Including context from', contextSources.length, 'active sources');
     }
 
     // Handle temporary conversations (no Firestore persistence)
@@ -69,7 +80,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         model: model || 'gemini-2.5-flash',
         systemInstruction: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
         conversationHistory: [], // No history for temp conversations
-        userContext: '',
+        userContext: additionalContext, // Include active context sources
         temperature: 0.7,
       });
 
@@ -123,12 +134,17 @@ export const POST: APIRoute = async ({ params, request }) => {
       .map(item => `${item.name}: ${item.content}`)
       .join('\n\n') || '';
 
+    // Combine stored user context with active context sources
+    const combinedContext = [contextString, additionalContext]
+      .filter(Boolean)
+      .join('\n\n');
+
     // Generate AI response with user-selected model and system prompt
     const aiResponse = await generateAIResponse(message, {
       model: model || 'gemini-2.5-flash', // Use user-selected model or default to flash
       systemInstruction: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
       conversationHistory,
-      userContext: contextString,
+      userContext: combinedContext, // Include both stored context and active sources
       temperature: 0.7,
     });
 
