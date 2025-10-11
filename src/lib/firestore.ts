@@ -17,6 +17,9 @@ export const COLLECTIONS = {
   FOLDERS: 'folders',
   USER_CONTEXT: 'user_context',
   USERS: 'users',
+  GROUPS: 'groups',
+  CONTEXT_ACCESS_RULES: 'context_access_rules',
+  CONTEXT_SOURCES: 'context_sources',
 } as const;
 
 // Types

@@ -58,75 +58,142 @@ export default function ContextManagementDashboard({
     try {
       setLoading(true);
       
-      // TODO: Replace with actual API calls
-      // For now, using mock data
-      const mockContexts: ContextOverview[] = [
-        {
-          id: 'ctx-1',
-          name: 'Manual de Compras 2025',
-          type: 'PDF con Texto',
-          size: 2500000,
-          accessRules: [],
-          totalUsers: 5,
+      // Try to load real data from APIs
+      try {
+        // Load groups
+        const groupsResponse = await fetch('/api/groups');
+        if (groupsResponse.ok) {
+          const { groups: loadedGroups } = await groupsResponse.json();
+          setGroups(loadedGroups);
+          console.log('✅ Loaded groups from API:', loadedGroups.length);
+        }
+
+        // Load access rules
+        const rulesResponse = await fetch('/api/access-rules');
+        if (rulesResponse.ok) {
+          const { rules } = await rulesResponse.json();
+          console.log('✅ Loaded access rules from API:', rules.length);
+
+          // Calculate stats from rules
+          const mockStats: ContextAccessStats = {
+            totalContexts: 2, // TODO: Get from context sources API
+            totalAccessRules: rules.length,
+            totalGroups: groups.length,
+            activeRules: rules.filter((r: any) => r.isActive).length,
+            expiringSoon: rules.filter((r: any) => {
+              if (!r.expiresAt) return false;
+              const expiryDate = new Date(r.expiresAt);
+              const daysUntilExpiry = (expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+              return daysUntilExpiry > 0 && daysUntilExpiry <= 7;
+            }).length,
+            byGroup: {}, // TODO: Calculate from rules
+            byUser: {}, // TODO: Calculate from rules
+          };
+
+          setStats(mockStats);
+        }
+
+        // Mock contexts (until we have context sources API)
+        const mockContexts: ContextOverview[] = [
+          {
+            id: 'ctx-1',
+            name: 'Manual de Compras 2025',
+            type: 'PDF con Texto',
+            size: 2500000,
+            accessRules: [],
+            totalUsers: 5,
+            totalGroups: 2,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+          },
+          {
+            id: 'ctx-2',
+            name: 'Catálogo de Productos',
+            type: 'Excel',
+            size: 1800000,
+            accessRules: [],
+            totalUsers: 12,
+            totalGroups: 4,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+          },
+        ];
+        setContexts(mockContexts);
+
+      } catch (apiError) {
+        console.warn('⚠️ API not available, using mock data:', apiError);
+        
+        // Fallback to mock data
+        const mockContexts: ContextOverview[] = [
+          {
+            id: 'ctx-1',
+            name: 'Manual de Compras 2025',
+            type: 'PDF con Texto',
+            size: 2500000,
+            accessRules: [],
+            totalUsers: 5,
+            totalGroups: 2,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+          },
+          {
+            id: 'ctx-2',
+            name: 'Catálogo de Productos',
+            type: 'Excel',
+            size: 1800000,
+            accessRules: [],
+            totalUsers: 12,
+            totalGroups: 4,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+          },
+        ];
+
+        const mockGroups: Group[] = [
+          {
+            id: 'grp-1',
+            name: 'Área de Compras',
+            type: 'compras',
+            description: 'Equipo de compras y adquisiciones',
+            memberIds: ['user1', 'user2', 'user3'],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: currentUserId,
+            isActive: true,
+          },
+          {
+            id: 'grp-2',
+            name: 'Área de Ventas',
+            type: 'ventas',
+            description: 'Equipo comercial y ventas',
+            memberIds: ['user4', 'user5'],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: currentUserId,
+            isActive: true,
+          },
+        ];
+
+        const mockStats: ContextAccessStats = {
+          totalContexts: 2,
+          totalAccessRules: 8,
           totalGroups: 2,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isActive: true,
-        },
-        {
-          id: 'ctx-2',
-          name: 'Catálogo de Productos',
-          type: 'Excel',
-          size: 1800000,
-          accessRules: [],
-          totalUsers: 12,
-          totalGroups: 4,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          isActive: true,
-        },
-      ];
+          activeRules: 7,
+          expiringSoon: 2,
+          byGroup: { 'Compras': 3, 'Ventas': 2, 'Operaciones': 1 },
+          byUser: { 'Individual': 2 },
+        };
 
-      const mockGroups: Group[] = [
-        {
-          id: 'grp-1',
-          name: 'Área de Compras',
-          type: 'compras',
-          description: 'Equipo de compras y adquisiciones',
-          memberIds: ['user1', 'user2', 'user3'],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: currentUserId,
-          isActive: true,
-        },
-        {
-          id: 'grp-2',
-          name: 'Área de Ventas',
-          type: 'ventas',
-          description: 'Equipo comercial y ventas',
-          memberIds: ['user4', 'user5'],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: currentUserId,
-          isActive: true,
-        },
-      ];
-
-      const mockStats: ContextAccessStats = {
-        totalContexts: 2,
-        totalAccessRules: 8,
-        totalGroups: 2,
-        activeRules: 7,
-        expiringSoon: 2,
-        byGroup: { 'Compras': 3, 'Ventas': 2, 'Operaciones': 1 },
-        byUser: { 'Individual': 2 },
-      };
-
-      setContexts(mockContexts);
-      setGroups(mockGroups);
-      setStats(mockStats);
+        setContexts(mockContexts);
+        setGroups(mockGroups);
+        setStats(mockStats);
+      }
     } catch (error) {
-      console.error('Error loading context management data:', error);
+      console.error('❌ Error loading context management data:', error);
     } finally {
       setLoading(false);
     }
@@ -152,30 +219,39 @@ export default function ContextManagementDashboard({
   }
 
   // Handlers for modals
-  const handleCreateGroup = (name: string, type: GroupType, description: string) => {
+  const handleCreateGroup = async (name: string, type: GroupType, description: string) => {
     console.log('✨ Creating group:', { name, type, description });
     
-    // TODO: Call API to create group in Firestore
-    // For now, add to local state
-    const newGroup: Group = {
-      id: `grp-${Date.now()}`,
-      name,
-      type,
-      description,
-      memberIds: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      createdBy: currentUserId,
-      isActive: true,
-    };
-    
-    setGroups(prev => [...prev, newGroup]);
-    
-    // TODO: Show success toast
-    console.log('✅ Group created successfully');
+    try {
+      const response = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          type,
+          description,
+          createdBy: currentUserId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create group');
+      }
+
+      const { group } = await response.json();
+      console.log('✅ Group created successfully:', group);
+
+      // Add to local state
+      setGroups(prev => [...prev, group]);
+
+      // TODO: Show success toast
+    } catch (error) {
+      console.error('❌ Error creating group:', error);
+      // TODO: Show error toast
+    }
   };
 
-  const handleAssignAccess = (
+  const handleAssignAccess = async (
     contextId: string,
     targetType: 'user' | 'group',
     targetId: string,
@@ -192,12 +268,58 @@ export default function ContextManagementDashboard({
       duration,
     });
     
-    // TODO: Call API to create access rule in Firestore
-    // For now, just log
-    console.log('✅ Access assigned successfully');
-    
-    // Reload data to reflect changes
-    loadData();
+    try {
+      // Find context and target names
+      const context = contexts.find(c => c.id === contextId);
+      const contextName = context?.name || 'Unknown Context';
+      
+      let targetName = 'Unknown Target';
+      if (targetType === 'group') {
+        const group = groups.find(g => g.id === targetId);
+        targetName = group?.name || 'Unknown Group';
+      } else {
+        targetName = targetId; // For users, use email as name
+      }
+
+      // Convert permissions array to object
+      const permissionsObject = {
+        canView: permissions.includes('read'),
+        canEdit: permissions.includes('write'),
+        canShare: permissions.includes('share'),
+        canDelete: permissions.includes('delete'),
+      };
+
+      const response = await fetch('/api/access-rules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contextId,
+          contextName,
+          targetType,
+          targetId,
+          targetName,
+          permissions: permissionsObject,
+          createdBy: currentUserId,
+          expiresAt: expiresAt?.toISOString(),
+          duration,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to assign access');
+      }
+
+      const { rule } = await response.json();
+      console.log('✅ Access assigned successfully:', rule);
+
+      // Reload data to reflect changes
+      await loadData();
+
+      // TODO: Show success toast
+    } catch (error) {
+      console.error('❌ Error assigning access:', error);
+      // TODO: Show error toast
+    }
   };
 
   return (
