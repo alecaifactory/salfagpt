@@ -24,8 +24,11 @@ import ContextManager from './ContextManager';
 import WorkflowsPanel from './WorkflowsPanel';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
+import SourceDetailPanel from './SourceDetailPanel';
+import ShareSourceModal from './ShareSourceModal';
 import type { ContextSource, Workflow, WorkflowConfig, SourceType } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
+import type { SourceValidation, JobRole, EmailTemplate } from '../types/sharing';
 import * as extractors from '../lib/workflowExtractors';
 
 interface Message {
@@ -126,6 +129,12 @@ export default function ChatInterface({ userId }: { userId: string }) {
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [showWorkflowConfigModal, setShowWorkflowConfigModal] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  
+  // Source validation and sharing state
+  const [sourceValidations, setSourceValidations] = useState<Map<string, SourceValidation>>(new Map());
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sourceToShare, setSourceToShare] = useState<ContextSource | null>(null);
 
   // Load conversations on mount
   useEffect(() => {
@@ -551,6 +560,86 @@ export default function ChatInterface({ userId }: { userId: string }) {
     }
   };
 
+  // Source validation and sharing handlers
+  const handleSourceClick = (sourceId: string) => {
+    setSelectedSourceId(sourceId);
+  };
+
+  const handleValidateSource = (sourceId: string, comments: string) => {
+    const validation: SourceValidation = {
+      validated: true,
+      validatedBy: userInfo.name,
+      validatedAt: new Date(),
+      comments,
+    };
+    
+    setSourceValidations(prev => new Map(prev).set(sourceId, validation));
+    
+    // Log validation
+    console.log('📝 Documento validado:', {
+      sourceId,
+      validatedBy: userInfo.name,
+      comments,
+      timestamp: new Date().toISOString(),
+    });
+  };
+
+  const handleShareSource = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      setSourceToShare(source);
+      setShowShareModal(true);
+      setSelectedSourceId(null); // Close detail panel
+    }
+  };
+
+  const handleGenerateShareEmail = async (
+    sourceId: string,
+    role: JobRole,
+    userComments: string,
+    personalizedRequest: string
+  ): Promise<EmailTemplate> => {
+    // Simulate AI email generation
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const source = contextSources.find(s => s.id === sourceId);
+        const summary = source?.extractedData?.substring(0, 200) + '...' || 'Resumen no disponible';
+        
+        const subject = `📄 ${source?.name} - Documento compartido para ${role.name}`;
+        
+        const body = `Hola,
+
+Te comparto este documento que considero puede ser de gran valor para tu rol como ${role.name}.
+
+📋 RESUMEN DEL DOCUMENTO:
+${summary}
+
+💬 MIS COMENTARIOS:
+${userComments || 'Este documento contiene información relevante para nuestro trabajo.'}
+
+🎯 CONTEXTO DE TU ROL:
+Como ${role.name}, este contenido puede ayudarte con tus objetivos:
+${role.okrs.map((okr, i) => `${i + 1}. ${okr}`).join('\n')}
+
+${personalizedRequest ? `\n🤝 SOLICITUD:\n${personalizedRequest}\n` : ''}
+
+Por favor revisa el documento y déjame saber tus comentarios o si tienes alguna pregunta.
+
+Saludos,
+${userInfo.name}
+${userInfo.company}`;
+
+        resolve({
+          subject,
+          body,
+          summary,
+          userComments,
+          personalizedRequest,
+        });
+      }, 1500);
+    });
+  };
+
   const renderMessage = (message: Message) => {
     if (message.content.type === 'text') {
       return <p className="whitespace-pre-wrap">{message.content.text}</p>;
@@ -648,9 +737,11 @@ export default function ChatInterface({ userId }: { userId: string }) {
         {/* Context Manager */}
         <ContextManager
           sources={contextSources}
+          validations={sourceValidations}
           onAddSource={() => setShowAddSourceModal(true)}
           onToggleSource={handleToggleSource}
           onRemoveSource={handleRemoveSource}
+          onSourceClick={handleSourceClick}
         />
 
         {/* User Menu */}
@@ -898,6 +989,17 @@ export default function ChatInterface({ userId }: { userId: string }) {
         onSaveTemplate={handleSaveTemplate}
       />
 
+      {/* Source Detail Panel (slides in from right) */}
+      {selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
+        <SourceDetailPanel
+          source={contextSources.find(s => s.id === selectedSourceId)!}
+          validation={sourceValidations.get(selectedSourceId)}
+          onClose={() => setSelectedSourceId(null)}
+          onValidate={handleValidateSource}
+          onShare={handleShareSource}
+        />
+      )}
+
       {/* Modals */}
       <AddSourceModal
         isOpen={showAddSourceModal}
@@ -913,6 +1015,16 @@ export default function ChatInterface({ userId }: { userId: string }) {
           setSelectedWorkflow(null);
         }}
         onSave={handleSaveWorkflowConfig}
+      />
+
+      <ShareSourceModal
+        source={sourceToShare!}
+        isOpen={showShareModal && sourceToShare !== null}
+        onClose={() => {
+          setShowShareModal(false);
+          setSourceToShare(null);
+        }}
+        onGenerateEmail={handleGenerateShareEmail}
       />
     </div>
   );

@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Power, AlertCircle, CheckCircle, Loader } from 'lucide-react';
+import { Plus, Trash2, Power, AlertCircle, CheckCircle, Loader, ShieldCheck } from 'lucide-react';
 import type { ContextSource } from '../types/context';
+import type { SourceValidation } from '../types/sharing';
 
 interface ContextManagerProps {
   sources: ContextSource[];
+  validations: Map<string, SourceValidation>;
   onAddSource: () => void;
   onToggleSource: (sourceId: string) => void;
   onRemoveSource: (sourceId: string) => void;
+  onSourceClick: (sourceId: string) => void;
 }
 
 export default function ContextManager({
   sources,
+  validations,
   onAddSource,
   onToggleSource,
   onRemoveSource,
+  onSourceClick,
 }: ContextManagerProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -66,47 +71,66 @@ export default function ContextManager({
           </div>
         ) : (
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {sources.map((source) => (
-              <div
-                key={source.id}
-                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
-                  source.enabled
-                    ? 'bg-white border-blue-200 shadow-sm'
-                    : 'bg-slate-100 border-slate-200 opacity-60'
-                }`}
-              >
-                <button
-                  onClick={() => onToggleSource(source.id)}
-                  className="flex-shrink-0"
+            {sources.map((source) => {
+              const validation = validations.get(source.id);
+              const isValidated = validation?.validated || false;
+              
+              return (
+                <div
+                  key={source.id}
+                  onClick={() => onSourceClick(source.id)}
+                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all cursor-pointer ${
+                    source.enabled
+                      ? isValidated
+                        ? 'bg-green-50 border-green-300 shadow-sm hover:shadow-md'
+                        : 'bg-white border-blue-200 shadow-sm hover:shadow-md'
+                      : 'bg-slate-100 border-slate-200 opacity-60 hover:opacity-80'
+                  }`}
                 >
-                  {getStatusIcon(source.status)}
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSource(source.id);
+                    }}
+                    className="flex-shrink-0"
+                  >
+                    {getStatusIcon(source.status)}
+                  </button>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-slate-800 truncate">
-                      {source.name}
-                    </p>
-                    <span className="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded">
-                      {getSourceTypeLabel(source.type)}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {source.name}
+                      </p>
+                      {isValidated && (
+                        <span title="Documento Validado">
+                          <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded">
+                        {getSourceTypeLabel(source.type)}
+                      </span>
+                    </div>
+                    {source.metadata && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {source.metadata.fileSize && `${(source.metadata.fileSize / 1024 / 1024).toFixed(1)} MB`}
+                        {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
+                      </p>
+                    )}
                   </div>
-                  {source.metadata && (
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {source.metadata.fileSize && `${(source.metadata.fileSize / 1024 / 1024).toFixed(1)} MB`}
-                      {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
-                    </p>
-                  )}
-                </div>
 
-                <button
-                  onClick={() => onRemoveSource(source.id)}
-                  className="flex-shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveSource(source.id);
+                    }}
+                    className="flex-shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
