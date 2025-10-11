@@ -6,7 +6,7 @@
 
 ## 🎯 Overview
 
-Successfully implemented three specialized sections for the OpenFlow platform:
+Successfully implemented three specialized sections for the Flow platform:
 1. **SuperAdmin Dashboard** (`/superadmin`) - Technical system monitoring
 2. **Experts Evaluation** (`/expertos`) - Quality evaluation system
 3. **Enhanced Analytics** (`/analytics`) - Platform analytics with quality metrics
@@ -361,7 +361,7 @@ To connect to real data, update these files:
 Update authentication in pages:
 ```typescript
 // Decode JWT to get user email
-const session = Astro.cookies.get('openflow_session');
+const session = Astro.cookies.get('flow_session');
 const decoded = jwt.verify(session.value, JWT_SECRET);
 const userEmail = decoded.email;
 const userRole = getUserRole(userEmail);
@@ -399,7 +399,7 @@ ls -la dist/
 npx pame-core-cli deploy www --production
 
 # Or using Cloud Run directly
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated

@@ -1,4 +1,4 @@
-# 🚀 Deploy OpenFlow to Cloud Run
+# 🚀 Deploy Flow to Cloud Run
 
 ## Current Issue
 The local gcloud authentication has scope limitations. Here are your deployment options:
@@ -16,8 +16,8 @@ The local gcloud authentication has scope limitations. Here are your deployment 
 In Cloud Shell, run:
 ```bash
 # Create directory
-mkdir -p ~/openflow
-cd ~/openflow
+mkdir -p ~/flow
+cd ~/flow
 
 # Upload your files (or clone from git)
 # You can drag & drop files into Cloud Shell or use git
@@ -25,7 +25,7 @@ cd ~/openflow
 
 ### Step 3: Deploy
 ```bash
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -68,7 +68,7 @@ gcloud services enable \
   containerregistry.googleapis.com
 
 # Deploy
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -92,12 +92,12 @@ echo -n "YOUR_JWT_SECRET" | gcloud secrets create jwt-secret --data-file=-
 
 ### Step 2: Create service account
 ```bash
-gcloud iam service-accounts create openflow-service \
-  --display-name="OpenFlow Service Account"
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account"
 
 # Grant permissions
 PROJECT_ID="gen-lang-client-0986191192"
-SA_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
+SA_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${SA_EMAIL}" \
@@ -117,11 +117,11 @@ done
 
 ### Step 3: Deploy with secrets
 ```bash
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
-  --service-account="openflow-service@gen-lang-client-0986191192.iam.gserviceaccount.com" \
+  --service-account="flow-service@gen-lang-client-0986191192.iam.gserviceaccount.com" \
   --set-secrets="GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest" \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production,VERTEX_AI_LOCATION=us-central1"
 ```
@@ -133,7 +133,7 @@ gcloud run deploy openflow \
 ### 1. Get Your Cloud Run URL
 After deployment, you'll see output like:
 ```
-Service URL: https://openflow-abc123-uc.a.run.app
+Service URL: https://flow-abc123-uc.a.run.app
 ```
 
 ### 2. Update Google OAuth Configuration
@@ -141,20 +141,20 @@ Service URL: https://openflow-abc123-uc.a.run.app
 2. Edit your OAuth 2.0 Client ID
 3. Add authorized origins:
    ```
-   https://openflow-abc123-uc.a.run.app
+   https://flow-abc123-uc.a.run.app
    ```
 4. Add authorized redirect URIs:
    ```
-   https://openflow-abc123-uc.a.run.app/auth/callback
+   https://flow-abc123-uc.a.run.app/auth/callback
    ```
 
 ### 3. Test Your Deployment
 ```bash
 # Test the endpoint
-curl https://openflow-abc123-uc.a.run.app
+curl https://flow-abc123-uc.a.run.app
 
 # View logs
-gcloud run services logs read openflow --region=us-central1
+gcloud run services logs read flow --region=us-central1
 ```
 
 ---
@@ -180,10 +180,10 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com containerreg
 ### App crashes on Cloud Run
 ```bash
 # View logs
-gcloud run services logs read openflow --region=us-central1 --limit=50
+gcloud run services logs read flow --region=us-central1 --limit=50
 
 # Check environment variables
-gcloud run services describe openflow --region=us-central1
+gcloud run services describe flow --region=us-central1
 ```
 
 ---
@@ -192,7 +192,7 @@ gcloud run services describe openflow --region=us-central1
 
 1. **Use Option 1** (Cloud Shell) for first deployment - it's simplest
 2. **Add OAuth credentials** via Secret Manager for production
-3. **Monitor** your app: `gcloud run services logs tail openflow --region=us-central1`
+3. **Monitor** your app: `gcloud run services logs tail flow --region=us-central1`
 
 ---
 
@@ -212,6 +212,6 @@ gcloud run services describe openflow --region=us-central1
 
 **Need help?** Check the logs or deployment status:
 ```bash
-gcloud run services describe openflow --region=us-central1
+gcloud run services describe flow --region=us-central1
 ```
 

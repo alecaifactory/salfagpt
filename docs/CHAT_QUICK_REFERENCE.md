@@ -1,13 +1,13 @@
 # Chat Interface - Quick Reference
 
-**Production URL:** https://openflow-cno6l2kfga-uc.a.run.app/chat
+**Production URL:** https://flow-cno6l2kfga-uc.a.run.app/chat
 
 ---
 
 ## 🚀 Quick Start
 
 ### Access the Chat
-1. Visit: https://openflow-cno6l2kfga-uc.a.run.app/chat
+1. Visit: https://flow-cno6l2kfga-uc.a.run.app/chat
 2. Sign in with Google
 3. Start chatting!
 
@@ -51,7 +51,7 @@ http://localhost:3000/chat
 ```
 
 ### Session
-- Cookie: `openflow_session`
+- Cookie: `flow_session`
 - Duration: 24 hours
 - Type: JWT (HttpOnly, Secure)
 
@@ -89,12 +89,12 @@ const isDevelopment = import.meta.env.DEV;
 ```bash
 # Build container
 gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/openflow/openflow:latest \
+  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --project=gen-lang-client-0986191192
 
 # Deploy to Cloud Run
-gcloud run deploy openflow \
-  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/openflow/openflow:latest \
+gcloud run deploy flow \
+  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
@@ -124,7 +124,7 @@ gcloud run deploy openflow \
 ### Issue: "Re-login loop"
 **Cause:** Cookie name mismatch or redirect not preserved  
 **Fix:** 
-- Verify `openflow_session` cookie is set
+- Verify `flow_session` cookie is set
 - Check redirect URL is in auth_redirect cookie
 - Clear browser cookies and retry
 
@@ -159,7 +159,7 @@ gcloud run deploy openflow \
 GOOGLE_CLIENT_ID=<from-google-console>
 GOOGLE_CLIENT_SECRET=<from-secret-manager>
 JWT_SECRET=<generated-secret>
-PUBLIC_BASE_URL=https://openflow-cno6l2kfga-uc.a.run.app
+PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app
 
 # Google Cloud
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192

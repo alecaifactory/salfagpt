@@ -1,8 +1,8 @@
-# Sistema de Extracción de Documentos - OpenFlow
+# Sistema de Extracción de Documentos - Flow
 
 ## 📚 Resumen
 
-El sistema de extracción de documentos de OpenFlow permite procesar múltiples formatos de archivos y extraer contenido estructurado para usarlo como contexto en conversaciones con IA.
+El sistema de extracción de documentos de Flow permite procesar múltiples formatos de archivos y extraer contenido estructurado para usarlo como contexto en conversaciones con IA.
 
 ## ✅ Formatos Soportados
 
@@ -572,5 +572,5 @@ const text = decoder.decode(await file.arrayBuffer());
 
 **Última actualización**: 11 de octubre de 2025  
 **Versión**: 1.0.0  
-**Autor**: OpenFlow Team
+**Autor**: Flow Team
 

@@ -12,7 +12,7 @@ This document clarifies the relationship between variables in your `.env` file a
 |-------------------|------------------|-------------|---------|
 | `GOOGLE_CLOUD_PROJECT` | `PROJECT_ID` or `YOUR_PROJECT_ID` | Your GCP project ID | `my-project-12345` |
 | (your Google email) | `YOUR_EMAIL` | Your Google account email | `you@gmail.com` |
-| (auto-generated) | `SERVICE_ACCOUNT_EMAIL` | Service account email | `openflow-service@my-project-12345.iam.gserviceaccount.com` |
+| (auto-generated) | `SERVICE_ACCOUNT_EMAIL` | Service account email | `flow-service@my-project-12345.iam.gserviceaccount.com` |
 
 ---
 
@@ -21,13 +21,13 @@ This document clarifies the relationship between variables in your `.env` file a
 ### Your .env file:
 ```bash
 # Google Cloud Configuration
-GOOGLE_CLOUD_PROJECT=my-openflow-project-12345
+GOOGLE_CLOUD_PROJECT=my-flow-project-12345
 
 # ❌ NOT NEEDED with Workload Identity:
 # GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # Other configuration...
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 
 # Role-Based Access Control
@@ -40,9 +40,9 @@ ANALYTICS_EMAILS=analyst@salfacorp.com
 ### Corresponding commands:
 ```bash
 # Set variables for commands
-export PROJECT_ID="my-openflow-project-12345"        # ← Same as GOOGLE_CLOUD_PROJECT
+export PROJECT_ID="my-flow-project-12345"        # ← Same as GOOGLE_CLOUD_PROJECT
 export YOUR_EMAIL="your-email@gmail.com"              # ← Your Google account
-export SERVICE_ACCOUNT_EMAIL="openflow-service@my-openflow-project-12345.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@my-flow-project-12345.iam.gserviceaccount.com"
 
 # Now run setup commands...
 ```
@@ -63,7 +63,7 @@ cat .env | grep GOOGLE_CLOUD_PROJECT
 # Replace with your actual values
 export PROJECT_ID="my-project-12345"                    # ← From GOOGLE_CLOUD_PROJECT
 export YOUR_EMAIL="your-email@gmail.com"                # ← Your Google email
-export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 ```
 
 **Step 3: Verify**
@@ -98,13 +98,13 @@ PUBLIC_BASE_URL=http://localhost:3000              # REQUIRED - Your app URL
 
 ```bash
 # BigQuery Configuration
-BIGQUERY_DATASET=openflow_dataset                  # Optional - Defaults to "openflow_dataset"
+BIGQUERY_DATASET=flow_dataset                  # Optional - Defaults to "flow_dataset"
 
 # Vertex AI Configuration  
 VERTEX_AI_LOCATION=us-central1                     # Optional - Defaults to "us-central1"
 
 # Session Configuration
-SESSION_COOKIE_NAME=openflow_session               # Optional - Defaults to "openflow_session"
+SESSION_COOKIE_NAME=flow_session               # Optional - Defaults to "flow_session"
 SESSION_MAX_AGE=86400                              # Optional - Defaults to 86400 (24 hours)
 
 # Security
@@ -124,8 +124,8 @@ NODE_ENV=development                               # Optional - "development" or
 
 ### Cloud Run Deployment
 ```bash
-gcloud run deploy openflow \
-  --image gcr.io/${PROJECT_ID}/openflow \              # ← Uses PROJECT_ID
+gcloud run deploy flow \
+  --image gcr.io/${PROJECT_ID}/flow \              # ← Uses PROJECT_ID
   --service-account ${SERVICE_ACCOUNT_EMAIL} \         # ← Uses SERVICE_ACCOUNT_EMAIL
   --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"  # ← Sets env var for app
 ```
@@ -170,7 +170,7 @@ export PROJECT_ID="YOUR_PROJECT_ID"  # Don't leave as placeholder!
 
 ### ✅ Correct: Using actual values
 ```bash
-export PROJECT_ID="my-openflow-project-12345"  # Use your real project ID
+export PROJECT_ID="my-flow-project-12345"  # Use your real project ID
 ```
 
 ---
@@ -241,7 +241,7 @@ If you're unsure about any values:
 
 ### Overview
 
-The OpenFlow platform now includes role-based access control to provide different levels of access to various sections of the application.
+The Flow platform now includes role-based access control to provide different levels of access to various sections of the application.
 
 ### User Roles
 

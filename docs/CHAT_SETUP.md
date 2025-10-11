@@ -67,15 +67,15 @@ gcloud services enable generativelanguage.googleapis.com
 
 #### Create Service Account
 ```bash
-gcloud iam service-accounts create openflow-service \
-  --display-name="OpenFlow Service Account"
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account"
 
 gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-  --member="serviceAccount:openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --member="serviceAccount:flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
   --role="roles/datastore.user"
 
 gcloud iam service-accounts keys create service-account-key.json \
-  --iam-account=openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com
+  --iam-account=flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com
 ```
 
 #### Get Google AI API Key
@@ -297,7 +297,7 @@ GET /api/conversations/CONVERSATION_ID/context?userId=USER_ID
 ### Project Structure
 
 ```
-openflow/
+flow/
 ├── src/
 │   ├── components/
 │   │   └── ChatInterface.tsx        # Main chat UI component
@@ -353,7 +353,7 @@ npm run deploy:run
 
 3. **Set environment variables in Cloud Run:**
 ```bash
-gcloud run services update openflow \
+gcloud run services update flow \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=your-project-id" \
   --set-env-vars="GOOGLE_AI_API_KEY=your-api-key" \
   --set-env-vars="JWT_SECRET=your-jwt-secret"

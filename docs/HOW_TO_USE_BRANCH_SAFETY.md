@@ -286,7 +286,7 @@ Si quieres validar manualmente antes de pedirle a AI:
 ```bash
 grep "Sparkles" src/components/ChatInterface.tsx
 grep "userConfig" src/components/ChatInterface.tsx
-grep "OpenFlow puede cometer" src/components/ChatInterface.tsx
+grep "Flow puede cometer" src/components/ChatInterface.tsx
 grep "calculateLocalContext" src/components/ChatInterface.tsx
 ```
 

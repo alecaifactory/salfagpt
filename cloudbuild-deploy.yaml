@@ -6,7 +6,7 @@
 substitutions:
   # Default values - can be overridden by trigger
   _ENVIRONMENT: 'staging'
-  _SERVICE_NAME: 'openflow-${_ENVIRONMENT}'
+  _SERVICE_NAME: 'flow-${_ENVIRONMENT}'
   _REGION: 'us-central1'
   _MIN_INSTANCES: '0'
   _MAX_INSTANCES: '10'
@@ -20,9 +20,9 @@ steps:
     args:
       - 'build'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}:$SHORT_SHA'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}:$SHORT_SHA'
       - '-t'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}:latest'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}:latest'
       - '--build-arg'
       - 'NODE_ENV=production'
       - '--build-arg'
@@ -36,7 +36,7 @@ steps:
     args:
       - 'push'
       - '--all-tags'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}'
     waitFor: ['build-image']
   
   # Step 3: Deploy to Cloud Run
@@ -47,7 +47,7 @@ steps:
       - 'run'
       - 'deploy'
       - '${_SERVICE_NAME}'
-      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}:$SHORT_SHA'
+      - '--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}:$SHORT_SHA'
       - '--region=${_REGION}'
       - '--platform=managed'
       - '--allow-unauthenticated'
@@ -57,7 +57,7 @@ steps:
       - '--cpu=${_CPU}'
       - '--timeout=60s'
       - '--concurrency=80'
-      - '--service-account=openflow-runtime@$PROJECT_ID.iam.gserviceaccount.com'
+      - '--service-account=flow-runtime@$PROJECT_ID.iam.gserviceaccount.com'
       # Secrets from Secret Manager
       - '--set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
       - '--set-secrets=OAUTH_CLIENT_SECRET=OAUTH_CLIENT_SECRET:latest'
@@ -101,8 +101,8 @@ steps:
 
 # Docker image names
 images:
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}:$SHORT_SHA'
-  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/openflow/${_SERVICE_NAME}:latest'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}:$SHORT_SHA'
+  - '${_REGION}-docker.pkg.dev/$PROJECT_ID/flow/${_SERVICE_NAME}:latest'
 
 # Build configuration
 options:

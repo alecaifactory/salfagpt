@@ -1,6 +1,6 @@
 # CI/CD Setup Guide - Google Cloud Build
 
-Complete guide to setting up automated CI/CD for OpenFlow using Google Cloud Build, keeping everything within GCP.
+Complete guide to setting up automated CI/CD for Flow using Google Cloud Build, keeping everything within GCP.
 
 ## Overview
 
@@ -39,10 +39,10 @@ gcloud services enable \
 Create a Docker repository for storing images:
 
 ```bash
-gcloud artifacts repositories create openflow \
+gcloud artifacts repositories create flow \
   --repository-format=docker \
   --location=us-central1 \
-  --description="OpenFlow Docker images"
+  --description="Flow Docker images"
 ```
 
 ### 3. Service Accounts
@@ -78,20 +78,20 @@ Create a service account for the running application:
 
 ```bash
 # Create service account
-gcloud iam service-accounts create openflow-runtime \
-  --display-name="OpenFlow Runtime Service Account"
+gcloud iam service-accounts create flow-runtime \
+  --display-name="Flow Runtime Service Account"
 
 # Grant necessary permissions
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --member="serviceAccount:flow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --member="serviceAccount:flow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/logging.logWriter"
 
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --member="serviceAccount:flow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/cloudtrace.agent"
 ```
 
@@ -132,7 +132,7 @@ done
 # Cloud Run access (for runtime)
 for SECRET in ANTHROPIC_API_KEY OAUTH_CLIENT_SECRET SESSION_SECRET; do
   gcloud secrets add-iam-policy-binding $SECRET \
-    --member="serviceAccount:openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+    --member="serviceAccount:flow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
     --role="roles/secretmanager.secretAccessor"
 done
 ```
@@ -169,7 +169,7 @@ Runs on every pull request to validate code:
 gcloud builds triggers create github \
   --name="pr-validation" \
   --description="Run tests and validation on pull requests" \
-  --repo-name="openflow" \
+  --repo-name="flow" \
   --repo-owner="your-github-username" \
   --pull-request-pattern="^main$" \
   --build-config="cloudbuild.yaml" \
@@ -195,12 +195,12 @@ Auto-deploys to staging when code is merged to main:
 gcloud builds triggers create github \
   --name="deploy-staging" \
   --description="Auto-deploy to staging on merge to main" \
-  --repo-name="openflow" \
+  --repo-name="flow" \
   --repo-owner="your-github-username" \
   --branch-pattern="^main$" \
   --build-config="cloudbuild-deploy.yaml" \
   --region=us-central1 \
-  --substitutions="_ENVIRONMENT=staging,_SERVICE_NAME=openflow-staging,_MIN_INSTANCES=0,_MAX_INSTANCES=10,_MEMORY=512Mi,_CPU=1"
+  --substitutions="_ENVIRONMENT=staging,_SERVICE_NAME=flow-staging,_MIN_INSTANCES=0,_MAX_INSTANCES=10,_MEMORY=512Mi,_CPU=1"
 ```
 
 ### 4. Create Production Deployment Trigger
@@ -211,12 +211,12 @@ Manual trigger for production deployments:
 gcloud builds triggers create manual \
   --name="deploy-production" \
   --description="Manual production deployment" \
-  --repo="https://github.com/your-username/openflow" \
+  --repo="https://github.com/your-username/flow" \
   --repo-type="GITHUB" \
   --branch="main" \
   --build-config="cloudbuild-deploy.yaml" \
   --region=us-central1 \
-  --substitutions="_ENVIRONMENT=production,_SERVICE_NAME=openflow-production,_MIN_INSTANCES=1,_MAX_INSTANCES=100,_MEMORY=1Gi,_CPU=2"
+  --substitutions="_ENVIRONMENT=production,_SERVICE_NAME=flow-production,_MIN_INSTANCES=1,_MAX_INSTANCES=100,_MEMORY=1Gi,_CPU=2"
 ```
 
 ## Initial Cloud Run Services
@@ -224,8 +224,8 @@ gcloud builds triggers create manual \
 ### 1. Create Staging Service
 
 ```bash
-gcloud run deploy openflow-staging \
-  --image=us-central1-docker.pkg.dev/$PROJECT_ID/openflow/openflow-staging:latest \
+gcloud run deploy flow-staging \
+  --image=us-central1-docker.pkg.dev/$PROJECT_ID/flow/flow-staging:latest \
   --region=us-central1 \
   --platform=managed \
   --allow-unauthenticated \
@@ -235,7 +235,7 @@ gcloud run deploy openflow-staging \
   --cpu=1 \
   --timeout=60s \
   --concurrency=80 \
-  --service-account=openflow-runtime@$PROJECT_ID.iam.gserviceaccount.com \
+  --service-account=flow-runtime@$PROJECT_ID.iam.gserviceaccount.com \
   --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
   --set-secrets=OAUTH_CLIENT_SECRET=OAUTH_CLIENT_SECRET:latest \
   --set-secrets=SESSION_SECRET=SESSION_SECRET:latest \
@@ -246,8 +246,8 @@ gcloud run deploy openflow-staging \
 ### 2. Create Production Service
 
 ```bash
-gcloud run deploy openflow-production \
-  --image=us-central1-docker.pkg.dev/$PROJECT_ID/openflow/openflow-production:latest \
+gcloud run deploy flow-production \
+  --image=us-central1-docker.pkg.dev/$PROJECT_ID/flow/flow-production:latest \
   --region=us-central1 \
   --platform=managed \
   --allow-unauthenticated \
@@ -257,7 +257,7 @@ gcloud run deploy openflow-production \
   --cpu=2 \
   --timeout=60s \
   --concurrency=80 \
-  --service-account=openflow-runtime@$PROJECT_ID.iam.gserviceaccount.com \
+  --service-account=flow-runtime@$PROJECT_ID.iam.gserviceaccount.com \
   --set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest \
   --set-secrets=OAUTH_CLIENT_SECRET=OAUTH_CLIENT_SECRET:latest \
   --set-secrets=SESSION_SECRET=SESSION_SECRET:latest \
@@ -300,12 +300,12 @@ Check status:
 gcloud builds list --limit=5
 
 # Get staging URL
-gcloud run services describe openflow-staging \
+gcloud run services describe flow-staging \
   --region=us-central1 \
   --format='value(status.url)'
 
 # Test the service
-curl -I https://openflow-staging-xxx.run.app
+curl -I https://flow-staging-xxx.run.app
 ```
 
 ### 3. Test Production Deployment (Manual)
@@ -320,7 +320,7 @@ gcloud builds triggers run deploy-production \
 gcloud builds log $(gcloud builds list --limit=1 --format='value(id)') --stream
 
 # Verify production service
-gcloud run services describe openflow-production \
+gcloud run services describe flow-production \
   --region=us-central1 \
   --format='value(status.url)'
 ```
@@ -343,7 +343,7 @@ https://console.cloud.google.com/cloud-build/builds
 ```bash
 # Cloud Run logs
 gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=openflow-production" \
+  AND resource.labels.service_name=flow-production" \
   --limit=50 \
   --format=json
 
@@ -373,35 +373,35 @@ gcloud alpha monitoring policies create \
 ```bash
 # List recent revisions
 gcloud run revisions list \
-  --service=openflow-production \
+  --service=flow-production \
   --region=us-central1
 
 # Rollback to specific revision
-gcloud run services update-traffic openflow-production \
+gcloud run services update-traffic flow-production \
   --region=us-central1 \
   --to-revisions=REVISION_NAME=100
 
 # Example:
-gcloud run services update-traffic openflow-production \
+gcloud run services update-traffic flow-production \
   --region=us-central1 \
-  --to-revisions=openflow-production-00042-xyx=100
+  --to-revisions=flow-production-00042-xyx=100
 ```
 
 ### Gradual Rollout (Canary)
 
 ```bash
 # Route 90% to old, 10% to new
-gcloud run services update-traffic openflow-production \
+gcloud run services update-traffic flow-production \
   --region=us-central1 \
   --to-revisions=OLD_REVISION=90,NEW_REVISION=10
 
 # If stable, gradually increase
-gcloud run services update-traffic openflow-production \
+gcloud run services update-traffic flow-production \
   --region=us-central1 \
   --to-revisions=OLD_REVISION=50,NEW_REVISION=50
 
 # Finally, 100% to new
-gcloud run services update-traffic openflow-production \
+gcloud run services update-traffic flow-production \
   --region=us-central1 \
   --to-latest
 ```
@@ -430,7 +430,7 @@ gcloud secrets get-iam-policy ANTHROPIC_API_KEY
 
 # Add access if missing
 gcloud secrets add-iam-policy-binding ANTHROPIC_API_KEY \
-  --member="serviceAccount:openflow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --member="serviceAccount:flow-runtime@${PROJECT_ID}.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
@@ -439,7 +439,7 @@ gcloud secrets add-iam-policy-binding ANTHROPIC_API_KEY \
 ```bash
 # Check service logs
 gcloud logging read "resource.type=cloud_run_revision \
-  AND resource.labels.service_name=openflow-staging \
+  AND resource.labels.service_name=flow-staging \
   AND severity>=WARNING" \
   --limit=50 \
   --format=json

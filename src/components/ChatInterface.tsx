@@ -1025,7 +1025,7 @@ ${userInfo.company}`;
 
                 {/* Disclaimer */}
                 <div className="text-center text-xs text-slate-500 px-4">
-                  OpenFlow puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas.
+                  Flow puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas.
                 </div>
               </div>
             </div>
@@ -1036,7 +1036,7 @@ ${userInfo.company}`;
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transform hover:scale-110 transition-transform">
                 <MessageSquare className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Bienvenido a OpenFlow!</h2>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Bienvenido a Flow!</h2>
               <p className="text-lg text-slate-600 mb-6">Selecciona una conversación o inicia una nueva</p>
               <button
                 onClick={createNewConversation}

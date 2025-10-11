@@ -8,8 +8,8 @@
 
 ## 🌐 Production URLs
 
-**Application:** https://openflow-cno6l2kfga-uc.a.run.app  
-**OAuth Callback:** https://openflow-cno6l2kfga-uc.a.run.app/auth/callback
+**Application:** https://flow-cno6l2kfga-uc.a.run.app  
+**OAuth Callback:** https://flow-cno6l2kfga-uc.a.run.app/auth/callback
 
 ---
 
@@ -52,13 +52,13 @@
 **Authorized JavaScript Origins:**
 ```
 http://localhost:3000
-https://openflow-cno6l2kfga-uc.a.run.app
+https://flow-cno6l2kfga-uc.a.run.app
 ```
 
 **Authorized Redirect URIs:**
 ```
 http://localhost:3000/auth/callback
-https://openflow-cno6l2kfga-uc.a.run.app/auth/callback
+https://flow-cno6l2kfga-uc.a.run.app/auth/callback
 ```
 
 ### IAM Policies
@@ -70,10 +70,10 @@ https://openflow-cno6l2kfga-uc.a.run.app/auth/callback
 ## 🏗️ Infrastructure
 
 ### Cloud Run Service
-- **Name:** openflow
+- **Name:** flow
 - **Region:** us-central1
-- **Revision:** openflow-00004-7jg
-- **Container:** us-central1-docker.pkg.dev/gen-lang-client-0986191192/cloud-run-source-deploy/openflow:latest
+- **Revision:** flow-00004-7jg
+- **Container:** us-central1-docker.pkg.dev/gen-lang-client-0986191192/cloud-run-source-deploy/flow:latest
 - **Port:** 8080
 - **Concurrency:** Default (80)
 - **Ingress:** All traffic allowed
@@ -83,8 +83,8 @@ https://openflow-cno6l2kfga-uc.a.run.app/auth/callback
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
 NODE_ENV=production
 VERTEX_AI_LOCATION=us-central1
-PUBLIC_BASE_URL=https://openflow-cno6l2kfga-uc.a.run.app
-BIGQUERY_DATASET=openflow_dataset
+PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app
+BIGQUERY_DATASET=flow_dataset
 ENABLE_ANALYTICS=true
 ENABLE_CHAT=true
 ```
@@ -206,7 +206,7 @@ This allows the app to:
 
 ## 📚 Documentation
 
-- [Cloud Run Service Details](https://console.cloud.google.com/run/detail/us-central1/openflow?project=gen-lang-client-0986191192)
+- [Cloud Run Service Details](https://console.cloud.google.com/run/detail/us-central1/flow?project=gen-lang-client-0986191192)
 - [OAuth Credentials](https://console.cloud.google.com/apis/credentials?project=gen-lang-client-0986191192)
 - [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=gen-lang-client-0986191192)
 - [Build History](https://console.cloud.google.com/cloud-build/builds?project=gen-lang-client-0986191192)

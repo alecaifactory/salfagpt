@@ -1,14 +1,14 @@
 #!/bin/bash
-# OpenFlow - Cloud Run Deployment Script
+# Flow - Cloud Run Deployment Script
 # Project: gen-lang-client-0986191192
 
 set -e
 
 PROJECT_ID="gen-lang-client-0986191192"
 REGION="us-central1"
-SERVICE_NAME="openflow"
+SERVICE_NAME="flow"
 
-echo "=== OpenFlow Cloud Run Deployment ==="
+echo "=== Flow Cloud Run Deployment ==="
 echo "Project: $PROJECT_ID"
 echo "Region: $REGION"
 echo ""

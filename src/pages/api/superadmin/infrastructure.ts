@@ -18,7 +18,7 @@ export const GET: APIRoute = async ({ request }) => {
     // In production, these would come from GCP APIs
     const infrastructure = {
       cloudRun: {
-        service: 'openflow',
+        service: 'flow',
         region: 'us-central1',
         instances: 3,
         minInstances: 1,
@@ -28,8 +28,8 @@ export const GET: APIRoute = async ({ request }) => {
         memory: 45,
         containerConcurrency: 80,
         revisions: {
-          current: 'openflow-00007-9x6',
-          previous: 'openflow-00006-2a4',
+          current: 'flow-00007-9x6',
+          previous: 'flow-00006-2a4',
         },
         traffic: {
           current: 100,
@@ -37,7 +37,7 @@ export const GET: APIRoute = async ({ request }) => {
         },
       },
       firestore: {
-        database: 'openflow-production',
+        database: 'flow-production',
         location: 'us-central',
         reads: 125_456,
         writes: 34_567,
@@ -54,7 +54,7 @@ export const GET: APIRoute = async ({ request }) => {
         ],
       },
       bigQuery: {
-        project: 'openflow-production',
+        project: 'flow-production',
         dataset: 'analytics',
         queriesPerHour: 45,
         avgQueryTime: 234,
@@ -90,14 +90,14 @@ export const GET: APIRoute = async ({ request }) => {
       storage: {
         buckets: [
           {
-            name: 'openflow-uploads',
+            name: 'flow-uploads',
             location: 'us-central1',
             storageClass: 'STANDARD',
             size: 45.6, // GB
             objects: 8_934,
           },
           {
-            name: 'openflow-backups',
+            name: 'flow-backups',
             location: 'us-central1',
             storageClass: 'NEARLINE',
             size: 234.5, // GB

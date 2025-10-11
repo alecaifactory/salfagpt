@@ -1,7 +1,7 @@
 # Chat Interface Architecture
 
 ## Overview
-This document describes the architecture of the OpenFlow chat interface, which provides a ChatGPT-like experience for users to interact with AI agents powered by Google's Gemini 2.5-pro model.
+This document describes the architecture of the Flow chat interface, which provides a ChatGPT-like experience for users to interact with AI agents powered by Google's Gemini 2.5-pro model.
 
 ## System Components
 
@@ -451,5 +451,5 @@ All errors are logged with context:
 
 **Last Updated**: January 9, 2025
 **Version**: 1.0.0
-**Author**: OpenFlow Team
+**Author**: Flow Team
 

@@ -44,13 +44,13 @@ source ~/.zshrc
 
 2. Save the file to a secure location:
    ```bash
-   mv ~/Downloads/service-account-key.json ~/openflow/keys/
+   mv ~/Downloads/service-account-key.json ~/flow/keys/
    ```
 
 3. Update your environment variable:
    ```bash
    # In ~/.zshrc or ~/.bashrc
-   export GOOGLE_APPLICATION_CREDENTIALS="$HOME/openflow/keys/service-account-key.json"
+   export GOOGLE_APPLICATION_CREDENTIALS="$HOME/flow/keys/service-account-key.json"
    ```
 
 4. Add to `.gitignore`:

@@ -110,7 +110,7 @@ const [userConfig, setUserConfig] = useState<{
 ### 3. ✅ Disclaimer Text
 ```typescript
 <div className="text-center text-xs text-slate-500 px-4">
-  OpenFlow puede cometer errores. Ante cualquier duda, 
+  Flow puede cometer errores. Ante cualquier duda, 
   consulta las respuestas con un experto antes de tomar 
   decisiones críticas.
 </div>
@@ -225,7 +225,7 @@ grep "userConfig\.model" src/components/ChatInterface.tsx
 ✅ Found: 2 occurrences
 
 # Disclaimer
-grep "OpenFlow puede cometer" src/components/ChatInterface.tsx
+grep "Flow puede cometer" src/components/ChatInterface.tsx
 ✅ Found: 1 occurrence
 
 # calculateLocalContext

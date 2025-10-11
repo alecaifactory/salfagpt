@@ -1,5 +1,5 @@
 {
-  "name": "openflow",
+  "name": "flow",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
@@ -15,10 +15,10 @@
     "setup:emulators": "firebase init emulators",
     "setup:cicd": "./scripts/setup-cicd.sh",
     "ci:validate": "gcloud builds submit --config=cloudbuild.yaml",
-    "ci:deploy:staging": "gcloud builds submit --config=cloudbuild-deploy.yaml --substitutions=_ENVIRONMENT=staging,_SERVICE_NAME=openflow-staging,_MIN_INSTANCES=0,_MAX_INSTANCES=10,_MEMORY=512Mi,_CPU=1",
-    "ci:deploy:production": "gcloud builds submit --config=cloudbuild-deploy.yaml --substitutions=_ENVIRONMENT=production,_SERVICE_NAME=openflow-production,_MIN_INSTANCES=1,_MAX_INSTANCES=100,_MEMORY=1Gi,_CPU=2",
-    "deploy:build": "gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/openflow",
-    "deploy:run": "gcloud run deploy openflow --image gcr.io/${GOOGLE_CLOUD_PROJECT}/openflow --platform managed --region us-central1 --allow-unauthenticated",
+    "ci:deploy:staging": "gcloud builds submit --config=cloudbuild-deploy.yaml --substitutions=_ENVIRONMENT=staging,_SERVICE_NAME=flow-staging,_MIN_INSTANCES=0,_MAX_INSTANCES=10,_MEMORY=512Mi,_CPU=1",
+    "ci:deploy:production": "gcloud builds submit --config=cloudbuild-deploy.yaml --substitutions=_ENVIRONMENT=production,_SERVICE_NAME=flow-production,_MIN_INSTANCES=1,_MAX_INSTANCES=100,_MEMORY=1Gi,_CPU=2",
+    "deploy:build": "gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/flow",
+    "deploy:run": "gcloud run deploy flow --image gcr.io/${GOOGLE_CLOUD_PROJECT}/flow --platform managed --region us-central1 --allow-unauthenticated",
     "test:emulators": "firebase emulators:exec --only firestore 'npm run build'",
     "seed:users": "tsx scripts/seed-users.ts"
   },

@@ -1,20 +1,20 @@
 #!/bin/bash
-# OpenFlow - Cloud Shell Deployment Script
-# Run this in Google Cloud Shell after uploading openflow-deploy.zip
+# Flow - Cloud Shell Deployment Script
+# Run this in Google Cloud Shell after uploading flow-deploy.zip
 
 set -e
 
-echo "🚀 OpenFlow Cloud Shell Deployment"
+echo "🚀 Flow Cloud Shell Deployment"
 echo "==================================="
 echo ""
 
 # Unzip if needed
-if [ ! -d "openflow" ]; then
-  echo "📦 Extracting openflow-deploy.zip..."
-  unzip -q openflow-deploy.zip
+if [ ! -d "flow" ]; then
+  echo "📦 Extracting flow-deploy.zip..."
+  unzip -q flow-deploy.zip
 fi
 
-cd openflow
+cd flow
 
 echo "📋 Project: gen-lang-client-0986191192"
 echo "📍 Region: us-central1"
@@ -22,7 +22,7 @@ echo ""
 
 # Deploy
 echo "🔨 Deploying to Cloud Run..."
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \

@@ -89,7 +89,7 @@ interface Message {
 ### BigQuery: `ai_interactions` Table
 
 ```sql
-CREATE TABLE `openflow.analytics.ai_interactions` (
+CREATE TABLE `flow.analytics.ai_interactions` (
   -- Identity
   interaction_id STRING NOT NULL,
   conversation_id STRING NOT NULL,
@@ -234,7 +234,7 @@ SELECT
   SUM(total_tokens) as total_tokens,
   SUM(total_cost_usd) as total_cost,
   AVG(latency_ms) as avg_latency_ms
-FROM `openflow.analytics.ai_interactions`
+FROM `flow.analytics.ai_interactions`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 GROUP BY user_id
 ORDER BY total_cost DESC;
@@ -249,7 +249,7 @@ SELECT
   AVG(output_tokens) as avg_output_tokens,
   AVG(total_cost_usd) as avg_cost,
   SUM(total_cost_usd) as total_cost
-FROM `openflow.analytics.ai_interactions`
+FROM `flow.analytics.ai_interactions`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
 GROUP BY model;
 ```
@@ -261,7 +261,7 @@ SELECT
   COUNT(*) as interactions,
   AVG(latency_ms) as avg_latency,
   AVG(total_tokens) as avg_tokens
-FROM `openflow.analytics.ai_interactions`
+FROM `flow.analytics.ai_interactions`
 WHERE date >= CURRENT_DATE()
 GROUP BY usage_bucket
 ORDER BY usage_bucket;
@@ -277,7 +277,7 @@ SELECT
   total_cost_usd,
   latency_ms,
   timestamp
-FROM `openflow.analytics.ai_interactions`
+FROM `flow.analytics.ai_interactions`
 WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
   AND total_cost_usd > 0.01
 ORDER BY total_cost_usd DESC

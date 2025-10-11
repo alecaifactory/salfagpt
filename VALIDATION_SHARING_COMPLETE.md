@@ -444,7 +444,7 @@ export const POST = async ({ request }) => {
     to,
     subject,
     html: body,
-    from: 'share@openflow.com'
+    from: 'share@flow.com'
   })
   
   return new Response(JSON.stringify({ success: true }))

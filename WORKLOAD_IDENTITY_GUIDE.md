@@ -17,13 +17,13 @@ Run these commands in your terminal:
 export PROJECT_ID="your-actual-project-id"  # Replace with your GCP project ID
 
 # Create the service account
-gcloud iam service-accounts create openflow-service \
-  --display-name="OpenFlow Service Account" \
-  --description="Service account for OpenFlow with BigQuery, Vertex AI, and Firestore access" \
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account" \
+  --description="Service account for Flow with BigQuery, Vertex AI, and Firestore access" \
   --project=${PROJECT_ID}
 
 # Define the service account email
-export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "✅ Service account created: ${SERVICE_ACCOUNT_EMAIL}"
 ```
@@ -141,7 +141,7 @@ GOOGLE_CLOUD_PROJECT=your-actual-project-id
 # GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # Other config...
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -153,11 +153,11 @@ VERTEX_AI_LOCATION=us-central1
 
 ```bash
 # Build your container
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/openflow
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/flow
 
 # Deploy with the service account
-gcloud run deploy openflow \
-  --image gcr.io/${PROJECT_ID}/openflow \
+gcloud run deploy flow \
+  --image gcr.io/${PROJECT_ID}/flow \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
@@ -201,12 +201,12 @@ set -e
 # PROJECT_ID is the same as GOOGLE_CLOUD_PROJECT in your .env file
 export PROJECT_ID="your-actual-project-id"  # Replace with your GCP project ID
 export YOUR_EMAIL="your-email@gmail.com"     # Replace with your Google email
-export SERVICE_ACCOUNT_EMAIL="openflow-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Create service account
 echo "Creating service account..."
-gcloud iam service-accounts create openflow-service \
-  --display-name="OpenFlow Service Account" \
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account" \
   --project=${PROJECT_ID}
 
 # Grant service account permissions
@@ -278,12 +278,12 @@ gcloud iam service-accounts list --project=${PROJECT_ID}
 
 **Solution**: Verify Cloud Run is using the service account
 ```bash
-gcloud run services describe openflow \
+gcloud run services describe flow \
   --region=us-central1 \
   --format="value(spec.template.spec.serviceAccountName)"
 ```
 
-Should return: `openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com`
+Should return: `flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com`
 
 ---
 

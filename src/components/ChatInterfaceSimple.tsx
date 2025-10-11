@@ -37,7 +37,7 @@ export default function ChatInterfaceSimple({ userId }: { userId: string }) {
         fontWeight: 'bold',
         fontSize: '18px'
       }}>
-        🤖 OpenFlow Chat - Simple Test
+        🤖 Flow Chat - Simple Test
       </div>
 
       {/* Messages */}

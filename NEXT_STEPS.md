@@ -20,12 +20,12 @@
 1. Click **"Create Credentials"** → **"OAuth 2.0 Client ID"**
 2. If prompted, configure OAuth Consent Screen:
    - User Type: **External**
-   - App name: **OpenFlow**
+   - App name: **Flow**
    - User support email: **alec@getaifactory.com**
    - Save and Continue
 3. Create OAuth Client:
    - Application type: **Web application**
-   - Name: **OpenFlow Web Client**
+   - Name: **Flow Web Client**
    - Authorized redirect URIs:
      - `http://localhost:4321/auth/callback`
    - Click **Create**
@@ -61,7 +61,7 @@ Visit: http://localhost:4321
 
 ```
 ✅ GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
-✅ BIGQUERY_DATASET=openflow_dataset
+✅ BIGQUERY_DATASET=flow_dataset
 ✅ VERTEX_AI_LOCATION=us-central1
 ❌ GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com  ← UPDATE THIS
 ❌ GOOGLE_CLIENT_SECRET=your-client-secret  ← UPDATE THIS
@@ -135,15 +135,15 @@ When ready for production:
 
 ```bash
 # Build
-gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
+gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/flow
 
 # Deploy with Workload Identity
-gcloud run deploy openflow \
-  --image gcr.io/gen-lang-client-0986191192/openflow \
+gcloud run deploy flow \
+  --image gcr.io/gen-lang-client-0986191192/flow \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --service-account openflow-service@gen-lang-client-0986191192.iam.gserviceaccount.com \
+  --service-account flow-service@gen-lang-client-0986191192.iam.gserviceaccount.com \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192"
 ```
 

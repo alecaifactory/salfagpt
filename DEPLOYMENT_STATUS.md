@@ -1,4 +1,4 @@
-# 🚀 OpenFlow Deployment Status Report
+# 🚀 Flow Deployment Status Report
 
 ## ✅ Local Testing - ALL PASSED
 
@@ -64,16 +64,16 @@ The application is **100% ready to deploy**. The only blocker is local network c
    ```
 
 2. **Upload the deployment zip:**
-   - File location: `/Users/alec/openflow-deploy.zip` (238KB)
+   - File location: `/Users/alec/flow-deploy.zip` (238KB)
    - Click "Upload" button in Cloud Shell
    - Select the zip file
 
 3. **Run deployment commands:**
    ```bash
-   unzip openflow-deploy.zip
-   cd openflow
+   unzip flow-deploy.zip
+   cd flow
    
-   gcloud run deploy openflow \
+   gcloud run deploy flow \
      --source . \
      --region us-central1 \
      --allow-unauthenticated \
@@ -83,14 +83,14 @@ The application is **100% ready to deploy**. The only blocker is local network c
 4. **Wait 3-4 minutes** for deployment to complete
 
 5. **Get your URL:**
-   - Output will show: `Service URL: https://openflow-xxx-uc.a.run.app`
+   - Output will show: `Service URL: https://flow-xxx-uc.a.run.app`
 
 #### **Option B: Cloud Console UI (10 minutes)**
 
 1. Go to: https://console.cloud.google.com/run/create?project=gen-lang-client-0986191192
 
 2. Configure:
-   - Service name: `openflow`
+   - Service name: `flow`
    - Region: `us-central1`
    - Source: Upload zip file
    - Build type: Dockerfile
@@ -130,7 +130,7 @@ The application is **100% ready to deploy**. The only blocker is local network c
 
 Once deployed via Cloud Shell:
 
-**Your App URL:** `https://openflow-[unique-id]-uc.a.run.app`
+**Your App URL:** `https://flow-[unique-id]-uc.a.run.app`
 
 **What will work:**
 - ✅ Landing page with beautiful gradient design
@@ -151,7 +151,7 @@ Once deployed via Cloud Shell:
 
 | File | Location | Purpose |
 |------|----------|---------|
-| **Deployment Zip** | `/Users/alec/openflow-deploy.zip` | Upload to Cloud Shell |
+| **Deployment Zip** | `/Users/alec/flow-deploy.zip` | Upload to Cloud Shell |
 | **Instructions** | `DEPLOY_VIA_CONSOLE.md` | Step-by-step guide |
 | **This Report** | `DEPLOYMENT_STATUS.md` | Complete status |
 

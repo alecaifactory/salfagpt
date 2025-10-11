@@ -8,7 +8,7 @@
 
 ## 🎯 What Was Built
 
-A comprehensive **ChatGPT-like interface** for OpenFlow with:
+A comprehensive **ChatGPT-like interface** for Flow with:
 
 ### Core Features
 ✅ **Full Chat Interface** - ChatGPT-style UI with conversations, messages, and AI responses  
@@ -443,7 +443,7 @@ npm run deploy:build
 npm run deploy:run
 
 # Configure environment
-gcloud run services update openflow \
+gcloud run services update flow \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=..." \
   --set-env-vars="GOOGLE_AI_API_KEY=..." \
   --set-env-vars="JWT_SECRET=..."

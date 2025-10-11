@@ -13,7 +13,7 @@
 
 Test these routes using curl and verify responses:
 
-- **`/`** (Landing page) - Should return HTML with "OpenFlow" title and OAuth button
+- **`/`** (Landing page) - Should return HTML with "Flow" title and OAuth button
 - **`/chat`** (Dev mode) - Should work without OAuth, uses test user
 - **`/home`** (Protected) - Will redirect to auth since no OAuth configured
 - **`/api/chat`** (API endpoint) - Test with POST request
@@ -39,7 +39,7 @@ Expected results:
 **Command:**
 
 ```bash
-gcloud run deploy openflow \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
@@ -62,8 +62,8 @@ gcloud run deploy openflow \
 2. Provide instructions to upload to Cloud Shell
 3. Command for Cloud Shell:
    ```bash
-   unzip openflow-deploy.zip && cd openflow
-   gcloud run deploy openflow --source . --region us-central1 --allow-unauthenticated
+   unzip flow-deploy.zip && cd flow
+   gcloud run deploy flow --source . --region us-central1 --allow-unauthenticated
    ```
 
 
@@ -77,12 +77,12 @@ gcloud run deploy openflow \
 
 1. Use Cloud Build to build image separately:
    ```bash
-   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
+   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/flow
    ```
 
 2. Deploy pre-built image:
    ```bash
-   gcloud run deploy openflow --image gcr.io/gen-lang-client-0986191192/openflow --region us-central1
+   gcloud run deploy flow --image gcr.io/gen-lang-client-0986191192/flow --region us-central1
    ```
 
 
@@ -111,8 +111,8 @@ gcloud run deploy openflow \
 2. Configure Docker to use gcr.io
 3. Deploy using Container Registry path:
    ```bash
-   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/openflow
-   gcloud run deploy openflow --image gcr.io/gen-lang-client-0986191192/openflow
+   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/flow
+   gcloud run deploy flow --image gcr.io/gen-lang-client-0986191192/flow
    ```
 
 

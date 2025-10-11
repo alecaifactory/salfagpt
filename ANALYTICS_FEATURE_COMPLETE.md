@@ -4,7 +4,7 @@
 
 ### 🎉 Summary
 
-A comprehensive analytics dashboard has been successfully implemented for OpenFlow. This feature provides administrators and analytics users with powerful insights into platform usage, user engagement, and data exploration capabilities.
+A comprehensive analytics dashboard has been successfully implemented for Flow. This feature provides administrators and analytics users with powerful insights into platform usage, user engagement, and data exploration capabilities.
 
 ---
 

@@ -1,19 +1,19 @@
 #!/bin/bash
 
 # ============================================
-# OpenFlow Quick Start Script
+# Flow Quick Start Script
 # ============================================
 
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                                                              ║"
-echo "║              🚀 OpenFlow Quick Start Check 🚀               ║"
+echo "║              🚀 Flow Quick Start Check 🚀               ║"
 echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Check 1: Service Account
 echo "1️⃣  Checking Service Account..."
-if gcloud iam service-accounts list --filter="email:openflow-service@*" --format="value(email)" | grep -q "openflow-service"; then
+if gcloud iam service-accounts list --filter="email:flow-service@*" --format="value(email)" | grep -q "flow-service"; then
     echo "   ✅ Service account exists"
 else
     echo "   ❌ Service account missing"

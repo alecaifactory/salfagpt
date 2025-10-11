@@ -319,7 +319,7 @@ e7da77b - feat: Implementar sistema de contexto y workflows estilo ContextAI
 
 ## 🙏 Agradecimientos
 
-Sistema inspirado en [ContextAI](https://context.ai) - Adaptado e integrado específicamente para OpenFlow.
+Sistema inspirado en [ContextAI](https://context.ai) - Adaptado e integrado específicamente para Flow.
 
 ---
 

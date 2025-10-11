@@ -6,7 +6,7 @@
 
 ## Overview
 
-This feature adds three specialized sections to the OpenFlow platform to provide comprehensive monitoring, quality control, and analytics capabilities for different user roles.
+This feature adds three specialized sections to the Flow platform to provide comprehensive monitoring, quality control, and analytics capabilities for different user roles.
 
 ## Three New Sections
 

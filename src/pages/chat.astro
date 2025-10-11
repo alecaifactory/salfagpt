@@ -5,7 +5,7 @@ import '../styles/global.css';
 
 // Check authentication
 const cookies = Astro.cookies;
-const token = cookies.get('openflow_session')?.value;
+const token = cookies.get('flow_session')?.value;
 
 // For development: allow test user without authentication
 const isDevelopment = import.meta.env.DEV;
@@ -35,7 +35,7 @@ if (isDevelopment && !token) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat - OpenFlow</title>
+    <title>Chat - Flow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body class="h-full m-0 p-0">

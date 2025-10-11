@@ -185,7 +185,7 @@ npm run test:emulators  # Runs build against emulators
 ### Environment Variables Required
 ```bash
 # Already configured (no new vars needed)
-GOOGLE_CLOUD_PROJECT=openflow-dev
+GOOGLE_CLOUD_PROJECT=flow-dev
 NODE_ENV=production  # Set by Cloud Run automatically
 ```
 

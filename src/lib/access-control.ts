@@ -191,7 +191,7 @@ export async function verifyAccess(
     const cookies = request.headers.get('cookie') || '';
     const sessionCookie = cookies
       .split(';')
-      .find(c => c.trim().startsWith('openflow_session='));
+      .find(c => c.trim().startsWith('flow_session='));
     
     if (!sessionCookie) {
       return null;

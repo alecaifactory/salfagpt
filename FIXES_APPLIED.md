@@ -1,7 +1,7 @@
 # Fixes Applied - Session 2
 
 ## Issue Encountered
-Browser showed error: `Cannot find module '@astrojs/react' imported from '/Users/alec/openflow/astro.config.mjs'`
+Browser showed error: `Cannot find module '@astrojs/react' imported from '/Users/alec/flow/astro.config.mjs'`
 
 ## Root Cause
 The `astro.config.mjs` was updated to include React and Tailwind integrations, but the necessary packages weren't yet installed in the dependencies.

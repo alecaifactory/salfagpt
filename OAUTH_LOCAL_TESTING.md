@@ -19,7 +19,7 @@ Click **"OAuth consent screen"** in the left sidebar:
 2. Click **"Create"**
 
 Fill in the form:
-- **App name**: `OpenFlow Local Development`
+- **App name**: `Flow Local Development`
 - **User support email**: `alec@getaifactory.com`
 - **App logo**: (optional, skip for now)
 - **App domain**: Leave blank for local testing
@@ -46,7 +46,7 @@ Click **"Save and Continue"**
 2. Click **"+ Create Credentials"** → **"OAuth 2.0 Client ID"**
 3. Fill in:
    - **Application type**: Web application
-   - **Name**: `OpenFlow Local Dev`
+   - **Name**: `Flow Local Dev`
    
 4. **Authorized JavaScript origins**:
    - Add: `http://localhost:3001`
@@ -66,7 +66,7 @@ Click **"Save and Continue"**
 
 ## Step 2: Update Your .env File
 
-Open `/Users/alec/openflow/.env` and update these lines:
+Open `/Users/alec/flow/.env` and update these lines:
 
 ```bash
 # Replace these with your actual OAuth credentials
@@ -80,7 +80,7 @@ GOOGLE_CLIENT_SECRET=GOCSPX-your-client-secret-here
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
 
 # BigQuery
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 
 # Vertex AI
 VERTEX_AI_LOCATION=us-central1
@@ -105,7 +105,7 @@ NODE_ENV=development
 pkill -f "node.*astro"
 
 # Start fresh
-cd /Users/alec/openflow
+cd /Users/alec/flow
 npm run dev
 ```
 
@@ -284,15 +284,15 @@ chmod +x test-oauth.sh
 ```
 User Browser → /auth/login
     ↓
-OpenFlow redirects to Google OAuth
+Flow redirects to Google OAuth
     ↓
 User logs in with Google
     ↓
 Google redirects to /auth/callback with code
     ↓
-OpenFlow exchanges code for user info
+Flow exchanges code for user info
     ↓
-OpenFlow creates session cookie
+Flow creates session cookie
     ↓
 User redirected to /chat (logged in!)
 ```
@@ -317,7 +317,7 @@ You'll know OAuth is working when:
 
 Add to your .env:
 ```bash
-DEBUG=openflow:*
+DEBUG=flow:*
 NODE_ENV=development
 ```
 

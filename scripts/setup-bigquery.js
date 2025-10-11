@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
-const DATASET_ID = process.env.BIGQUERY_DATASET || 'openflow_dataset';
+const DATASET_ID = process.env.BIGQUERY_DATASET || 'flow_dataset';
 
 const bigquery = new BigQuery({
   projectId: PROJECT_ID,

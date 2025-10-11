@@ -3,7 +3,7 @@
 **Date**: October 10, 2025  
 **Branch**: feat/user-menu-logout-2025-10-10  
 **Status**: ✅ **Deployed to Production**  
-**Production URL**: https://openflow-cno6l2kfga-uc.a.run.app/chat
+**Production URL**: https://flow-cno6l2kfga-uc.a.run.app/chat
 
 ---
 
@@ -184,12 +184,12 @@ export const POST: APIRoute = async (context) => {
 ```bash
 # Build container
 gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/openflow/openflow:latest \
+  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --project=gen-lang-client-0986191192
 
 # Deploy to Cloud Run
-gcloud run deploy openflow \
-  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/openflow/openflow:latest \
+gcloud run deploy flow \
+  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
@@ -200,8 +200,8 @@ gcloud run deploy openflow \
 ### Deployment Results
 - **Build Time**: 2m 34s
 - **Status**: SUCCESS ✅
-- **Revision**: openflow-00007-9x6
-- **URL**: https://openflow-cno6l2kfga-uc.a.run.app
+- **Revision**: flow-00007-9x6
+- **URL**: https://flow-cno6l2kfga-uc.a.run.app
 
 ---
 
@@ -294,7 +294,7 @@ gcloud run deploy openflow \
 ## 🔐 Security
 
 ### Session Management
-- Logout clears `openflow_session` cookie
+- Logout clears `flow_session` cookie
 - HttpOnly cookie prevents XSS
 - Secure flag in production
 - 24-hour session duration
@@ -360,6 +360,6 @@ The user menu feature is now live in production, providing users with:
 ---
 
 **Last Updated**: October 10, 2025  
-**Maintained By**: OpenFlow Development Team  
-**Production URL**: https://openflow-cno6l2kfga-uc.a.run.app/chat
+**Maintained By**: Flow Development Team  
+**Production URL**: https://flow-cno6l2kfga-uc.a.run.app/chat
 

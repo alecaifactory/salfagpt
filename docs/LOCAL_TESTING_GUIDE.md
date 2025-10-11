@@ -36,7 +36,7 @@ GOOGLE_CLOUD_PROJECT=your-project-id
 GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 # Optional: For BigQuery
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 
 # Optional: For Vertex AI location
 VERTEX_AI_LOCATION=us-central1
@@ -201,7 +201,7 @@ BigQuery is **automatically disabled in development mode**. You'll see:
 4. **Test query**:
    ```bash
    # In GCP Console BigQuery
-   SELECT * FROM `your-project.openflow_dataset.chat_messages`
+   SELECT * FROM `your-project.flow_dataset.chat_messages`
    ORDER BY timestamp DESC
    LIMIT 10;
    ```
@@ -287,9 +287,9 @@ npm run preview
 npx pame-core-cli deploy www --production
 
 # OR using gcloud directly
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/openflow
-gcloud run deploy openflow \
-  --image gcr.io/${PROJECT_ID}/openflow \
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/flow
+gcloud run deploy flow \
+  --image gcr.io/${PROJECT_ID}/flow \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated
@@ -310,7 +310,7 @@ OAUTH_CLIENT_SECRET=your-oauth-secret
 OAUTH_REDIRECT_URI=https://your-domain.com/auth/callback
 
 # Optional
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -329,13 +329,13 @@ VERTEX_AI_LOCATION=us-central1
 
 3. **Check logs**:
    ```bash
-   gcloud run logs read openflow --limit 50
+   gcloud run logs read flow --limit 50
    ```
 
 4. **Verify BigQuery**:
    ```sql
    -- In GCP Console
-   SELECT COUNT(*) FROM `project.openflow_dataset.chat_messages`
+   SELECT COUNT(*) FROM `project.flow_dataset.chat_messages`
    WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 1 HOUR);
    ```
 

@@ -200,7 +200,7 @@ The Tailwind integration was configured but not properly connected:
 │ □ Getting Started with AI   │ ← Flat, no color
 │   5 messages                │
 │                             │
-│ Welcome to OpenFlow!        │ ← Black text on white
+│ Welcome to Flow!        │ ← Black text on white
 │ Select a conversation...    │
 └─────────────────────────────┘
 ```

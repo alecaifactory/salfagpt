@@ -1,4 +1,4 @@
-# Cursor AI Rules for OpenFlow
+# Cursor AI Rules for Flow
 
 This directory contains rules that guide the AI assistant to prevent common errors and maintain code quality.
 
@@ -80,7 +80,7 @@ Files that require extra caution (read protection rules first):
 
 2. **Disclaimer Text**
    - Location: Below chat input
-   - Text: "OpenFlow puede cometer errores..."
+   - Text: "Flow puede cometer errores..."
    - Required wrapper: space-y-3 div
 
 3. **Folders Section**
@@ -105,7 +105,7 @@ git diff src/components/ChatInterface.tsx
 # 3. Verify protected features present
 grep "Sparkles" src/components/ChatInterface.tsx
 grep "userConfig" src/components/ChatInterface.tsx
-grep "OpenFlow puede cometer" src/components/ChatInterface.tsx
+grep "Flow puede cometer" src/components/ChatInterface.tsx
 ```
 
 ### After Making Changes

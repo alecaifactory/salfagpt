@@ -172,7 +172,7 @@ D) Cancel branch switch
 # Check protected features
 grep -q "Sparkles" src/components/ChatInterface.tsx && echo "✅" || echo "❌"
 grep -q "userConfig" src/components/ChatInterface.tsx && echo "✅" || echo "❌"
-grep -q "OpenFlow puede cometer" src/components/ChatInterface.tsx && echo "✅" || echo "❌"
+grep -q "Flow puede cometer" src/components/ChatInterface.tsx && echo "✅" || echo "❌"
 grep -q "calculateLocalContext" src/components/ChatInterface.tsx && echo "✅" || echo "❌"
 
 # Run type check
@@ -204,7 +204,7 @@ npm run type-check
 3. **Disclaimer Text**
    ```typescript
    <div className="text-center text-xs text-slate-500 px-4">
-     OpenFlow puede cometer errores...
+     Flow puede cometer errores...
    </div>
    ```
 
@@ -289,7 +289,7 @@ git status
 # Check protected features
 grep "Sparkles" src/components/ChatInterface.tsx
 grep "userConfig" src/components/ChatInterface.tsx
-grep "OpenFlow puede cometer" src/components/ChatInterface.tsx
+grep "Flow puede cometer" src/components/ChatInterface.tsx
 grep "calculateLocalContext" src/components/ChatInterface.tsx
 ```
 

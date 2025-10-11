@@ -44,7 +44,7 @@ JWT_SECRET=$(openssl rand -base64 32)
 # Optional: GCP Project (for BigQuery/Vertex AI)
 GOOGLE_CLOUD_PROJECT=your-gcp-project-id
 GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
-BIGQUERY_DATASET=openflow_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -96,25 +96,25 @@ After logging in, you'll see:
 
 1. **Create GCP Service Account:**
    ```bash
-   gcloud iam service-accounts create openflow-service \
-     --display-name="OpenFlow Service Account"
+   gcloud iam service-accounts create flow-service \
+     --display-name="Flow Service Account"
    ```
 
 2. **Grant Permissions:**
    ```bash
    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-     --member="serviceAccount:openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+     --member="serviceAccount:flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
      --role="roles/bigquery.admin"
    
    gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-     --member="serviceAccount:openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+     --member="serviceAccount:flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
      --role="roles/aiplatform.user"
    ```
 
 3. **Download Key:**
    ```bash
    gcloud iam service-accounts keys create gcp-service-account-key.json \
-     --iam-account=openflow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com
+     --iam-account=flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com
    ```
 
 4. **Initialize BigQuery:**
