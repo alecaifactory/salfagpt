@@ -38,6 +38,20 @@ export interface ContextSource {
   
   // For re-extraction
   originalFile?: File;
+  
+  // Progress tracking
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+  
+  // Error details
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Date;
+  };
 }
 
 export interface WorkflowConfig {

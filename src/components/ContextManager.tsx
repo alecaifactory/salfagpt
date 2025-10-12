@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShieldCheck, Settings } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -101,7 +101,13 @@ export default function ContextManager({
                       <p className="text-sm font-medium text-slate-800 truncate">
                         {source.name}
                       </p>
-                      {isValidated && (
+                      {source.status === 'processing' && (
+                        <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                      )}
+                      {source.status === 'error' && (
+                        <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                      )}
+                      {isValidated && source.status === 'active' && (
                         <span title="Documento Validado">
                           <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
                         </span>
@@ -110,7 +116,35 @@ export default function ContextManager({
                         {getSourceTypeLabel(source.type)}
                       </span>
                     </div>
-                    {source.metadata && (
+                    
+                    {/* Progress Bar */}
+                    {source.status === 'processing' && source.progress && (
+                      <div className="mt-1.5">
+                        <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
+                          <span>{source.progress.message}</span>
+                          <span className="font-medium">{source.progress.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                            style={{ width: `${source.progress.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Error Message */}
+                    {source.status === 'error' && source.error && (
+                      <div className="mt-1.5 text-xs text-red-600 bg-red-50 rounded p-2">
+                        <p className="font-semibold">❌ {source.error.message}</p>
+                        {source.error.details && (
+                          <p className="text-[10px] mt-0.5 text-red-500">{source.error.details}</p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Metadata (only for active sources) */}
+                    {source.status === 'active' && source.metadata && (
                       <p className="text-xs text-slate-500 mt-0.5">
                         {source.metadata.originalFileSize && `${(source.metadata.originalFileSize / 1024 / 1024).toFixed(1)} MB`}
                         {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
