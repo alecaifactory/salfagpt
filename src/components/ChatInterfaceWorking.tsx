@@ -849,7 +849,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Run workflow:', workflow.id);
+                      setShowAddSourceModal(true);
                     }}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                   >
