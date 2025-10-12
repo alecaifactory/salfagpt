@@ -1,0 +1,1041 @@
+---
+alwaysApply: true
+---
+
+# Backend Architecture & Best Practices - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the complete backend architecture, lessons learned, and best practices for the Flow platform. It ensures smooth local development, reliable production deployment, and prevents data loss.
+
+---
+
+## 🏗️ Backend Architecture Overview
+
+### Technology Stack
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FLOW BACKEND                         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────┐ │
+│  │    Astro     │───▶│   Firestore  │───▶│ BigQuery │ │
+│  │  API Routes  │    │  (Database)  │    │(Analytics│ │
+│  └──────────────┘    └──────────────┘    └──────────┘ │
+│         │                    │                  │       │
+│         │                    │                  │       │
+│         ▼                    ▼                  ▼       │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────┐ │
+│  │  Gemini AI   │    │ Cloud Storage│    │  OAuth2  │ │
+│  │ (2.5 Flash)  │    │   (Files)    │    │  (Auth)  │ │
+│  │ (2.5 Pro)    │    │              │    │          │ │
+│  └──────────────┘    └──────────────┘    └──────────┘ │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Core Components
+
+1. **Astro API Routes** (`src/pages/api/`)
+   - RESTful endpoints
+   - Server-side rendering
+   - Type-safe request/response
+
+2. **Firestore** (`src/lib/firestore.ts`)
+   - Primary database
+   - Real-time updates
+   - Offline support
+
+3. **BigQuery** (`src/lib/analytics.ts`)
+   - Analytics data warehouse
+   - Complex queries
+   - Historical analysis
+
+4. **Gemini AI** (`src/lib/gemini.ts`)
+   - Text generation
+   - Document extraction
+   - Context understanding
+
+---
+
+## 🔐 Authentication & Authorization
+
+### GCP Authentication Methods
+
+#### 1. Local Development
+```bash
+# Application Default Credentials (ADC)
+gcloud auth application-default login
+```
+
+**How it works:**
+- Creates `~/.config/gcloud/application_default_credentials.json`
+- Automatically used by all Google Cloud SDKs
+- No need to specify credentials in code
+
+#### 2. Production (Cloud Run)
+```
+Workload Identity (automatic)
+```
+
+**How it works:**
+- Cloud Run service account has permissions
+- No credentials file needed
+- Automatic authentication
+
+### Environment Variables Pattern
+
+```typescript
+// CORRECT: Support both Astro and Node.js
+const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env 
+  ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+  : process.env.GOOGLE_CLOUD_PROJECT;
+```
+
+**Why?**
+- Astro uses `import.meta.env` at build time
+- Node.js uses `process.env` at runtime
+- This pattern works in both contexts
+
+---
+
+## 🗄️ Database Architecture
+
+### Firestore Collections
+
+```typescript
+// src/lib/firestore.ts
+export const COLLECTIONS = {
+  CONVERSATIONS: 'conversations',           // Agent conversations
+  MESSAGES: 'messages',                     // Chat messages
+  FOLDERS: 'folders',                       // Organization
+  USER_CONTEXT: 'user_context',            // User-specific context
+  USERS: 'users',                          // User management
+  GROUPS: 'groups',                        // Team groups
+  CONTEXT_ACCESS_RULES: 'context_access_rules', // Permissions
+  CONTEXT_SOURCES: 'context_sources',      // Documents for context
+} as const;
+```
+
+### Data Models
+
+#### Conversation
+```typescript
+interface Conversation {
+  id: string;
+  userId: string;
+  title: string;
+  folderId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  lastMessageAt: Date;
+  messageCount: number;
+  contextWindowUsage: number;              // 0-100%
+  agentModel: string;                      // 'gemini-2.5-flash' | 'gemini-2.5-pro'
+  activeContextSourceIds?: string[];       // Active context for this agent
+}
+```
+
+#### Message
+```typescript
+interface Message {
+  id: string;
+  conversationId: string;
+  userId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: MessageContent;
+  timestamp: Date;
+  tokenCount: number;
+  contextSections?: ContextSection[];      // What context was used
+}
+```
+
+#### Context Source
+```typescript
+interface ContextSource {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
+  enabled: boolean;
+  status: 'active' | 'processing' | 'error' | 'disabled';
+  addedAt: Date;
+  extractedData?: string;                  // Extracted text/content
+  metadata?: {
+    originalFileName?: string;
+    originalFileSize?: number;
+    workflowId?: string;
+    extractionDate?: Date;
+    extractionTime?: number;
+    model?: string;
+    charactersExtracted?: number;
+    tokensEstimate?: number;
+    pageCount?: number;
+    validated?: boolean;                    // Expert sign-off
+    validatedBy?: string;
+    validatedAt?: Date;
+  };
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Date;
+    suggestions?: string[];                 // Troubleshooting steps
+  };
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+}
+```
+
+---
+
+## 🚨 Critical Rules & Lessons Learned
+
+### 1. ✅ ALWAYS Use Correct Gemini API
+
+**❌ WRONG:**
+```typescript
+import { GoogleGenerativeAI } from '@google/genai'; // Class doesn't exist
+const genAI = new GoogleGenerativeAI(apiKey);       // Wrong constructor
+const model = genAI.getGenerativeModel({...});      // Method doesn't exist
+```
+
+**✅ CORRECT:**
+```typescript
+import { GoogleGenAI } from '@google/genai';        // Correct class
+const genAI = new GoogleGenAI({ apiKey });          // Object with apiKey
+const result = await genAI.models.generateContent({ // Correct method
+  model: 'gemini-2.5-flash',
+  contents: message,
+  config: { systemInstruction, temperature }
+});
+const text = result.text || '';                     // Always fallback
+```
+
+**Reference:** `.cursor/rules/gemini-api-usage.mdc`
+
+---
+
+### 2. ✅ NEVER Use Mock Mode as Fallback
+
+**❌ WRONG:**
+```typescript
+try {
+  const data = await fetch('/api/conversations');
+} catch (error) {
+  setUseMockData(true); // ❌ Auto-enables mock mode
+}
+```
+
+**✅ CORRECT:**
+```typescript
+try {
+  const data = await fetch('/api/conversations');
+} catch (error) {
+  console.error('API error:', error);
+  setConversations([]); // ✅ Show empty, keep real API
+}
+```
+
+**Why?**
+- Mock mode should be explicit developer choice
+- Production errors should not silently switch to mock data
+- Users should see real state (empty vs error)
+
+---
+
+### 3. ✅ ALWAYS Handle Firestore Unavailable Gracefully
+
+**Pattern for Required Data:**
+```typescript
+export async function getConversations(userId: string) {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.CONVERSATIONS)
+      .where('userId', '==', userId)
+      .get();
+    return snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    console.error('❌ Firestore error:', error);
+    console.warn('💡 Run: gcloud auth application-default login');
+    console.warn('💡 Ensure GOOGLE_CLOUD_PROJECT is set in .env');
+    
+    // Return empty array instead of crashing
+    return [];
+  }
+}
+```
+
+**Pattern for Optional Analytics:**
+```typescript
+export async function trackEvent(userId: string, event: string) {
+  const IS_DEVELOPMENT = import.meta.env.DEV;
+  
+  if (IS_DEVELOPMENT) {
+    console.log('📝 [DEV] Would track event:', { userId, event });
+    return; // ✅ Skip in development
+  }
+  
+  try {
+    await bigquery.dataset(DATASET_ID).table('events').insert({
+      userId,
+      event,
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('⚠️ Analytics error (non-critical):', error);
+    // Don't throw - analytics failure shouldn't break app
+  }
+}
+```
+
+---
+
+### 4. ✅ ALWAYS Persist to GCP, NOT Local State
+
+**❌ WRONG:**
+```typescript
+const [conversations, setConversations] = useState([]);
+// Data only in memory, lost on refresh
+```
+
+**✅ CORRECT:**
+```typescript
+const [conversations, setConversations] = useState([]);
+
+// Load from Firestore
+useEffect(() => {
+  loadConversations();
+}, []);
+
+async function loadConversations() {
+  const data = await fetch('/api/conversations?userId=' + userId);
+  setConversations(await data.json());
+}
+
+// Save to Firestore
+async function createConversation(title: string) {
+  const response = await fetch('/api/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ userId, title })
+  });
+  const newConv = await response.json();
+  setConversations(prev => [newConv, ...prev]); // Update local state
+}
+```
+
+**Why?**
+- Data persists across sessions
+- Syncs across devices
+- No data loss on page refresh
+- Production-ready from day one
+
+---
+
+### 5. ✅ ALWAYS Use Same GCP Project Everywhere
+
+**Project Configuration:**
+```bash
+# .env file (SINGLE SOURCE OF TRUTH)
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+```
+
+**Verification:**
+```typescript
+// src/lib/firestore.ts
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+console.log('🔧 Firestore Project:', PROJECT_ID);
+
+// src/lib/analytics.ts
+const bigquery = new BigQuery({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT
+});
+console.log('📊 BigQuery Project:', PROJECT_ID);
+```
+
+**Why?**
+- All resources in one project
+- Easier billing management
+- Simpler IAM permissions
+- Consistent configuration
+
+**Reference:** `.cursor/rules/gcp-project-consistency.mdc`
+
+---
+
+## 📡 API Route Patterns
+
+### Standard API Route Structure
+
+```typescript
+// src/pages/api/resource/[id].ts
+import type { APIRoute } from 'astro';
+import { verifyJWT } from '../../../lib/auth';
+import { getResource } from '../../../lib/firestore';
+
+export const GET: APIRoute = async ({ params, request, cookies }) => {
+  // 1. Authentication
+  const token = cookies.get('flow_session')?.value;
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  const session = verifyJWT(token);
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Invalid session' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 2. Validate parameters
+  const { id } = params;
+  if (!id) {
+    return new Response(JSON.stringify({ error: 'Resource ID required' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // 3. Fetch data with error handling
+  try {
+    const resource = await getResource(id);
+    
+    if (!resource) {
+      return new Response(JSON.stringify({ error: 'Resource not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 4. Authorization check
+    if (resource.userId !== session.id) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 5. Return success
+    return new Response(JSON.stringify(resource), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error fetching resource:', error);
+    
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+};
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  // Similar pattern for creating resources
+};
+```
+
+### Error Response Standards
+
+```typescript
+// 400 - Bad Request (invalid parameters)
+{
+  error: 'Validation error',
+  details: 'userId is required',
+  field: 'userId'
+}
+
+// 401 - Unauthorized (not authenticated)
+{
+  error: 'Unauthorized',
+  details: 'No session token provided'
+}
+
+// 403 - Forbidden (authenticated but not allowed)
+{
+  error: 'Forbidden',
+  details: 'You do not have permission to access this resource'
+}
+
+// 404 - Not Found
+{
+  error: 'Not found',
+  details: 'Conversation with ID abc123 does not exist'
+}
+
+// 500 - Internal Server Error
+{
+  error: 'Internal server error',
+  details: 'Firestore connection failed',
+  suggestions: [
+    'Verify GOOGLE_CLOUD_PROJECT is set',
+    'Run: gcloud auth application-default login',
+    'Check Firestore permissions'
+  ]
+}
+```
+
+---
+
+## 🔧 Local Development Setup
+
+### Prerequisites
+
+```bash
+# 1. Install Node.js 20+
+node --version  # Should be 20.x or higher
+
+# 2. Install Google Cloud CLI
+gcloud --version
+
+# 3. Authenticate with Google Cloud
+gcloud auth login
+gcloud auth application-default login
+
+# 4. Set active project
+gcloud config set project gen-lang-client-0986191192
+```
+
+### Environment Setup
+
+```bash
+# .env file (create in project root)
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=AIzaSy...                    # Get from AI Studio
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com  # OAuth credentials
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+JWT_SECRET=...                                   # Generate with: openssl rand -base64 32
+PUBLIC_BASE_URL=http://localhost:3000
+NODE_ENV=development
+```
+
+### Install Dependencies
+
+```bash
+npm install
+```
+
+### Run Development Server
+
+```bash
+npm run dev
+# Server starts on http://localhost:3000
+```
+
+### Verify Firestore Connection
+
+```bash
+# Test endpoint
+curl http://localhost:3000/api/health/firestore
+
+# Expected response:
+{
+  "status": "healthy",
+  "checks": {
+    "projectId": { "status": "pass", "value": "gen-lang-client-0986191192" },
+    "authentication": { "status": "pass" },
+    "connection": { "status": "pass" }
+  }
+}
+```
+
+---
+
+## 🚀 Production Deployment
+
+### Pre-Deployment Checklist
+
+```bash
+# 1. Type check (must pass with 0 errors)
+npm run type-check
+
+# 2. Build (must succeed)
+npm run build
+
+# 3. Verify environment
+echo $GOOGLE_CLOUD_PROJECT
+# Must output: gen-lang-client-0986191192
+
+# 4. Verify gcloud project
+gcloud config get-value project
+# Must output: gen-lang-client-0986191192
+```
+
+### Deployment Method
+
+```bash
+# Set correct project
+gcloud config set project gen-lang-client-0986191192
+
+# Deploy to Cloud Run (build happens in GCP)
+gcloud run deploy flow-production \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --min-instances=1 \
+  --max-instances=10 \
+  --memory=512Mi \
+  --cpu=1 \
+  --timeout=60s \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production"
+```
+
+### Post-Deployment Verification
+
+```bash
+# 1. Get service URL
+gcloud run services describe flow-production \
+  --region us-central1 \
+  --format='value(status.url)'
+
+# 2. Test health endpoint
+curl https://flow-production-xxx.run.app/api/health/firestore
+
+# 3. Test in browser
+open https://flow-production-xxx.run.app/chat
+```
+
+---
+
+## 🛡️ Error Handling Best Practices
+
+### 1. Categorize Errors
+
+```typescript
+try {
+  await operation();
+} catch (error) {
+  let errorMessage = 'Operation failed';
+  let suggestions: string[] = [];
+  
+  if (error instanceof Error) {
+    const msg = error.message;
+    
+    // API Key errors
+    if (msg.includes('API key') || msg.includes('GEMINI_API_KEY')) {
+      errorMessage = 'Gemini API Key not configured';
+      suggestions = [
+        'Verify GEMINI_API_KEY in .env file',
+        'Restart server after adding key',
+        'Confirm key is valid at https://aistudio.google.com/app/apikey'
+      ];
+    }
+    
+    // Network errors
+    else if (msg.includes('network') || msg.includes('ENOTFOUND')) {
+      errorMessage = 'Network connection error';
+      suggestions = [
+        'Check internet connection',
+        'Verify firewall settings',
+        'Try again in a few moments'
+      ];
+    }
+    
+    // Quota errors
+    else if (msg.includes('quota') || msg.includes('rate limit')) {
+      errorMessage = 'API quota exceeded';
+      suggestions = [
+        'Wait a few minutes before retrying',
+        'Check quota at https://console.cloud.google.com/',
+        'Consider upgrading your plan'
+      ];
+    }
+  }
+  
+  return new Response(JSON.stringify({
+    error: errorMessage,
+    details: error instanceof Error ? error.message : 'Unknown error',
+    suggestions
+  }), { status: 500 });
+}
+```
+
+### 2. Log Helpfully
+
+```typescript
+// ✅ GOOD: Contextual, actionable logs
+console.error('❌ Failed to create conversation');
+console.error('📋 User ID:', userId);
+console.error('📋 Title:', title);
+console.error('💡 Check Firestore permissions');
+console.error('💡 Run: gcloud auth application-default login');
+console.error('🔍 Error details:', error);
+
+// ❌ BAD: Vague, unhelpful logs
+console.log(error);
+```
+
+### 3. Provide Recovery Paths
+
+```typescript
+// In UI error display
+<div className="bg-red-50 border border-red-200 rounded p-4">
+  <p className="font-semibold text-red-800">Error: {error.message}</p>
+  {error.suggestions && (
+    <div className="mt-2">
+      <p className="text-sm font-medium text-red-700">Possible solutions:</p>
+      <ul className="text-sm text-red-600 list-disc ml-4 mt-1">
+        {error.suggestions.map((s, i) => (
+          <li key={i}>{s}</li>
+        ))}
+      </ul>
+    </div>
+  )}
+  <button
+    onClick={() => retryOperation()}
+    className="mt-3 px-3 py-1 bg-red-600 text-white rounded text-sm"
+  >
+    Retry
+  </button>
+</div>
+```
+
+---
+
+## 📊 Data Flow Patterns
+
+### Creating a Conversation
+
+```
+1. User clicks "New Agent"
+   ↓
+2. Frontend: POST /api/conversations
+   {
+     userId: "user_id",
+     title: "New Conversation"
+   }
+   ↓
+3. API validates token
+   ↓
+4. API creates in Firestore
+   firestore.collection('conversations').doc().set({
+     userId, title, createdAt, ...
+   })
+   ↓
+5. API returns conversation
+   { id, userId, title, createdAt, ... }
+   ↓
+6. Frontend updates state
+   setConversations([newConv, ...conversations])
+   ↓
+7. Frontend navigates to conversation
+   navigate('/chat?conversationId=' + newConv.id)
+```
+
+### Sending a Message
+
+```
+1. User types message and clicks Send
+   ↓
+2. Frontend: POST /api/conversations/{id}/messages
+   {
+     userId: "user_id",
+     message: "User question",
+     model: "gemini-2.5-flash",
+     systemPrompt: "You are...",
+     activeContextSourceIds: ["src1", "src2"]
+   }
+   ↓
+3. API validates token + conversation ownership
+   ↓
+4. API loads conversation context
+   const context = await loadConversationContext(conversationId)
+   ↓
+5. API generates AI response
+   const aiResponse = await gemini.generateContent({
+     model: "gemini-2.5-flash",
+     contents: buildContents(message, context),
+     config: { systemInstruction: systemPrompt }
+   })
+   ↓
+6. API saves both messages to Firestore
+   await addMessage(conversationId, userId, 'user', message, ...)
+   await addMessage(conversationId, userId, 'assistant', aiResponse, ...)
+   ↓
+7. API returns response with token stats
+   {
+     userMessage: {...},
+     assistantMessage: {...},
+     tokenStats: {
+       inputTokens: 1234,
+       outputTokens: 567,
+       contextWindowUsed: 1801,
+       contextWindowAvailable: 998199
+     }
+   }
+   ↓
+8. Frontend updates messages state
+   setMessages([...messages, userMsg, aiMsg])
+   ↓
+9. Frontend logs context usage
+   setContextLogs([...contextLogs, newLog])
+```
+
+---
+
+## 🧪 Testing Strategies
+
+### Unit Tests (Firestore Functions)
+
+```typescript
+// test/lib/firestore.test.ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createConversation, getConversation } from '../src/lib/firestore';
+
+describe('Firestore Operations', () => {
+  it('should create a conversation', async () => {
+    const conv = await createConversation('user123', 'Test Conversation');
+    
+    expect(conv).toBeDefined();
+    expect(conv.userId).toBe('user123');
+    expect(conv.title).toBe('Test Conversation');
+    expect(conv.messageCount).toBe(0);
+  });
+  
+  it('should retrieve a conversation by ID', async () => {
+    const created = await createConversation('user123', 'Test');
+    const retrieved = await getConversation(created.id);
+    
+    expect(retrieved).toBeDefined();
+    expect(retrieved?.id).toBe(created.id);
+  });
+});
+```
+
+### Integration Tests (API Routes)
+
+```typescript
+// test/api/conversations.test.ts
+import { describe, it, expect } from 'vitest';
+
+describe('Conversations API', () => {
+  it('should create conversation via API', async () => {
+    const response = await fetch('http://localhost:3000/api/conversations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': 'flow_session=valid_token'
+      },
+      body: JSON.stringify({
+        userId: 'user123',
+        title: 'API Test Conversation'
+      })
+    });
+    
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(data.id).toBeDefined();
+    expect(data.title).toBe('API Test Conversation');
+  });
+  
+  it('should reject unauthorized requests', async () => {
+    const response = await fetch('http://localhost:3000/api/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ userId: 'user123', title: 'Test' })
+    });
+    
+    expect(response.status).toBe(401);
+  });
+});
+```
+
+### Manual Testing Checklist
+
+```markdown
+### Backend Functionality Tests
+
+#### Authentication
+- [ ] Can login with Google OAuth
+- [ ] Session persists across page refresh
+- [ ] Logout clears session
+- [ ] Unauthorized requests return 401
+
+#### Conversations
+- [ ] Can create new conversation
+- [ ] Conversations persist after refresh
+- [ ] Can load conversation history
+- [ ] Can delete conversation (and its messages)
+- [ ] Conversations appear in correct folder
+
+#### Messages
+- [ ] Can send message
+- [ ] AI responds correctly
+- [ ] Messages persist after refresh
+- [ ] Context is applied to AI responses
+- [ ] Token stats are accurate
+
+#### Context Sources
+- [ ] Can upload PDF
+- [ ] Extraction completes successfully
+- [ ] Extracted text is accurate
+- [ ] Can toggle source on/off
+- [ ] Active sources affect AI responses
+- [ ] Source settings are per-conversation
+
+#### Data Persistence
+- [ ] All data saves to Firestore
+- [ ] No data loss on page refresh
+- [ ] No data loss on browser close
+- [ ] Data syncs across tabs
+- [ ] Data available after redeployment
+```
+
+---
+
+## 🔄 Common Operations
+
+### Update User's Last Login
+
+```typescript
+// In OAuth callback
+export const GET: APIRoute = async ({ url, cookies }) => {
+  // ... OAuth flow ...
+  
+  // After successful login
+  await updateLastLogin(user.id);
+  
+  // ...
+};
+```
+
+### Track Context Usage
+
+```typescript
+// After each AI response
+const tokenStats = {
+  inputTokens: 1234,
+  outputTokens: 567,
+  contextWindowUsed: 1801,
+  contextWindowAvailable: 998199,
+  contextWindowCapacity: 1000000,
+};
+
+// Update conversation
+await updateConversation(conversationId, {
+  contextWindowUsage: (tokenStats.contextWindowUsed / tokenStats.contextWindowCapacity) * 100
+});
+
+// Log to BigQuery (optional, non-blocking)
+try {
+  await trackChatInteraction({
+    userId,
+    conversationId,
+    model: 'gemini-2.5-flash',
+    inputTokens: tokenStats.inputTokens,
+    outputTokens: tokenStats.outputTokens,
+    timestamp: new Date()
+  });
+} catch (error) {
+  console.warn('⚠️ Analytics tracking failed (non-critical):', error);
+}
+```
+
+### Save Agent-Specific Context
+
+```typescript
+// When user toggles context sources
+async function handleContextToggle(sourceId: string, enabled: boolean) {
+  // Update local state
+  const updatedSources = contextSources.map(s =>
+    s.id === sourceId ? { ...s, enabled } : s
+  );
+  setContextSources(updatedSources);
+  
+  // Save to Firestore (persists across sessions)
+  const activeIds = updatedSources
+    .filter(s => s.enabled)
+    .map(s => s.id);
+  
+  await saveConversationContext(currentConversation, activeIds);
+}
+
+// When loading a conversation
+async function loadConversation(conversationId: string) {
+  // Load conversation
+  const conv = await getConversation(conversationId);
+  
+  // Load messages
+  const msgs = await getMessages(conversationId);
+  
+  // Load and apply context sources
+  const activeIds = await loadConversationContext(conversationId);
+  const updatedSources = allContextSources.map(s => ({
+    ...s,
+    enabled: activeIds.includes(s.id)
+  }));
+  
+  setConversation(conv);
+  setMessages(msgs);
+  setContextSources(updatedSources);
+}
+```
+
+---
+
+## 📚 Reference Documentation
+
+### Internal Docs
+- `docs/LocalToProduction.md` - Complete deployment guide
+- `docs/CHAT_INTEGRATION_LESSONS.md` - Lessons learned
+- `docs/GEMINI_API_MIGRATION.md` - Gemini AI guide
+- `TEST_ERROR_HANDLING.md` - Error handling testing
+- `.cursor/rules/gemini-api-usage.mdc` - Gemini API rules
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP project rules
+
+### External Docs
+- [Firestore Node.js Client](https://cloud.google.com/nodejs/docs/reference/firestore/latest)
+- [BigQuery Node.js Client](https://cloud.google.com/nodejs/docs/reference/bigquery/latest)
+- [Gemini AI API](https://ai.google.dev/api)
+- [Astro API Routes](https://docs.astro.build/en/core-concepts/endpoints/)
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented backend should:
+
+1. **Data Persistence**
+   - ✅ All user data saves to Firestore
+   - ✅ No data loss on page refresh
+   - ✅ Data survives redeployments
+
+2. **Error Handling**
+   - ✅ Graceful degradation when services unavailable
+   - ✅ Helpful error messages with recovery steps
+   - ✅ No silent failures
+
+3. **Performance**
+   - ✅ API responses < 3 seconds (p95)
+   - ✅ Firestore queries optimized with indexes
+   - ✅ Analytics don't block main operations
+
+4. **Security**
+   - ✅ All API routes require authentication
+   - ✅ Users only see their own data
+   - ✅ Role-based permissions enforced
+
+5. **Consistency**
+   - ✅ Local dev matches production behavior
+   - ✅ Same GCP project everywhere
+   - ✅ Environment variables documented
+
+---
+
+**Last Updated**: 2025-10-12
+**Version**: 1.0.0
+**Status**: ✅ Production Ready
