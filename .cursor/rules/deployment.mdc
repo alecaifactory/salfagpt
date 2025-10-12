@@ -1,0 +1,684 @@
+# Deployment Rules & Best Practices - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the deployment process, conventions, and critical lessons learned for deploying Flow to Google Cloud Run. It ensures consistent, successful deployments with proper configuration.
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ ALWAYS Prioritize `process.env` Over `import.meta.env`
+
+**❌ WRONG:**
+```typescript
+const PROJECT_ID = import.meta.env.GOOGLE_CLOUD_PROJECT;
+```
+
+**✅ CORRECT:**
+```typescript
+// Prioritize process.env for Cloud Run, fallback to import.meta.env for build-time
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : undefined);
+```
+
+**Why?**
+- Cloud Run uses `process.env` for runtime environment variables
+- `import.meta.env` is only available during Astro build time
+- Checking `process.env` first ensures Cloud Run configuration works
+
+**Files That Must Follow This Pattern:**
+- `src/lib/firestore.ts`
+- `src/lib/gemini.ts`
+- `src/lib/analytics.ts`
+- `src/lib/gcp.ts`
+- `src/pages/api/health/firestore.ts`
+- Any file that accesses GCP resources
+
+---
+
+### 2. ✅ ALWAYS Use Correct Environment Variable Names
+
+**Critical Variable Names:**
+
+| Variable Name | Type | Purpose |
+|---|---|---|
+| `GOOGLE_AI_API_KEY` | ✅ Correct | Gemini AI API Key |
+| `GEMINI_API_KEY` | ❌ Wrong | Old/incorrect name |
+| `GOOGLE_CLOUD_PROJECT` | ✅ Required | GCP Project ID |
+| `GOOGLE_CLIENT_ID` | ✅ Required | OAuth Client ID |
+| `GOOGLE_CLIENT_SECRET` | ✅ Required | OAuth Client Secret |
+| `JWT_SECRET` | ✅ Required | Session encryption |
+| `PUBLIC_BASE_URL` | ✅ Required | Base URL for OAuth |
+
+**Verification:**
+```bash
+# Check variable names in code
+grep -r "GEMINI_API_KEY" src/
+# Should find GOOGLE_AI_API_KEY, not GEMINI_API_KEY alone
+
+# Check .env file
+cat .env | grep "GOOGLE_AI_API_KEY"
+# Should return: GOOGLE_AI_API_KEY=AIzaSy...
+```
+
+---
+
+### 3. ✅ ALWAYS Create Firestore Database Before Deployment
+
+**Problem:** Deploying without Firestore database results in `5 NOT_FOUND` errors.
+
+**Solution:**
+```bash
+# Create Firestore database
+gcloud firestore databases create \
+  --location=us-central1 \
+  --type=firestore-native
+
+# Verify creation
+gcloud firestore databases list
+```
+
+**Verification Checklist:**
+- [ ] Firestore API enabled: `gcloud services enable firestore.googleapis.com`
+- [ ] Database created: `gcloud firestore databases list` shows `(default)`
+- [ ] Location: `us-central1` (same as Cloud Run)
+- [ ] Type: `firestore-native` (not Datastore mode)
+
+---
+
+### 4. ✅ ALWAYS Grant Service Account Permissions
+
+**Required Roles:**
+```bash
+SERVICE_ACCOUNT="1030147139179-compute@developer.gserviceaccount.com"
+
+# Firestore access
+gcloud projects add-iam-policy-binding gen-lang-client-0986191192 \
+  --member="serviceAccount:$SERVICE_ACCOUNT" \
+  --role="roles/datastore.user"
+
+# Secret Manager access (if using secrets)
+gcloud projects add-iam-policy-binding gen-lang-client-0986191192 \
+  --member="serviceAccount:$SERVICE_ACCOUNT" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Storage access (for uploads)
+gcloud projects add-iam-policy-binding gen-lang-client-0986191192 \
+  --member="serviceAccount:$SERVICE_ACCOUNT" \
+  --role="roles/storage.admin"
+```
+
+**Verification:**
+```bash
+# List IAM bindings
+gcloud projects get-iam-policy gen-lang-client-0986191192 \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:$SERVICE_ACCOUNT" \
+  --format="table(bindings.role)"
+```
+
+---
+
+### 5. ✅ ALWAYS Configure OAuth Redirect URI Explicitly
+
+**Problem:** `Missing required parameter: redirect_uri` error during OAuth flow.
+
+**Solution in Code:**
+```typescript
+// src/lib/auth.ts
+const BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+const redirectUri = `${BASE_URL}/auth/callback`;
+
+return oauth2Client.generateAuthUrl({
+  access_type: 'offline',
+  scope: scopes,
+  prompt: 'consent',
+  redirect_uri: redirectUri, // ✅ Must be explicit
+});
+```
+
+**Solution in Google Cloud Console:**
+1. Go to: https://console.cloud.google.com/apis/credentials
+2. Select project: `gen-lang-client-0986191192`
+3. Edit OAuth 2.0 Client ID
+4. Add Authorized Redirect URI:
+   ```
+   https://flow-chat-cno6l2kfga-uc.a.run.app/auth/callback
+   ```
+
+---
+
+### 6. ✅ ALWAYS Update `PUBLIC_BASE_URL` After Deployment
+
+**Problem:** OAuth redirects fail if `PUBLIC_BASE_URL` is not set correctly.
+
+**Solution:**
+```bash
+# Get service URL
+SERVICE_URL=$(gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format='value(status.url)')
+
+# Update PUBLIC_BASE_URL
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --update-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
+```
+
+**Verification:**
+```bash
+# Check configured value
+gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format="json" | jq '.spec.template.spec.containers[0].env[] | select(.name=="PUBLIC_BASE_URL")'
+```
+
+---
+
+## 📋 Deployment Workflow
+
+### Pre-Deployment Checklist
+
+```bash
+# 1. Type check
+npm run type-check
+# Expected: 0 errors
+
+# 2. Build
+npm run build
+# Expected: Successful build
+
+# 3. Verify environment variables
+cat .env | grep -E "(GOOGLE_AI_API_KEY|GOOGLE_CLIENT_ID|JWT_SECRET)"
+# Expected: All three variables present
+
+# 4. Verify GCP project
+gcloud config get-value project
+# Expected: gen-lang-client-0986191192
+
+# 5. Verify Firestore database exists
+gcloud firestore databases list
+# Expected: (default) database listed
+```
+
+### Deployment Command
+
+**Recommended: Remote Build**
+```bash
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+**Why Remote Build?**
+- No local Docker required
+- Consistent build environment
+- Automatic image registry management
+- Faster for large projects
+
+**Alternative: With Environment Variables**
+```bash
+GOOGLE_AI_KEY=$(cat .env | grep GOOGLE_AI_API_KEY | cut -d '=' -f2)
+GOOGLE_CLIENT=$(cat .env | grep GOOGLE_CLIENT_ID | cut -d '=' -f2)
+
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,GOOGLE_AI_API_KEY=$GOOGLE_AI_KEY,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT,NODE_ENV=production"
+```
+
+### Post-Deployment Checklist
+
+```bash
+# 1. Update PUBLIC_BASE_URL
+SERVICE_URL=$(gcloud run services describe flow-chat --region us-central1 --format='value(status.url)')
+gcloud run services update flow-chat --region us-central1 --update-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
+
+# 2. Health check
+curl -s $SERVICE_URL/api/health/firestore | jq .
+# Expected: projectId check passes
+
+# 3. OAuth check
+curl -I $SERVICE_URL/auth/login
+# Expected: HTTP/2 302 (redirect)
+
+# 4. View logs
+gcloud logging read "resource.type=cloud_run_revision" --limit 20
+# Expected: No critical errors
+
+# 5. Test in browser
+open $SERVICE_URL/chat
+# Expected: Login page loads
+```
+
+---
+
+## 🐛 Common Issues & Solutions
+
+### Issue 1: `GOOGLE_CLOUD_PROJECT not set in environment`
+
+**Symptoms:**
+```json
+{
+  "checks": {
+    "projectId": {
+      "status": "fail",
+      "value": "",
+      "message": "GOOGLE_CLOUD_PROJECT not set in environment"
+    }
+  }
+}
+```
+
+**Root Cause:** Code prioritizes `import.meta.env` over `process.env`.
+
+**Solution:**
+1. Update all files to prioritize `process.env`:
+   ```typescript
+   const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+     (typeof import.meta !== 'undefined' && import.meta.env 
+       ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+       : undefined);
+   ```
+
+2. Redeploy:
+   ```bash
+   npm run build
+   gcloud run deploy flow-chat --source . --region us-central1
+   ```
+
+**Files to Check:**
+- `src/lib/firestore.ts`
+- `src/lib/gemini.ts`
+- `src/lib/analytics.ts`
+- `src/lib/gcp.ts`
+- `src/pages/api/health/firestore.ts`
+
+---
+
+### Issue 2: `Authentication failed: 5 NOT_FOUND`
+
+**Symptoms:**
+```json
+{
+  "checks": {
+    "authentication": {
+      "status": "fail",
+      "message": "Authentication failed: 5 NOT_FOUND: "
+    }
+  }
+}
+```
+
+**Root Causes:**
+1. Firestore database not created
+2. Service account lacks permissions
+3. Permissions not propagated yet
+
+**Solutions:**
+
+**A. Create Firestore Database:**
+```bash
+gcloud firestore databases create \
+  --location=us-central1 \
+  --type=firestore-native
+```
+
+**B. Grant Permissions:**
+```bash
+gcloud projects add-iam-policy-binding gen-lang-client-0986191192 \
+  --member="serviceAccount:1030147139179-compute@developer.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
+
+**C. Wait for Propagation:**
+```bash
+# Wait 1-2 minutes for permissions to propagate
+sleep 60
+
+# Retry health check
+curl -s $SERVICE_URL/api/health/firestore | jq .
+```
+
+---
+
+### Issue 3: `Missing required parameter: redirect_uri`
+
+**Symptoms:**
+```
+Error 400: invalid_request
+Missing required parameter: redirect_uri
+```
+
+**Root Cause:** OAuth redirect URI not explicitly set in code or not configured in Google Cloud Console.
+
+**Solutions:**
+
+**A. Update Code:**
+```typescript
+// src/lib/auth.ts
+export function getAuthorizationUrl(): string {
+  const redirectUri = `${BASE_URL}/auth/callback`;
+  
+  return oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent',
+    redirect_uri: redirectUri, // ✅ Explicit
+  });
+}
+```
+
+**B. Configure in Console:**
+1. https://console.cloud.google.com/apis/credentials
+2. Edit OAuth 2.0 Client ID
+3. Add: `https://flow-chat-cno6l2kfga-uc.a.run.app/auth/callback`
+4. Save
+
+**C. Redeploy:**
+```bash
+npm run build
+gcloud run deploy flow-chat --source . --region us-central1
+```
+
+---
+
+### Issue 4: Variable Type Conflict
+
+**Symptoms:**
+```
+ERROR: Cannot update environment variable [X] to string literal 
+because it has already been set with a different type.
+```
+
+**Root Cause:** Trying to change from secret to env var (or vice versa).
+
+**Solutions:**
+
+**A. Remove Variable:**
+```bash
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --remove-env-vars="VARIABLE_NAME"
+```
+
+**B. Add Back with Correct Type:**
+```bash
+# As environment variable
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --update-env-vars="VARIABLE_NAME=value"
+
+# OR as secret
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --set-secrets="VARIABLE_NAME=secret-name:latest"
+```
+
+**C. Nuclear Option (Clear All):**
+```bash
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --clear-env-vars \
+  --clear-secrets
+
+# Then reconfigure from scratch
+```
+
+---
+
+## 🔐 Security Best Practices
+
+### Environment Variables
+
+**DO:**
+- ✅ Store in `.env` for local development
+- ✅ Use Secret Manager for sensitive values in production
+- ✅ Never commit `.env` to git
+- ✅ Use different values for dev/staging/prod
+
+**DON'T:**
+- ❌ Hardcode secrets in code
+- ❌ Log sensitive values
+- ❌ Share secrets via insecure channels
+- ❌ Use same secrets across environments
+
+### Service Accounts
+
+**DO:**
+- ✅ Use principle of least privilege
+- ✅ Grant only required roles
+- ✅ Audit permissions regularly
+- ✅ Use separate service accounts per service
+
+**DON'T:**
+- ❌ Use Owner role for service accounts
+- ❌ Share service account keys
+- ❌ Grant overly broad permissions
+- ❌ Skip permission reviews
+
+### Firestore Security Rules
+
+```javascript
+// Deploy security rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own data
+    match /conversations/{conversationId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+    
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null && 
+        resource.data.userId == request.auth.uid;
+    }
+  }
+}
+```
+
+**Deploy:**
+```bash
+firebase deploy --only firestore:rules --project gen-lang-client-0986191192
+```
+
+---
+
+## 📊 Monitoring
+
+### Health Checks
+
+```bash
+# Firestore health
+curl -s $SERVICE_URL/api/health/firestore | jq .
+
+# Expected healthy response
+{
+  "status": "healthy",
+  "checks": {
+    "projectId": { "status": "pass" },
+    "authentication": { "status": "pass" },
+    "firestoreRead": { "status": "pass" },
+    "firestoreWrite": { "status": "pass" },
+    "collections": { "status": "pass" }
+  }
+}
+```
+
+### Log Monitoring
+
+```bash
+# View errors
+gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
+  --limit 20 \
+  --format json
+
+# View authentication logs
+gcloud logging read "resource.type=cloud_run_revision AND textPayload=~'OAuth'" \
+  --limit 10
+
+# Follow logs in real-time
+gcloud alpha logging tail "resource.type=cloud_run_revision" \
+  --format="value(textPayload)"
+```
+
+### Uptime Monitoring
+
+```bash
+# Create uptime check
+gcloud monitoring uptime create flow-chat-uptime \
+  --resource-type="uptime-url" \
+  --check-interval=300 \
+  --monitored-resource-path="https://flow-chat-cno6l2kfga-uc.a.run.app/api/health/firestore"
+```
+
+---
+
+## 🔄 Rollback Procedures
+
+### Rollback to Previous Revision
+
+```bash
+# 1. List revisions
+gcloud run revisions list \
+  --service flow-chat \
+  --region us-central1 \
+  --format="table(name,createTime,status)"
+
+# 2. Identify last good revision
+LAST_GOOD="flow-chat-00009-7lg"
+
+# 3. Rollback traffic
+gcloud run services update-traffic flow-chat \
+  --to-revisions=$LAST_GOOD=100 \
+  --region us-central1
+
+# 4. Verify
+curl -I https://flow-chat-cno6l2kfga-uc.a.run.app/auth/login
+```
+
+### Emergency Rollback
+
+```bash
+# One-liner rollback to previous revision
+PREV_REV=$(gcloud run revisions list --service flow-chat --region us-central1 --format="value(name)" --limit 2 | tail -1) && \
+gcloud run services update-traffic flow-chat --to-revisions=$PREV_REV=100 --region us-central1
+```
+
+---
+
+## 📚 Reference
+
+### Project Configuration
+
+```
+Project ID:      gen-lang-client-0986191192
+Project Number:  1030147139179
+Region:          us-central1
+Service Name:    flow-chat
+Service Account: 1030147139179-compute@developer.gserviceaccount.com
+Service URL:     https://flow-chat-cno6l2kfga-uc.a.run.app
+```
+
+### Required Services
+
+```
+run.googleapis.com              (Cloud Run)
+cloudbuild.googleapis.com       (Cloud Build)
+artifactregistry.googleapis.com (Artifact Registry)
+firestore.googleapis.com        (Firestore)
+secretmanager.googleapis.com    (Secret Manager)
+```
+
+### Environment Variables
+
+```
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=AIzaSy...
+GOOGLE_CLIENT_ID=1030147139179-...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+JWT_SECRET=...
+PUBLIC_BASE_URL=https://flow-chat-cno6l2kfga-uc.a.run.app
+NODE_ENV=production
+```
+
+### Quick Commands
+
+```bash
+# Deploy
+gcloud run deploy flow-chat --source . --region us-central1
+
+# Health check
+curl -s https://flow-chat-cno6l2kfga-uc.a.run.app/api/health/firestore | jq .
+
+# View logs
+gcloud logging read "resource.type=cloud_run_revision" --limit 20
+
+# Rollback
+gcloud run services update-traffic flow-chat --to-revisions=REVISION=100 --region us-central1
+
+# Update env var
+gcloud run services update flow-chat --region us-central1 --update-env-vars="KEY=value"
+```
+
+---
+
+## ✅ Success Criteria
+
+A successful deployment should meet:
+
+1. **Build & Deploy**
+   - ✅ `npm run build` succeeds
+   - ✅ `gcloud run deploy` completes
+   - ✅ Service URL accessible
+
+2. **Health Checks**
+   - ✅ `/api/health/firestore` returns healthy
+   - ✅ Project ID correctly configured
+   - ✅ Firestore authentication works
+
+3. **OAuth Flow**
+   - ✅ `/auth/login` redirects to Google
+   - ✅ Callback URL configured correctly
+   - ✅ Can complete login flow
+
+4. **Functionality**
+   - ✅ Can create conversation
+   - ✅ Can send message
+   - ✅ AI responds correctly
+   - ✅ Data persists in Firestore
+
+5. **Logs**
+   - ✅ No critical errors
+   - ✅ Authentication logs show success
+   - ✅ No permission denied errors
+
+---
+
+## 📖 Related Documentation
+
+- `docs/DEPLOYMENT.md` - Complete deployment guide
+- `docs/LocalToProduction.md` - Local to production workflow
+- `docs/OAUTH_PRODUCTION_FIX.md` - OAuth troubleshooting
+- `.cursor/rules/backend.mdc` - Backend architecture
+- `.cursor/rules/firestore.mdc` - Firestore configuration
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP project rules
+
+---
+
+**Last Updated**: 2025-10-12  
+**Version**: 1.0.0  
+**Status**: ✅ Production Ready  
+**Project**: Flow (gen-lang-client-0986191192)
+
+---
+
+**Remember:** Always verify environment variable names, prioritize `process.env`, create Firestore database first, and grant proper service account permissions.

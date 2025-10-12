@@ -1,4 +1,4 @@
-# 🧪 SalfaGPT Test Report
+# 🧪 Flow Test Report
 **Date:** October 10, 2025  
 **Project:** gen-lang-client-0986191192
 
@@ -27,7 +27,7 @@
 {
   "status": "success",
   "message": "Connected! Found 1 dataset(s)",
-  "datasets": ["salfagpt_dataset"]
+  "datasets": ["flow_dataset"]
 }
 ```
 
@@ -92,7 +92,7 @@
 ### ✅ Fully Operational
 1. **Astro Dev Server** - Running on port 3000
 2. **BigQuery Connection** - ADC authentication working
-3. **BigQuery Dataset** - `salfagpt_dataset` created
+3. **BigQuery Dataset** - `flow_dataset` created
 4. **BigQuery Tables** - `user_sessions`, `chat_messages` created
 5. **Application Pages** - Home and Chat pages rendering
 6. **GCP API Enablement** - BigQuery, Vertex AI, Firestore APIs enabled

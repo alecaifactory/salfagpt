@@ -2,7 +2,7 @@
 
 ## 🎯 What Changed
 
-We've updated SalfaGPT to use **Workload Identity** instead of service account JSON keys. This is more secure and complies with your organization's security policies.
+We've updated Flow to use **Workload Identity** instead of service account JSON keys. This is more secure and complies with your organization's security policies.
 
 ---
 
@@ -37,11 +37,11 @@ Run these commands:
 ```bash
 # Set your project ID (this is GOOGLE_CLOUD_PROJECT from your .env file)
 export PROJECT_ID="your-actual-project-id"  # Replace with your GCP project ID
-export SERVICE_ACCOUNT_EMAIL="salfagpt-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Create service account
-gcloud iam service-accounts create salfagpt-service \
-  --display-name="SalfaGPT Service Account" \
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account" \
   --project=${PROJECT_ID}
 
 # Grant required permissions
@@ -102,10 +102,10 @@ npm run dev
 ### Step 5: Deploy to Production
 
 ```bash
-gcloud builds submit --tag gcr.io/${PROJECT_ID}/salfagpt
+gcloud builds submit --tag gcr.io/${PROJECT_ID}/flow
 
-gcloud run deploy salfagpt \
-  --image gcr.io/${PROJECT_ID}/salfagpt \
+gcloud run deploy flow \
+  --image gcr.io/${PROJECT_ID}/flow \
   --region us-central1 \
   --service-account ${SERVICE_ACCOUNT_EMAIL} \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}"
@@ -198,7 +198,7 @@ Your Code
 ```
 Your Code
   → Cloud Run provides Workload Identity
-  → Automatically authenticates as: salfagpt-service@project.iam.gserviceaccount.com
+  → Automatically authenticates as: flow-service@project.iam.gserviceaccount.com
   → Uses: Short-lived tokens (auto-rotated)
   → Accesses: GCP APIs with service account permissions
 ```
@@ -222,11 +222,11 @@ gcloud auth list
 ### Error: "PERMISSION_DENIED" on Cloud Run
 ```bash
 # Check Cloud Run is using service account
-gcloud run services describe salfagpt \
+gcloud run services describe flow \
   --region=us-central1 \
   --format="value(spec.template.spec.serviceAccountName)"
 
-# Should output: salfagpt-service@PROJECT_ID.iam.gserviceaccount.com
+# Should output: flow-service@PROJECT_ID.iam.gserviceaccount.com
 ```
 
 ### Error: "API not enabled"

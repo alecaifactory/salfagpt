@@ -1,11 +1,32 @@
 import { Firestore } from '@google-cloud/firestore';
 
-const PROJECT_ID = import.meta.env.GOOGLE_CLOUD_PROJECT;
+// Support both Astro (import.meta.env) and Node.js (process.env)
+// In production (Cloud Run), prioritize process.env
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : undefined);
+
+if (!PROJECT_ID) {
+  console.error('❌ GOOGLE_CLOUD_PROJECT is not set! Please configure your .env file.');
+  console.error('💡 See ENV_VARIABLES_REFERENCE.md for setup instructions.');
+}
+
+console.log('🔧 Initializing Firestore client...');
+console.log(`📦 Project ID: ${PROJECT_ID || 'NOT SET'}`);
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 
 // Initialize Firestore client
+// In production (Cloud Run): Uses Workload Identity automatically
+// In local development: Uses Application Default Credentials (gcloud auth application-default login)
 export const firestore = new Firestore({
   projectId: PROJECT_ID,
+  // No need to specify keyFilename or credentials - ADC handles it automatically
 });
+
+console.log('✅ Firestore client initialized successfully');
+console.log('💡 Local dev: Ensure you have run "gcloud auth application-default login"');
+console.log('💡 Production: Uses Workload Identity automatically');
 
 // Collections
 export const COLLECTIONS = {
@@ -13,6 +34,10 @@ export const COLLECTIONS = {
   MESSAGES: 'messages',
   FOLDERS: 'folders',
   USER_CONTEXT: 'user_context',
+  USERS: 'users',
+  GROUPS: 'groups',
+  CONTEXT_ACCESS_RULES: 'context_access_rules',
+  CONTEXT_SOURCES: 'context_sources',
 } as const;
 
 // Types
@@ -27,6 +52,7 @@ export interface Conversation {
   messageCount: number;
   contextWindowUsage: number; // Percentage 0-100
   agentModel: string; // e.g., "gemini-2.5-pro"
+  activeContextSourceIds?: string[]; // IDs of active context sources for this conversation
 }
 
 export interface Message {
@@ -98,7 +124,7 @@ export async function createConversation(
     id: conversationRef.id,
     userId,
     title,
-    folderId,
+    ...(folderId && { folderId }), // Only include folderId if it's defined
     createdAt: new Date(),
     updatedAt: new Date(),
     lastMessageAt: new Date(),
@@ -142,6 +168,8 @@ export async function getConversation(conversationId: string): Promise<Conversat
   if (!doc.exists) return null;
 
   const data = doc.data();
+  if (!data) return null;
+  
   return {
     ...data,
     createdAt: data.createdAt.toDate(),
@@ -294,6 +322,8 @@ export async function getUserContext(userId: string): Promise<UserContext | null
   if (!doc.exists) return null;
 
   const data = doc.data();
+  if (!data) return null;
+  
   return {
     ...data,
     updatedAt: data.updatedAt.toDate(),
@@ -441,6 +471,241 @@ export function groupConversationsByTime(conversations: Conversation[]): {
     lastMonth: [] as Conversation[],
     older: [] as Conversation[],
   });
+}
+
+// ==================== USER MANAGEMENT ====================
+
+import type { User, UserRole } from '../types/users';
+import { getDefaultPermissions } from '../types/users';
+
+/**
+ * Create a new user
+ */
+export async function createUser(
+  email: string,
+  name: string,
+  role: UserRole,
+  company: string,
+  department?: string
+): Promise<User> {
+  const now = new Date();
+  const userId = email.replace(/[@.]/g, '_');
+  
+  const newUser: Omit<User, 'id'> = {
+    email,
+    name,
+    role,
+    permissions: getDefaultPermissions(role),
+    company,
+    department,
+    createdAt: now,
+    updatedAt: now,
+    isActive: true,
+  };
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).set({
+    ...newUser,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  });
+
+  return {
+    id: userId,
+    ...newUser,
+  };
+}
+
+/**
+ * Get user by email
+ */
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const userId = email.replace(/[@.]/g, '_');
+  const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+
+  const data = doc.data();
+  if (!data) return null;
+
+  return {
+    id: doc.id,
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    permissions: data.permissions,
+    company: data.company,
+    department: data.department,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+    isActive: data.isActive,
+    avatarUrl: data.avatarUrl,
+  };
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserById(userId: string): Promise<User | null> {
+  const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
+  
+  if (!doc.exists) {
+    return null;
+  }
+
+  const data = doc.data();
+  if (!data) return null;
+
+  return {
+    id: doc.id,
+    email: data.email,
+    name: data.name,
+    role: data.role,
+    permissions: data.permissions,
+    company: data.company,
+    department: data.department,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+    isActive: data.isActive,
+    avatarUrl: data.avatarUrl,
+  };
+}
+
+/**
+ * Get all users
+ */
+export async function getAllUsers(): Promise<User[]> {
+  const snapshot = await firestore.collection(COLLECTIONS.USERS).get();
+  
+  return snapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      permissions: data.permissions,
+      company: data.company,
+      department: data.department,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
+      lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+      isActive: data.isActive,
+      avatarUrl: data.avatarUrl,
+    };
+  });
+}
+
+/**
+ * Update user
+ */
+export async function updateUser(
+  userId: string,
+  updates: Partial<Omit<User, 'id' | 'email' | 'createdAt'>>
+): Promise<void> {
+  const updateData: any = {
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  // Convert dates to ISO strings
+  if (updates.lastLoginAt) {
+    updateData.lastLoginAt = updates.lastLoginAt.toISOString();
+  }
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update(updateData);
+}
+
+/**
+ * Update user role
+ */
+export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    role,
+    permissions: getDefaultPermissions(role),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Activate/deactivate user
+ */
+export async function setUserActive(userId: string, isActive: boolean): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    isActive,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Delete user
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).delete();
+}
+
+/**
+ * Update last login time
+ */
+export async function updateLastLogin(userId: string): Promise<void> {
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    lastLoginAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Check if user is admin
+ */
+export async function isUserAdmin(userId: string): Promise<boolean> {
+  const user = await getUserById(userId);
+  return user?.role === 'admin' || false;
+}
+
+/**
+ * Save active context sources for a conversation
+ */
+export async function saveConversationContext(
+  conversationId: string,
+  activeContextSourceIds: string[]
+): Promise<void> {
+  // Skip for temporary conversations
+  if (conversationId.startsWith('temp-')) {
+    console.log('⏭️ Skipping context save for temporary conversation');
+    return;
+  }
+
+  try {
+    await updateConversation(conversationId, {
+      activeContextSourceIds,
+    });
+    console.log('💾 Saved context for conversation:', conversationId, activeContextSourceIds);
+  } catch (error) {
+    console.error('Error saving conversation context:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load active context sources for a conversation
+ */
+export async function loadConversationContext(
+  conversationId: string
+): Promise<string[]> {
+  // Return empty array for temporary conversations
+  if (conversationId.startsWith('temp-')) {
+    return [];
+  }
+
+  try {
+    const conversation = await getConversation(conversationId);
+    return conversation?.activeContextSourceIds || [];
+  } catch (error) {
+    console.error('Error loading conversation context:', error);
+    return [];
+  }
 }
 
 

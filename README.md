@@ -1,4 +1,4 @@
-# 🤖 SalfaGPT
+# 🤖 Flow
 
 AI-powered conversational web application built with Astro, Google Cloud Platform, and Vertex AI.
 
@@ -55,7 +55,7 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 1. **Clone and install dependencies:**
    ```bash
-   cd salfagpt
+   cd flow
    npm install
    ```
 
@@ -184,7 +184,7 @@ Security best practices implemented:
 ## 📦 Project Structure
 
 ```
-salfagpt/
+flow/
 ├── src/
 │   ├── lib/
 │   │   ├── auth.ts          # Authentication utilities

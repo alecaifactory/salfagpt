@@ -1,0 +1,21 @@
+---
+import ChatInterfaceMinimal from '../components/ChatInterfaceMinimal';
+import '../styles/global.css';
+
+const userId = 'test-user-123';
+---
+
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Test - Flow</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="h-full m-0 p-0">
+    <ChatInterfaceMinimal client:only="react" userId={userId} />
+  </body>
+</html>
+
+

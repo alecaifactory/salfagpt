@@ -2,13 +2,13 @@
 
 **Date**: October 10, 2025  
 **Status**: ✅ Production Deployed  
-**Production URL**: https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+**Production URL**: https://flow-cno6l2kfga-uc.a.run.app/chat
 
 ---
 
 ## 🎯 Overview
 
-Implemented a full-featured ChatGPT-like interface for SalfaGPT with beautiful UI, authentication, and multi-modal support capabilities.
+Implemented a full-featured ChatGPT-like interface for Flow with beautiful UI, authentication, and multi-modal support capabilities.
 
 ## ✨ Features Implemented
 
@@ -124,11 +124,11 @@ Implemented a full-featured ChatGPT-like interface for SalfaGPT with beautiful U
 4. Redirects to Google OAuth
 5. Callback at `/auth/callback`
 6. Exchanges code for tokens
-7. Sets `salfagpt_session` cookie
+7. Sets `flow_session` cookie
 8. Redirects to original destination (`/chat`)
 
 #### **Session Management**
-- Cookie name: `salfagpt_session`
+- Cookie name: `flow_session`
 - Type: HttpOnly, Secure, SameSite=Lax
 - Duration: 24 hours
 - JWT-based with user data
@@ -209,7 +209,7 @@ Implemented a full-featured ChatGPT-like interface for SalfaGPT with beautiful U
 - **Platform**: Google Cloud Run
 - **Region**: us-central1
 - **Container**: Artifact Registry
-- **Image**: `us-central1-docker.pkg.dev/gen-lang-client-0986191192/salfagpt/salfagpt:latest`
+- **Image**: `us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest`
 - **Port**: 8080
 - **Scaling**: Automatic
 
@@ -219,7 +219,7 @@ Implemented a full-featured ChatGPT-like interface for SalfaGPT with beautiful U
 GOOGLE_CLIENT_ID=<from Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<from Secret Manager>
 JWT_SECRET=<from Secret Manager>
-PUBLIC_BASE_URL=https://salfagpt-cno6l2kfga-uc.a.run.app
+PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app
 
 # Google Cloud
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
@@ -235,12 +235,12 @@ PORT=8080
 ```bash
 # Build and push container
 gcloud builds submit \
-  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/salfagpt/salfagpt:latest \
+  --tag us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --project=gen-lang-client-0986191192
 
 # Deploy to Cloud Run
-gcloud run deploy salfagpt \
-  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/salfagpt/salfagpt:latest \
+gcloud run deploy flow \
+  --image us-central1-docker.pkg.dev/gen-lang-client-0986191192/flow/flow:latest \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
@@ -282,7 +282,7 @@ if (isDevelopment && !token) {
 ## 🐛 Issues Fixed
 
 ### 1. **Cookie Name Mismatch**
-**Problem**: Login set `salfagpt_session`, but chat looked for `auth_token`  
+**Problem**: Login set `flow_session`, but chat looked for `auth_token`  
 **Solution**: Updated chat.astro to use correct cookie name
 
 ### 2. **Redirect Loop**
@@ -322,11 +322,11 @@ if (isDevelopment && !token) {
 ### API Testing
 ```bash
 # Test authentication redirect
-curl -I https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+curl -I https://flow-cno6l2kfga-uc.a.run.app/chat
 # Expected: 302 redirect to /auth/login?redirect=/chat
 
 # Test login with redirect
-curl -I "https://salfagpt-cno6l2kfga-uc.a.run.app/auth/login?redirect=/chat"
+curl -I "https://flow-cno6l2kfga-uc.a.run.app/auth/login?redirect=/chat"
 # Expected: 302 to Google OAuth + set-cookie: auth_redirect=%2Fchat
 ```
 
@@ -414,7 +414,7 @@ curl -I "https://salfagpt-cno6l2kfga-uc.a.run.app/auth/login?redirect=/chat"
 
 ## 🎉 Conclusion
 
-The SalfaGPT chat interface is now fully functional in production with:
+The Flow chat interface is now fully functional in production with:
 - Beautiful, modern UI matching ChatGPT standards
 - Secure authentication with Google OAuth
 - Proper redirect handling
@@ -426,6 +426,6 @@ The SalfaGPT chat interface is now fully functional in production with:
 ---
 
 **Last Updated**: October 10, 2025  
-**Maintained By**: SalfaGPT Development Team  
-**Production URL**: https://salfagpt-cno6l2kfga-uc.a.run.app/chat
+**Maintained By**: Flow Development Team  
+**Production URL**: https://flow-cno6l2kfga-uc.a.run.app/chat
 

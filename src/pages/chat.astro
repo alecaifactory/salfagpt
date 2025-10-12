@@ -1,19 +1,23 @@
 ---
-import ChatInterface from '../components/ChatInterface';
+import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
 import { verifyJWT } from '../lib/auth';
 import '../styles/global.css';
 
 // Check authentication
 const cookies = Astro.cookies;
-const token = cookies.get('salfagpt_session')?.value;
+const token = cookies.get('flow_session')?.value;
 
 // For development: allow test user without authentication
 const isDevelopment = import.meta.env.DEV;
 let userId: string;
+let userEmail: string;
+let userName: string;
 
 if (isDevelopment && !token) {
   // Development mode: use test user
   userId = 'test-user-dev-123';
+  userEmail = 'test@dev.local';
+  userName = 'Usuario de Prueba';
   console.log('🔧 Development mode: Using test user ID:', userId);
 } else if (!token) {
   // Production: require authentication, preserve current URL
@@ -23,6 +27,8 @@ if (isDevelopment && !token) {
   try {
     const decoded = verifyJWT(token);
     userId = decoded.sub || decoded.id;
+    userEmail = decoded.email || 'usuario@flow.ai';
+    userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
   } catch (error) {
     // Token invalid, redirect to login with current URL
     return Astro.redirect('/auth/login?redirect=/chat');
@@ -35,10 +41,15 @@ if (isDevelopment && !token) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat - SalfaGPT</title>
+    <title>Chat - Flow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body class="h-full m-0 p-0">
-    <ChatInterface client:only="react" userId={userId} />
+    <ChatInterfaceWorking 
+      client:only="react" 
+      userId={userId}
+      userEmail={userEmail}
+      userName={userName}
+    />
   </body>
 </html>

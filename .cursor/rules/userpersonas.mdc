@@ -1,0 +1,1479 @@
+---
+alwaysApply: true
+---
+
+# User Personas & Permissions - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents all user types, their roles, permissions, access control, and management capabilities in the Flow platform. It ensures proper authorization, security, and role-based feature access.
+
+---
+
+## 👥 User Personas
+
+### User Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    USER HIERARCHY                        │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Admin (Superuser)                                      │
+│  ├─ All permissions                                     │
+│  ├─ User management                                     │
+│  ├─ Impersonation capability                            │
+│  └─ System configuration                                │
+│                                                         │
+│  Expert (Power User)                                    │
+│  ├─ Advanced features                                   │
+│  ├─ Context validation                                  │
+│  ├─ Agent validation                                    │
+│  └─ Analytics access                                    │
+│                                                         │
+│  Specialized Roles (Specific Permissions)               │
+│  ├─ Context Signoff (Certify context)                  │
+│  ├─ Context Reviewer (Review context)                  │
+│  ├─ Context Creator (Upload context)                   │
+│  ├─ Context Feedback (Comment on context)              │
+│  ├─ Agent Signoff (Certify agents)                     │
+│  ├─ Agent Reviewer (Review agents)                     │
+│  ├─ Agent Creator (Create agents)                      │
+│  └─ Agent Feedback (Comment on agents)                 │
+│                                                         │
+│  User (Standard)                                        │
+│  ├─ Basic features                                      │
+│  ├─ Create conversations                                │
+│  ├─ Upload context                                      │
+│  └─ Use certified content                               │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔐 Roles & Permissions
+
+### 1. **Admin** (Superuser)
+
+**Email Pattern:** `admin@*`, `*@getaifactory.com`
+
+**Permissions:**
+```typescript
+{
+  // System Management
+  canManageUsers: true,
+  canImpersonateUsers: true,
+  canAccessSystemSettings: true,
+  canViewAllData: true,
+  
+  // User Management
+  canCreateUsers: true,
+  canDeleteUsers: true,
+  canModifyRoles: true,
+  canViewUserActivity: true,
+  
+  // Agent Management
+  canCreateAgents: true,
+  canDeleteAgents: true,
+  canViewAllAgents: true,
+  canSignOffAgents: true,
+  canReviewAgents: true,
+  canShareAgents: true,
+  
+  // Context Management
+  canUploadContext: true,
+  canDeleteContext: true,
+  canViewAllContext: true,
+  canSignOffContext: true,
+  canReviewContext: true,
+  canShareContext: true,
+  
+  // Analytics
+  canAccessAnalytics: true,
+  canExportData: true,
+  canViewCosts: true,
+  
+  // All other permissions
+  ALL: true
+}
+```
+
+**Features Visible:**
+- ✅ User Management section (bottom-left)
+- ✅ Impersonation panel
+- ✅ System analytics
+- ✅ All context sources (all users)
+- ✅ All agents (all users)
+- ✅ Cost dashboard
+
+---
+
+### 2. **Expert** (Power User)
+
+**Email Pattern:** `expert@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management
+  canCreateAgents: true,
+  canDeleteOwnAgents: true,
+  canViewOwnAgents: true,
+  canReviewAgents: true,
+  canSignOffAgents: true,
+  canShareAgents: true,
+  
+  // Context Management
+  canUploadContext: true,
+  canDeleteOwnContext: true,
+  canViewOwnContext: true,
+  canReviewContext: true,
+  canSignOffContext: true,
+  canShareContext: true,
+  
+  // Analytics
+  canAccessAnalytics: true,
+  canViewOwnCosts: true,
+  
+  // Advanced Features
+  canUseAdvancedModels: true,
+  canAccessExpertTools: true,
+}
+```
+
+**Features Visible:**
+- ✅ Analytics dashboard (own data)
+- ✅ Advanced model options (Pro)
+- ✅ Context validation tools
+- ✅ Agent validation tools
+- ✅ Sharing capabilities
+
+---
+
+### 3. **Context Signoff** (Context Certification)
+
+**Email Pattern:** `context_signoff@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Context Management - CERTIFICATION AUTHORITY
+  canSignOffContext: true,          // ⭐ PRIMARY PERMISSION
+  canReviewContext: true,
+  canViewAllContext: true,          // To review before signoff
+  canProvideFeedback: true,
+  
+  // Agent Management - Limited
+  canCreateAgents: true,
+  canViewOwnAgents: true,
+  
+  // Basic Features
+  canUploadContext: true,
+  canUseContext: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can mark context sources as "✓ Validado"
+- ✅ Context becomes "Official Input Source"
+- ✅ Validation is logged with userId and timestamp
+- ✅ Can view validation history
+
+**Features Visible:**
+- ✅ Context validation panel
+- ✅ "Validar" button on context sources
+- ✅ Validation history log
+- ✅ Certified sources badge
+
+---
+
+### 4. **Context Reviewer** (Context Quality Review)
+
+**Email Pattern:** `context_reviewer@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Context Management - REVIEW AUTHORITY
+  canReviewContext: true,           // ⭐ PRIMARY PERMISSION
+  canViewAllContext: true,
+  canProvideFeedback: true,
+  canRequestChanges: true,
+  canApproveForSignoff: true,       // Recommend for certification
+  
+  // Agent Management - Limited
+  canCreateAgents: true,
+  canViewOwnAgents: true,
+  
+  // Basic Features
+  canUploadContext: true,
+  canUseContext: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can review context sources before signoff
+- ✅ Can provide detailed feedback
+- ✅ Can request re-extraction
+- ✅ Can recommend for certification
+
+**Features Visible:**
+- ✅ Context review panel
+- ✅ Feedback interface
+- ✅ Quality assessment tools
+- ✅ Re-extraction suggestions
+
+---
+
+### 5. **Context Creator** (Context Upload & Management)
+
+**Email Pattern:** `context_creator@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Context Management - CREATION AUTHORITY
+  canUploadContext: true,           // ⭐ PRIMARY PERMISSION
+  canDeleteOwnContext: true,
+  canModifyOwnContext: true,
+  canReExtractContext: true,
+  canConfigureWorkflows: true,
+  
+  // Agent Management - Limited
+  canCreateAgents: true,
+  canViewOwnAgents: true,
+  
+  // Basic Features
+  canUseContext: true,
+  canViewOwnContext: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can upload all document types
+- ✅ Can configure extraction workflows
+- ✅ Can re-extract with new config
+- ✅ Can manage own context sources
+
+**Features Visible:**
+- ✅ Full upload interface
+- ✅ Workflow configuration
+- ✅ Re-extraction tools
+- ✅ Context management panel
+
+---
+
+### 6. **Context Feedback** (Context Quality Feedback)
+
+**Email Pattern:** `context_feedback@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Context Management - FEEDBACK AUTHORITY
+  canProvideFeedback: true,         // ⭐ PRIMARY PERMISSION
+  canViewAllContext: true,          // To review
+  canCommentOnContext: true,
+  canRateQuality: true,
+  
+  // Agent Management - Limited
+  canCreateAgents: true,
+  canViewOwnAgents: true,
+  
+  // Basic Features
+  canUseContext: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can comment on context sources
+- ✅ Can rate extraction quality (1-5 stars)
+- ✅ Can suggest improvements
+- ✅ Feedback logged and visible
+
+**Features Visible:**
+- ✅ Feedback interface on context
+- ✅ Quality rating system
+- ✅ Comment threads
+- ✅ Improvement suggestions
+
+---
+
+### 7. **Agent Signoff** (Agent Certification)
+
+**Email Pattern:** `agent_signoff@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management - CERTIFICATION AUTHORITY
+  canSignOffAgents: true,           // ⭐ PRIMARY PERMISSION
+  canReviewAgents: true,
+  canViewAllAgents: true,           // To review before signoff
+  canProvideFeedback: true,
+  canTestAgents: true,
+  
+  // Context Management - Limited
+  canUploadContext: true,
+  canViewOwnContext: true,
+  
+  // Basic Features
+  canCreateAgents: true,
+  canUseAgents: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can mark agents as "✓ Certificado"
+- ✅ Agent becomes "Official Template"
+- ✅ Validation logged with details
+- ✅ Can view agent performance metrics
+
+**Features Visible:**
+- ✅ Agent validation panel
+- ✅ "Certificar" button on agents
+- ✅ Validation history
+- ✅ Certified agents marketplace (future)
+
+---
+
+### 8. **Agent Reviewer** (Agent Quality Review)
+
+**Email Pattern:** `agent_reviewer@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management - REVIEW AUTHORITY
+  canReviewAgents: true,            // ⭐ PRIMARY PERMISSION
+  canViewAllAgents: true,
+  canProvideFeedback: true,
+  canTestAgents: true,
+  canRequestChanges: true,
+  canApproveForSignoff: true,       // Recommend for certification
+  
+  // Context Management - Limited
+  canUploadContext: true,
+  canViewOwnContext: true,
+  
+  // Basic Features
+  canCreateAgents: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can review agent configurations
+- ✅ Can test agent responses
+- ✅ Can provide detailed feedback
+- ✅ Can recommend for certification
+
+**Features Visible:**
+- ✅ Agent review panel
+- ✅ Testing interface
+- ✅ Feedback system
+- ✅ Quality metrics
+
+---
+
+### 9. **Agent Creator** (Agent Development)
+
+**Email Pattern:** `agent_creator@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management - CREATION AUTHORITY
+  canCreateAgents: true,            // ⭐ PRIMARY PERMISSION
+  canDeleteOwnAgents: true,
+  canModifyOwnAgents: true,
+  canConfigureAgents: true,
+  canCloneAgents: true,
+  
+  // Context Management - Limited
+  canUploadContext: true,
+  canViewOwnContext: true,
+  
+  // Basic Features
+  canUseAgents: true,
+  canViewOwnAgents: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can create unlimited agents
+- ✅ Can configure system prompts
+- ✅ Can select models (Flash/Pro)
+- ✅ Can manage agent context
+
+**Features Visible:**
+- ✅ Full agent creation interface
+- ✅ Advanced configuration options
+- ✅ Agent templates
+- ✅ Clone functionality
+
+---
+
+### 10. **Agent Feedback** (Agent Quality Feedback)
+
+**Email Pattern:** `agent_feedback@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management - FEEDBACK AUTHORITY
+  canProvideFeedback: true,         // ⭐ PRIMARY PERMISSION
+  canViewAllAgents: true,           // To review
+  canCommentOnAgents: true,
+  canRateQuality: true,
+  canTestAgents: true,
+  
+  // Context Management - Limited
+  canUploadContext: true,
+  canViewOwnContext: true,
+  
+  // Basic Features
+  canCreateAgents: true,
+}
+```
+
+**Special Capabilities:**
+- ✅ Can comment on agent responses
+- ✅ Can rate agent quality (1-5 stars)
+- ✅ Can test agents
+- ✅ Feedback logged and visible
+
+**Features Visible:**
+- ✅ Feedback interface on agents
+- ✅ Quality rating system
+- ✅ Testing tools
+- ✅ Comment threads
+
+---
+
+### 11. **User** (Standard User)
+
+**Email Pattern:** `user@demo.com`
+
+**Permissions:**
+```typescript
+{
+  // Agent Management - Basic
+  canCreateAgents: true,
+  canDeleteOwnAgents: true,
+  canViewOwnAgents: true,
+  canUseAgents: true,
+  
+  // Context Management - Basic
+  canUploadContext: true,
+  canDeleteOwnContext: true,
+  canViewOwnContext: true,
+  canUseContext: true,
+  
+  // Basic Features Only
+  canSendMessages: true,
+  canViewOwnConversations: true,
+  canOrganizeInFolders: true,
+}
+```
+
+**Features Visible:**
+- ✅ Basic chat interface
+- ✅ Own agents only
+- ✅ Own context sources only
+- ✅ Folder organization
+- ✅ Certified content (read-only)
+
+---
+
+## 📋 Complete Permissions Matrix
+
+| Permission | Admin | Expert | Context Signoff | Context Reviewer | Context Creator | Context Feedback | Agent Signoff | Agent Reviewer | Agent Creator | Agent Feedback | User |
+|------------|-------|--------|-----------------|------------------|-----------------|------------------|---------------|----------------|---------------|----------------|------|
+| **System** |
+| Manage Users | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Impersonate Users | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| System Settings | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View All Data | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Context** |
+| Upload Context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Delete Own Context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Delete Any Context | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View All Context | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View Own Context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Review Context | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Signoff Context | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Feedback on Context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Agents** |
+| Create Agents | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Delete Own Agents | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Delete Any Agent | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View All Agents | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| View Own Agents | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Review Agents | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Signoff Agents | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Feedback on Agents | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| **Analytics** |
+| Access Analytics | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View All Costs | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| View Own Costs | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Export Data | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+---
+
+## 🗄️ Data Model
+
+### User Document (Firestore)
+
+```typescript
+interface User {
+  // Identity
+  id: string;                       // Document ID (email sanitized)
+  email: string;                    // Unique email
+  name: string;                     // Display name
+  
+  // Role & Permissions
+  role: UserRole;                   // Primary role
+  permissions: UserPermissions;     // Granular permissions
+  
+  // Organization
+  company: string;                  // Organization name
+  department?: string;              // Team/department
+  
+  // Timestamps
+  createdAt: Timestamp;             // Registration date
+  updatedAt: Timestamp;             // Last profile update
+  lastLoginAt?: Timestamp;          // Last login
+  
+  // Status
+  isActive: boolean;                // Account active/suspended
+  
+  // Profile
+  avatarUrl?: string;               // Profile picture
+  
+  // Impersonation (for admins)
+  impersonating?: {
+    userId: string;                 // User being impersonated
+    startedAt: Timestamp;           // When impersonation started
+    originalUserId: string;         // Admin's original ID
+  };
+}
+
+type UserRole = 
+  | 'admin'
+  | 'expert' 
+  | 'user'
+  | 'context_signoff'
+  | 'context_reviewer'
+  | 'context_creator'
+  | 'context_feedback'
+  | 'agent_signoff'
+  | 'agent_reviewer'
+  | 'agent_creator'
+  | 'agent_feedback';
+
+interface UserPermissions {
+  // System
+  canManageUsers?: boolean;
+  canImpersonateUsers?: boolean;
+  canAccessSystemSettings?: boolean;
+  canViewAllData?: boolean;
+  
+  // Context
+  canUploadContext?: boolean;
+  canDeleteOwnContext?: boolean;
+  canDeleteAnyContext?: boolean;
+  canViewOwnContext?: boolean;
+  canViewAllContext?: boolean;
+  canReviewContext?: boolean;
+  canSignOffContext?: boolean;
+  canProvideFeedbackOnContext?: boolean;
+  canShareContext?: boolean;
+  
+  // Agents
+  canCreateAgents?: boolean;
+  canDeleteOwnAgents?: boolean;
+  canDeleteAnyAgent?: boolean;
+  canViewOwnAgents?: boolean;
+  canViewAllAgents?: boolean;
+  canReviewAgents?: boolean;
+  canSignOffAgents?: boolean;
+  canProvideFeedbackOnAgents?: boolean;
+  canShareAgents?: boolean;
+  
+  // Analytics
+  canAccessAnalytics?: boolean;
+  canViewOwnCosts?: boolean;
+  canViewAllCosts?: boolean;
+  canExportData?: boolean;
+}
+```
+
+---
+
+## 👥 Demo Users for Testing
+
+### Complete Demo User List
+
+```typescript
+const DEMO_USERS = [
+  // Primary Admin
+  {
+    email: 'alec@getaifactory.com',
+    name: 'Alec (Admin)',
+    role: 'admin',
+    company: 'GetAI Factory',
+    isActive: true,
+  },
+  
+  // Demo Users by Role
+  {
+    email: 'admin@demo.com',
+    name: 'Admin Demo',
+    role: 'admin',
+    company: 'Demo Corp',
+    isActive: true,
+  },
+  {
+    email: 'expert@demo.com',
+    name: 'Expert Demo',
+    role: 'expert',
+    company: 'Demo Corp',
+    isActive: true,
+  },
+  {
+    email: 'user@demo.com',
+    name: 'User Demo',
+    role: 'user',
+    company: 'Demo Corp',
+    isActive: true,
+  },
+  {
+    email: 'context_signoff@demo.com',
+    name: 'Context Signoff Demo',
+    role: 'context_signoff',
+    company: 'Demo Corp',
+    department: 'Quality Assurance',
+    isActive: true,
+  },
+  {
+    email: 'context_reviewer@demo.com',
+    name: 'Context Reviewer Demo',
+    role: 'context_reviewer',
+    company: 'Demo Corp',
+    department: 'Quality Assurance',
+    isActive: true,
+  },
+  {
+    email: 'context_creator@demo.com',
+    name: 'Context Creator Demo',
+    role: 'context_creator',
+    company: 'Demo Corp',
+    department: 'Knowledge Management',
+    isActive: true,
+  },
+  {
+    email: 'context_feedback@demo.com',
+    name: 'Context Feedback Demo',
+    role: 'context_feedback',
+    company: 'Demo Corp',
+    department: 'Quality Assurance',
+    isActive: true,
+  },
+  {
+    email: 'agent_signoff@demo.com',
+    name: 'Agent Signoff Demo',
+    role: 'agent_signoff',
+    company: 'Demo Corp',
+    department: 'AI Governance',
+    isActive: true,
+  },
+  {
+    email: 'agent_reviewer@demo.com',
+    name: 'Agent Reviewer Demo',
+    role: 'agent_reviewer',
+    company: 'Demo Corp',
+    department: 'AI Governance',
+    isActive: true,
+  },
+  {
+    email: 'agent_creator@demo.com',
+    name: 'Agent Creator Demo',
+    role: 'agent_creator',
+    company: 'Demo Corp',
+    department: 'AI Development',
+    isActive: true,
+  },
+  {
+    email: 'agent_feedback@demo.com',
+    name: 'Agent Feedback Demo',
+    role: 'agent_feedback',
+    company: 'Demo Corp',
+    department: 'AI Governance',
+    isActive: true,
+  },
+];
+```
+
+---
+
+## 🔐 Permission Helper Functions
+
+### Check Permission
+
+```typescript
+// src/lib/permissions.ts
+export function hasPermission(
+  user: User | null,
+  permission: keyof UserPermissions
+): boolean {
+  if (!user) return false;
+  
+  // Admins have all permissions
+  if (user.role === 'admin') return true;
+  
+  // Check specific permission
+  return user.permissions?.[permission] === true;
+}
+
+// Usage example
+if (hasPermission(currentUser, 'canSignOffContext')) {
+  // Show "Validar" button
+}
+```
+
+### Get Role Permissions
+
+```typescript
+export function getPermissionsForRole(role: UserRole): UserPermissions {
+  const rolePermissions: Record<UserRole, UserPermissions> = {
+    admin: {
+      // All permissions
+      canManageUsers: true,
+      canImpersonateUsers: true,
+      canAccessSystemSettings: true,
+      canViewAllData: true,
+      canUploadContext: true,
+      canDeleteAnyContext: true,
+      canViewAllContext: true,
+      canReviewContext: true,
+      canSignOffContext: true,
+      canProvideFeedbackOnContext: true,
+      canShareContext: true,
+      canCreateAgents: true,
+      canDeleteAnyAgent: true,
+      canViewAllAgents: true,
+      canReviewAgents: true,
+      canSignOffAgents: true,
+      canProvideFeedbackOnAgents: true,
+      canShareAgents: true,
+      canAccessAnalytics: true,
+      canViewAllCosts: true,
+      canExportData: true,
+    },
+    
+    expert: {
+      canAccessAnalytics: true,
+      canViewOwnCosts: true,
+      canUploadContext: true,
+      canDeleteOwnContext: true,
+      canViewOwnContext: true,
+      canReviewContext: true,
+      canSignOffContext: true,
+      canShareContext: true,
+      canCreateAgents: true,
+      canDeleteOwnAgents: true,
+      canViewOwnAgents: true,
+      canReviewAgents: true,
+      canSignOffAgents: true,
+      canShareAgents: true,
+    },
+    
+    context_signoff: {
+      canSignOffContext: true,
+      canReviewContext: true,
+      canViewAllContext: true,
+      canProvideFeedbackOnContext: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+      canCreateAgents: true,
+      canViewOwnAgents: true,
+    },
+    
+    context_reviewer: {
+      canReviewContext: true,
+      canViewAllContext: true,
+      canProvideFeedbackOnContext: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+      canCreateAgents: true,
+      canViewOwnAgents: true,
+    },
+    
+    context_creator: {
+      canUploadContext: true,
+      canDeleteOwnContext: true,
+      canViewOwnContext: true,
+      canCreateAgents: true,
+      canViewOwnAgents: true,
+    },
+    
+    context_feedback: {
+      canProvideFeedbackOnContext: true,
+      canViewAllContext: true,
+      canCreateAgents: true,
+      canViewOwnAgents: true,
+    },
+    
+    agent_signoff: {
+      canSignOffAgents: true,
+      canReviewAgents: true,
+      canViewAllAgents: true,
+      canProvideFeedbackOnAgents: true,
+      canCreateAgents: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+    },
+    
+    agent_reviewer: {
+      canReviewAgents: true,
+      canViewAllAgents: true,
+      canProvideFeedbackOnAgents: true,
+      canCreateAgents: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+    },
+    
+    agent_creator: {
+      canCreateAgents: true,
+      canDeleteOwnAgents: true,
+      canViewOwnAgents: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+    },
+    
+    agent_feedback: {
+      canProvideFeedbackOnAgents: true,
+      canViewAllAgents: true,
+      canCreateAgents: true,
+      canUploadContext: true,
+      canViewOwnContext: true,
+    },
+    
+    user: {
+      canCreateAgents: true,
+      canDeleteOwnAgents: true,
+      canViewOwnAgents: true,
+      canUploadContext: true,
+      canDeleteOwnContext: true,
+      canViewOwnContext: true,
+    },
+  };
+  
+  return rolePermissions[role] || rolePermissions.user;
+}
+```
+
+---
+
+## 🎭 Admin Impersonation
+
+### Impersonation Flow
+
+```
+1. Admin clicks "User Management" (bottom-left)
+   ↓
+2. Sees list of all users
+   ↓
+3. Clicks "Impersonate" button next to user
+   ↓
+4. Confirmation dialog:
+   "Act as [User Name] ([role])?"
+   ↓
+5. If confirmed:
+   - Store original admin session
+   - Create impersonation session
+   - Update UI with impersonated user
+   - Show impersonation banner
+   ↓
+6. Admin can now:
+   - See UI as that user sees it
+   - Test permissions
+   - Verify features
+   - Debug issues
+   ↓
+7. Click "Stop Impersonating" to return to admin view
+```
+
+### Impersonation State
+
+```typescript
+interface ImpersonationState {
+  isImpersonating: boolean;
+  originalUser: User;               // Admin
+  impersonatedUser: User;           // User being impersonated
+  startedAt: Date;
+}
+
+// In ChatInterfaceWorking.tsx
+const [impersonationState, setImpersonationState] = useState<ImpersonationState | null>(null);
+
+// Current effective user
+const effectiveUser = impersonationState?.impersonatedUser || currentUser;
+```
+
+### Impersonation Banner
+
+```typescript
+{impersonationState && (
+  <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-yellow-900 px-4 py-2 flex items-center justify-between shadow-lg">
+    <div className="flex items-center gap-3">
+      <AlertCircle className="w-5 h-5" />
+      <span className="font-semibold">
+        Impersonating: {impersonationState.impersonatedUser.name} ({impersonationState.impersonatedUser.role})
+      </span>
+    </div>
+    <button
+      onClick={stopImpersonation}
+      className="px-3 py-1 bg-yellow-900 text-yellow-100 rounded hover:bg-yellow-800 text-sm font-medium"
+    >
+      Stop Impersonating
+    </button>
+  </div>
+)}
+```
+
+---
+
+## 🖥️ User Management UI
+
+### User Management Section (Bottom-Left)
+
+**Location:** Below "Configuración" in user menu
+
+```typescript
+// In user menu (bottom-left sidebar)
+{hasPermission(currentUser, 'canManageUsers') && (
+  <>
+    <button
+      onClick={() => setShowUserManagement(true)}
+      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+    >
+      <Users className="w-4 h-4" />
+      User Management
+    </button>
+    <div className="border-t border-slate-200 my-1" />
+  </>
+)}
+
+<button
+  onClick={() => setShowUserSettings(true)}
+  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+>
+  <Settings className="w-4 h-4" />
+  Configuración
+</button>
+```
+
+### User Management Panel
+
+```typescript
+{showUserManagement && (
+  <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center gap-3">
+          <Users className="w-6 h-6 text-blue-600" />
+          <h2 className="text-2xl font-bold text-slate-800">User Management</h2>
+        </div>
+        <button
+          onClick={() => setShowUserManagement(false)}
+          className="text-slate-400 hover:text-slate-600"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      
+      {/* Users Table */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">User</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Company</th>
+              <th className="px-4 py-3 text-left font-semibold text-slate-700">Department</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-700">Status</th>
+              <th className="px-4 py-3 text-center font-semibold text-slate-700">Last Login</th>
+              <th className="px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allUsers.map(user => (
+              <tr key={user.id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
+                      {user.name.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-800">{user.name}</p>
+                      <p className="text-xs text-slate-500">{user.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <select
+                    value={user.role}
+                    onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
+                    className="px-2 py-1 border border-slate-300 rounded text-xs"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="expert">Expert</option>
+                    <option value="user">User</option>
+                    <option value="context_signoff">Context Signoff</option>
+                    <option value="context_reviewer">Context Reviewer</option>
+                    <option value="context_creator">Context Creator</option>
+                    <option value="context_feedback">Context Feedback</option>
+                    <option value="agent_signoff">Agent Signoff</option>
+                    <option value="agent_reviewer">Agent Reviewer</option>
+                    <option value="agent_creator">Agent Creator</option>
+                    <option value="agent_feedback">Agent Feedback</option>
+                  </select>
+                </td>
+                <td className="px-4 py-3 text-slate-700">{user.company}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{user.department || '-'}</td>
+                <td className="px-4 py-3 text-center">
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    user.isActive 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {user.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-center text-xs text-slate-600">
+                  {user.lastLoginAt ? formatDate(user.lastLoginAt) : 'Never'}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleImpersonate(user)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium flex items-center gap-1"
+                    >
+                      <UserCog className="w-3.5 h-3.5" />
+                      Impersonate
+                    </button>
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      className="px-3 py-1 border border-slate-300 rounded hover:bg-slate-50 text-xs"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      
+      {/* Footer */}
+      <div className="p-6 border-t border-slate-200 flex justify-between">
+        <button
+          onClick={() => setShowCreateUser(true)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Create User
+        </button>
+        <button
+          onClick={() => setShowUserManagement(false)}
+          className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+---
+
+## 🎨 Role Badges
+
+### Role Display
+
+```typescript
+export function getRoleBadge(role: UserRole) {
+  const roleConfig: Record<UserRole, { label: string; color: string; icon: string }> = {
+    admin: { label: 'Admin', color: 'purple', icon: '👑' },
+    expert: { label: 'Expert', color: 'blue', icon: '🎓' },
+    user: { label: 'User', color: 'slate', icon: '👤' },
+    context_signoff: { label: 'Context Signoff', color: 'green', icon: '✅' },
+    context_reviewer: { label: 'Context Reviewer', color: 'yellow', icon: '👁️' },
+    context_creator: { label: 'Context Creator', color: 'indigo', icon: '📝' },
+    context_feedback: { label: 'Context Feedback', color: 'cyan', icon: '💬' },
+    agent_signoff: { label: 'Agent Signoff', color: 'green', icon: '🤖✅' },
+    agent_reviewer: { label: 'Agent Reviewer', color: 'yellow', icon: '🤖👁️' },
+    agent_creator: { label: 'Agent Creator', color: 'indigo', icon: '🤖📝' },
+    agent_feedback: { label: 'Agent Feedback', color: 'cyan', icon: '🤖💬' },
+  };
+  
+  const config = roleConfig[role];
+  
+  return (
+    <span className={`px-2 py-1 bg-${config.color}-100 text-${config.color}-700 rounded-full text-xs font-semibold inline-flex items-center gap-1`}>
+      <span>{config.icon}</span>
+      <span>{config.label}</span>
+    </span>
+  );
+}
+```
+
+---
+
+## 🔄 Impersonation Implementation
+
+### Start Impersonation
+
+```typescript
+async function handleImpersonate(targetUser: User) {
+  // Confirm with admin
+  const confirmed = confirm(
+    `Actuar como ${targetUser.name} (${targetUser.role})?\n\n` +
+    `Verás la interfaz y tendrás los permisos de este usuario.\n` +
+    `Podrás volver a tu sesión de admin en cualquier momento.`
+  );
+  
+  if (!confirmed) return;
+  
+  try {
+    // Store impersonation state
+    setImpersonationState({
+      isImpersonating: true,
+      originalUser: currentUser,
+      impersonatedUser: targetUser,
+      startedAt: new Date(),
+    });
+    
+    // Update session storage for persistence
+    sessionStorage.setItem('impersonation', JSON.stringify({
+      originalUserId: currentUser.id,
+      impersonatedUserId: targetUser.id,
+      startedAt: new Date().toISOString(),
+    }));
+    
+    // Close user management panel
+    setShowUserManagement(false);
+    
+    // Reload data as impersonated user
+    await loadUserData(targetUser.id);
+    
+    console.log('✅ Impersonating:', targetUser.email);
+  } catch (error) {
+    console.error('❌ Failed to impersonate:', error);
+    alert('Error al impersonar usuario');
+  }
+}
+```
+
+### Stop Impersonation
+
+```typescript
+async function stopImpersonation() {
+  if (!impersonationState) return;
+  
+  try {
+    // Restore original admin session
+    await loadUserData(impersonationState.originalUser.id);
+    
+    // Clear impersonation state
+    setImpersonationState(null);
+    sessionStorage.removeItem('impersonation');
+    
+    console.log('✅ Stopped impersonation');
+  } catch (error) {
+    console.error('❌ Failed to stop impersonation:', error);
+    alert('Error al detener impersonación');
+  }
+}
+```
+
+### Restore Impersonation on Reload
+
+```typescript
+// On component mount
+useEffect(() => {
+  const storedImpersonation = sessionStorage.getItem('impersonation');
+  
+  if (storedImpersonation && currentUser?.role === 'admin') {
+    try {
+      const data = JSON.parse(storedImpersonation);
+      
+      // Load impersonated user
+      const impersonatedUser = await getUser(data.impersonatedUserId);
+      
+      if (impersonatedUser) {
+        setImpersonationState({
+          isImpersonating: true,
+          originalUser: currentUser,
+          impersonatedUser: impersonatedUser,
+          startedAt: new Date(data.startedAt),
+        });
+        
+        await loadUserData(impersonatedUser.id);
+      }
+    } catch (error) {
+      console.error('Failed to restore impersonation:', error);
+      sessionStorage.removeItem('impersonation');
+    }
+  }
+}, [currentUser]);
+```
+
+---
+
+## 📊 User Activity Tracking
+
+### Track User Actions
+
+```typescript
+interface UserActivity {
+  userId: string;
+  action: string;
+  resource: string;
+  resourceId?: string;
+  timestamp: Timestamp;
+  impersonatedBy?: string;          // If action during impersonation
+}
+
+// Log activity
+async function logUserActivity(
+  action: string,
+  resource: string,
+  resourceId?: string
+) {
+  const effectiveUser = impersonationState?.impersonatedUser || currentUser;
+  
+  await firestore.collection('user_activity').add({
+    userId: effectiveUser.id,
+    action,
+    resource,
+    resourceId,
+    timestamp: new Date(),
+    impersonatedBy: impersonationState ? currentUser.id : undefined,
+  });
+}
+
+// Usage
+await logUserActivity('signoff_context', 'context_source', sourceId);
+await logUserActivity('create_agent', 'agent', agentId);
+```
+
+---
+
+## 🔒 Security Rules (Firestore)
+
+### User Collection Security
+
+```javascript
+// firestore.rules
+match /users/{userId} {
+  // Users can read their own profile
+  allow read: if request.auth != null && request.auth.uid == userId;
+  
+  // Admins can read any profile
+  allow read: if request.auth != null && 
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  
+  // Only admins can create users
+  allow create: if request.auth != null && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+  
+  // Users can update own basic info, admins can update anything
+  allow update: if request.auth != null && (
+    (request.auth.uid == userId && 
+     !('role' in request.resource.data.diff(resource.data)) &&
+     !('permissions' in request.resource.data.diff(resource.data))) ||
+    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+  );
+  
+  // Only admins can delete users
+  allow delete: if request.auth != null && 
+                get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+}
+```
+
+---
+
+## 📚 API Endpoints
+
+### User Management APIs
+
+```typescript
+// GET /api/users - List all users (admin only)
+export const GET: APIRoute = async ({ request, cookies }) => {
+  const session = await verifyJWT(cookies.get('flow_session')?.value);
+  if (!session || session.role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
+  
+  const users = await getAllUsers();
+  return new Response(JSON.stringify(users), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
+// PUT /api/users/:id/role - Update user role (admin only)
+export const PUT: APIRoute = async ({ params, request, cookies }) => {
+  const session = await verifyJWT(cookies.get('flow_session')?.value);
+  if (!session || session.role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
+  
+  const { role } = await request.json();
+  const { id } = params;
+  
+  await updateUserRole(id, role);
+  
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+
+// POST /api/users/impersonate - Start impersonation (admin only)
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const session = await verifyJWT(cookies.get('flow_session')?.value);
+  if (!session || session.role !== 'admin') {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
+  
+  const { targetUserId } = await request.json();
+  
+  const targetUser = await getUser(targetUserId);
+  if (!targetUser) {
+    return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 });
+  }
+  
+  // Log impersonation start
+  await logUserActivity('impersonate_start', 'user', targetUserId);
+  
+  return new Response(JSON.stringify(targetUser), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+```
+
+---
+
+## 🌱 Seeding Demo Users
+
+### Seed Script
+
+```typescript
+// scripts/seed-demo-users.ts
+import { firestore } from '../src/lib/firestore';
+import { getPermissionsForRole } from '../src/lib/permissions';
+
+const DEMO_USERS = [
+  // ... (list from above)
+];
+
+async function seedDemoUsers() {
+  console.log('🌱 Seeding demo users...');
+  
+  for (const userData of DEMO_USERS) {
+    const userId = userData.email.replace('@', '_').replace('.', '_');
+    
+    const user = {
+      id: userId,
+      ...userData,
+      permissions: getPermissionsForRole(userData.role),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    await firestore.collection('users').doc(userId).set(user);
+    console.log(`✅ Created: ${user.email} (${user.role})`);
+  }
+  
+  console.log('🎉 Demo users seeded successfully!');
+}
+
+seedDemoUsers().catch(console.error);
+```
+
+**Run:**
+```bash
+npx tsx scripts/seed-demo-users.ts
+```
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented user persona system should:
+
+1. **Role Management**
+   - ✅ 11 distinct user roles defined
+   - ✅ Clear permission matrix
+   - ✅ Granular permissions per role
+   - ✅ Role-based feature visibility
+
+2. **Admin Capabilities**
+   - ✅ User management panel
+   - ✅ Role assignment
+   - ✅ User impersonation
+   - ✅ Activity tracking
+
+3. **Security**
+   - ✅ Firestore security rules enforce permissions
+   - ✅ API endpoints validate roles
+   - ✅ Impersonation logged
+   - ✅ Admin-only features protected
+
+4. **Testing**
+   - ✅ Demo users for each role
+   - ✅ Impersonation for easy testing
+   - ✅ No need to logout/login
+   - ✅ Session persistence
+
+5. **Certification System**
+   - ✅ Context signoff creates official sources
+   - ✅ Agent signoff creates official templates
+   - ✅ Validation logged with details
+   - ✅ Certified content badged
+
+---
+
+## 📚 References
+
+### Internal Documentation
+- `.cursor/rules/alignment.mdc` - Security by Default principle
+- `.cursor/rules/agents.mdc` - Agent validation & sign-off
+- `.cursor/rules/firestore.mdc` - User collection schema
+- `.cursor/rules/prd.mdc` - User management features
+- `src/lib/permissions.ts` - Permission helper functions
+- `src/components/UserManagementSection.tsx` - User management UI
+
+### External Resources
+- [Role-Based Access Control (RBAC)](https://en.wikipedia.org/wiki/Role-based_access_control)
+- [Firestore Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
+- [OAuth2 Impersonation](https://datatracker.ietf.org/doc/html/rfc8693)
+
+---
+
+**Last Updated**: 2025-10-12  
+**Version**: 1.0.0  
+**Status**: ✅ Ready for Implementation  
+**Project**: Flow (gen-lang-client-0986191192)
+
+---
+
+**Remember:** Proper role management is critical for security, compliance, and user trust. Every permission should be explicitly granted, never assumed.

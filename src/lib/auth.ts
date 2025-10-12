@@ -23,10 +23,20 @@ export function getAuthorizationUrl(): string {
     'https://www.googleapis.com/auth/userinfo.profile',
   ];
 
+  // Explicitly pass redirect_uri to avoid production issues
+  const redirectUri = `${BASE_URL}/auth/callback`;
+  
+  console.log('OAuth Config:', {
+    clientId: GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET',
+    baseUrl: BASE_URL,
+    redirectUri,
+  });
+
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
+    redirect_uri: redirectUri, // Explicitly set redirect_uri
   });
 }
 
@@ -68,7 +78,7 @@ export function verifyJWT(token: string): any {
 
 // Get session from request
 export function getSession(context: APIContext) {
-  const sessionCookie = context.cookies.get('salfagpt_session');
+  const sessionCookie = context.cookies.get('flow_session');
   
   if (!sessionCookie) {
     return null;
@@ -85,7 +95,7 @@ export function setSession(context: APIContext, userData: any) {
   // Check if running in production (Cloud Run sets NODE_ENV)
   const isProduction = process.env.NODE_ENV === 'production' || !import.meta.env.DEV;
   
-  context.cookies.set('salfagpt_session', token, {
+  context.cookies.set('flow_session', token, {
     httpOnly: true,
     secure: isProduction,
     sameSite: 'lax',
@@ -98,7 +108,7 @@ export function setSession(context: APIContext, userData: any) {
 
 // Clear session
 export function clearSession(context: APIContext) {
-  context.cookies.delete('salfagpt_session', {
+  context.cookies.delete('flow_session', {
     path: '/',
   });
 }

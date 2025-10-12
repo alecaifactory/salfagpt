@@ -1,0 +1,549 @@
+---
+alwaysApply: true
+---
+### 2. 📁 Gestión de Contexto Documental
+
+**Descripción:**
+Sistema robusto para subir, procesar, validar y gestionar fuentes de contexto que se inyectan en las conversaciones con el AI.
+
+**Tipos de Fuentes Soportadas:**
+- 📄 **PDF** - Extracción automática con Gemini AI (texto + tablas + imágenes descritas)
+- 📈 **CSV** - Parsing con papaparse
+- 📊 **Excel** - Lectura con xlsx
+- 📝 **Word** - Extracción con mammoth
+- 🌐 **URLs** - Scraping de contenido web
+- 🔌 **APIs** - Integración con endpoints externos
+- 📁 **Carpetas** - Procesamiento batch
+
+**Workflow de Procesamiento:**
+1. Usuario sube archivo o proporciona URL
+2. Sistema detecta tipo y aplica extractor apropiado
+3. **Gemini AI** procesa el contenido (para PDFs)
+4. Extracción se almacena como `extractedData: string`
+5. Metadata incluye: modelo usado, tiempo de extracción, tokens, páginas
+6. Usuario puede validar la extracción (SignOff)
+7. Fuentes validadas reciben badge "✓ Validado"
+
+**Funcionalidades:**
+- ✅ Upload y procesamiento automático
+- ✅ Selección de modelo (Flash vs Pro)
+- ✅ Tooltip con comparación de costos
+- ✅ Progress tracking visual
+- ✅ Error handling detallado
+- ✅ Re-extracción con nueva configuración
+- ✅ Toggle on/off por fuente
+- ✅ Validación por expertos autorizados
+- ✅ Badges de validación
+- ✅ Clickable en desglose de contexto
+- ✅ Modal con detalles completos
+
+**Colecciones Firestore:**
+```typescript
+contextSources: {
+  id: string
+  userId: string
+  name: string
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder'
+  enabled: boolean
+  status: 'active' | 'processing' | 'error' | 'disabled'
+  addedAt: timestamp
+  extractedData?: string
+  metadata?: {
+    originalFileName: string
+    originalFileSize: number
+    workflowId: string
+    extractionDate: timestamp
+    extractionTime: number // ms
+    model: string // e.g., 'gemini-2.5-flash'
+    charactersExtracted: number
+    tokensEstimate: number
+    pageCount?: number
+    validated?: boolean
+    validatedBy?: string
+    validatedAt?: timestamp
+    validationNotes?: string
+  }
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error'
+    percentage: number
+    message: string
+  }
+  error?: {
+    message: string
+    details?: string
+    timestamp: timestamp
+  }
+}
+```
+
+**API Endpoints:**
+- `POST /api/extract-document` - Procesar documento
+- `GET /api/context-sources` - Listar fuentes del usuario
+- `DELETE /api/context-sources/:id` - Eliminar fuente
+
+---
+
+### 3. ⚙️ Configuración de Usuario
+
+**Descripción:**
+Cada usuario puede personalizar su experiencia con el AI, eligiendo modelo y definiendo instrucciones de sistema.
+
+**Funcionalidades:**
+- ✅ Selección de modelo preferido (Flash vs Pro)
+- ✅ System prompt personalizable
+- ✅ Persistencia por usuario
+- ✅ Modal de configuración accesible desde menú usuario
+- ✅ Aplicación inmediata a nuevas conversaciones
+- ✅ **FIX CRÍTICO**: Config ahora se pasa correctamente al API
+
+**Configuración por Usuario:**
+```typescript
+userSettings: {
+  preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro'
+  systemPrompt: string // Default: "Eres un asistente..."
+}
+```
+
+**Ejemplo de Uso:**
+- Usuario escribe: "Utiliza emojis en todas tus respuestas 🎉"
+- Todas las respuestas del AI incluyen emojis
+
+---
+
+### 4. 📊 Log de Contexto por Interacción
+
+**Descripción:**
+Sistema de auditoría completo que registra todos los detalles de cada interacción usuario-AI para:
+- Optimización de prompts
+- Control de costos
+- Debug de respuestas
+- Trazabilidad completa
+
+**Información Registrada:**
+```typescript
+ContextLog {
+  id: string
+  timestamp: Date
+  userMessage: string
+  aiResponse: string
+  model: string // 'gemini-2.5-flash' | 'gemini-2.5-pro'
+  systemPrompt: string
+  contextSources: Array<{
+    name: string
+    tokens: number
+  }>
+  totalInputTokens: number // system + history + context + user message
+  totalOutputTokens: number // AI response
+  contextWindowUsed: number
+  contextWindowAvailable: number
+  contextWindowCapacity: number // 1M (Flash) | 2M (Pro)
+}
+```
+
+**UI del Log:**
+- Tabla compacta con columnas: Hora, Pregunta, Modelo, Input, Output, Total, Disponible, Uso%
+- Colores por modelo: Verde (Flash), Morado (Pro)
+- Colores por uso: Verde <50%, Amarillo 50-80%, Rojo >80%
+- Filas expandibles con detalles completos
+- Scroll horizontal para tabla larga
+
+**Beneficios:**
+- ✅ Ver exactamente qué se envió al modelo
+- ✅ Auditar tokens usados por interacción
+- ✅ Optimizar prompts viendo impacto real
+- ✅ Detectar fugas de contexto
+- ✅ Entender costos por mensaje
+
+---
+
+### 5. 🎨 Renderizado Markdown Enriquecido
+
+**Descripción:**
+Las respuestas del AI ahora se renderizan con formato rico usando Markdown, mejorando significativamente la legibilidad y profesionalismo.
+
+**Componente:**
+```typescript
+<MessageRenderer 
+  content={markdownString}
+  contextSources={Array<{id, name, validated}>}
+  onSourceClick={(sourceId) => handleClick(sourceId)}
+/>
+```
+
+**Capacidades:**
+
+#### 💻 Código con Syntax Highlighting
+```python
+def fibonacci(n):
+    return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)
+```
+- Syntax highlighting automático (VSCode Dark theme)
+- Botón "Copiar" al hover
+- Código inline: `variable = value`
+
+#### 📊 Tablas Formateadas
+| Columna 1 | Columna 2 | Columna 3 |
+|-----------|-----------|-----------|
+| Dato A    | Dato B    | Dato C    |
+
+- Headers con background gris
+- Borders y espaciado profesional
+- Scroll horizontal responsive
+
+#### 🔗 Enlaces
+- **Externos**: [Google](https://google.com) - Ícono automático, abre en nueva pestaña
+- **Referencias a fuentes**: `[Ver documento](#source-abc123)` - Clickable, abre modal
+
+#### 🖼️ Imágenes
+```markdown
+![Descripción](https://ejemplo.com/imagen.png)
+```
+- Tarjeta con border y shadow
+- Alt text en footer
+- Lazy loading
+
+#### 📝 Otros Elementos
+- **Blockquotes**: Border azul, background claro, itálica
+- **Listas**: Ordenadas y sin orden con espaciado optimizado
+- **Headings**: H1-H6 con jerarquía visual
+- **Párrafos**: Leading relajado, colores apropiados
+
+**Librerías Usadas:**
+- `react-markdown` - Parsing y renderizado
+- `remark-gfm` - GitHub Flavored Markdown (tablas, etc.)
+- `rehype-raw` - HTML en Markdown
+- `react-syntax-highlighter` - Highlighting de código
+
+---
+
+### 6. 📎 Referencias a Fuentes de Contexto
+
+**Descripción:**
+El AI puede referenciar fuentes de contexto en sus respuestas, permitiendo trazabilidad y verificación.
+
+**Formato:**
+```markdown
+Según el [Documento Demo](#source-{sourceId}), la política indica...
+```
+
+**Comportamiento:**
+- Link es clickable
+- Incluye ícono de documento
+- Badge "✓ Validado" si la fuente fue aprobada
+- Click abre modal con:
+  - Fuente original
+  - Metadata de extracción
+  - Extracto del contenido
+  - Estado de validación
+  - Opción de re-extraer
+
+**Fuentes en Desglose de Contexto:**
+- Tarjetas verdes clickables
+- Badge de validación visible
+- Hover effect
+- Click abre mismo modal de detalles
+
+---
+
+### 7. 🔐 Autenticación y Usuarios
+
+**Descripción:**
+Sistema de autenticación con JWT y Google OAuth2.
+
+**Roles de Usuario:**
+- **Admin** (`admin@demo.com`) - Acceso total
+- **Expert** (`expert@demo.com`) - Puede validar fuentes
+- **User** (`user@demo.com`) - Uso básico
+- **Roles Especializados**:
+  - `context_signoff@demo.com` - Aprobar fuentes
+  - `context_reviewer@demo.com` - Revisar fuentes
+  - `context_creator@demo.com` - Crear fuentes
+  - `agent_signoff@demo.com` - Aprobar agentes
+  - `agent_reviewer@demo.com` - Revisar agentes
+
+**Colecciones Firestore:**
+```typescript
+users: {
+  id: string
+  email: string
+  name: string
+  role: string
+  createdAt: timestamp
+  lastLogin?: timestamp
+}
+```
+
+**Flujo:**
+1. Usuario hace login con Google OAuth2
+2. Backend genera JWT con user data
+3. JWT almacenado en cookie `flow_session`
+4. Cada request verifica JWT
+5. Modo desarrollo permite test user sin auth
+
+---
+
+### 8. 🎯 Contexto por Agente
+
+**Descripción:**
+Cada agente mantiene su propio conjunto de fuentes de contexto activas, persistiendo en Firestore.
+
+**Implementación:**
+```typescript
+// Al activar/desactivar fuente en agente activo
+await saveConversationContext(conversationId, activeSourceIds)
+
+// Al cargar agente
+const activeIds = await loadConversationContext(conversationId)
+// Aplicar enables a contextSources
+```
+
+**Flujo:**
+1. Usuario selecciona agente
+2. Sistema carga `activeContextSourceIds` de Firestore
+3. Fuentes se activan/desactivan según IDs
+4. Usuario modifica contexto (toggles)
+5. Sistema guarda nueva configuración en Firestore
+6. Al cambiar de agente, contexto anterior se preserva
+
+**API Endpoint:**
+```typescript
+PUT /api/conversations/:id/context-sources
+Body: { activeSourceIds: string[] }
+```
+
+---
+
+### 9. 🔄 Workflows y Procesamiento
+
+**Descripción:**
+Sistema de workflows para procesamiento de diferentes tipos de contenido.
+
+**Workflows Disponibles:**
+1. **Procesar PDF** - Extracción automática con Gemini
+2. **Importar CSV** - Parsing de datos tabulares
+3. **Leer Excel** - Hojas de cálculo
+4. **Extraer Word** - Documentos de texto
+5. **Scrape URL** - Contenido web
+6. **Conectar API** - Integraciones externas
+
+**Configuración de Workflow:**
+```typescript
+WorkflowConfig {
+  maxFileSize?: number // MB
+  maxOutputLength?: number // tokens
+  language?: string
+  model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'
+}
+```
+
+**UI:**
+- Panel derecho con workflows disponibles
+- Estado visual: available, running, completed, failed
+- Click en "Ejecutar" abre modal de configuración
+- Guardar como template local
+
+---
+
+### 10. 📱 UI/UX Principal
+
+**Layout:**
+```
+┌─────────────┬─────────────────────────────┬──────────────┐
+│             │                             │              │
+│   Sidebar   │       Chat Messages         │  Workflows   │
+│   Izquierdo │                             │   Panel      │
+│             │                             │  (Derecho)   │
+│  • Agentes  │  • User messages (blue)     │              │
+│  • Context  │  • AI messages (white)      │  • Execute   │
+│  • Sources  │  • Markdown rendering       │  • Config    │
+│  • User     │                             │  • Status    │
+│             │                             │              │
+│             ├─────────────────────────────┤              │
+│             │   Context Button            │              │
+│             │   Input Area                │              │
+└─────────────┴─────────────────────────────┴──────────────┘
+```
+
+**Componentes Principales:**
+- `ChatInterfaceWorking.tsx` - Componente principal
+- `MessageRenderer.tsx` - Renderizado Markdown
+- `ContextManager.tsx` - Gestión de fuentes
+- `AddSourceModal.tsx` - Subir nuevas fuentes
+- `WorkflowConfigModal.tsx` - Configurar workflows
+- `UserSettingsModal.tsx` - Config de usuario
+- `ContextSourceSettingsModal.tsx` - Detalles de fuente
+
+---
+
+## 🎨 Design System
+
+### Colores
+- **Primary**: Azul (`blue-600`, `blue-50`)
+- **Success**: Verde (`green-600`, `green-50`)
+- **Warning**: Amarillo (`yellow-600`, `yellow-50`)
+- **Error**: Rojo (`red-600`, `red-50`)
+- **Neutral**: Slate (`slate-50` to `slate-900`)
+
+### Modelos AI
+- **Flash**: Verde (`green-600`) - Rápido, económico
+- **Pro**: Morado (`purple-600`) - Preciso, costoso
+
+### Iconos (Lucide React)
+- `MessageSquare` - Conversaciones
+- `FileText` - Documentos
+- `Sparkles` - AI/Modelo
+- `Settings` - Configuración
+- `CheckCircle` - Validado
+- `XCircle` - Error
+- `Loader2` - Procesando
+
+---
+
+## 🚀 Tecnologías
+
+### Frontend
+- **Framework**: Astro 5.1.x + React 18.3.x
+- **Lenguaje**: TypeScript 5.7.x
+- **Estilos**: Tailwind CSS 3.4.x (NO v4)
+- **Iconos**: Lucide React
+- **Markdown**: react-markdown, remark-gfm, rehype-raw
+- **Code Highlighting**: react-syntax-highlighter
+
+### Backend
+- **API**: Astro API Routes
+- **Database**: Google Firestore
+- **Analytics**: Google BigQuery
+- **AI**: Google Gemini AI 2.5 (Flash, Pro)
+- **Auth**: JWT + Google OAuth2
+- **Deployment**: Google Cloud Run
+
+### DevOps
+- **Build**: `npm run build`
+- **Dev**: `npm run dev`
+- **Deploy**: `npx pame-core-cli deploy www --production`
+- **Project**: `salfagpt-a98b5` (GCP)
+
+---
+
+## 📊 Métricas y KPIs
+
+### Por Usuario
+- Conversaciones creadas
+- Mensajes enviados
+- Tokens usados (input/output)
+- Fuentes de contexto subidas
+- Fuentes validadas
+
+### Por Sistema
+- Tiempo de respuesta promedio
+- Tasa de error
+- Uso de modelos (Flash vs Pro)
+- Costo por conversación
+- Uptime
+
+---
+
+## 🔮 Roadmap Futuro
+
+### Corto Plazo (1-2 meses)
+- [ ] Exportar conversaciones como PDF
+- [ ] Compartir fuentes entre usuarios/grupos
+- [ ] Email templates para compartir contexto
+- [ ] A/B testing de modelos
+- [ ] Evaluación de calidad de extracción
+
+### Mediano Plazo (3-6 meses)
+- [ ] Soporte para videos embebidos
+- [ ] Mermaid diagrams en respuestas
+- [ ] RAG avanzado con embeddings
+- [ ] Fine-tuning de modelos específicos
+- [ ] Dashboard de analytics avanzado
+
+### Largo Plazo (6-12 meses)
+- [ ] Multi-tenant con aislamiento completo
+- [ ] Marketplace de agentes
+- [ ] API pública para integraciones
+- [ ] Mobile apps (iOS/Android)
+- [ ] WhatsApp/Slack integrations
+
+---
+
+## 🔒 Seguridad y Compliance
+
+### Datos
+- Todos los datos en reposo encriptados (Firestore)
+- Conexiones HTTPS obligatorias
+- JWT con expiración configurable
+- No se almacenan archivos originales (solo extractos)
+
+### Autenticación
+- OAuth2 con Google
+- JWT tokens con refresh
+- Session cookies httpOnly
+- CORS configurado apropiadamente
+
+### Permisos
+- Usuarios solo ven sus propios datos
+- Admins tienen acceso completo
+- Roles granulares para operaciones específicas
+- Auditoría de acciones críticas
+
+---
+
+## 📝 Notas de Implementación
+
+### Convenciones de Código
+- TypeScript estricto
+- ESLint + Prettier
+- Componentes funcionales con hooks
+- Props con interfaces explícitas
+- Comentarios en español para lógica de negocio
+
+### Testing
+- Unit tests para funciones críticas
+- Integration tests para API endpoints
+- E2E tests para flujos principales
+- Manual QA antes de cada deploy
+
+### Deployment
+1. `npm run build` - Verificar build limpio
+2. `npm run type-check` - Sin errores TypeScript
+3. Test en local: `npm run dev`
+4. Deploy: `npx pame-core-cli deploy www --production`
+5. Verificar en producción
+
+---
+
+## 🐛 Issues Conocidos y Soluciones
+
+### 1. Configuración no se aplicaba
+**Problema**: User settings no se pasaban al API
+**Solución**: `sendMessage()` ahora envía `model` y `systemPrompt`
+
+### 2. Conversaciones temporales sin contexto
+**Problema**: Temp conversations no mostraban contexto completo
+**Solución**: `calculateLocalContext()` construye contexto desde mensajes locales
+
+### 3. Firestore connection errors
+**Problema**: Local dev no conectaba a Firestore
+**Solución**: ADC con `gcloud auth application-default login`
+
+### 4. CSS no compilaba
+**Problema**: Tailwind v4 incompatible con Next.js 15
+**Solución**: Downgrade a Tailwind v3.4.x
+
+---
+
+## 📚 Documentación Relacionada
+
+- `docs/CHAT_INTEGRATION_LESSONS.md` - Lecciones aprendidas
+- `docs/GEMINI_API_MIGRATION.md` - Guía de Gemini AI
+- `.cursor/rules/gemini-api-usage.mdc` - Reglas de API
+- `.cursor/rules/gcp-project-consistency.mdc` - Consistencia GCP
+- `MARKDOWN_FEATURES_GUIDE.md` - Guía de Markdown
+
+---
+
+**Última Actualización**: 2025-10-12
+**Versión**: 2.0.0
+**Estado**: ✅ En Producción

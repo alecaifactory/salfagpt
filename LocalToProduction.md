@@ -1,6 +1,6 @@
 # 🚀 Local to Production: Complete Deployment Guide
 
-**Project:** SalfaGPT - AI-Powered Conversations  
+**Project:** Flow - AI-Powered Conversations  
 **Framework:** Astro + React + Node.js  
 **Cloud Platform:** Google Cloud Run  
 **Status:** ✅ Successfully Deployed
@@ -34,7 +34,7 @@ A full-stack AI chat application with:
 - **Hosting:** Google Cloud Run (serverless)
 
 ### Production URL
-**Live App:** https://salfagpt-cno6l2kfga-uc.a.run.app
+**Live App:** https://flow-cno6l2kfga-uc.a.run.app
 
 ### Deployment Timeline
 - **Start:** October 10, 2025 10:47 AM
@@ -59,7 +59,7 @@ A full-stack AI chat application with:
 ### Step 1: Project Structure
 
 ```
-salfagpt/
+flow/
 ├── src/
 │   ├── components/       # React components
 │   ├── lib/             # Utilities and helpers
@@ -120,7 +120,7 @@ ENABLE_ANALYTICS=true
 ENABLE_CHAT=true
 
 # Optional: BigQuery
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=flow_dataset
 
 # Optional: Vertex AI
 VERTEX_AI_LOCATION=us-central1
@@ -133,7 +133,7 @@ VERTEX_AI_LOCATION=us-central1
 1. Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
 2. Create OAuth 2.0 Client ID
 3. Configure OAuth consent screen:
-   - App name: SalfaGPT
+   - App name: Flow
    - User support email: your-email@example.com
    - Scopes: `userinfo.email`, `userinfo.profile`
 
@@ -291,7 +291,7 @@ Rule 1:
 4. Grant public access to Cloud Run service:
 
 ```bash
-gcloud beta run services add-iam-policy-binding salfagpt \
+gcloud beta run services add-iam-policy-binding flow \
   --region=us-central1 \
   --member=allUsers \
   --role=roles/run.invoker \
@@ -394,11 +394,11 @@ done
 #### 4.1 Deploy to Cloud Run
 
 ```bash
-gcloud run deploy salfagpt \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --set-secrets="GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest" \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production,VERTEX_AI_LOCATION=us-central1,PUBLIC_BASE_URL=https://salfagpt-cno6l2kfga-uc.a.run.app,BIGQUERY_DATASET=salfagpt_dataset,ENABLE_ANALYTICS=true,ENABLE_CHAT=true" \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production,VERTEX_AI_LOCATION=us-central1,PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app,BIGQUERY_DATASET=flow_dataset,ENABLE_ANALYTICS=true,ENABLE_CHAT=true" \
   --project=gen-lang-client-0986191192
 ```
 
@@ -412,8 +412,8 @@ gcloud run deploy salfagpt \
 
 **Deployment Output:**
 ```
-Service [salfagpt] revision [salfagpt-00004-7jg] has been deployed
-Service URL: https://salfagpt-cno6l2kfga-uc.a.run.app
+Service [flow] revision [flow-00004-7jg] has been deployed
+Service URL: https://flow-cno6l2kfga-uc.a.run.app
 ```
 
 #### 4.2 Configure OAuth for Production
@@ -425,13 +425,13 @@ Service URL: https://salfagpt-cno6l2kfga-uc.a.run.app
 **Authorized JavaScript origins:**
 ```
 http://localhost:3000                        (keep for local dev)
-https://salfagpt-cno6l2kfga-uc.a.run.app     (add for production)
+https://flow-cno6l2kfga-uc.a.run.app     (add for production)
 ```
 
 **Authorized redirect URIs:**
 ```
 http://localhost:3000/auth/callback          (keep for local dev)
-https://salfagpt-cno6l2kfga-uc.a.run.app/auth/callback  (add for production)
+https://flow-cno6l2kfga-uc.a.run.app/auth/callback  (add for production)
 ```
 
 4. Click **Save**
@@ -516,10 +516,10 @@ Redirects:
 
 ```
 Origins:
-  https://salfagpt-cno6l2kfga-uc.a.run.app
+  https://flow-cno6l2kfga-uc.a.run.app
 
 Redirects:
-  https://salfagpt-cno6l2kfga-uc.a.run.app/auth/callback
+  https://flow-cno6l2kfga-uc.a.run.app/auth/callback
 ```
 
 #### Both Environments (Final Configuration)
@@ -527,11 +527,11 @@ Redirects:
 ```
 Authorized JavaScript origins:
   ✅ http://localhost:3000
-  ✅ https://salfagpt-cno6l2kfga-uc.a.run.app
+  ✅ https://flow-cno6l2kfga-uc.a.run.app
 
 Authorized redirect URIs:
   ✅ http://localhost:3000/auth/callback
-  ✅ https://salfagpt-cno6l2kfga-uc.a.run.app/auth/callback
+  ✅ https://flow-cno6l2kfga-uc.a.run.app/auth/callback
 ```
 
 ### OAuth Flow
@@ -635,7 +635,7 @@ ENABLE_ANALYTICS=true
 ENABLE_CHAT=true
 
 # Optional
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -645,9 +645,9 @@ VERTEX_AI_LOCATION=us-central1
 # Set as environment variables
 GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
 NODE_ENV=production
-PUBLIC_BASE_URL=https://salfagpt-cno6l2kfga-uc.a.run.app
+PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app
 VERTEX_AI_LOCATION=us-central1
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=flow_dataset
 ENABLE_ANALYTICS=true
 ENABLE_CHAT=true
 
@@ -683,7 +683,7 @@ npm run dev
 
 ```bash
 # Visit production URL
-open https://salfagpt-cno6l2kfga-uc.a.run.app
+open https://flow-cno6l2kfga-uc.a.run.app
 
 # Test checklist
 - [x] Landing page loads (no errors)
@@ -703,21 +703,21 @@ open https://salfagpt-cno6l2kfga-uc.a.run.app
 ```bash
 # Test public accessibility
 curl -s -o /dev/null -w "%{http_code}\n" \
-  https://salfagpt-cno6l2kfga-uc.a.run.app
+  https://flow-cno6l2kfga-uc.a.run.app
 # Expected: 200
 
 # Test OAuth login redirect
-curl -sI https://salfagpt-cno6l2kfga-uc.a.run.app/auth/login | grep Location
+curl -sI https://flow-cno6l2kfga-uc.a.run.app/auth/login | grep Location
 # Expected: Location: https://accounts.google.com/...
 
 # View recent logs
 gcloud logging read \
-  "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt" \
+  "resource.type=cloud_run_revision AND resource.labels.service_name=flow" \
   --limit=20 \
   --project=gen-lang-client-0986191192
 
 # Check service status
-gcloud run services describe salfagpt \
+gcloud run services describe flow \
   --region=us-central1 \
   --project=gen-lang-client-0986191192
 ```
@@ -730,11 +730,11 @@ gcloud run services describe salfagpt \
 
 ```bash
 # One-command deployment
-gcloud run deploy salfagpt \
+gcloud run deploy flow \
   --source . \
   --region us-central1 \
   --set-secrets="GOOGLE_CLIENT_ID=google-client-id:latest,GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest" \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production,VERTEX_AI_LOCATION=us-central1,PUBLIC_BASE_URL=https://salfagpt-cno6l2kfga-uc.a.run.app,BIGQUERY_DATASET=salfagpt_dataset,ENABLE_ANALYTICS=true,ENABLE_CHAT=true" \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production,VERTEX_AI_LOCATION=us-central1,PUBLIC_BASE_URL=https://flow-cno6l2kfga-uc.a.run.app,BIGQUERY_DATASET=flow_dataset,ENABLE_ANALYTICS=true,ENABLE_CHAT=true" \
   --project=gen-lang-client-0986191192
 ```
 
@@ -743,19 +743,19 @@ gcloud run deploy salfagpt \
 ```bash
 # 1. Build container
 gcloud builds submit \
-  --tag gcr.io/gen-lang-client-0986191192/salfagpt \
+  --tag gcr.io/gen-lang-client-0986191192/flow \
   --project=gen-lang-client-0986191192
 
 # 2. Deploy to Cloud Run
-gcloud run deploy salfagpt \
-  --image gcr.io/gen-lang-client-0986191192/salfagpt \
+gcloud run deploy flow \
+  --image gcr.io/gen-lang-client-0986191192/flow \
   --region us-central1 \
   --set-secrets="..." \
   --set-env-vars="..." \
   --project=gen-lang-client-0986191192
 
 # 3. Make public
-gcloud beta run services add-iam-policy-binding salfagpt \
+gcloud beta run services add-iam-policy-binding flow \
   --region=us-central1 \
   --member=allUsers \
   --role=roles/run.invoker \
@@ -766,19 +766,19 @@ gcloud beta run services add-iam-policy-binding salfagpt \
 
 ```bash
 # Update environment variables only
-gcloud run services update salfagpt \
+gcloud run services update flow \
   --region=us-central1 \
   --set-env-vars="NEW_VAR=value" \
   --project=gen-lang-client-0986191192
 
 # Update secrets only
-gcloud run services update salfagpt \
+gcloud run services update flow \
   --region=us-central1 \
   --set-secrets="NEW_SECRET=secret-name:latest" \
   --project=gen-lang-client-0986191192
 
 # Redeploy with latest code
-gcloud run deploy salfagpt \
+gcloud run deploy flow \
   --source . \
   --region=us-central1 \
   --project=gen-lang-client-0986191192
@@ -793,22 +793,22 @@ gcloud run deploy salfagpt \
 ```bash
 # View logs
 gcloud logging read \
-  "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt" \
+  "resource.type=cloud_run_revision AND resource.labels.service_name=flow" \
   --limit=50 \
   --project=gen-lang-client-0986191192
 
 # Tail logs in real-time
 gcloud logging tail \
-  "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt" \
+  "resource.type=cloud_run_revision AND resource.labels.service_name=flow" \
   --project=gen-lang-client-0986191192
 
 # View metrics
 gcloud monitoring timeseries list \
-  --filter='resource.type="cloud_run_revision" AND resource.label.service_name="salfagpt"' \
+  --filter='resource.type="cloud_run_revision" AND resource.label.service_name="flow"' \
   --project=gen-lang-client-0986191192
 
 # Check service health
-gcloud run services describe salfagpt \
+gcloud run services describe flow \
   --region=us-central1 \
   --format="value(status.conditions)" \
   --project=gen-lang-client-0986191192
@@ -832,13 +832,13 @@ echo -n "new-client-secret" | \
 
 ```bash
 # Set minimum instances (reduce cold starts)
-gcloud run services update salfagpt \
+gcloud run services update flow \
   --region=us-central1 \
   --min-instances=1 \
   --project=gen-lang-client-0986191192
 
 # Set maximum instances (control costs)
-gcloud run services update salfagpt \
+gcloud run services update flow \
   --region=us-central1 \
   --max-instances=10 \
   --project=gen-lang-client-0986191192
@@ -849,13 +849,13 @@ gcloud run services update salfagpt \
 ```bash
 # List revisions
 gcloud run revisions list \
-  --service=salfagpt \
+  --service=flow \
   --region=us-central1 \
   --project=gen-lang-client-0986191192
 
 # Route traffic to specific revision
-gcloud run services update-traffic salfagpt \
-  --to-revisions=salfagpt-00003-abc=100 \
+gcloud run services update-traffic flow \
+  --to-revisions=flow-00003-abc=100 \
   --region=us-central1 \
   --project=gen-lang-client-0986191192
 ```
@@ -939,11 +939,11 @@ gcloud run services update-traffic salfagpt \
 ## 🔗 Quick Reference Links
 
 ### Production URLs
-- **App:** https://salfagpt-cno6l2kfga-uc.a.run.app
-- **OAuth Callback:** https://salfagpt-cno6l2kfga-uc.a.run.app/auth/callback
+- **App:** https://flow-cno6l2kfga-uc.a.run.app
+- **OAuth Callback:** https://flow-cno6l2kfga-uc.a.run.app/auth/callback
 
 ### GCP Console Links
-- [Cloud Run Service](https://console.cloud.google.com/run/detail/us-central1/salfagpt?project=gen-lang-client-0986191192)
+- [Cloud Run Service](https://console.cloud.google.com/run/detail/us-central1/flow?project=gen-lang-client-0986191192)
 - [OAuth Credentials](https://console.cloud.google.com/apis/credentials?project=gen-lang-client-0986191192)
 - [Secret Manager](https://console.cloud.google.com/security/secret-manager?project=gen-lang-client-0986191192)
 - [Cloud Build History](https://console.cloud.google.com/cloud-build/builds?project=gen-lang-client-0986191192)
@@ -1009,14 +1009,14 @@ Solution: Check service account permissions
 1. **Check Logs:**
    ```bash
    gcloud logging read \
-     "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt" \
+     "resource.type=cloud_run_revision AND resource.labels.service_name=flow" \
      --limit=50 \
      --project=gen-lang-client-0986191192
    ```
 
 2. **Check Service Status:**
    ```bash
-   gcloud run services describe salfagpt \
+   gcloud run services describe flow \
      --region=us-central1 \
      --project=gen-lang-client-0986191192
    ```
@@ -1064,7 +1064,7 @@ Solution: Check service account permissions
 
 ## 🏆 Conclusion
 
-We successfully deployed SalfaGPT from local development to production on Google Cloud Run, overcoming several technical challenges along the way:
+We successfully deployed Flow from local development to production on Google Cloud Run, overcoming several technical challenges along the way:
 
 **Key Achievements:**
 - ✅ Containerized Astro + React application
@@ -1088,7 +1088,7 @@ We successfully deployed SalfaGPT from local development to production on Google
 
 ---
 
-**Production URL:** https://salfagpt-cno6l2kfga-uc.a.run.app  
+**Production URL:** https://flow-cno6l2kfga-uc.a.run.app  
 **Status:** ✅ Operational  
 **Deployment:** Successful  
 **Next Milestone:** CI/CD Automation

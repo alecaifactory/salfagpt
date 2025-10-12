@@ -1,4 +1,4 @@
-# SalfaGPT Setup Guide
+# Flow Setup Guide
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@
 4. Click **Create Credentials** > **OAuth 2.0 Client ID**
 5. Configure the OAuth consent screen if prompted:
    - User Type: External (or Internal for Google Workspace)
-   - Add your app name: "SalfaGPT"
+   - Add your app name: "Flow"
    - Add user support email
    - Add developer contact email
    - Add scopes: `userinfo.email`, `userinfo.profile`
@@ -25,7 +25,7 @@
 ### Step 2: Configure OAuth Client
 
 1. Application type: **Web application**
-2. Name: "SalfaGPT Web Client"
+2. Name: "Flow Web Client"
 
 #### For Local Development
 
@@ -85,13 +85,13 @@ GOOGLE_CLOUD_PROJECT=your_gcp_project_id
 # GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # BigQuery Configuration
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=flow_dataset
 
 # Vertex AI Configuration
 VERTEX_AI_LOCATION=us-central1
 
 # Session Configuration
-SESSION_COOKIE_NAME=salfagpt_session
+SESSION_COOKIE_NAME=flow_session
 SESSION_MAX_AGE=86400
 
 # Security
@@ -115,7 +115,7 @@ openssl rand -base64 32
 
 1. Go to **IAM & Admin** > **Service Accounts**
 2. Click **Create Service Account**
-3. Name: "salfagpt-service"
+3. Name: "flow-service"
 4. Grant these roles:
    - **BigQuery Admin** (`roles/bigquery.admin`)
    - **Vertex AI User** (`roles/aiplatform.user`)
@@ -233,17 +233,17 @@ CMD ["node", "./dist/server/entry.mjs"]
 
 1. Build and push the image:
 ```bash
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/salfagpt
+gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/flow
 ```
 
 2. Deploy to Cloud Run with Workload Identity:
 ```bash
-gcloud run deploy salfagpt \
-  --image gcr.io/YOUR_PROJECT_ID/salfagpt \
+gcloud run deploy flow \
+  --image gcr.io/YOUR_PROJECT_ID/flow \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --service-account salfagpt-service@YOUR_PROJECT_ID.iam.gserviceaccount.com \
+  --service-account flow-service@YOUR_PROJECT_ID.iam.gserviceaccount.com \
   --set-env-vars "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
   --set-env-vars "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
   --set-env-vars "JWT_SECRET=${JWT_SECRET}" \
@@ -259,14 +259,14 @@ gcloud run deploy salfagpt \
 
 ### Update OAuth Configuration for Production
 
-After deployment, get your Cloud Run URL (e.g., `https://salfagpt-xxx-uc.a.run.app`)
+After deployment, get your Cloud Run URL (e.g., `https://flow-xxx-uc.a.run.app`)
 
 Update in Google Cloud Console:
 1. Go to **APIs & Services** > **Credentials**
 2. Edit your OAuth 2.0 Client
 3. Add production URLs:
-   - **Authorized JavaScript origins:** `https://salfagpt-xxx-uc.a.run.app`
-   - **Authorized redirect URIs:** `https://salfagpt-xxx-uc.a.run.app/auth/callback`
+   - **Authorized JavaScript origins:** `https://flow-xxx-uc.a.run.app`
+   - **Authorized redirect URIs:** `https://flow-xxx-uc.a.run.app/auth/callback`
 
 ## 8. Security Best Practices
 
@@ -291,7 +291,7 @@ Update in Google Cloud Console:
 
 View logs:
 ```bash
-gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt" --limit 50
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=flow" --limit 50
 ```
 
 ## Troubleshooting

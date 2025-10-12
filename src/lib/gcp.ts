@@ -1,9 +1,19 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { VertexAI } from '@google-cloud/vertexai';
 
-const PROJECT_ID = import.meta.env.GOOGLE_CLOUD_PROJECT;
-const LOCATION = import.meta.env.VERTEX_AI_LOCATION || 'us-central1';
-const DATASET_ID = import.meta.env.BIGQUERY_DATASET || 'salfagpt_dataset';
+// Prioritize process.env for Cloud Run
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : undefined);
+const LOCATION = process.env.VERTEX_AI_LOCATION || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.VERTEX_AI_LOCATION 
+    : undefined) || 'us-central1';
+const DATASET_ID = process.env.BIGQUERY_DATASET || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.BIGQUERY_DATASET 
+    : undefined) || 'flow_dataset';
 
 // Initialize BigQuery client
 // In production (Cloud Run), uses Workload Identity automatically

@@ -1,0 +1,316 @@
+---
+alwaysApply: true
+---
+### 2. 📚 PROJECT DOCUMENTATION
+**Location**: `docs/` folder, `README.md`, `*.md` files in root
+
+**Second priority - provides context and implementation details.**
+
+Examples:
+- `docs/LocalToProduction.md`
+- `docs/DEPLOYMENT_SUCCESS.md`
+- `docs/BranchLog.md`
+- `README.md`
+- `TEST_ERROR_HANDLING.md`
+
+**Why second priority?**
+- Project-specific implementation
+- Historical decisions documented
+- Troubleshooting guides
+- Lessons learned
+
+---
+
+### 3. 👤 USER RULES
+**Location**: User's general preferences/settings
+
+**Third priority - general preferences that don't conflict with project.**
+
+Examples:
+- Code style preferences
+- Comment preferences
+- General best practices
+- Workflow preferences
+
+**When to apply?**
+- ✅ When no project-specific rule exists
+- ✅ When not conflicting with project rules
+- ✅ For general coding standards
+
+**When to IGNORE?**
+- ❌ When conflicts with project rules
+- ❌ When contradicts project documentation
+- ❌ When would break project functionality
+
+---
+
+### 4. 🌐 GENERAL BEST PRACTICES
+**Location**: Industry standards, framework docs, etc.
+
+**Lowest priority - only when no other guidance exists.**
+
+Examples:
+- TypeScript best practices
+- React best practices
+- Astro conventions
+- Security standards
+
+---
+
+## 🚨 Conflict Resolution Examples
+
+### Example 1: Deployment Method
+
+**User Rule Says:**
+```
+"Use pame-core-cli for deployment"
+```
+
+**Project Rule Says:**
+```
+"Use gcloud CLI directly for deployment"
+```
+
+**RESOLUTION:**
+✅ **Follow Project Rule** - Use `gcloud CLI`
+
+**Rationale:** Project-specific deployment method is critical for this project to work correctly.
+
+---
+
+### Example 2: CSS Framework Version
+
+**User Rule Says:**
+```
+"Use latest Tailwind CSS v4"
+```
+
+**Project Rule Says:**
+```
+"ALWAYS use Tailwind CSS v3.4.x (NOT v4)"
+```
+
+**RESOLUTION:**
+✅ **Follow Project Rule** - Use Tailwind v3.4.x
+
+**Rationale:** v4 is experimental and causes build failures in this project.
+
+---
+
+### Example 3: GCP Project
+
+**User Rule Says:**
+```
+"Use user's default GCP project"
+```
+
+**Project Rule Says:**
+```
+"ALWAYS use gen-lang-client-0986191192"
+```
+
+**RESOLUTION:**
+✅ **Follow Project Rule** - Use gen-lang-client-0986191192
+
+**Rationale:** All resources (Firestore, BigQuery) are in this specific project.
+
+---
+
+### Example 4: Code Style (No Conflict)
+
+**User Rule Says:**
+```
+"Use semicolons in TypeScript"
+```
+
+**Project Rule Says:**
+```
+(No specific rule about semicolons)
+```
+
+**RESOLUTION:**
+✅ **Follow User Rule** - Use semicolons
+
+**Rationale:** No project rule conflicts, so user preference applies.
+
+---
+
+## 📋 Decision Matrix
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Is there a project-specific rule?                      │
+│  ├─ YES → Follow project rule (DONE)                   │
+│  └─ NO → Continue                                        │
+│                                                          │
+│  Is there project documentation on this?                 │
+│  ├─ YES → Follow documentation (DONE)                  │
+│  └─ NO → Continue                                        │
+│                                                          │
+│  Is there a user rule that makes sense?                  │
+│  ├─ YES → Follow user rule (DONE)                      │
+│  └─ NO → Continue                                        │
+│                                                          │
+│  Apply general best practices (DONE)                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔍 How to Identify Rule Source
+
+### Project Rules (Highest Priority)
+```
+✅ File is in .cursor/rules/*.mdc
+✅ File is in docs/ folder
+✅ Mentioned in project README
+```
+
+### User Rules (Lower Priority)
+```
+⚠️ General preference not specific to project
+⚠️ Comes from user's Cursor settings
+⚠️ Comes from user's general instructions
+```
+
+---
+
+## 💡 Guiding Principles
+
+### 1. **Respect Project Requirements**
+If a project rule exists, it's there for a reason. Don't override it without understanding why.
+
+### 2. **Document Conflicts**
+If you find a conflict, document it and ask the user for clarification.
+
+### 3. **Prefer Explicit Over Implicit**
+Project-specific rules are explicit. User rules might be implicit or general.
+
+### 4. **When in Doubt, Ask**
+If unsure about rule precedence, ask the user:
+```
+"I see a conflict between:
+- Project rule: X
+- User rule: Y
+
+The project rule suggests Z because [reason].
+Should I follow the project rule or would you like to override it?"
+```
+
+---
+
+## 🚫 Common Mistakes to Avoid
+
+### ❌ WRONG: Applying User Rules Over Project Rules
+```
+User says: "Use pame-core-cli"
+Project says: "Use gcloud CLI"
+→ WRONG: Using pame-core-cli
+✅ RIGHT: Using gcloud CLI (project rule wins)
+```
+
+### ❌ WRONG: Ignoring Project Documentation
+```
+Project docs say: "Tailwind v3.4.x only"
+General best practice: "Use latest version"
+→ WRONG: Installing Tailwind v4
+✅ RIGHT: Using v3.4.x (project docs win)
+```
+
+### ❌ WRONG: Assuming All User Rules Apply
+```
+User rule: "Create helper scripts for efficiency"
+Project rule: "Use standard tools, no workarounds"
+→ WRONG: Creating helper scripts
+✅ RIGHT: Following project approach (project rule wins)
+```
+
+---
+
+## ✅ Correct Behavior Examples
+
+### Example 1: Checking for Project Rules First
+```
+Task: Deploy to production
+
+Step 1: Check .cursor/rules/project-identity.mdc
+→ Found: "Use gcloud CLI, NOT pame-core-cli"
+
+Step 2: Follow project rule
+→ Use: gcloud run deploy ...
+
+Result: ✅ Correct deployment method used
+```
+
+### Example 2: Falling Back to User Rules
+```
+Task: Format code comments
+
+Step 1: Check project rules
+→ No specific rule about comment format
+
+Step 2: Check user rules
+→ User prefers JSDoc style comments
+
+Step 3: Apply user rule
+→ Use JSDoc format
+
+Result: ✅ User preference applied (no conflict)
+```
+
+### Example 3: Identifying Conflict and Asking
+```
+Task: Choose testing framework
+
+Step 1: Check project rules
+→ Found: "No testing framework configured yet"
+
+Step 2: Check user rules
+→ User prefers Jest
+
+Step 3: No conflict, but major decision
+→ Ask user: "No testing framework is configured.
+   Would you like me to set up Jest?"
+
+Result: ✅ User consulted for major decision
+```
+
+---
+
+## 📝 When to Update Rules
+
+### Update Project Rules When:
+- ✅ Project requirements change
+- ✅ New technology is adopted
+- ✅ Critical issues are discovered
+- ✅ User explicitly requests project-level change
+
+### Update User Rules When:
+- ✅ Personal preferences change
+- ✅ Working across multiple projects
+- ✅ General workflow improvements
+
+**Never update project rules based on user rules without explicit permission.**
+
+---
+
+## 🎯 Summary
+
+```
+CONFLICT? → CHECK PROJECT RULES FIRST
+         → PROJECT RULE EXISTS? → FOLLOW IT
+         → NO PROJECT RULE? → CHECK DOCS
+                            → DOCS EXIST? → FOLLOW THEM
+                            → NO DOCS? → CHECK USER RULES
+                                       → USER RULE MAKES SENSE? → FOLLOW IT
+                                       → ELSE → BEST PRACTICES
+```
+
+**Golden Rule:**
+> "When in doubt, project-specific rules ALWAYS win over general user preferences."
+
+---
+
+**Last Updated**: 2025-10-12
+**Priority**: CRITICAL
+**Applies To**: All AI assistants working on this project

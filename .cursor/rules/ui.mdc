@@ -1,0 +1,1324 @@
+---
+alwaysApply: true
+---
+## 🗂️ Sidebar Izquierdo
+
+### Header Section
+
+```html
+<div class="h-16 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+  <h1 class="text-2xl font-bold text-white">Flow</h1>
+</div>
+```
+
+**Estilos:**
+- Height: 64px
+- Gradient: blue-600 → indigo-600
+- Text: 2xl, bold, white
+- Center alignment
+
+---
+
+### New Agent Button
+
+```html
+<button class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+  <Plus class="w-5 h-5" />
+  <span class="font-medium">Nuevo Agente</span>
+</button>
+```
+
+**Estados:**
+- Default: bg-blue-600
+- Hover: bg-blue-700
+- Click: Crea nuevo agente con nombre "Nuevo Agente {timestamp}"
+
+**Interacción:**
+1. Click en botón
+2. POST a `/api/conversations`
+3. Agente aparece en lista
+4. Se selecciona automáticamente
+5. Chat limpio listo para usar
+
+---
+
+### Agent List (Conversations)
+
+```html
+<div class="flex-1 overflow-y-auto px-3 py-2">
+  {conversations.map(conv => (
+    <button
+      class={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+        selected ? 'bg-blue-100 text-blue-800' : 'hover:bg-slate-100'
+      }`}
+    >
+      <MessageSquare class="w-5 h-5" />
+      <div class="flex-1 text-left min-w-0">
+        <p class="text-sm font-medium truncate">{conv.title}</p>
+        <p class="text-xs text-slate-500">{timeAgo}</p>
+      </div>
+      {conv.lastMessage && (
+        <ChevronRight class="w-4 h-4 text-slate-400" />
+      )}
+    </button>
+  ))}
+</div>
+```
+
+**Estados:**
+- **Default**: bg-white, hover:bg-slate-100
+- **Selected**: bg-blue-100, text-blue-800, border-l-4 border-blue-600
+- **Empty**: Muestra placeholder "No hay conversaciones"
+
+**Elementos:**
+- Icono: MessageSquare (Lucide)
+- Título: Truncado con ellipsis
+- Timestamp: Relativo ("hace 5 min", "ayer", etc.)
+- Indicador: ChevronRight si tiene mensajes
+
+**Interacción:**
+1. Click selecciona conversación
+2. Carga mensajes del agente
+3. Carga contexto activo del agente
+4. Actualiza área de chat
+5. Scroll al último mensaje
+
+---
+
+### Context Manager Section
+
+```html
+<div class="p-4 border-t border-slate-200">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-semibold text-slate-700">Fuentes de Contexto</h3>
+    <button class="text-slate-500 hover:text-slate-700">
+      <ChevronRight class="w-4 h-4" />
+    </button>
+  </div>
+
+  <button class="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+    <Plus class="w-4 h-4" />
+    <span class="text-sm font-medium">Agregar Fuente</span>
+  </button>
+
+  <div class="space-y-2 mt-3 max-h-60 overflow-y-auto">
+    {sources.map(source => (
+      <button class="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 text-left">
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center gap-2">
+            <FileText class="w-3.5 h-3.5 text-green-600" />
+            <span class="text-xs font-semibold">{source.name}</span>
+            {source.validated && (
+              <span class="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full">
+                ✓ Validado
+              </span>
+            )}
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="p-1 text-slate-400 hover:text-blue-500">
+              <Settings class="w-4 h-4" />
+            </button>
+            <!-- Toggle Switch -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={source.enabled} class="sr-only peer" />
+              <div class="w-9 h-5 bg-slate-200 peer-checked:bg-green-600 rounded-full"></div>
+            </label>
+          </div>
+        </div>
+        <p class="text-xs text-slate-600">{source.extractedData.substring(0, 80)}...</p>
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+**Componentes:**
+
+#### Fuente Individual
+- **Card**: bg-green-50, border-green-200, rounded, padding
+- **Hover**: bg-green-100
+- **Badge Validado**: bg-green-600, text-white, rounded-full, font-semibold
+- **Settings Button**: Abre `ContextSourceSettingsModal`
+- **Toggle Switch**: 
+  - Desactivado: bg-slate-200
+  - Activado: bg-green-600
+  - Smooth transition
+
+**Estados de Fuente:**
+- **Processing**: Loader2 animado, badge azul "Procesando"
+- **Active**: CheckCircle verde, toggle activado
+- **Error**: XCircle roja, badge rojo con mensaje
+- **Disabled**: Toggle desactivado, card gris
+
+**Progress Tracking:**
+```html
+{source.progress && (
+  <div class="mt-2 space-y-1">
+    <div class="flex items-center justify-between text-xs">
+      <span class="text-blue-600">{source.progress.message}</span>
+      <span class="font-semibold">{source.progress.percentage}%</span>
+    </div>
+    <div class="w-full bg-slate-200 rounded-full h-1.5">
+      <div 
+        class="bg-blue-600 h-1.5 rounded-full transition-all"
+        style={`width: ${source.progress.percentage}%`}
+      />
+    </div>
+  </div>
+)}
+```
+
+**Error Display:**
+```html
+{source.error && (
+  <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+    <p class="font-medium">Error: {source.error.message}</p>
+    {source.error.details && <p class="mt-1">{source.error.details}</p>}
+  </div>
+)}
+```
+
+---
+
+### User Menu Section
+
+```html
+<div class="border-t border-slate-200 p-4">
+  <div class="relative">
+    <button class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+          <User class="w-4 h-4 text-white" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-slate-700 truncate">{userName}</p>
+          <p class="text-xs text-slate-500 truncate">{userEmail}</p>
+        </div>
+      </div>
+    </button>
+
+    {showMenu && (
+      <div class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border">
+        <button class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50">
+          <Settings class="w-4 h-4" />
+          Configuración
+        </button>
+        <button class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+          <LogOut class="w-4 h-4" />
+          Cerrar Sesión
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+```
+
+**Menú Expandido:**
+- **Configuración**: Abre `UserSettingsModal`
+- **Cerrar Sesión**: Limpia cookie, redirect a `/auth/login`
+
+---
+
+### Resize Divider (Sidebar)
+
+```html
+<div
+  class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors"
+  onMouseDown={startResize}
+/>
+```
+
+**Comportamiento:**
+- Width: 4px (1 para visual, 3 transparente para hit area)
+- Hover: bg-blue-500
+- Drag: Cambia `leftPanelWidth` entre 240-480px
+- Cursor: col-resize
+
+---
+
+## 💬 Main Chat Area
+
+### Messages Container
+
+```html
+<div class="flex-1 overflow-y-auto p-6">
+  {messages.length === 0 ? (
+    <div class="h-full flex items-center justify-center text-slate-400">
+      <p>Comienza una conversación...</p>
+    </div>
+  ) : (
+    messages.map(msg => (
+      <div class={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+        {/* Message bubble */}
+      </div>
+    ))
+  )}
+  <div ref={messagesEndRef} />
+</div>
+```
+
+**Auto-scroll:**
+- Scroll suave al último mensaje al enviar
+- Scroll suave al cargar nuevo agente
+- Scroll suave al recibir respuesta AI
+
+---
+
+### User Message Bubble
+
+```html
+<div class="inline-block max-w-2xl p-4 rounded-lg bg-blue-600 text-white">
+  {msg.content}
+</div>
+```
+
+**Estilos:**
+- Background: bg-blue-600
+- Text: text-white, font-normal
+- Max-width: 2xl (42rem / 672px)
+- Padding: p-4
+- Border-radius: rounded-lg
+- Alignment: text-right (parent)
+
+---
+
+### AI Message Bubble
+
+```html
+<div class="inline-block max-w-3xl p-5 rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
+  <MessageRenderer 
+    content={msg.content}
+    contextSources={activeContextSources}
+    onSourceClick={handleSourceClick}
+  />
+</div>
+```
+
+**Estilos:**
+- Background: bg-white
+- Border: border-slate-200
+- Shadow: shadow-sm
+- Max-width: 3xl (48rem / 768px)
+- Padding: p-5 (más que user para legibilidad)
+- Border-radius: rounded-lg
+- Alignment: text-left (parent)
+
+**Contenido:**
+- Renderizado con `MessageRenderer` (Markdown enriquecido)
+- Soporte para código, tablas, imágenes, enlaces
+- Referencias clickables a fuentes de contexto
+
+---
+
+### Context Button
+
+```html
+<div class="mb-3 flex justify-center">
+  <button class="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg border border-slate-200">
+    <span class="font-medium">Contexto:</span>
+    <span class={`font-semibold ${
+      usage > 80 ? 'text-red-600' : 
+      usage > 50 ? 'text-yellow-600' : 
+      'text-green-600'
+    }`}>
+      {usage}%
+    </span>
+    <span class="text-slate-400">•</span>
+    <Sparkles class="w-4 h-4 text-blue-600" />
+    <span class="font-medium text-slate-700">
+      {model === 'pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+    </span>
+    <span class="text-slate-400">•</span>
+    <span class="text-blue-600">{activeSources} fuentes</span>
+  </button>
+</div>
+```
+
+**Indicadores:**
+- **Uso de Contexto**: Verde (<50%), Amarillo (50-80%), Rojo (>80%)
+- **Modelo**: Icono Sparkles + nombre del modelo
+- **Fuentes Activas**: Contador en azul
+
+**Click:**
+- Expande/colapsa `Context Panel` con detalles completos
+
+---
+
+### Context Panel (Expandible)
+
+```html
+{showContextPanel && (
+  <div class="mb-3 bg-white rounded-lg border border-slate-200 overflow-hidden">
+    {/* Header with stats */}
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-bold text-slate-800">Desglose del Contexto</h4>
+        <span class={`text-2xl font-bold ${usageColor}`}>{usage}% usado</span>
+      </div>
+      
+      <div class="grid grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="text-slate-600">Total Tokens</p>
+          <p class="text-xl font-bold text-slate-800">{total.toLocaleString()}</p>
+        </div>
+        <div>
+          <p class="text-slate-600">Disponible</p>
+          <p class="text-xl font-bold text-green-600">{available.toLocaleString()}</p>
+        </div>
+        <div>
+          <p class="text-slate-600">Capacidad</p>
+          <p class="text-xl font-bold text-slate-600">{capacity.toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Context Sections */}
+    <div class="border border-slate-200 rounded-lg p-3">
+      <div class="space-y-2">
+        {sections.map(section => (
+          <div class="flex items-center justify-between p-2 bg-slate-50 rounded">
+            <div class="flex items-center gap-2">
+              {section.icon}
+              <span class="text-xs font-medium">{section.name}</span>
+            </div>
+            <span class="text-xs font-mono text-slate-600">
+              {section.tokens.toLocaleString()} tokens
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Active Context Sources */}
+    <div class="border border-slate-200 rounded-lg p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h5 class="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
+        <span class="text-xs text-slate-500">
+          {activeSources} activas • ~{totalTokens} tokens
+        </span>
+      </div>
+      {activeSources === 0 ? (
+        <p class="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
+          No hay fuentes activas
+        </p>
+      ) : (
+        <div class="space-y-2">
+          {sources.map(source => (
+            <button
+              onClick={() => openSourceDetails(source.id)}
+              class="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 text-left"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <FileText class="w-3.5 h-3.5 text-green-600" />
+                  <span class="text-xs font-semibold">{source.name}</span>
+                  {source.validated && (
+                    <span class="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full">
+                      ✓ Validado
+                    </span>
+                  )}
+                </div>
+                <span class="text-[10px] text-slate-500">
+                  {source.metadata?.pageCount} págs
+                </span>
+              </div>
+              <p class="text-xs text-slate-600">
+                {source.extractedData.substring(0, 100)}...
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* Context Logs Table */}
+    {contextLogs.length > 0 && (
+      <div class="border border-slate-200 rounded-lg p-3">
+        <div class="flex items-center justify-between mb-2">
+          <h5 class="text-xs font-semibold text-slate-700">📊 Log de Contexto por Interacción</h5>
+          <span class="text-xs text-slate-500">{contextLogs.length} interacciones</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-[10px]">
+            <thead class="bg-slate-100 border-b">
+              <tr>
+                <th class="px-2 py-1 text-left font-semibold">Hora</th>
+                <th class="px-2 py-1 text-left font-semibold">Pregunta</th>
+                <th class="px-2 py-1 text-left font-semibold">Modelo</th>
+                <th class="px-2 py-1 text-right font-semibold">Input</th>
+                <th class="px-2 py-1 text-right font-semibold">Output</th>
+                <th class="px-2 py-1 text-right font-semibold">Total</th>
+                <th class="px-2 py-1 text-right font-semibold">Disponible</th>
+                <th class="px-2 py-1 text-center font-semibold">Uso%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contextLogs.map((log, idx) => (
+                <tr class={`border-b hover:bg-slate-50 cursor-pointer ${
+                  idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                }`}>
+                  <td class="px-2 py-2 text-slate-600">{formatTime(log.timestamp)}</td>
+                  <td class="px-2 py-2 text-slate-800">
+                    <div class="max-w-xs truncate">{log.userMessage}</div>
+                  </td>
+                  <td class="px-2 py-2">
+                    <span class={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                      log.model === 'pro' 
+                        ? 'bg-purple-100 text-purple-700' 
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {log.model === 'pro' ? 'Pro' : 'Flash'}
+                    </span>
+                  </td>
+                  <td class="px-2 py-2 text-right font-mono">{log.totalInputTokens.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono">{log.totalOutputTokens.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono font-semibold">{log.contextWindowUsed.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono">{log.contextWindowAvailable.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-center">
+                    <span class={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                      usagePercent < 50 ? 'bg-green-100 text-green-700' :
+                      usagePercent < 80 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {usagePercent.toFixed(2)}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+```
+
+**Secciones del Panel:**
+1. **Header con Stats** - Gradiente azul, métricas principales
+2. **Context Sections** - Desglose por componente (system, history, user, etc.)
+3. **Active Context Sources** - Cards clickables de fuentes activas
+4. **Context Logs Table** - Tabla con todas las interacciones registradas
+
+**Filas Expandibles en Logs:**
+- Click en fila abre detalles completos
+- Muestra pregunta completa, system prompt, fuentes usadas, respuesta completa
+- Todos los tokens desglosados
+
+---
+
+### Input Area
+
+```html
+<div class="border-t border-slate-200 bg-white p-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex gap-3">
+      <textarea
+        placeholder="Escribe tu mensaje..."
+        class="flex-1 px-4 py-3 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        rows={3}
+        value={input}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+      />
+      <button
+        onClick={handleSend}
+        disabled={!input.trim() || isLoading}
+        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 class="w-5 h-5 animate-spin" />
+            Enviando...
+          </>
+        ) : (
+          <>
+            <Send class="w-5 h-5" />
+            Enviar
+          </>
+        )}
+      </button>
+    </div>
+    
+    <div class="mt-2 text-center">
+      <p class="text-xs text-slate-500">
+        Flow puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto.
+      </p>
+    </div>
+  </div>
+</div>
+```
+
+**Textarea:**
+- Auto-resize up to 5 rows
+- Enter sin shift: envía mensaje
+- Shift+Enter: nueva línea
+- Focus: ring-2 ring-blue-500
+
+**Send Button:**
+- Default: bg-blue-600, hover:bg-blue-700
+- Loading: Loader2 animado, text "Enviando..."
+- Disabled: bg-slate-300, cursor-not-allowed
+
+**Disclaimer:**
+- Texto pequeño (xs)
+- Color slate-500
+- Centrado
+
+---
+
+## 🔄 Workflows Panel (Derecho)
+
+```html
+{showRightPanel && (
+  <div class="w-96 border-l border-slate-200 bg-white flex flex-col">
+    {/* Header */}
+    <div class="h-16 border-b border-slate-200 flex items-center justify-between px-4">
+      <h2 class="text-lg font-bold text-slate-800">Flujos de Trabajo</h2>
+      <button onClick={() => setShowRightPanel(false)}>
+        <X class="w-5 h-5 text-slate-500" />
+      </button>
+    </div>
+
+    {/* Workflows List */}
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      {workflows.map(workflow => (
+        <div class="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">{workflow.icon}</span>
+              <div>
+                <h3 class="font-semibold text-slate-800">{workflow.name}</h3>
+                <p class="text-xs text-slate-600">{workflow.description}</p>
+              </div>
+            </div>
+            <span class={`px-2 py-1 rounded-full text-xs font-semibold ${
+              workflow.status === 'available' ? 'bg-slate-100 text-slate-600' :
+              workflow.status === 'running' ? 'bg-blue-100 text-blue-700' :
+              workflow.status === 'completed' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {statusLabels[workflow.status]}
+            </span>
+          </div>
+
+          <div class="flex gap-2 mt-3">
+            <button
+              onClick={() => handleRunWorkflow(workflow)}
+              disabled={workflow.status === 'running'}
+              class="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-slate-300"
+            >
+              <Play class="w-4 h-4 inline mr-1" />
+              Ejecutar
+            </button>
+            <button
+              onClick={() => handleConfigWorkflow(workflow)}
+              class="px-3 py-2 border border-slate-300 rounded text-sm hover:bg-slate-50"
+            >
+              <Settings class="w-4 h-4" />
+            </button>
+          </div>
+
+          {workflow.status === 'completed' && workflow.output && (
+            <div class="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs">
+              <p class="font-medium text-green-800 mb-1">✓ Completado</p>
+              <p class="text-slate-700">{workflow.output.substring(0, 100)}...</p>
+            </div>
+          )}
+
+          {workflow.status === 'running' && (
+            <div class="mt-3 flex items-center gap-2 text-xs text-blue-600">
+              <Loader2 class="w-4 h-4 animate-spin" />
+              Procesando...
+            </div>
+          )}
+
+          {workflow.status === 'failed' && (
+            <div class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+              <p class="font-medium">✗ Error</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {/* Hide Panel Button */}
+    <div class="p-4 border-t">
+      <button
+        onClick={() => setShowRightPanel(false)}
+        class="w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded"
+      >
+        Ocultar Panel →
+      </button>
+    </div>
+  </div>
+)}
+
+{/* Show Panel Button (when hidden) */}
+{!showRightPanel && (
+  <button
+    onClick={() => setShowRightPanel(true)}
+    class="fixed right-0 top-1/2 transform -translate-y-1/2 px-2 py-4 bg-blue-600 text-white rounded-l-lg shadow-lg hover:bg-blue-700"
+  >
+    ← Workflows
+  </button>
+)}
+```
+
+**Workflow States:**
+- **Available**: Listo para ejecutar
+- **Running**: Loader animado, botones deshabilitados
+- **Completed**: Badge verde, preview del output
+- **Failed**: Badge rojo, mensaje de error
+
+**Acciones:**
+- **Ejecutar**: Abre `AddSourceModal` con `preSelectedType`
+- **Configurar**: Abre `WorkflowConfigModal`
+
+---
+
+## 🎛️ Modals
+
+### AddSourceModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [1] ─── [2] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 1: Select Type                        │
+│  ┌─────────────────────────┐                │
+│  │ 📄 Archivo              │ →              │
+│  │ Sube un documento...    │                │
+│  └─────────────────────────┘                │
+│  ┌─────────────────────────┐                │
+│  │ 🔗 URL Web              │ →              │
+│  │ Link a un sitio...      │                │
+│  └─────────────────────────┘                │
+│  ┌─────────────────────────┐                │
+│  │ 📡 API                  │ →              │
+│  │ Conecta a una API...    │                │
+│  └─────────────────────────┘                │
+│                                             │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [✓] ─── [2] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 2: Configure                          │
+│                                             │
+│  Subir Documento                            │
+│  El modelo extraerá automáticamente         │
+│  texto, tablas e imágenes.                  │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │   📤 Upload Area        │                │
+│  │   Drag & drop or click  │                │
+│  │   PDF, Word, Excel...   │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  Modelo de IA para Extracción       ℹ️     │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Rápido    │ │ Preciso   │                │
+│  │ 94% ahorro│ │ Complejo  │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│              [Agregar Fuente]              │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [✓] ─── [✓] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 3: Processing                         │
+│                                             │
+│     ⏳ Spinner animado                     │
+│                                             │
+│     Procesando Fuente...                    │
+│     Esto puede tardar unos momentos.        │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+**Pasos:**
+1. **Select Type**: Cards clickables por tipo
+2. **Configure**: Form según tipo (file upload, URL input, etc.)
+3. **Processing**: Loader animado mientras procesa
+
+**Model Selection:**
+- Tooltip informativo con comparación de costos
+- Flash (recomendado): Verde, ahorro 94%
+- Pro (avanzado): Morado, mayor precisión
+
+---
+
+### WorkflowConfigModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Configurar Workflow                     [X]│
+├─────────────────────────────────────────────┤
+│                                             │
+│  📄 Procesar PDF                            │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Tamaño Máximo de Archivo│                │
+│  │ [50] MB                 │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Longitud Máxima Output  │                │
+│  │ [20000] tokens          │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Idioma                  │                │
+│  │ [Español ▼]             │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  Modelo de IA           ℹ️                 │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Selected  │ │           │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│              [Guardar Config]              │
+└─────────────────────────────────────────────┘
+```
+
+**Campos:**
+- Max File Size: Number input en MB
+- Max Output Length: Number input en tokens
+- Language: Dropdown
+- Model: Toggle entre Flash/Pro con tooltip
+
+---
+
+### UserSettingsModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Configuración de Usuario               [X]│
+├─────────────────────────────────────────────┤
+│                                             │
+│  👤 {userName}                              │
+│  📧 {userEmail}                             │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Modelo Preferido                           │
+│  ○ Gemini 2.5 Flash (Rápido, económico)    │
+│  ● Gemini 2.5 Pro (Preciso, costoso)       │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Instrucciones del Sistema                  │
+│  ┌─────────────────────────┐                │
+│  │ Eres un asistente...    │                │
+│  │                         │                │
+│  │ [textarea]              │                │
+│  │                         │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  💡 Ejemplo: "Utiliza emojis en todas      │
+│     tus respuestas 🎉"                      │
+│                                             │
+│              [Guardar]                      │
+└─────────────────────────────────────────────┘
+```
+
+**Campos:**
+- **Modelo Preferido**: Radio buttons
+- **System Prompt**: Textarea con ejemplo
+
+---
+
+### ContextSourceSettingsModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  ⚙️ Configuración de Extracción          [X]│
+│  Documento Demo.pdf                          │
+├─────────────────────────────────────────────┤
+│                                             │
+│  ┌─────────────┬─────────────┐              │
+│  │ Fuente      │ Extracción  │              │
+│  │ Original    │             │              │
+│  │             │             │              │
+│  │ • Archivo   │ • Modelo    │              │
+│  │ • Tipo      │ • Tiempo    │              │
+│  │ • Tamaño    │ • Caracteres│              │
+│  │             │ • Tokens    │              │
+│  │             │             │              │
+│  │ ℹ️ Auto     │ ✅ Validado │              │
+│  │ Extraction  │ Por: email  │              │
+│  │             │ Fecha: ...  │              │
+│  └─────────────┴─────────────┘              │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Modelo de IA           ℹ️                 │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Selected  │ │           │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│  [🔄 Re-extraer]      [Cerrar]             │
+└─────────────────────────────────────────────┘
+```
+
+**Secciones:**
+- **Fuente Original**: Metadata del archivo
+- **Extracción**: Detalles del procesamiento
+- **Validación**: Estado y aprobador
+- **Modelo**: Selección para re-extracción
+- **Acciones**: Re-extraer con nueva config
+
+---
+
+## 🎬 Animaciones y Transiciones
+
+### Fade In/Out
+```css
+transition: opacity 200ms ease-in-out
+```
+
+### Slide In (Modals)
+```css
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+```
+
+### Spin (Loaders)
+```css
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+### Hover Effects
+```css
+transition: all 150ms ease-in-out
+
+:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+```
+
+---
+
+## 📱 Responsive Design
+
+### Breakpoints
+
+```css
+sm: 640px   /* Small devices */
+md: 768px   /* Medium devices (tablets) */
+lg: 1024px  /* Large devices (desktops) */
+xl: 1280px  /* Extra large */
+2xl: 1536px /* 2X Extra large */
+```
+
+### Layout Adjustments
+
+**Mobile (<768px):**
+```css
+/* Sidebar: Hidden by default, overlay when open */
+.sidebar {
+  position: fixed;
+  left: -100%;
+  transition: left 300ms;
+}
+
+.sidebar.open {
+  left: 0;
+  z-index: 50;
+}
+
+/* Chat: Full width */
+.chat {
+  width: 100%;
+}
+
+/* Workflows: Hidden */
+.workflows {
+  display: none;
+}
+```
+
+**Tablet (768-1023px):**
+```css
+/* Sidebar: 280px fixed */
+.sidebar {
+  width: 280px;
+}
+
+/* Chat: Flex-1 */
+.chat {
+  flex: 1;
+}
+
+/* Workflows: Overlay on demand */
+.workflows {
+  position: fixed;
+  right: -100%;
+  transition: right 300ms;
+}
+
+.workflows.open {
+  right: 0;
+}
+```
+
+**Desktop (>=1024px):**
+```css
+/* All panels visible and resizable */
+.sidebar {
+  width: var(--sidebar-width, 320px);
+  resize: horizontal;
+}
+
+.workflows {
+  width: var(--workflows-width, 400px);
+  resize: horizontal;
+}
+```
+
+---
+
+## 🔧 Interactive Components
+
+### Toggle Switch
+
+```html
+<label class="relative inline-flex items-center cursor-pointer">
+  <input type="checkbox" checked={enabled} class="sr-only peer" />
+  <div class="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
+</label>
+```
+
+**Estados:**
+- Desactivado: bg-slate-200
+- Activado: bg-green-600
+- Focus: ring-2 ring-blue-300
+- Transition: all 150ms
+
+---
+
+### Progress Bar
+
+```html
+<div class="w-full bg-slate-200 rounded-full h-2">
+  <div 
+    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+    style={`width: ${percentage}%`}
+  />
+</div>
+```
+
+**Variantes:**
+- Success: bg-green-600
+- Warning: bg-yellow-600
+- Error: bg-red-600
+
+---
+
+### Badge
+
+```html
+<span class="px-2 py-1 bg-green-600 text-white text-xs rounded-full font-semibold">
+  ✓ Validado
+</span>
+```
+
+**Variantes:**
+- Success: bg-green-600
+- Info: bg-blue-600
+- Warning: bg-yellow-600
+- Error: bg-red-600
+
+---
+
+## 📊 Data Visualization
+
+### Stats Card
+
+```html
+<div class="p-4 border border-slate-200 rounded-lg">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-sm text-slate-600">Label</span>
+    <Icon class="w-5 h-5 text-blue-600" />
+  </div>
+  <p class="text-2xl font-bold text-slate-900">1,234</p>
+  <p class="text-xs text-green-600">↑ 12% from last month</p>
+</div>
+```
+
+---
+
+### Table (Context Logs)
+
+```html
+<table class="w-full text-xs">
+  <thead class="bg-slate-100 border-b border-slate-200">
+    <tr>
+      <th class="px-2 py-1 text-left font-semibold text-slate-700">Column</th>
+      ...
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+      <td class="px-2 py-2 text-slate-800">Value</td>
+      ...
+    </tr>
+  </tbody>
+</table>
+```
+
+**Features:**
+- Striped rows: `idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'`
+- Hover: `hover:bg-slate-50`
+- Sticky header (if scrollable)
+- Font-mono for numbers
+- Color-coded badges
+
+---
+
+## ✅ Status Indicators
+
+### Context Usage
+
+```html
+<span class={`font-semibold ${
+  usage < 50 ? 'text-green-600' :
+  usage < 80 ? 'text-yellow-600' :
+  'text-red-600'
+}`}>
+  {usage}%
+</span>
+```
+
+### Model Badge
+
+```html
+<span class={`px-2 py-1 rounded text-xs font-semibold ${
+  model === 'pro' 
+    ? 'bg-purple-100 text-purple-700' 
+    : 'bg-green-100 text-green-700'
+}`}>
+  {model === 'pro' ? 'Pro' : 'Flash'}
+</span>
+```
+
+### Source Status
+
+```html
+{source.status === 'processing' && (
+  <div class="flex items-center gap-2 text-xs text-blue-600">
+    <Loader2 class="w-4 h-4 animate-spin" />
+    Procesando
+  </div>
+)}
+
+{source.status === 'active' && (
+  <CheckCircle class="w-4 h-4 text-green-600" />
+)}
+
+{source.status === 'error' && (
+  <XCircle class="w-4 h-4 text-red-600" />
+)}
+```
+
+---
+
+## 🎨 Markdown Rendering Styles
+
+### Code Block
+
+```css
+/* Syntax highlighted code */
+.code-block {
+  @apply rounded-lg overflow-hidden;
+  background: #1e1e1e; /* VS Code Dark */
+}
+
+.code-block pre {
+  @apply p-4 overflow-x-auto;
+}
+
+.code-block .copy-button {
+  @apply absolute top-2 right-2 opacity-0;
+  @apply px-2 py-1 bg-slate-700 text-white text-xs rounded;
+  @apply hover:bg-slate-600 transition-all;
+}
+
+.code-block:hover .copy-button {
+  @apply opacity-100;
+}
+```
+
+### Inline Code
+
+```css
+.inline-code {
+  @apply px-1.5 py-0.5 bg-slate-100 text-slate-800;
+  @apply rounded text-sm font-mono;
+}
+```
+
+### Table
+
+```css
+.markdown-table {
+  @apply min-w-full divide-y divide-slate-200;
+  @apply border border-slate-200 rounded-lg;
+}
+
+.markdown-table thead {
+  @apply bg-slate-100;
+}
+
+.markdown-table th {
+  @apply px-4 py-2 text-left text-xs font-semibold;
+  @apply text-slate-700 uppercase tracking-wider;
+}
+
+.markdown-table td {
+  @apply px-4 py-2 text-sm text-slate-800;
+  @apply border-t border-slate-200;
+}
+```
+
+### Blockquote
+
+```css
+.markdown-blockquote {
+  @apply border-l-4 border-blue-500 pl-4 py-2 my-4;
+  @apply bg-blue-50 text-slate-700 italic;
+}
+```
+
+### Image Card
+
+```css
+.markdown-image-card {
+  @apply my-4 rounded-xl overflow-hidden;
+  @apply border border-slate-200 shadow-lg;
+}
+
+.markdown-image-card img {
+  @apply w-full h-auto;
+}
+
+.markdown-image-card .caption {
+  @apply px-4 py-2 bg-slate-50 text-sm text-slate-600;
+  @apply flex items-center gap-2;
+}
+```
+
+---
+
+## 🔗 Source References
+
+### In Markdown
+
+```markdown
+Según el [Documento Demo](#source-abc123), la política indica...
+```
+
+### Rendered as
+
+```html
+<button
+  onClick={() => openSourceDetails('abc123')}
+  class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium"
+>
+  <FileText class="w-3.5 h-3.5" />
+  Documento Demo
+  <CheckCircle class="w-3.5 h-3.5 text-green-600" /> <!-- If validated -->
+</button>
+```
+
+**Behavior:**
+- Clickable link
+- Opens `ContextSourceSettingsModal`
+- Shows validation badge
+- Document icon
+
+---
+
+## 📏 Component Sizes Reference
+
+```css
+/* Icons */
+icon-sm: 16px (w-4 h-4)
+icon-md: 20px (w-5 h-5)
+icon-lg: 24px (w-6 h-6)
+
+/* Buttons */
+button-sm: px-3 py-1.5 text-sm
+button-md: px-4 py-2 text-base
+button-lg: px-6 py-3 text-lg
+
+/* Inputs */
+input-sm: px-3 py-1.5 text-sm
+input-md: px-4 py-2 text-base
+input-lg: px-6 py-3 text-lg
+
+/* Modals */
+modal-sm: max-w-md
+modal-md: max-w-2xl
+modal-lg: max-w-4xl
+modal-xl: max-w-6xl
+```
+
+---
+
+## 🎯 Key UX Patterns
+
+### Loading States
+- Skeleton screens for initial load
+- Spinners for short waits (<3s)
+- Progress bars for long operations (>3s)
+- Inline loaders for button actions
+
+### Error States
+- Toast notifications for quick errors
+- Inline errors for form validation
+- Modal dialogs for critical errors
+- Retry buttons where applicable
+
+### Empty States
+- Friendly illustrations
+- Clear call-to-action
+- Examples or suggestions
+- Help links
+
+### Success States
+- Checkmark animations
+- Green success badges
+- Toast confirmations
+- Subtle celebrations (no confetti)
+
+---
+
+**Última Actualización**: 2025-10-12
+**Versión UI**: 2.0.0
+**Framework**: Astro + React + Tailwind CSS v3.4.x

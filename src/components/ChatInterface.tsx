@@ -4,6 +4,8 @@ import {
   Plus, 
   Send, 
   Folder, 
+  FolderPlus,
+  X,
   Clock,
   ChevronDown,
   ChevronRight,
@@ -15,8 +17,22 @@ import {
   HelpCircle,
   LogOut,
   User,
-  Building2
+  Building2,
+  Sparkles,
+  Shield
 } from 'lucide-react';
+import ContextManager from './ContextManager';
+import WorkflowsPanel from './WorkflowsPanel';
+import AddSourceModal from './AddSourceModal';
+import WorkflowConfigModal from './WorkflowConfigModal';
+import SourceDetailPanel from './SourceDetailPanel';
+import ShareSourceModal from './ShareSourceModal';
+import ContextManagementDashboard from './ContextManagementDashboard';
+import ContextSourceSettingsModal from './ContextSourceSettingsModal';
+import type { ContextSource, Workflow, WorkflowConfig, SourceType } from '../types/context';
+import { DEFAULT_WORKFLOWS } from '../types/context';
+import type { SourceValidation, JobRole, EmailTemplate } from '../types/sharing';
+import * as extractors from '../lib/workflowExtractors';
 
 interface Message {
   id: string;
@@ -59,36 +75,46 @@ interface ContextSection {
 }
 
 export default function ChatInterface({ userId }: { userId: string }) {
+  console.log('🚀 ChatInterface mounting with userId:', userId);
+  
   const [conversations, setConversations] = useState<ConversationGroup[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [contextWindowUsage, setContextWindowUsage] = useState(2.3);
+  const [contextWindowUsage, setContextWindowUsage] = useState(0);
+  const [userConfig, setUserConfig] = useState<{
+    model: 'gemini-2.5-pro' | 'gemini-2.5-flash';
+    systemPrompt: string;
+  }>({
+    model: 'gemini-2.5-flash',
+    systemPrompt: 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
+  });
   const [contextSections, setContextSections] = useState<ContextSection[]>([
     {
-      name: 'System Instructions',
+      name: 'Instrucciones del Sistema',
       tokenCount: 500,
-      content: 'You are a helpful AI assistant powered by Gemini 2.5-pro.',
+      content: 'Eres un asistente de IA útil impulsado por Gemini 2.5-pro.',
       collapsed: true,
     },
     {
-      name: 'Conversation History',
+      name: 'Historial de Conversación',
       tokenCount: 1500,
-      content: 'Current conversation messages',
+      content: 'Mensajes de conversación actuales',
       collapsed: false,
     },
     {
-      name: 'User Context',
+      name: 'Contexto del Usuario',
       tokenCount: 0,
-      content: 'No additional context',
+      content: 'Sin contexto adicional',
       collapsed: true,
     },
   ]);
   const [showContextDetails, setShowContextDetails] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [useMockData, setUseMockData] = useState(true);
+  const [useMockData, setUseMockData] = useState(false); // Real API responses enabled
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [currentView, setCurrentView] = useState<'chat' | 'contextManagement'>('chat');
   const [userInfo, setUserInfo] = useState({
     name: 'Alec Dickinson',
     email: 'alec@getaifactory.com',
@@ -97,28 +123,79 @@ export default function ChatInterface({ userId }: { userId: string }) {
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Context and Workflows state
+  const [contextSources, setContextSources] = useState<ContextSource[]>([
+    {
+      id: `source-demo-${Date.now()}`,
+      name: 'Documento de Prueba.pdf',
+      type: 'pdf',
+      addedAt: new Date(),
+      metadata: {
+        originalFileSize: 125000,
+      },
+      extractedData: `Contenido extraído del PDF:
+
+Sección 1: Introducción
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+
+Sección 2: Desarrollo
+Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+Sección 3: Conclusión
+Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+
+Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de contexto.`,
+      enabled: true,
+      status: 'active'
+    }
+  ]);
+  const [workflows, setWorkflows] = useState<Workflow[]>(
+    DEFAULT_WORKFLOWS.map((w, i) => ({
+      ...w,
+      id: `workflow-${i}`,
+      status: 'available' as const,
+    }))
+  );
+  const [showAddSourceModal, setShowAddSourceModal] = useState(false);
+  const [showWorkflowConfigModal, setShowWorkflowConfigModal] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null);
+  
+  // Source validation and sharing state
+  const [sourceValidations, setSourceValidations] = useState<Map<string, SourceValidation>>(new Map());
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sourceToShare, setSourceToShare] = useState<ContextSource | null>(null);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [sourceToConfig, setSourceToConfig] = useState<ContextSource | null>(null);
+
+  // Panel resizing state
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(440); // Default width
+  const [rightPanelWidth, setRightPanelWidth] = useState<number>(320); // Default width
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
   // Load conversations on mount
   useEffect(() => {
     if (useMockData) {
       // Mock data for development
       setConversations([
         {
-          label: 'Today',
+          label: 'Hoy',
           conversations: [
             {
               id: 'conv-1',
-              title: 'Getting Started with AI',
+              title: 'Comenzando con IA',
               lastMessageAt: new Date(),
               messageCount: 5,
             },
           ],
         },
         {
-          label: 'Yesterday',
+          label: 'Ayer',
           conversations: [
             {
               id: 'conv-2',
-              title: 'Python Programming Help',
+              title: 'Ayuda con Programación Python',
               lastMessageAt: new Date(Date.now() - 86400000),
               messageCount: 12,
             },
@@ -138,6 +215,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
       } else {
         loadMessages(currentConversation);
         loadContextInfo(currentConversation);
+        loadConversationContextSources(currentConversation);
       }
     }
   }, [currentConversation, useMockData]);
@@ -147,14 +225,62 @@ export default function ChatInterface({ userId }: { userId: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Calculate local context for temporary conversations when messages or config change
+  useEffect(() => {
+    try {
+    if (currentConversation && currentConversation.startsWith('temp-')) {
+      calculateLocalContext();
+    }
+    } catch (error) {
+      console.error('Error calculating context:', error);
+    }
+  }, [messages, userConfig, currentConversation]);
+
+  // Handle panel resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft) {
+        const newWidth = Math.max(320, Math.min(800, e.clientX));
+        setLeftPanelWidth(newWidth);
+      } else if (isResizingRight) {
+        const newWidth = Math.max(280, Math.min(600, window.innerWidth - e.clientX));
+        setRightPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false);
+      setIsResizingRight(false);
+    };
+
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingLeft, isResizingRight]);
+
   const loadConversations = async () => {
     try {
       const response = await fetch(`/api/conversations?userId=${userId}`);
+      if (!response.ok) {
+        console.warn('⚠️ Conversations API error, using empty state');
+        setConversations([]);
+        return;
+      }
       const data = await response.json();
-      setConversations(data.groups);
+      setConversations(data.groups || []);
     } catch (error) {
       console.error('Error loading conversations:', error);
-      setUseMockData(true);
+      setConversations([]); // Set empty array to prevent undefined errors
     }
   };
 
@@ -168,14 +294,129 @@ export default function ChatInterface({ userId }: { userId: string }) {
     }
   };
 
+  const calculateLocalContext = () => {
+    // Calculate context window usage locally for temporary conversations
+    const MODEL_CONTEXT_WINDOW = 1000000; // Gemini 2.5 has 1M token context window
+    
+    // System prompt tokens
+    const systemPrompt = userConfig.systemPrompt;
+    const systemTokens = Math.ceil(systemPrompt.length / 4);
+    
+    // Message tokens (rough estimate: 4 chars = 1 token)
+    const messageTokens = messages.reduce((sum, msg) => {
+      const text = msg.content.text || JSON.stringify(msg.content);
+      return sum + Math.ceil(text.length / 4);
+    }, 0);
+    
+    // Build conversation history content
+    const conversationHistoryContent = messages
+      .map((msg, index) => {
+        const role = msg.role === 'user' ? '👤 User' : '🤖 Assistant';
+        const text = msg.content.text || JSON.stringify(msg.content);
+        let timestamp = '';
+        try {
+          timestamp = msg.timestamp instanceof Date 
+          ? msg.timestamp.toLocaleString() 
+          : new Date(msg.timestamp).toLocaleString();
+        } catch (e) {
+          timestamp = 'N/A';
+        }
+        return `[${index + 1}] ${role} (${timestamp}):\n${text}`;
+      })
+      .join('\n\n---\n\n');
+    
+    // Build context sections
+    const sections = [
+      {
+        name: 'Instrucciones del Sistema',
+        tokenCount: systemTokens,
+        content: `Modelo: ${userConfig.model}\n\nPrompt del Sistema:\n${systemPrompt}`,
+        collapsed: true,
+      },
+      {
+        name: 'Historial de Conversación',
+        tokenCount: messageTokens,
+        content: conversationHistoryContent || 'Aún no hay mensajes',
+        collapsed: false,
+      },
+      {
+        name: 'Contexto del Usuario',
+        tokenCount: 0, // Local calculation doesn't have user context items
+        content: 'Sin elementos de contexto',
+        collapsed: true,
+      },
+    ];
+    
+    const totalTokens = systemTokens + messageTokens;
+    const usage = (totalTokens / MODEL_CONTEXT_WINDOW) * 100;
+    
+    setContextWindowUsage(usage);
+    setContextSections(sections);
+  };
+
   const loadContextInfo = async (conversationId: string) => {
+    // For temporary conversations, calculate context locally
+    if (conversationId.startsWith('temp-')) {
+      calculateLocalContext();
+      return;
+    }
+    
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/context`);
+      const response = await fetch(`/api/conversations/${conversationId}/context?userId=${userId}`);
       const data = await response.json();
-      setContextWindowUsage(data.usage);
-      setContextSections(data.sections);
+      setContextWindowUsage(data.usage || 0);
+      setContextSections(data.sections || []);
     } catch (error) {
       console.error('Error loading context info:', error);
+    }
+  };
+
+  const loadConversationContextSources = async (conversationId: string) => {
+    // Skip for temporary conversations
+    if (conversationId.startsWith('temp-')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/conversations/${conversationId}/context-sources`);
+      if (!response.ok) {
+        console.warn('⚠️ Could not load conversation context sources');
+        return;
+      }
+
+      const data = await response.json();
+      const activeSourceIds = data.activeContextSourceIds || [];
+      
+      console.log('📥 Loaded active context sources for conversation:', activeSourceIds);
+
+      // Update contextSources enabled state based on loaded IDs
+      setContextSources(prev =>
+        prev.map(source => ({
+          ...source,
+          enabled: activeSourceIds.includes(source.id),
+        }))
+      );
+    } catch (error) {
+      console.error('Error loading conversation context sources:', error);
+    }
+  };
+
+  const saveConversationContextSources = async (conversationId: string, activeSourceIds: string[]) => {
+    // Skip for temporary conversations
+    if (conversationId.startsWith('temp-')) {
+      return;
+    }
+
+    try {
+      await fetch(`/api/conversations/${conversationId}/context-sources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeContextSourceIds: activeSourceIds }),
+      });
+      
+      console.log('💾 Saved active context sources for conversation:', activeSourceIds);
+    } catch (error) {
+      console.error('Error saving conversation context sources:', error);
     }
   };
 
@@ -191,13 +432,13 @@ export default function ChatInterface({ userId }: { userId: string }) {
       const response = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, title: 'Nuevo Agente' }),
       });
       const data = await response.json();
       setCurrentConversation(data.conversation.id);
       loadConversations();
     } catch (error) {
-      console.error('Error creating conversation:', error);
+      console.error('Error al crear conversación:', error);
       setUseMockData(true);
     }
   };
@@ -225,7 +466,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
           role: 'assistant',
           content: {
             type: 'text',
-            text: `I'm a mock AI response to: "${currentInput}"\n\nThis is the full ChatInterface with:\n✅ Left sidebar with conversations\n✅ Context window tracking (${contextWindowUsage.toFixed(1)}%)\n✅ Multi-modal support ready\n✅ Professional UI\n\nTo enable real AI responses, configure your Google AI API key in the environment variables.`,
+            text: `Soy una respuesta simulada de IA para: "${currentInput}"\n\nEsta es la interfaz completa de Chat con:\n✅ Barra lateral izquierda con conversaciones\n✅ Seguimiento de ventana de contexto (${contextWindowUsage.toFixed(1)}%)\n✅ Soporte multi-modal listo\n✅ Interfaz profesional\n\nPara habilitar respuestas reales de IA, configura tu clave API de Google AI en las variables de entorno.`,
           },
           timestamp: new Date(),
         };
@@ -237,12 +478,26 @@ export default function ChatInterface({ userId }: { userId: string }) {
     }
 
     try {
+      // Collect active context sources
+      const activeContextSources = contextSources
+        .filter(source => source.enabled && source.extractedData)
+        .map(source => ({
+          name: source.name,
+          type: source.type,
+          content: source.extractedData || ''
+        }));
+
+      console.log('📤 Sending message with context sources:', activeContextSources.length);
+
       const response = await fetch(`/api/conversations/${currentConversation}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
           message: currentInput,
+          model: userConfig.model,              // ✅ Pass selected model
+          systemPrompt: userConfig.systemPrompt, // ✅ Pass selected system prompt
+          contextSources: activeContextSources   // ✅ Pass active context sources
         }),
       });
 
@@ -293,12 +548,483 @@ export default function ChatInterface({ userId }: { userId: string }) {
 
   const handleConfiguration = () => {
     // TODO: Implement configuration page navigation
-    console.log('Opening configuration...');
+    console.log('Abriendo configuración...');
   };
 
   const handleHelp = () => {
     // TODO: Implement help page navigation
-    console.log('Opening help...');
+    console.log('Abriendo ayuda...');
+  };
+
+  const handleContextManagement = () => {
+    setCurrentView(currentView === 'chat' ? 'contextManagement' : 'chat');
+    setShowUserMenu(false);
+  };
+
+  // Helper function to update source progress
+  const updateSourceProgress = (sourceId: string, stage: 'uploading' | 'processing' | 'complete' | 'error', percentage: number, message: string) => {
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              progress: { stage, percentage, message },
+            }
+          : s
+      )
+    );
+  };
+
+  // Context and Workflows handlers
+  const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
+    const workflow = workflows.find(w => w.sourceType === type);
+    const config: WorkflowConfig = {
+      ...(workflow?.config || { maxFileSize: 50, maxOutputLength: 10000 }),
+      model: apiConfig?.model || 'gemini-2.5-flash' // Use model from config or default to Flash
+    };
+
+    const extractionStartTime = Date.now();
+
+    const newSource: ContextSource = {
+      id: `source-${Date.now()}`,
+      name: file ? file.name : url || apiConfig?.apiEndpoint || 'Nueva Fuente',
+      type,
+      enabled: true,
+      status: 'processing',
+      addedAt: new Date(),
+      originalFile: file, // Store original file for re-extraction
+      metadata: {
+        originalFileName: file?.name,
+        originalFileType: file?.type,
+        originalFileSize: file?.size,
+        workflowId: workflow?.id,
+        workflowName: workflow?.name,
+        extractionConfig: config,
+        extractionDate: new Date(),
+        url,
+        apiEndpoint: apiConfig?.apiEndpoint,
+      },
+      progress: {
+        stage: 'uploading',
+        percentage: 0,
+        message: 'Preparando archivo...',
+      },
+    };
+
+    setContextSources(prev => [...prev, newSource]);
+
+    // Simulate upload progress (instant for local files, but shows user something is happening)
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(newSource.id, 'uploading', 30, 'Subiendo archivo...');
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(newSource.id, 'processing', 50, 'Procesando con IA...');
+
+    // Process the source based on type
+    try {
+      let extractedData = '';
+
+      if (type === 'pdf' && file) {
+        extractedData = await extractors.extractPdf(file, config);
+      } else if (type === 'csv' && file) {
+        extractedData = await extractors.extractCsv(file, config);
+      } else if (type === 'excel' && file) {
+        extractedData = await extractors.extractExcel(file, config);
+      } else if (type === 'word' && file) {
+        extractedData = await extractors.extractWord(file, config);
+      } else if (type === 'web-url' && url) {
+        extractedData = await extractors.extractFromUrl(url, config);
+      } else if (type === 'api' && apiConfig) {
+        extractedData = await extractors.extractFromApi(apiConfig.endpoint, config);
+      }
+
+      const extractionTime = Date.now() - extractionStartTime;
+      const tokensEstimate = Math.floor(extractedData.length / 4);
+
+      // Update source with extracted data and complete metadata
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === newSource.id
+            ? {
+                ...s,
+                status: 'active',
+                extractedData,
+                metadata: {
+                  ...s.metadata,
+                  extractionTime,
+                  charactersExtracted: extractedData.length,
+                  tokensEstimate,
+                  modelUsed: config.model || 'gemini-2.5-flash',
+                },
+              }
+            : s
+        )
+      );
+
+      // Update context sections
+      setContextSections(prev => [
+        ...prev.filter(s => s.name !== `Fuente: ${newSource.name}`),
+        {
+          name: `Fuente: ${newSource.name}`,
+          tokenCount: tokensEstimate,
+          content: extractedData,
+          collapsed: true,
+        },
+      ]);
+
+      updateSourceProgress(newSource.id, 'complete', 100, 'Completado');
+
+      console.log('✅ Source processed successfully:', {
+        name: newSource.name,
+        type,
+        extractionTime: `${extractionTime}ms`,
+        characters: extractedData.length,
+        tokens: tokensEstimate,
+        model: config.model,
+      });
+    } catch (error) {
+      console.error('❌ Error processing source:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorDetails = error instanceof Error && error.stack 
+        ? error.stack.split('\n').slice(0, 3).join('\n')
+        : undefined;
+      
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === newSource.id
+            ? {
+                ...s,
+                status: 'error' as const,
+                progress: {
+                  stage: 'error' as const,
+                  percentage: 0,
+                  message: 'Error en extracción',
+                },
+                error: {
+                  message: errorMessage,
+                  details: errorDetails,
+                  timestamp: new Date(),
+                },
+              }
+            : s
+        )
+      );
+    }
+  };
+
+  const handleToggleSource = (sourceId: string) => {
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId ? { ...s, enabled: !s.enabled } : s
+      )
+    );
+
+    // Update context sections visibility
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      if (source.enabled) {
+        // Removing from context
+        setContextSections(prev =>
+          prev.filter(s => s.name !== `Fuente: ${source.name}`)
+        );
+      } else {
+        // Adding to context
+        const tokensEstimate = Math.floor((source.extractedData?.length || 0) / 4);
+        setContextSections(prev => [
+          ...prev,
+          {
+            name: `Fuente: ${source.name}`,
+            tokenCount: tokensEstimate,
+            content: source.extractedData || '',
+            collapsed: true,
+          },
+        ]);
+      }
+    }
+
+    // Save the new context configuration for this conversation
+    // Use setTimeout to ensure state has updated
+    setTimeout(() => {
+      if (currentConversation) {
+        const activeSourceIds = contextSources
+          .map(s => s.id === sourceId ? { ...s, enabled: !s.enabled } : s)
+          .filter(s => s.enabled)
+          .map(s => s.id);
+        
+        saveConversationContextSources(currentConversation, activeSourceIds);
+      }
+    }, 0);
+  };
+
+  const handleRemoveSource = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    setContextSources(prev => prev.filter(s => s.id !== sourceId));
+    
+    if (source) {
+      setContextSections(prev =>
+        prev.filter(s => s.name !== `Fuente: ${source.name}`)
+      );
+    }
+  };
+
+  const handleRunWorkflow = (workflowId: string) => {
+    setWorkflows(prev =>
+      prev.map(w =>
+        w.id === workflowId ? { ...w, status: 'running', startedAt: new Date() } : w
+      )
+    );
+
+    // Open file picker based on workflow type
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (workflow) {
+      setShowAddSourceModal(true);
+    }
+  };
+
+  const handleConfigureWorkflow = (workflowId: string) => {
+    console.log('⚙️ Configure workflow clicked:', workflowId);
+    const workflow = workflows.find(w => w.id === workflowId);
+    console.log('🔍 Found workflow:', workflow?.name);
+    setSelectedWorkflow(workflow || null);
+    setShowWorkflowConfigModal(true);
+    console.log('✅ Modal state set to open');
+  };
+
+  const handleSaveWorkflowConfig = (workflowId: string, config: WorkflowConfig) => {
+    setWorkflows(prev =>
+      prev.map(w => (w.id === workflowId ? { ...w, config } : w))
+    );
+  };
+
+  const handleSaveTemplate = (workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (workflow) {
+      // TODO: Implement template saving to localStorage or backend
+      console.log('Guardando plantilla:', workflow);
+      alert(`Plantilla "${workflow.name}" guardada exitosamente!`);
+    }
+  };
+
+  // Source validation and sharing handlers
+  const handleSourceClick = (sourceId: string) => {
+    setSelectedSourceId(sourceId);
+  };
+
+  const handleValidateSource = (sourceId: string, comments: string) => {
+    const validation: SourceValidation = {
+      validated: true,
+      validatedBy: userInfo.name,
+      validatedAt: new Date(),
+      comments,
+    };
+    
+    setSourceValidations(prev => new Map(prev).set(sourceId, validation));
+    
+    // Log validation
+    console.log('📝 Documento validado:', {
+      sourceId,
+      validatedBy: userInfo.name,
+      comments,
+      timestamp: new Date().toISOString(),
+    });
+  };
+
+  const handleShareSource = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      setSourceToShare(source);
+      setShowShareModal(true);
+      setSelectedSourceId(null); // Close detail panel
+    }
+  };
+
+  const handleSourceSettings = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      setSourceToConfig(source);
+      setShowSettingsModal(true);
+    }
+  };
+
+  const handleReExtract = async (sourceId: string, newConfig: WorkflowConfig) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (!source || !source.originalFile) {
+      console.error('Cannot re-extract: source or original file not found');
+      return;
+    }
+
+    console.log('🔄 Re-extracting source with new config:', {
+      sourceId,
+      sourceName: source.name,
+      newConfig,
+    });
+
+    // Update source status to processing with progress
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              status: 'processing' as const,
+              progress: {
+                stage: 'processing' as const,
+                percentage: 0,
+                message: 'Iniciando re-extracción...',
+              },
+              error: undefined, // Clear previous errors
+            }
+          : s
+      )
+    );
+
+    // Show progress updates
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(sourceId, 'processing', 30, 'Preparando archivo...');
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(sourceId, 'processing', 60, 'Procesando con IA...');
+
+    const extractionStartTime = Date.now();
+
+    try {
+      let extractedData = '';
+      const { originalFile, type } = source;
+
+      // Re-extract based on type
+      if (type === 'pdf') {
+        extractedData = await extractors.extractPdf(originalFile!, newConfig);
+      } else if (type === 'csv') {
+        extractedData = await extractors.extractCsv(originalFile!, newConfig);
+      } else if (type === 'excel') {
+        extractedData = await extractors.extractExcel(originalFile!, newConfig);
+      } else if (type === 'word') {
+        extractedData = await extractors.extractWord(originalFile!, newConfig);
+      }
+
+      const extractionTime = Date.now() - extractionStartTime;
+      const tokensEstimate = Math.floor(extractedData.length / 4);
+
+      // Update source with new extracted data and metadata
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === sourceId
+            ? {
+                ...s,
+                status: 'active' as const,
+                extractedData,
+                metadata: {
+                  ...s.metadata,
+                  extractionConfig: newConfig,
+                  extractionDate: new Date(),
+                  extractionTime,
+                  charactersExtracted: extractedData.length,
+                  tokensEstimate,
+                  modelUsed: newConfig.model || 'gemini-2.5-flash',
+                },
+              }
+            : s
+        )
+      );
+
+      // Update context sections if source is enabled
+      if (source.enabled) {
+        setContextSections(prev => [
+          ...prev.filter(s => s.name !== `Fuente: ${source.name}`),
+          {
+            name: `Fuente: ${source.name}`,
+            tokenCount: tokensEstimate,
+            content: extractedData,
+            collapsed: true,
+          },
+        ]);
+      }
+
+      updateSourceProgress(sourceId, 'complete', 100, 'Re-extracción completa');
+
+      console.log('✅ Re-extraction successful:', {
+        sourceId,
+        extractionTime: `${extractionTime}ms`,
+        characters: extractedData.length,
+        tokens: tokensEstimate,
+        model: newConfig.model,
+      });
+    } catch (error) {
+      console.error('❌ Error during re-extraction:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido durante re-extracción';
+      const errorDetails = error instanceof Error && error.stack 
+        ? error.stack.split('\n').slice(0, 3).join('\n')
+        : undefined;
+      
+      setContextSources(prev =>
+        prev.map(s =>
+          s.id === sourceId
+            ? {
+                ...s,
+                status: 'error' as const,
+                progress: {
+                  stage: 'error' as const,
+                  percentage: 0,
+                  message: 'Error en re-extracción',
+                },
+                error: {
+                  message: errorMessage,
+                  details: errorDetails,
+                  timestamp: new Date(),
+                },
+              }
+            : s
+        )
+      );
+    }
+  };
+
+  const handleGenerateShareEmail = async (
+    sourceId: string,
+    role: JobRole,
+    userComments: string,
+    personalizedRequest: string
+  ): Promise<EmailTemplate> => {
+    // Simulate AI email generation
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const source = contextSources.find(s => s.id === sourceId);
+        const summary = source?.extractedData?.substring(0, 200) + '...' || 'Resumen no disponible';
+        
+        const subject = `📄 ${source?.name} - Documento compartido para ${role.name}`;
+        
+        const body = `Hola,
+
+Te comparto este documento que considero puede ser de gran valor para tu rol como ${role.name}.
+
+📋 RESUMEN DEL DOCUMENTO:
+${summary}
+
+💬 MIS COMENTARIOS:
+${userComments || 'Este documento contiene información relevante para nuestro trabajo.'}
+
+🎯 CONTEXTO DE TU ROL:
+Como ${role.name}, este contenido puede ayudarte con tus objetivos:
+${role.okrs.map((okr, i) => `${i + 1}. ${okr}`).join('\n')}
+
+${personalizedRequest ? `\n🤝 SOLICITUD:\n${personalizedRequest}\n` : ''}
+
+Por favor revisa el documento y déjame saber tus comentarios o si tienes alguna pregunta.
+
+Saludos,
+${userInfo.name}
+${userInfo.company}`;
+
+        resolve({
+          subject,
+          body,
+          summary,
+          userComments,
+          personalizedRequest,
+        });
+      }, 1500);
+    });
   };
 
   const renderMessage = (message: Message) => {
@@ -339,13 +1065,27 @@ export default function ChatInterface({ userId }: { userId: string }) {
       );
     }
 
-    return <p>Unsupported content type</p>;
+    return <p>Tipo de contenido no soportado</p>;
   };
+
+  // Show Context Management Dashboard if selected
+  if (currentView === 'contextManagement') {
+    return (
+      <ContextManagementDashboard 
+        currentUserId={userInfo.email} 
+        currentUserName={userInfo.name}
+        onBackToChat={() => setCurrentView('chat')}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Left Sidebar - Conversations */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-xl">
+      {/* Left Sidebar - Conversations & Context */}
+      <div 
+        className="bg-white border-r border-slate-200 flex flex-col shadow-xl relative"
+        style={{ width: `${leftPanelWidth}px` }}
+      >
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -353,12 +1093,12 @@ export default function ChatInterface({ userId }: { userId: string }) {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
           >
             <Plus className="w-5 h-5" />
-            <span className="font-bold">New Conversation</span>
+            <span className="font-bold">Nuevo Agente</span>
           </button>
         </div>
 
-        {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {/* Conversations List - Limited height to give more space to Context */}
+        <div className="flex-none h-64 overflow-y-auto p-4 space-y-4">
           {conversations.map(group => (
             <div key={group.label}>
               <h3 className="text-xs font-bold text-slate-600 uppercase mb-3 tracking-wider">
@@ -384,7 +1124,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                         <p className={`text-xs ${
                           currentConversation === conv.id ? 'text-blue-100' : 'text-slate-500'
                         }`}>
-                          {conv.messageCount} messages
+                          {conv.messageCount} mensajes
                         </p>
                       </div>
                     </div>
@@ -395,17 +1135,56 @@ export default function ChatInterface({ userId }: { userId: string }) {
           ))}
         </div>
 
+        {/* Context Section - Expands to fill remaining vertical space */}
+        <div className="flex-1 flex overflow-hidden border-t border-slate-200">
+          {!selectedSourceId ? (
+            /* Context Manager - List of sources */
+            <div className="flex-1 flex flex-col">
+              <ContextManager
+                sources={contextSources}
+                validations={sourceValidations}
+                onAddSource={() => setShowAddSourceModal(true)}
+                onToggleSource={handleToggleSource}
+                onRemoveSource={handleRemoveSource}
+                onSourceClick={handleSourceClick}
+                onSourceSettings={handleSourceSettings}
+              />
+            </div>
+          ) : (
+            /* Source Detail Panel - Full view of selected source */
+            selectedSourceId && contextSources.find(s => s.id === selectedSourceId) && (
+              <div className="flex-1 flex flex-col">
+                <SourceDetailPanel
+                  source={contextSources.find(s => s.id === selectedSourceId)!}
+                  validation={sourceValidations.get(selectedSourceId)}
+                  onClose={() => setSelectedSourceId(null)}
+                  onValidate={handleValidateSource}
+                  onShare={handleShareSource}
+                />
+              </div>
+            )
+          )}
+        </div>
+
         {/* User Menu */}
         <div className="border-t border-slate-200 bg-gradient-to-br from-white to-slate-50">
           {/* User Menu Dropdown */}
           {showUserMenu && (
             <div className="p-2 space-y-1">
               <button
+                onClick={handleContextManagement}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
+              >
+                <Shield className="w-5 h-5 text-slate-600" />
+                <span className="text-sm font-medium text-slate-700">Gestión de Contexto</span>
+              </button>
+
+              <button
                 onClick={handleConfiguration}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
               >
                 <Settings className="w-5 h-5 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">Configuration</span>
+                <span className="text-sm font-medium text-slate-700">Configuración</span>
               </button>
 
               <button
@@ -413,7 +1192,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 rounded-lg transition-all transform hover:scale-[1.02]"
               >
                 <HelpCircle className="w-5 h-5 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">Help</span>
+                <span className="text-sm font-medium text-slate-700">Ayuda</span>
               </button>
 
               <div className="h-px bg-slate-200 my-2" />
@@ -423,7 +1202,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 rounded-lg transition-all transform hover:scale-[1.02] group"
               >
                 <LogOut className="w-5 h-5 text-red-600 group-hover:text-red-700" />
-                <span className="text-sm font-medium text-red-600 group-hover:text-red-700">Close Session</span>
+                <span className="text-sm font-medium text-red-600 group-hover:text-red-700">Cerrar Sesión</span>
               </button>
             </div>
           )}
@@ -450,6 +1229,17 @@ export default function ChatInterface({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {/* Left Resizer */}
+      <div
+        className="w-1 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-colors relative group"
+        onMouseDown={() => setIsResizingLeft(true)}
+      >
+        <div className="absolute inset-y-0 -left-1 -right-1" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-12 bg-slate-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-1 h-8 bg-white rounded-full"></div>
+        </div>
+      </div>
+
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {currentConversation ? (
@@ -471,7 +1261,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                     {message.role === 'assistant' && (
                       <div className="flex items-center gap-2 mb-2 text-slate-500">
                         <MessageSquare className="w-4 h-4" />
-                        <span className="text-xs font-semibold">AI Assistant</span>
+                        <span className="text-xs font-semibold">Asistente IA</span>
                       </div>
                     )}
                     {renderMessage(message)}
@@ -487,7 +1277,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
                         <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce delay-100"></div>
                         <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce delay-200"></div>
-                        <span className="text-sm ml-2">Thinking...</span>
+                        <span className="text-sm ml-2">Pensando...</span>
                       </div>
                     </div>
                   </div>
@@ -505,13 +1295,18 @@ export default function ChatInterface({ userId }: { userId: string }) {
                   className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:text-blue-600 bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-xl transition-all shadow-sm hover:shadow-md"
                 >
                   <Info className="w-4 h-4" />
-                  <span>Context: {contextWindowUsage.toFixed(1)}%</span>
+                  <span>Contexto: {contextWindowUsage.toFixed(1)}%</span>
                   <div className="w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden ml-2">
                     <div 
                       className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
                       style={{ width: `${contextWindowUsage}%` }}
                     />
                   </div>
+                  <span className="mx-2 text-slate-400">•</span>
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-slate-700">
+                    {userConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                  </span>
                   {showContextDetails ? (
                     <ChevronDown className="w-4 h-4 ml-1" />
                   ) : (
@@ -522,7 +1317,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
                 {showContextDetails && (
                   <div className="absolute bottom-32 left-8 right-8 bg-white border border-slate-300 rounded-2xl shadow-2xl p-6 max-h-96 overflow-y-auto z-50">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-slate-900 text-lg">Context Window Details</h3>
+                      <h3 className="font-bold text-slate-900 text-lg">Detalles de Ventana de Contexto</h3>
                       <button
                         onClick={() => setShowContextDetails(false)}
                         className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
@@ -568,35 +1363,42 @@ export default function ChatInterface({ userId }: { userId: string }) {
               </div>
 
               {/* Input Bar */}
-              <div className="flex items-end gap-4">
-                <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm hover:shadow-md">
-                  <Paperclip className="w-6 h-6" />
-                </button>
-                
-                <div className="flex-1">
-                  <textarea
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    placeholder="Type your message... (Shift+Enter for new line)"
-                    className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
-                    rows={1}
-                    style={{ minHeight: '56px', maxHeight: '200px' }}
-                  />
+              <div className="space-y-3">
+                <div className="flex items-end gap-4">
+                  <button className="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all shadow-sm hover:shadow-md">
+                    <Paperclip className="w-6 h-6" />
+                  </button>
+                  
+                  <div className="flex-1">
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      placeholder="Escribe tu mensaje... (Shift+Enter para nueva línea)"
+                      className="w-full px-5 py-4 border-2 border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none shadow-sm hover:shadow-md transition-all"
+                      rows={1}
+                      style={{ minHeight: '56px', maxHeight: '200px' }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim() || isLoading}
+                    className="p-4 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+                  >
+                    <Send className="w-6 h-6" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={sendMessage}
-                  disabled={!inputMessage.trim() || isLoading}
-                  className="p-4 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
-                >
-                  <Send className="w-6 h-6" />
-                </button>
+                {/* Disclaimer */}
+                <div className="text-center text-xs text-slate-500 px-4">
+                  Flow puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto antes de tomar decisiones críticas.
+                </div>
               </div>
             </div>
           </>
@@ -606,19 +1408,77 @@ export default function ChatInterface({ userId }: { userId: string }) {
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-2xl transform hover:scale-110 transition-transform">
                 <MessageSquare className="w-12 h-12 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Welcome to SalfaGPT!</h2>
-              <p className="text-lg text-slate-600 mb-6">Select a conversation or start a new one</p>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">¡Bienvenido a Flow!</h2>
+              <p className="text-lg text-slate-600 mb-6">Selecciona una conversación o inicia una nueva</p>
               <button
                 onClick={createNewConversation}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <Plus className="w-5 h-5 inline-block mr-2" />
-                Start Chatting
+                Comenzar a Chatear
               </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Right Resizer */}
+      <div
+        className="w-1 bg-slate-200 hover:bg-blue-500 cursor-col-resize transition-colors relative group"
+        onMouseDown={() => setIsResizingRight(true)}
+      >
+        <div className="absolute inset-y-0 -left-1 -right-1" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-6 h-12 bg-slate-300 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="w-1 h-8 bg-white rounded-full"></div>
+        </div>
+      </div>
+
+      {/* Right Panel - Workflows */}
+      <div style={{ width: `${rightPanelWidth}px` }}>
+        <WorkflowsPanel
+          workflows={workflows}
+          onRunWorkflow={handleRunWorkflow}
+          onConfigureWorkflow={handleConfigureWorkflow}
+          onSaveTemplate={handleSaveTemplate}
+        />
+      </div>
+
+      {/* Modals */}
+      <AddSourceModal
+        isOpen={showAddSourceModal}
+        onClose={() => setShowAddSourceModal(false)}
+        onAddSource={handleAddSource}
+      />
+
+      <WorkflowConfigModal
+        workflow={selectedWorkflow}
+        isOpen={showWorkflowConfigModal}
+        onClose={() => {
+          setShowWorkflowConfigModal(false);
+          setSelectedWorkflow(null);
+        }}
+        onSave={handleSaveWorkflowConfig}
+      />
+
+      <ShareSourceModal
+        source={sourceToShare!}
+        isOpen={showShareModal && sourceToShare !== null}
+        onClose={() => {
+          setShowShareModal(false);
+          setSourceToShare(null);
+        }}
+        onGenerateEmail={handleGenerateShareEmail}
+      />
+
+      <ContextSourceSettingsModal
+        source={sourceToConfig!}
+        isOpen={showSettingsModal && sourceToConfig !== null}
+        onClose={() => {
+          setShowSettingsModal(false);
+          setSourceToConfig(null);
+        }}
+        onReExtract={handleReExtract}
+      />
     </div>
   );
 }

@@ -51,11 +51,11 @@ POLICY \
 
 ```bash
 export PROJECT_ID="gen-lang-client-0986191192"
-export SERVICE_ACCOUNT_EMAIL="salfagpt-service@${PROJECT_ID}.iam.gserviceaccount.com"
+export SERVICE_ACCOUNT_EMAIL="flow-service@${PROJECT_ID}.iam.gserviceaccount.com"
 
 # Create service account
-gcloud iam service-accounts create salfagpt-service \
-  --display-name="SalfaGPT Service Account" \
+gcloud iam service-accounts create flow-service \
+  --display-name="Flow Service Account" \
   --project=${PROJECT_ID}
 
 # Grant permissions
@@ -106,7 +106,7 @@ GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
 GOOGLE_APPLICATION_CREDENTIALS=./gcp-service-account-key.json
 
 # Other config...
-BIGQUERY_DATASET=salfagpt_dataset
+BIGQUERY_DATASET=flow_dataset
 VERTEX_AI_LOCATION=us-central1
 ```
 
@@ -165,7 +165,7 @@ Instead of a file, store the key in Secret Manager:
 
 ```bash
 # Store key in Secret Manager
-gcloud secrets create salfagpt-service-account-key \
+gcloud secrets create flow-service-account-key \
   --data-file=./gcp-service-account-key.json \
   --project=${PROJECT_ID}
 

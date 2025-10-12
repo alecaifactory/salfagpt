@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+  
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-expand-from-left {
+    animation: expandFromLeft 0.3s ease-out;
+  }
+  
+  @keyframes expandFromLeft {
+    from {
+      width: 320px;
+      opacity: 0.8;
+    }
+    to {
+      width: 600px;
+      opacity: 1;
+    }
+  }
+}
+
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900;

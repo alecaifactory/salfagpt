@@ -1,15 +1,32 @@
-import { GoogleGenerativeAI } from '@google/genai';
+/**
+ * Gemini AI Integration using @google/genai v1.23.0
+ * 
+ * ✅ CORRECT: Uses GoogleGenAI (not GoogleGenerativeAI)
+ * ✅ CORRECT: Uses genAI.models.generateContent()
+ * ✅ CORRECT: Passes model selection from user config
+ */
+import { GoogleGenAI } from '@google/genai';
 import type { MessageContent, ContextSection } from './firestore';
 
 // Initialize Gemini AI client
-const API_KEY = import.meta.env.ANTHROPIC_API_KEY_CAP001_CURSOR || import.meta.env.GOOGLE_AI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+// Prioritize process.env for Cloud Run
+const API_KEY = process.env.GOOGLE_AI_API_KEY || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? (import.meta.env.GOOGLE_AI_API_KEY || import.meta.env.GEMINI_API_KEY)
+    : undefined);
+
+if (!API_KEY) {
+  console.warn('⚠️ No Google AI API key found. Set GOOGLE_AI_API_KEY or GEMINI_API_KEY in .env file');
+}
+
+const genAI = new GoogleGenAI({ apiKey: API_KEY || 'dummy-key-for-dev' });
 
 // Model configuration
 const MODEL_NAME = 'gemini-2.5-pro-latest';
 const CONTEXT_WINDOW = 1000000; // 1M tokens
 
 export interface GenerateOptions {
+  model?: 'gemini-2.5-pro' | 'gemini-2.5-flash'; // User-selected model
   systemInstruction?: string;
   conversationHistory?: Array<{ role: string; content: string }>;
   userContext?: string;
@@ -29,12 +46,13 @@ function estimateTokenCount(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-// Generate AI response with Gemini 2.5-pro
+// Generate AI response with Gemini (using correct @google/genai v1.23.0 API)
 export async function generateAIResponse(
   userMessage: string,
   options: GenerateOptions = {}
 ): Promise<GenerateResponse> {
   const {
+    model = 'gemini-2.5-flash', // Default to flash for speed
     systemInstruction = 'You are a helpful AI assistant.',
     conversationHistory = [],
     userContext = '',
@@ -43,17 +61,12 @@ export async function generateAIResponse(
   } = options;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction,
-    });
-
-    // Build the conversation context
-    const contextParts: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    // Build conversation contents array
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
     // Add conversation history
     conversationHistory.forEach(msg => {
-      contextParts.push({
+      contents.push({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }],
       });
@@ -66,23 +79,23 @@ export async function generateAIResponse(
     }
 
     // Add current user message
-    contextParts.push({
+    contents.push({
       role: 'user',
       parts: [{ text: fullUserMessage }],
     });
 
-    // Generate response
-    const chat = model.startChat({
-      history: contextParts.slice(0, -1), // All but the last message
-      generationConfig: {
-        temperature,
+    // ✅ CORRECT API: genAI.models.generateContent()
+    const result = await genAI.models.generateContent({
+      model: model, // Use user-selected model
+      contents: contents,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: temperature,
         maxOutputTokens: maxTokens,
-      },
+      }
     });
 
-    const result = await chat.sendMessage(fullUserMessage);
-    const response = result.response;
-    const responseText = response.text();
+    const responseText = result.text || '';
 
     // Parse response for different content types
     const content = parseResponseContent(responseText);
@@ -138,7 +151,8 @@ export async function generateAIResponse(
     };
   } catch (error) {
     console.error('Error generating AI response:', error);
-    throw new Error(`Failed to generate AI response: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to generate AI response: ${errorMessage}`);
   }
 }
 
@@ -204,6 +218,7 @@ export async function* streamAIResponse(
   options: GenerateOptions = {}
 ): AsyncGenerator<string, void, unknown> {
   const {
+    model = 'gemini-2.5-flash',
     systemInstruction = 'You are a helpful AI assistant.',
     conversationHistory = [],
     userContext = '',
@@ -212,17 +227,12 @@ export async function* streamAIResponse(
   } = options;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction,
-    });
-
-    // Build the conversation context
-    const contextParts: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+    // Build conversation contents array
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
     // Add conversation history
     conversationHistory.forEach(msg => {
-      contextParts.push({
+      contents.push({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.content }],
       });
@@ -234,37 +244,50 @@ export async function* streamAIResponse(
       fullUserMessage = `Context:\n${userContext}\n\nUser Message:\n${userMessage}`;
     }
 
-    // Generate streaming response
-    const chat = model.startChat({
-      history: contextParts,
-      generationConfig: {
-        temperature,
-        maxOutputTokens: maxTokens,
-      },
+    // Add current user message
+    contents.push({
+      role: 'user',
+      parts: [{ text: fullUserMessage }],
     });
 
-    const result = await chat.sendMessageStream(fullUserMessage);
+    // ✅ CORRECT API: genAI.models.generateContentStream()
+    const stream = await genAI.models.generateContentStream({
+      model: model,
+      contents: contents,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: temperature,
+        maxOutputTokens: maxTokens,
+      }
+    });
 
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
-      yield chunkText;
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        yield chunk.text;
+      }
     }
   } catch (error) {
     console.error('Error streaming AI response:', error);
-    throw new Error(`Failed to stream AI response: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to stream AI response: ${errorMessage}`);
   }
 }
 
 // Generate title for conversation based on first message
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else.',
+    // ✅ CORRECT API: genAI.models.generateContent()
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash', // Use flash for speed
+      contents: [{ role: 'user', parts: [{ text: firstMessage }] }],
+      config: {
+        systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else.',
+        temperature: 0.7,
+        maxOutputTokens: 20,
+      }
     });
 
-    const result = await model.generateContent(firstMessage);
-    const title = result.response.text().trim().replace(/^["']|["']$/g, '');
+    const title = (result.text || 'New Conversation').trim().replace(/^["']|["']$/g, '');
     
     return title.length > 60 ? title.slice(0, 60) + '...' : title;
   } catch (error) {
@@ -279,17 +302,28 @@ export async function analyzeImage(
   prompt: string = 'Describe this image in detail.'
 ): Promise<MessageContent> {
   try {
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+    // ✅ CORRECT API: genAI.models.generateContent() with multimodal input
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash', // Flash supports vision
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              data: imageData,
+              mimeType: 'image/jpeg', // Adjust based on actual image type
+            }
+          }
+        ]
+      }],
+      config: {
+        temperature: 0.7,
+        maxOutputTokens: 2048,
+      }
+    });
 
-    const imagePart = {
-      inlineData: {
-        data: imageData,
-        mimeType: 'image/jpeg', // Adjust based on actual image type
-      },
-    };
-
-    const result = await model.generateContent([prompt, imagePart]);
-    const responseText = result.response.text();
+    const responseText = result.text || 'Could not analyze image';
 
     return {
       type: 'text',
@@ -297,7 +331,8 @@ export async function analyzeImage(
     };
   } catch (error) {
     console.error('Error analyzing image:', error);
-    throw new Error(`Failed to analyze image: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to analyze image: ${errorMessage}`);
   }
 }
 

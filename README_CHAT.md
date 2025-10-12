@@ -1,4 +1,4 @@
-# SalfaGPT Chat Interface
+# Flow Chat Interface
 
 A comprehensive ChatGPT-like interface powered by Google's Gemini 2.5-pro, built with Astro, React, and Google Cloud Firestore.
 
@@ -137,7 +137,7 @@ ChatInterface (Main Component)
 1. **Clone and Install**
 ```bash
 git clone <repository>
-cd salfagpt
+cd flow
 npm install
 ```
 

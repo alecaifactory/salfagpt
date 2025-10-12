@@ -1,0 +1,1221 @@
+---
+alwaysApply: true
+---
+
+# Firestore Architecture & Best Practices - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the complete Firestore database architecture, collections schema, security rules, indexing strategies, and best practices. It ensures data persistence, consistency between local and production, and prevents data loss.
+
+---
+
+## 🏗️ Firestore Architecture Overview
+
+### Database Structure
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    FIRESTORE DATABASE                    │
+│                gen-lang-client-0986191192               │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  conversations/                                         │
+│  ├─ {conversationId}/                                  │
+│  │  ├─ id: string                                      │
+│  │  ├─ userId: string                                  │
+│  │  ├─ title: string                                   │
+│  │  ├─ agentModel: string                              │
+│  │  ├─ activeContextSourceIds: string[]               │
+│  │  └─ timestamps...                                   │
+│  │                                                     │
+│  messages/                                              │
+│  ├─ {messageId}/                                       │
+│  │  ├─ conversationId: string                         │
+│  │  ├─ role: 'user' | 'assistant'                     │
+│  │  ├─ content: object                                │
+│  │  └─ timestamp: timestamp                           │
+│  │                                                     │
+│  context_sources/                                       │
+│  ├─ {sourceId}/                                        │
+│  │  ├─ userId: string                                 │
+│  │  ├─ type: string                                   │
+│  │  ├─ extractedData: string                          │
+│  │  └─ metadata: object                               │
+│  │                                                     │
+│  users/                                                 │
+│  ├─ {userId}/                                          │
+│  │  ├─ email: string                                  │
+│  │  ├─ role: string                                   │
+│  │  ├─ permissions: object                            │
+│  │  └─ timestamps...                                  │
+│  │                                                     │
+│  folders/                                               │
+│  groups/                                                │
+│  context_access_rules/                                  │
+│  user_context/                                          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📊 Collections Schema
+
+### 1. conversations
+
+**Purpose:** Store AI agent conversations
+
+```typescript
+interface Conversation {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  title: string;                    // Display name
+  folderId?: string;                // Optional folder (indexed)
+  createdAt: Timestamp;             // Creation time
+  updatedAt: Timestamp;             // Last update
+  lastMessageAt: Timestamp;         // Last activity (indexed)
+  messageCount: number;             // Total messages
+  contextWindowUsage: number;       // 0-100 percentage
+  agentModel: string;               // 'gemini-2.5-flash' | 'gemini-2.5-pro'
+  activeContextSourceIds?: string[]; // Active context for this agent
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, lastMessageAt DESC
+- userId ASC, folderId ASC, lastMessageAt DESC
+```
+
+**Security Rules:**
+```javascript
+match /conversations/{conversationId} {
+  // Users can only read their own conversations
+  allow read: if request.auth != null && 
+              resource.data.userId == request.auth.uid;
+  
+  // Users can create conversations for themselves
+  allow create: if request.auth != null && 
+                request.resource.data.userId == request.auth.uid;
+  
+  // Users can update their own conversations
+  allow update: if request.auth != null && 
+                resource.data.userId == request.auth.uid;
+  
+  // Users can delete their own conversations
+  allow delete: if request.auth != null && 
+                resource.data.userId == request.auth.uid;
+}
+```
+
+---
+
+### 2. messages
+
+**Purpose:** Store individual chat messages
+
+```typescript
+interface Message {
+  id: string;                       // Document ID
+  conversationId: string;           // Parent conversation (indexed)
+  userId: string;                   // Owner (indexed)
+  role: 'user' | 'assistant' | 'system';
+  content: MessageContent;          // Structured content
+  timestamp: Timestamp;             // When sent (indexed)
+  tokenCount: number;               // Token usage
+  contextSections?: ContextSection[]; // Context used
+}
+
+interface MessageContent {
+  type: 'text' | 'image' | 'video' | 'code' | 'mixed';
+  text?: string;
+  code?: {
+    language: string;
+    content: string;
+  };
+  mediaUrl?: string;
+  parts?: Array<{
+    type: string;
+    content: string | object;
+  }>;
+}
+
+interface ContextSection {
+  name: string;                     // Section name
+  tokenCount: number;               // Tokens used
+  content: string;                  // Content preview
+  collapsed: boolean;               // UI state
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC, timestamp ASC
+- userId ASC, timestamp DESC
+```
+
+**Security Rules:**
+```javascript
+match /messages/{messageId} {
+  // Users can read messages from their conversations
+  allow read: if request.auth != null && 
+              resource.data.userId == request.auth.uid;
+  
+  // Users can create messages in their conversations
+  allow create: if request.auth != null && 
+                request.resource.data.userId == request.auth.uid &&
+                exists(/databases/$(database)/documents/conversations/$(request.resource.data.conversationId));
+  
+  // Messages are immutable after creation
+  allow update: if false;
+  
+  // Users can delete their own messages
+  allow delete: if request.auth != null && 
+                resource.data.userId == request.auth.uid;
+}
+```
+
+---
+
+### 3. context_sources
+
+**Purpose:** Store uploaded documents and extracted context
+
+```typescript
+interface ContextSource {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  name: string;                     // Display name
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
+  enabled: boolean;                 // Active/inactive
+  status: 'active' | 'processing' | 'error' | 'disabled';
+  addedAt: Timestamp;               // When added (indexed)
+  extractedData?: string;           // Extracted content (text)
+  metadata?: {
+    originalFileName?: string;
+    originalFileSize?: number;
+    workflowId?: string;
+    extractionDate?: Timestamp;
+    extractionTime?: number;        // milliseconds
+    model?: string;                 // 'gemini-2.5-flash' | 'gemini-2.5-pro'
+    charactersExtracted?: number;
+    tokensEstimate?: number;
+    pageCount?: number;
+    validated?: boolean;            // Expert sign-off
+    validatedBy?: string;
+    validatedAt?: Timestamp;
+    validationNotes?: string;
+  };
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Timestamp;
+    suggestions?: string[];
+  };
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, addedAt DESC
+- userId ASC, status ASC, addedAt DESC
+- userId ASC, validated ASC
+```
+
+**Security Rules:**
+```javascript
+match /context_sources/{sourceId} {
+  // Users can read their own sources and shared sources
+  allow read: if request.auth != null && (
+    resource.data.userId == request.auth.uid ||
+    isSharedWithUser(resource.data.id, request.auth.uid)
+  );
+  
+  // Users can create sources for themselves
+  allow create: if request.auth != null && 
+                request.resource.data.userId == request.auth.uid;
+  
+  // Users can update their own sources
+  allow update: if request.auth != null && 
+                resource.data.userId == request.auth.uid;
+  
+  // Users can delete their own sources
+  allow delete: if request.auth != null && 
+                resource.data.userId == request.auth.uid;
+}
+```
+
+---
+
+### 4. users
+
+**Purpose:** User profiles and authentication
+
+```typescript
+interface User {
+  id: string;                       // Document ID (email sanitized)
+  email: string;                    // Email (unique)
+  name: string;                     // Display name
+  role: UserRole;                   // Permission level
+  permissions: UserPermissions;     // Granular permissions
+  company: string;                  // Organization
+  department?: string;              // Team/department
+  createdAt: Timestamp;             // Registration date
+  updatedAt: Timestamp;             // Last profile update
+  lastLoginAt?: Timestamp;          // Last login (indexed)
+  isActive: boolean;                // Account status
+  avatarUrl?: string;               // Profile picture
+}
+
+type UserRole = 
+  | 'admin'
+  | 'expert' 
+  | 'user'
+  | 'context_signoff'
+  | 'context_reviewer'
+  | 'context_creator'
+  | 'agent_signoff'
+  | 'agent_reviewer';
+
+interface UserPermissions {
+  canCreateAgents: boolean;
+  canDeleteAgents: boolean;
+  canShareAgents: boolean;
+  canUploadContext: boolean;
+  canValidateContext: boolean;
+  canAccessAnalytics: boolean;
+  canManageUsers: boolean;
+}
+```
+
+**Indexes Required:**
+```
+- email ASC (unique)
+- role ASC, lastLoginAt DESC
+- isActive ASC, createdAt DESC
+```
+
+**Security Rules:**
+```javascript
+match /users/{userId} {
+  // Users can read their own profile and public profiles
+  allow read: if request.auth != null && (
+    request.auth.uid == userId ||
+    isAdmin(request.auth.uid)
+  );
+  
+  // Only admins can create users
+  allow create: if request.auth != null && 
+                isAdmin(request.auth.uid);
+  
+  // Users can update their own basic profile
+  // Admins can update any profile
+  allow update: if request.auth != null && (
+    (request.auth.uid == userId && 
+     !('role' in request.resource.data.diff(resource.data)) &&
+     !('permissions' in request.resource.data.diff(resource.data))) ||
+    isAdmin(request.auth.uid)
+  );
+  
+  // Only admins can delete users
+  allow delete: if request.auth != null && 
+                isAdmin(request.auth.uid);
+}
+```
+
+---
+
+### 5. folders
+
+**Purpose:** Organize conversations
+
+```typescript
+interface Folder {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  name: string;                     // Display name
+  createdAt: Timestamp;             // Creation date
+  conversationCount: number;        // Cached count
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, createdAt DESC
+```
+
+**Security Rules:**
+```javascript
+match /folders/{folderId} {
+  allow read, write: if request.auth != null && 
+                     resource.data.userId == request.auth.uid;
+}
+```
+
+---
+
+### 6. groups
+
+**Purpose:** Team/department organization
+
+```typescript
+interface Group {
+  id: string;                       // Document ID
+  name: string;                     // Display name
+  type: string;                     // 'department' | 'team' | 'project'
+  members: string[];                // User IDs
+  createdAt: Timestamp;             // Creation date
+  createdBy: string;                // Creator user ID
+}
+```
+
+**Indexes Required:**
+```
+- type ASC, createdAt DESC
+```
+
+---
+
+### 7. context_access_rules
+
+**Purpose:** Context sharing permissions
+
+```typescript
+interface ContextAccessRule {
+  id: string;                       // Document ID
+  contextSourceId: string;          // Source being shared
+  sharedBy: string;                 // Owner user ID
+  sharedWith: string[];             // User IDs or group IDs
+  accessLevel: 'read' | 'write' | 'admin';
+  expiresAt?: Timestamp;            // Optional expiration
+  createdAt: Timestamp;             // When shared
+}
+```
+
+**Indexes Required:**
+```
+- contextSourceId ASC
+- sharedWith array-contains
+```
+
+---
+
+### 8. user_context
+
+**Purpose:** Per-user context items (legacy, being migrated to context_sources)
+
+```typescript
+interface UserContext {
+  userId: string;                   // Document ID
+  contextItems: ContextItem[];      // Array of items
+  totalTokens: number;              // Cached total
+  updatedAt: Timestamp;             // Last update
+}
+
+interface ContextItem {
+  id: string;
+  type: 'file' | 'url' | 'note' | 'document';
+  name: string;
+  content: string;
+  tokenCount: number;
+  addedAt: Timestamp;
+}
+```
+
+---
+
+## 🚨 Critical Firestore Rules
+
+### 1. ✅ ALWAYS Use Consistent Project ID
+
+**❌ WRONG:**
+```typescript
+// Hardcoded project ID
+const firestore = new Firestore({
+  projectId: 'some-project-id',
+});
+```
+
+**✅ CORRECT:**
+```typescript
+// Use environment variable
+const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env 
+  ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+  : process.env.GOOGLE_CLOUD_PROJECT;
+
+const firestore = new Firestore({
+  projectId: PROJECT_ID,
+});
+
+console.log('🔧 Firestore Project:', PROJECT_ID); // Should be: gen-lang-client-0986191192
+```
+
+**Why?**
+- Same database in local and production
+- No data duplication
+- Consistent testing
+- Easy environment switching
+
+**Reference:** `.cursor/rules/gcp-project-consistency.mdc`
+
+---
+
+### 2. ✅ ALWAYS Handle Firestore Unavailable
+
+**❌ WRONG:**
+```typescript
+// Crashes if Firestore unavailable
+const snapshot = await firestore.collection('conversations').get();
+return snapshot.docs.map(doc => doc.data());
+```
+
+**✅ CORRECT:**
+```typescript
+export async function getConversations(userId: string) {
+  try {
+    const snapshot = await firestore
+      .collection('conversations')
+      .where('userId', '==', userId)
+      .orderBy('lastMessageAt', 'desc')
+      .get();
+    
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+      updatedAt: doc.data().updatedAt.toDate(),
+      lastMessageAt: doc.data().lastMessageAt.toDate(),
+    })) as Conversation[];
+  } catch (error) {
+    console.error('❌ Firestore error:', error);
+    console.warn('💡 Run: gcloud auth application-default login');
+    console.warn('💡 Ensure GOOGLE_CLOUD_PROJECT is set in .env');
+    
+    // Return empty array instead of crashing
+    return [];
+  }
+}
+```
+
+**Why?**
+- Graceful degradation
+- Better error messages
+- App still works (with empty data)
+- Clear recovery instructions
+
+---
+
+### 3. ✅ ALWAYS Convert Timestamps
+
+**❌ WRONG:**
+```typescript
+// Returns Firestore Timestamp objects (not serializable)
+const conversation = doc.data();
+return conversation;
+```
+
+**✅ CORRECT:**
+```typescript
+// Convert timestamps to Date objects
+const conversation = doc.data();
+return {
+  ...conversation,
+  createdAt: conversation.createdAt.toDate(),
+  updatedAt: conversation.updatedAt.toDate(),
+  lastMessageAt: conversation.lastMessageAt.toDate(),
+} as Conversation;
+```
+
+**Why?**
+- JSON serializable
+- Works with API responses
+- Compatible with React state
+- No serialization errors
+
+---
+
+### 4. ✅ ALWAYS Use Batch Operations
+
+**❌ WRONG:**
+```typescript
+// Multiple writes (slow, not atomic)
+for (const message of messages) {
+  await firestore.collection('messages').doc(message.id).delete();
+}
+await firestore.collection('conversations').doc(convId).delete();
+```
+
+**✅ CORRECT:**
+```typescript
+// Single batch operation (fast, atomic)
+const batch = firestore.batch();
+
+// Delete all messages
+messages.docs.forEach(doc => batch.delete(doc.ref));
+
+// Delete conversation
+batch.delete(firestore.collection('conversations').doc(convId));
+
+// Commit all at once
+await batch.commit();
+```
+
+**Why?**
+- Atomic operations
+- Better performance
+- Reduced API calls
+- All-or-nothing guarantees
+
+---
+
+### 5. ✅ ALWAYS Index Query Fields
+
+**❌ WRONG:**
+```typescript
+// Query without proper index (fails in production)
+const snapshot = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .get();
+// Error: The query requires an index
+```
+
+**✅ CORRECT:**
+```typescript
+// 1. Create index in firestore.indexes.json
+{
+  "indexes": [
+    {
+      "collectionGroup": "conversations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    }
+  ]
+}
+
+// 2. Deploy indexes
+// gcloud firestore indexes create --project=gen-lang-client-0986191192
+
+// 3. Then query works
+const snapshot = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .get();
+```
+
+**Why?**
+- Queries work in production
+- Better performance
+- Predictable behavior
+- No surprise errors
+
+---
+
+## 🔧 Local Development Setup
+
+### Prerequisites
+
+```bash
+# 1. Install Firebase CLI (optional, for emulator)
+npm install -g firebase-tools
+
+# 2. Authenticate with Google Cloud
+gcloud auth application-default login
+
+# 3. Set active project
+gcloud config set project gen-lang-client-0986191192
+```
+
+### Environment Configuration
+
+```bash
+# .env file
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+
+# Optional: Use emulator for testing
+# FIRESTORE_EMULATOR_HOST=localhost:8080
+```
+
+### Using Production Firestore (Recommended)
+
+```typescript
+// src/lib/firestore.ts
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT;
+
+// Connects to production Firestore
+export const firestore = new Firestore({
+  projectId: PROJECT_ID,
+  // Uses Application Default Credentials automatically
+});
+```
+
+**Advantages:**
+- Real data for testing
+- No emulator setup needed
+- Tests against production environment
+- Catches issues early
+
+**Precautions:**
+- Use test user accounts
+- Don't delete production data
+- Separate test conversations/folders
+- Clear indicators in UI
+
+### Using Firestore Emulator (Alternative)
+
+```bash
+# Start emulator
+firebase emulators:start --only firestore
+
+# In another terminal
+export FIRESTORE_EMULATOR_HOST=localhost:8080
+npm run dev
+```
+
+**Advantages:**
+- Isolated testing environment
+- No real data affected
+- Faster iteration
+- Offline development
+
+**Disadvantages:**
+- Data not persisted (resets on restart)
+- Setup complexity
+- May behave differently than production
+- Need to seed test data
+
+---
+
+## 🚀 Production Deployment
+
+### Pre-Deployment Checklist
+
+```bash
+# 1. Verify indexes
+cat firestore.indexes.json
+
+# 2. Deploy indexes
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+# 3. Verify security rules
+cat firestore.rules
+
+# 4. Test rules
+firebase emulators:start --only firestore
+# Run test suite against emulator
+
+# 5. Deploy rules
+firebase deploy --only firestore:rules --project gen-lang-client-0986191192
+```
+
+### Security Rules Deployment
+
+```bash
+# Deploy to production
+firebase deploy --only firestore:rules --project gen-lang-client-0986191192
+
+# Verify deployment
+firebase firestore:rules:get --project gen-lang-client-0986191192
+```
+
+### Index Deployment
+
+```bash
+# Deploy all indexes
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+# Monitor index build progress
+# Check in Firebase Console > Firestore > Indexes
+```
+
+---
+
+## 📊 Query Patterns & Best Practices
+
+### Efficient Queries
+
+**✅ GOOD: Indexed, specific query**
+```typescript
+// Query with index: userId ASC, lastMessageAt DESC
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .limit(20)
+  .get();
+```
+
+**❌ BAD: Full collection scan**
+```typescript
+// Fetches ALL conversations, then filters in memory
+const all = await firestore.collection('conversations').get();
+const userConvs = all.docs.filter(doc => doc.data().userId === userId);
+```
+
+### Pagination
+
+```typescript
+// First page
+let query = firestore
+  .collection('messages')
+  .where('conversationId', '==', convId)
+  .orderBy('timestamp', 'asc')
+  .limit(50);
+
+let snapshot = await query.get();
+let messages = snapshot.docs.map(doc => doc.data());
+
+// Next page
+const lastDoc = snapshot.docs[snapshot.docs.length - 1];
+query = firestore
+  .collection('messages')
+  .where('conversationId', '==', convId)
+  .orderBy('timestamp', 'asc')
+  .startAfter(lastDoc)
+  .limit(50);
+
+snapshot = await query.get();
+messages = snapshot.docs.map(doc => doc.data());
+```
+
+### Real-Time Listeners
+
+```typescript
+// Listen to conversation updates
+const unsubscribe = firestore
+  .collection('conversations')
+  .doc(conversationId)
+  .onSnapshot(snapshot => {
+    if (snapshot.exists) {
+      const conversation = {
+        ...snapshot.data(),
+        createdAt: snapshot.data()?.createdAt.toDate(),
+        // ... convert other timestamps
+      };
+      updateUI(conversation);
+    }
+  }, error => {
+    console.error('Snapshot error:', error);
+  });
+
+// Clean up listener
+return () => unsubscribe();
+```
+
+---
+
+## 🔄 Data Migration Patterns
+
+### Adding New Fields
+
+```typescript
+// Add activeContextSourceIds to existing conversations
+async function migrateConversations() {
+  const snapshot = await firestore.collection('conversations').get();
+  const batch = firestore.batch();
+  
+  snapshot.docs.forEach(doc => {
+    // Only update if field doesn't exist
+    if (!doc.data().activeContextSourceIds) {
+      batch.update(doc.ref, {
+        activeContextSourceIds: [],
+        updatedAt: new Date(),
+      });
+    }
+  });
+  
+  await batch.commit();
+  console.log(`✅ Migrated ${snapshot.size} conversations`);
+}
+```
+
+### Renaming Collections
+
+```typescript
+// Copy data from old collection to new one
+async function renameCollection(oldName: string, newName: string) {
+  const oldDocs = await firestore.collection(oldName).get();
+  const batch = firestore.batch();
+  
+  oldDocs.docs.forEach(doc => {
+    const newRef = firestore.collection(newName).doc(doc.id);
+    batch.set(newRef, doc.data());
+  });
+  
+  await batch.commit();
+  console.log(`✅ Copied ${oldDocs.size} documents from ${oldName} to ${newName}`);
+  
+  // Manually verify, then delete old collection
+}
+```
+
+### Updating Data Structure
+
+```typescript
+// Convert flat message to structured content
+async function migrateMessages() {
+  const snapshot = await firestore.collection('messages').get();
+  const batch = firestore.batch();
+  
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    
+    // Old format: { text: string }
+    // New format: { content: { type: 'text', text: string } }
+    if (typeof data.text === 'string') {
+      batch.update(doc.ref, {
+        content: {
+          type: 'text',
+          text: data.text,
+        },
+      });
+    }
+  });
+  
+  await batch.commit();
+  console.log(`✅ Migrated ${snapshot.size} messages`);
+}
+```
+
+---
+
+## 💾 Backup & Restore
+
+### Automated Backups
+
+```bash
+# Enable automated backups in Firebase Console
+# Settings > Backups
+# Schedule: Daily at 2:00 AM UTC
+# Retention: 30 days
+
+# Or via gcloud
+gcloud firestore backups schedules create \
+  --database='(default)' \
+  --retention=30d \
+  --recurrence=daily
+```
+
+### Manual Export
+
+```bash
+# Export entire database
+gcloud firestore export gs://gen-lang-client-0986191192-backups/$(date +%Y%m%d) \
+  --project=gen-lang-client-0986191192
+
+# Export specific collections
+gcloud firestore export gs://gen-lang-client-0986191192-backups/$(date +%Y%m%d) \
+  --collection-ids=conversations,messages \
+  --project=gen-lang-client-0986191192
+```
+
+### Restore from Backup
+
+```bash
+# Import from backup
+gcloud firestore import gs://gen-lang-client-0986191192-backups/20251012 \
+  --project=gen-lang-client-0986191192
+
+# Import specific collections
+gcloud firestore import gs://gen-lang-client-0986191192-backups/20251012 \
+  --collection-ids=conversations,messages \
+  --project=gen-lang-client-0986191192
+```
+
+---
+
+## 📈 Performance Optimization
+
+### Denormalization
+
+```typescript
+// Store frequently accessed data together
+interface Conversation {
+  id: string;
+  userId: string;
+  title: string;
+  messageCount: number;          // ✅ Denormalized
+  lastMessage: {                 // ✅ Denormalized
+    content: string;
+    timestamp: Timestamp;
+  };
+}
+
+// Update both when message is added
+async function addMessage(conversationId: string, message: Message) {
+  const batch = firestore.batch();
+  
+  // Add message
+  const msgRef = firestore.collection('messages').doc();
+  batch.set(msgRef, message);
+  
+  // Update conversation stats
+  const convRef = firestore.collection('conversations').doc(conversationId);
+  batch.update(convRef, {
+    messageCount: admin.firestore.FieldValue.increment(1),
+    lastMessage: {
+      content: message.content.text?.substring(0, 100),
+      timestamp: message.timestamp,
+    },
+    lastMessageAt: message.timestamp,
+  });
+  
+  await batch.commit();
+}
+```
+
+### Caching
+
+```typescript
+// Cache frequently accessed data
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getConversationCached(id: string): Promise<Conversation | null> {
+  // Check cache
+  const cached = cache.get(id);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  
+  // Fetch from Firestore
+  const doc = await firestore.collection('conversations').doc(id).get();
+  if (!doc.exists) return null;
+  
+  const conversation = doc.data() as Conversation;
+  
+  // Update cache
+  cache.set(id, { data: conversation, timestamp: Date.now() });
+  
+  return conversation;
+}
+```
+
+### Limiting Query Size
+
+```typescript
+// Always use limits
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .limit(50)  // ✅ Prevent fetching thousands of documents
+  .get();
+```
+
+---
+
+## 🔍 Monitoring & Debugging
+
+### Enable Logging
+
+```typescript
+// Enable Firestore debug logging (development only)
+if (process.env.NODE_ENV === 'development') {
+  firestore.settings({
+    ignoreUndefinedProperties: true,
+  });
+}
+
+// Log all operations
+console.log('🔥 Firestore operation:', {
+  collection: 'conversations',
+  operation: 'create',
+  documentId: 'abc123',
+  timestamp: new Date().toISOString(),
+});
+```
+
+### Error Tracking
+
+```typescript
+async function safeFirestoreOperation<T>(
+  operation: () => Promise<T>,
+  context: string
+): Promise<T | null> {
+  try {
+    return await operation();
+  } catch (error) {
+    console.error(`❌ Firestore error in ${context}:`, error);
+    
+    // Report to error tracking service
+    if (error instanceof Error) {
+      reportError({
+        message: error.message,
+        stack: error.stack,
+        context,
+      });
+    }
+    
+    return null;
+  }
+}
+
+// Usage
+const conversations = await safeFirestoreOperation(
+  () => getConversations(userId),
+  'getConversations'
+);
+```
+
+### Query Performance
+
+```bash
+# View query performance in Firebase Console
+# Firestore > Usage > Performance
+
+# Monitor slow queries
+# Set up alerts for queries taking > 1 second
+```
+
+---
+
+## 📚 Integration with Other Services
+
+### Firestore → BigQuery Sync
+
+```typescript
+// Optionally sync to BigQuery for analytics
+import { BigQuery } from '@google-cloud/bigquery';
+
+const bigquery = new BigQuery({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT,
+});
+
+async function syncToBigQuery(conversation: Conversation) {
+  try {
+    await bigquery
+      .dataset('flow_analytics')
+      .table('conversations')
+      .insert([{
+        conversation_id: conversation.id,
+        user_id: conversation.userId,
+        title: conversation.title,
+        model: conversation.agentModel,
+        created_at: conversation.createdAt,
+        message_count: conversation.messageCount,
+      }]);
+  } catch (error) {
+    console.warn('⚠️ BigQuery sync failed (non-critical):', error);
+    // Don't throw - analytics failure shouldn't break app
+  }
+}
+```
+
+### Cloud Functions Triggers
+
+```typescript
+// Trigger function on document create/update/delete
+exports.onConversationCreate = functions.firestore
+  .document('conversations/{conversationId}')
+  .onCreate(async (snapshot, context) => {
+    const conversation = snapshot.data();
+    
+    // Send welcome message
+    await firestore.collection('messages').add({
+      conversationId: context.params.conversationId,
+      role: 'system',
+      content: {
+        type: 'text',
+        text: 'Welcome to your new conversation!',
+      },
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+```
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented Firestore database should:
+
+1. **Data Persistence**
+   - ✅ All user data saved to Firestore
+   - ✅ No data loss on refresh/logout
+   - ✅ Data survives deployments
+
+2. **Performance**
+   - ✅ All queries have proper indexes
+   - ✅ Query response times < 500ms (p95)
+   - ✅ Efficient pagination
+   - ✅ Proper caching strategies
+
+3. **Security**
+   - ✅ Security rules deployed
+   - ✅ Users only access their own data
+   - ✅ Role-based permissions enforced
+   - ✅ No public read/write access
+
+4. **Consistency**
+   - ✅ Same database in local & production
+   - ✅ Timestamps always converted
+   - ✅ Batch operations for atomicity
+   - ✅ Data migrations documented
+
+5. **Monitoring**
+   - ✅ Error logging enabled
+   - ✅ Performance monitoring active
+   - ✅ Automated backups configured
+   - ✅ Alerts for anomalies
+
+---
+
+## 📋 Maintenance Checklist
+
+### Daily
+
+- [ ] Monitor error rates in logs
+- [ ] Check query performance metrics
+- [ ] Verify backup completion
+
+### Weekly
+
+- [ ] Review security rules
+- [ ] Check index usage
+- [ ] Analyze slow queries
+- [ ] Review storage costs
+
+### Monthly
+
+- [ ] Test backup restore process
+- [ ] Review and optimize indexes
+- [ ] Clean up unused collections
+- [ ] Update security rules if needed
+- [ ] Review data retention policies
+
+---
+
+## 📚 Reference Documentation
+
+### Internal Docs
+- `src/lib/firestore.ts` - Main Firestore implementation
+- `.cursor/rules/backend.mdc` - Backend architecture
+- `.cursor/rules/frontend.mdc` - Frontend integration
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP configuration
+- `firestore.rules` - Security rules file
+- `firestore.indexes.json` - Index definitions
+
+### External Docs
+- [Firestore Documentation](https://firebase.google.com/docs/firestore)
+- [Firestore Node.js Client](https://cloud.google.com/nodejs/docs/reference/firestore/latest)
+- [Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
+- [Data Modeling](https://firebase.google.com/docs/firestore/manage-data/structure-data)
+- [Best Practices](https://firebase.google.com/docs/firestore/best-practices)
+
+---
+
+**Last Updated**: 2025-10-12
+**Version**: 1.0.0
+**Status**: ✅ Production Ready
+**Project**: gen-lang-client-0986191192

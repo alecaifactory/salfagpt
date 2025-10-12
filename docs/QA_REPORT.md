@@ -1,4 +1,4 @@
-# SalfaGPT Chat Interface - QA Test Report
+# Flow Chat Interface - QA Test Report
 
 **Date:** January 9, 2025  
 **Test Environment:** Development (localhost:3000)  
@@ -33,7 +33,7 @@ The chat interface loads successfully, displays properly, and handles user inter
 **Actual:**
 - ✅ Page loaded successfully (HTTP 200)
 - ✅ React component hydrated in development mode
-- ✅ Header displays: "🤖 SalfaGPT Chat - Simple Test"
+- ✅ Header displays: "🤖 Flow Chat - Simple Test"
 - ✅ Welcome message: "👋 Welcome! Send a message to start chatting."
 - ✅ User ID shown: "test-user-dev-123"
 - ✅ Input textbox placeholder: "Type your message..."

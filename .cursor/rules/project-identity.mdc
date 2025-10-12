@@ -1,0 +1,321 @@
+---
+alwaysApply: true
+---
+## 🚀 CORRECT Deployment Method
+
+### ❌ NEVER USE:
+```bash
+npx pame-core-cli deploy www --production  # WRONG - This is for PAME project
+```
+
+### ✅ ALWAYS USE (Flow Project):
+
+#### Option 1: Using gcloud CLI (Recommended)
+```bash
+# 1. Set project
+gcloud config set project gen-lang-client-0986191192
+
+# 2. Build
+npm run build
+
+# 3. Deploy to Cloud Run
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,NODE_ENV=production"
+```
+
+#### Option 2: Using cloudbuild.yaml
+```bash
+# Deploy using Cloud Build configuration
+gcloud builds submit --config cloudbuild.yaml
+```
+
+#### Option 3: Manual Docker build and deploy
+```bash
+# 1. Build Docker image
+docker build -t gcr.io/gen-lang-client-0986191192/flow-chat:latest .
+
+# 2. Push to Container Registry
+docker push gcr.io/gen-lang-client-0986191192/flow-chat:latest
+
+# 3. Deploy to Cloud Run
+gcloud run deploy flow-chat \
+  --image gcr.io/gen-lang-client-0986191192/flow-chat:latest \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
+```
+
+---
+
+## 📁 Project Structure
+
+```
+salfagpt/
+├── .cursor/
+│   └── rules/
+│       ├── project-identity.mdc          # THIS FILE - Project identity
+│       ├── prd.mdc                        # Product requirements
+│       ├── ui.mdc                         # UI documentation
+│       ├── gcp-project-consistency.mdc    # GCP rules
+│       ├── gemini-api-usage.mdc          # Gemini AI rules
+│       └── ... (other project-specific rules)
+├── src/                                  # Source code
+├── docs/                                 # Documentation
+├── Dockerfile                            # Docker configuration
+├── cloudbuild.yaml                       # Cloud Build config
+├── cloudbuild-deploy.yaml               # Deployment config
+├── package.json                          # Dependencies
+├── .env                                 # Environment variables (local)
+└── README.md                            # Project README
+```
+
+---
+
+## 🎯 Project Goals & Purpose
+
+### What Flow Does:
+1. **AI-first conversational platform** for enterprise users
+2. **Multi-agent system** - users create multiple AI agents
+3. **Context management** - upload and manage documents for AI context
+4. **Markdown rendering** - rich format responses with code, tables, images
+5. **Analytics & logging** - complete traceability of interactions
+6. **User management** - roles, permissions, validation workflows
+
+### What Flow Is NOT:
+- ❌ NOT a learning platform (that's PAME.AI's learn.pame.ai)
+- ❌ NOT using pame-core-cli
+- ❌ NOT part of PAME ecosystem
+- ❌ NOT a multi-tenant SaaS (single organization focus)
+
+---
+
+## 🔧 Development Commands
+
+### Local Development
+```bash
+npm run dev          # Start dev server on :3000
+npm run build        # Build for production
+npm run type-check   # TypeScript validation
+npm run lint         # Linting
+```
+
+### Testing
+```bash
+# Local with Firestore emulator
+npm run dev
+
+# Test API endpoints
+curl http://localhost:3000/api/health/firestore
+
+# Test with actual Firestore
+gcloud auth application-default login
+npm run dev
+```
+
+### Deployment Pre-checks
+```bash
+# 1. Type check
+npm run type-check
+
+# 2. Build
+npm run build
+
+# 3. Verify environment
+echo $GOOGLE_CLOUD_PROJECT  # Should be: gen-lang-client-0986191192
+
+# 4. Deploy (see correct method above)
+```
+
+---
+
+## 📚 Documentation References
+
+### Project-Specific Docs
+- `docs/LocalToProduction.md` - Complete deployment guide
+- `docs/DEPLOYMENT_SUCCESS.md` - Deployment summary
+- `docs/BranchLog.md` - Development log
+- `.cursor/rules/prd.mdc` - Product requirements
+- `.cursor/rules/ui.mdc` - UI documentation
+
+### Important Guides
+- `docs/CHAT_INTEGRATION_LESSONS.md` - Lessons learned
+- `docs/GEMINI_API_MIGRATION.md` - Gemini AI guide
+- `TEST_ERROR_HANDLING.md` - Error handling testing
+- `MARKDOWN_FEATURES_GUIDE.md` - Markdown features
+
+---
+
+## 🚨 Rule Precedence
+
+**ALWAYS follow this hierarchy:**
+
+1. **Project-specific rules** (`.cursor/rules/*.mdc` in THIS project)
+   - Highest priority
+   - Override everything else
+   
+2. **Project documentation** (`docs/` folder)
+   - Project-specific implementation details
+   
+3. **User rules** (general preferences)
+   - Only when not conflicting with project rules
+   
+4. **General best practices**
+   - When no specific rules exist
+
+### Example Conflicts:
+```
+User Rule: "Use pame-core-cli for deployment"
+Project Rule: "Use gcloud CLI directly"
+→ RESULT: Follow Project Rule (gcloud CLI)
+
+User Rule: "Use Tailwind v4"
+Project Rule: "Use Tailwind v3.4.x"
+→ RESULT: Follow Project Rule (v3.4.x)
+```
+
+---
+
+## 🔐 Environment Variables
+
+### Required for Development
+```bash
+# .env file (NOT tracked in git)
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=AIzaSy...  # Your Gemini API key
+GOOGLE_CLIENT_ID=...          # OAuth client ID
+GOOGLE_CLIENT_SECRET=...      # OAuth client secret
+JWT_SECRET=...                # Session secret
+PUBLIC_BASE_URL=http://localhost:3000
+```
+
+### Required for Production (Cloud Run)
+```bash
+# Set via Cloud Run console or gcloud command
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=...
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+JWT_SECRET=...
+PUBLIC_BASE_URL=https://your-production-url.run.app
+NODE_ENV=production
+```
+
+---
+
+## 🎨 Branding
+
+### Current Branding
+- **Name**: Flow
+- **Previous**: SalfaGPT
+- **Logo**: N/A (use placeholder)
+- **Colors**: Blue (primary), Green (success), Purple (pro model)
+
+### No Relation To:
+- PAME.AI
+- Any other platform
+- Any other user's projects
+
+---
+
+## 📊 Key Metrics & KPIs
+
+### Success Metrics
+- User conversations created
+- Messages sent per user
+- Context sources uploaded
+- Token usage (Flash vs Pro)
+- Response accuracy (validated)
+
+### Technical Metrics
+- Response time < 3s (p95)
+- Uptime > 99.5%
+- Error rate < 0.5%
+- Cost per conversation
+- Context window utilization
+
+---
+
+## 🔄 Release Process
+
+### Pre-Release Checklist
+- [ ] `npm run type-check` - 0 errors
+- [ ] `npm run build` - successful
+- [ ] Test locally with `npm run dev`
+- [ ] Review changes in `docs/BranchLog.md`
+- [ ] Update version in `package.json` (if major)
+- [ ] Commit all changes
+
+### Deployment Steps
+1. **Build**: `npm run build`
+2. **Set project**: `gcloud config set project gen-lang-client-0986191192`
+3. **Deploy**: Use one of the correct methods above
+4. **Verify**: Check Cloud Run logs
+5. **Test**: Hit production URL and verify functionality
+6. **Document**: Update `DEPLOYMENT_SUCCESS.md` if needed
+
+### Rollback Plan
+```bash
+# List previous revisions
+gcloud run revisions list --service flow-chat --region us-central1
+
+# Rollback to previous revision
+gcloud run services update-traffic flow-chat \
+  --to-revisions=REVISION_NAME=100 \
+  --region us-central1
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### "pame-core-cli not found"
+- ✅ GOOD - You're using the wrong command
+- Use `gcloud` CLI instead (see correct deployment method above)
+
+### "Wrong project ID"
+- Check: `gcloud config get-value project`
+- Should be: `gen-lang-client-0986191192`
+- Fix: `gcloud config set project gen-lang-client-0986191192`
+
+### "Firestore permission denied"
+- Run: `gcloud auth application-default login`
+- Verify: `.env` has `GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192`
+
+### "Deployment fails"
+- Check: `cloudbuild.yaml` exists
+- Check: `Dockerfile` exists
+- Check: `.gcloudignore` is configured
+- Review: Cloud Build logs in GCP Console
+
+---
+
+## 📝 Important Notes
+
+1. **This project is INDEPENDENT** - It's not part of any other ecosystem
+2. **Use gcloud CLI** - Never use pame-core-cli or any other project's tools
+3. **Follow project rules** - They override user rules
+4. **GCP Project**: gen-lang-client-0986191192 for EVERYTHING
+5. **Documentation**: All docs are in this repo, don't reference external docs
+
+---
+
+## ✅ Quick Checklist
+
+Before working on this project, verify:
+- [ ] You understand this is the **Flow project**
+- [ ] You know NOT to use pame-core-cli
+- [ ] You have the correct GCP project ID
+- [ ] You're following project-specific rules
+- [ ] You're using gcloud CLI for deployment
+- [ ] You're reading docs from THIS repo
+
+---
+
+**Last Updated**: 2025-10-12
+**Project**: Flow (formerly SalfaGPT)
+**Status**: ✅ Active Development & Production
+**GCP Project**: gen-lang-client-0986191192

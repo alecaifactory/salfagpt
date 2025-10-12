@@ -1,0 +1,1589 @@
+---
+alwaysApply: true
+---
+
+# System Alignment & Design Principles - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the foundational design principles, architectural alignment, and quality standards that ensure all components of the Flow platform work together harmoniously. It serves as the **north star** for all development decisions, preventing misalignment and data loss.
+
+---
+
+## 🌟 Core Design Principles
+
+### 1. Data Persistence First
+
+**Principle:** Every user action that creates or modifies data MUST persist to GCP (Firestore/BigQuery) immediately.
+
+**Why:** Users trust that their work is saved. Data loss destroys trust and productivity.
+
+**Implementation:**
+```typescript
+// ❌ WRONG: Data only in memory
+const [conversations, setConversations] = useState([]);
+setConversations([...conversations, newConv]); // Lost on refresh!
+
+// ✅ CORRECT: Persist to backend, then update state
+const response = await fetch('/api/conversations', {
+  method: 'POST',
+  body: JSON.stringify({ userId, title })
+});
+const newConv = await response.json();
+setConversations([...conversations, newConv]); // Now safe
+```
+
+**Verification:**
+- [ ] Every user action that creates data calls an API
+- [ ] API endpoint saves to Firestore/BigQuery
+- [ ] Frontend state reflects backend state
+- [ ] Refresh preserves all user data
+
+---
+
+### 2. Progressive Disclosure
+
+**Principle:** Show users only what they need, when they need it. Don't overwhelm with all features at once.
+
+**Why:** Cognitive load reduces productivity. Users should focus on their current task.
+
+**Implementation:**
+- Default view: Essential features visible
+- Advanced features: Hidden behind settings/toggles
+- Context: Expandable panels show details on demand
+- Workflows: Step-by-step guided experiences
+
+**Examples:**
+```
+✅ Context sources: Collapsed by default, expand on click
+✅ Workflow config: Modal with focused settings
+✅ Error details: "Ver detalles" button reveals full info
+✅ Context logs: Compact table, expandable rows
+```
+
+**Anti-patterns:**
+```
+❌ Show all context sources expanded at once
+❌ Display full workflow config in main UI
+❌ Show all error stack traces inline
+❌ Render entire conversation history without virtualization
+```
+
+---
+
+### 3. Feedback & Visibility
+
+**Principle:** Always show users what's happening. Never leave them wondering.
+
+**Why:** Uncertainty creates anxiety. Clear feedback builds confidence.
+
+**State Visibility:**
+```typescript
+// Loading states
+{isLoading && <Loader2 className="animate-spin" />}
+
+// Progress states
+<ProgressBar percentage={progress} message="Procesando..." />
+
+// Success states
+{success && <CheckCircle className="text-green-600" />}
+
+// Error states
+{error && (
+  <div className="bg-red-50 border border-red-200 p-3">
+    <p className="font-semibold text-red-800">{error.message}</p>
+    <button onClick={retry}>Reintentar</button>
+  </div>
+)}
+
+// Empty states
+{items.length === 0 && (
+  <div className="text-center text-slate-500">
+    <p>No hay elementos</p>
+    <button onClick={create}>Crear primero</button>
+  </div>
+)}
+```
+
+**All Operations Must Show:**
+- ⏳ Loading indicator during processing
+- ✅ Success confirmation after completion
+- ❌ Error message with recovery options
+- 📊 Progress for long operations (>2s)
+- 🔄 State changes animated smoothly
+
+---
+
+### 4. Graceful Degradation
+
+**Principle:** The system should continue working even when external services fail.
+
+**Why:** Network issues, service outages, and configuration problems are inevitable. Users shouldn't be blocked.
+
+**Implementation Layers:**
+
+**Layer 1: Try Real Service**
+```typescript
+try {
+  const data = await fetch('/api/conversations');
+  return await data.json();
+} catch (error) {
+  console.error('API error:', error);
+  // Continue to Layer 2...
+}
+```
+
+**Layer 2: Fallback to Cache/Local**
+```typescript
+const cachedData = localStorage.getItem('conversations');
+if (cachedData) {
+  console.warn('Using cached data due to API error');
+  return JSON.parse(cachedData);
+}
+```
+
+**Layer 3: Temporary/Mock Mode**
+```typescript
+// Only for non-critical features
+if (IS_DEVELOPMENT && !cachedData) {
+  console.warn('Using temporary conversation (Firestore unavailable)');
+  return createTempConversation();
+}
+```
+
+**Layer 4: User-Friendly Error**
+```typescript
+return {
+  error: 'No se pudo cargar las conversaciones',
+  suggestions: [
+    'Verifica tu conexión a internet',
+    'Recarga la página',
+    'Contacta soporte si el problema persiste'
+  ]
+};
+```
+
+**Never:**
+- ❌ Crash the app due to external service failure
+- ❌ Show technical error messages to users
+- ❌ Silently fail without user notification
+- ❌ Use mock data without user awareness
+
+---
+
+### 5. Type Safety Everywhere
+
+**Principle:** Use TypeScript strictly. Every piece of data should have a defined interface.
+
+**Why:** Type errors caught at compile time are infinitely cheaper than runtime bugs in production.
+
+**Implementation:**
+```typescript
+// ✅ CORRECT: Explicit interfaces
+interface Conversation {
+  id: string;
+  userId: string;
+  title: string;
+  agentModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  activeContextSourceIds: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Message {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  tokenCount: number;
+}
+
+// ✅ CORRECT: Type-safe API responses
+async function getConversations(userId: string): Promise<Conversation[]> {
+  const response = await fetch(`/api/conversations?userId=${userId}`);
+  return await response.json();
+}
+
+// ❌ WRONG: No types
+function getConversations(userId) {
+  return fetch('/api/conversations?userId=' + userId).then(r => r.json());
+}
+```
+
+**Enforce:**
+- [ ] `npm run type-check` passes with 0 errors
+- [ ] All functions have return types
+- [ ] All parameters have types
+- [ ] No `any` types (use `unknown` if needed)
+- [ ] Interfaces for all data structures
+
+---
+
+### 6. Performance as a Feature
+
+**Principle:** Speed is a feature. Every interaction should feel instant (<100ms) or show clear progress.
+
+**Why:** Slow apps feel broken. Users lose focus waiting for responses.
+
+**Performance Targets:**
+```
+User Input → UI Response: <100ms (instant feel)
+API Call → Response: <1s (p95)
+Page Load: <2s (p95)
+Chat Message → AI Response (first token): <2s
+Context Window Calculation: <200ms
+Document Extraction: Show progress every 500ms
+```
+
+**Optimization Strategies:**
+
+**Frontend:**
+```typescript
+// ✅ Memoization for expensive computations
+const sortedConversations = useMemo(() => 
+  conversations.sort((a, b) => b.lastMessageAt - a.lastMessageAt),
+  [conversations]
+);
+
+// ✅ Callback memoization to prevent re-renders
+const handleClick = useCallback((id: string) => {
+  setSelectedId(id);
+}, []);
+
+// ✅ Component memoization
+const ConversationCard = memo(function ConversationCard({ conversation }) {
+  return <div>{conversation.title}</div>;
+});
+
+// ✅ Lazy loading for heavy components
+const AdminPanel = lazy(() => import('./AdminPanel'));
+```
+
+**Backend:**
+```typescript
+// ✅ Batch Firestore operations
+const batch = firestore.batch();
+messages.forEach(msg => batch.delete(msg.ref));
+await batch.commit(); // Single network call
+
+// ✅ Parallel operations
+const [conversations, contextSources, user] = await Promise.all([
+  getConversations(userId),
+  getContextSources(userId),
+  getUser(userId)
+]);
+
+// ✅ Cache frequently accessed data
+const cachedUser = await getCachedUser(userId);
+```
+
+**Database:**
+```sql
+-- ✅ Proper indexes
+CREATE INDEX idx_user_conversations 
+ON conversations (userId, lastMessageAt DESC);
+
+-- ✅ Limit query size
+SELECT * FROM conversations 
+WHERE userId = @userId 
+ORDER BY lastMessageAt DESC 
+LIMIT 50;
+```
+
+---
+
+### 7. Security by Default
+
+**Principle:** Every endpoint requires authentication. Every query filters by user. No data leaks.
+
+**Why:** User data is sacred. Security breaches destroy businesses.
+
+**Implementation:**
+
+**API Authentication:**
+```typescript
+// ✅ ALWAYS verify JWT
+export const GET: APIRoute = async ({ request, cookies }) => {
+  const token = cookies.get('flow_session')?.value;
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401
+    });
+  }
+  
+  const session = verifyJWT(token);
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Invalid session' }), {
+      status: 401
+    });
+  }
+  
+  // Continue with authenticated request...
+};
+```
+
+**Data Access:**
+```typescript
+// ✅ ALWAYS filter by userId
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', session.id) // CRITICAL
+  .get();
+
+// ❌ NEVER fetch all data
+const allConversations = await firestore
+  .collection('conversations')
+  .get(); // Security vulnerability!
+```
+
+**Firestore Rules:**
+```javascript
+// ✅ User isolation
+match /conversations/{conversationId} {
+  allow read, write: if request.auth != null && 
+                     resource.data.userId == request.auth.uid;
+}
+```
+
+**Security Checklist:**
+- [ ] All API routes verify JWT
+- [ ] All Firestore queries filter by userId
+- [ ] All sensitive data encrypted at rest
+- [ ] No API keys in frontend code
+- [ ] HTTPS only (no HTTP)
+- [ ] CORS properly configured
+
+---
+
+## 🏗️ Architectural Alignment
+
+### Layer 1: Frontend (React + Astro)
+
+**Responsibilities:**
+- ✅ User interaction & input handling
+- ✅ State management (local & server state)
+- ✅ Data display & visualization
+- ✅ Optimistic UI updates
+- ✅ Error handling & user feedback
+
+**Must NOT:**
+- ❌ Business logic (belongs in backend)
+- ❌ Data persistence (belongs in backend)
+- ❌ Direct database access (use API)
+- ❌ Sensitive computations (use backend)
+
+**Integration Points:**
+```
+Frontend → API Routes → Backend Services
+Frontend → Firestore (read-only, via API)
+Frontend → BigQuery (never directly)
+```
+
+---
+
+### Layer 2: API Routes (Astro)
+
+**Responsibilities:**
+- ✅ Authentication & authorization
+- ✅ Request validation
+- ✅ Business logic orchestration
+- ✅ Error handling & logging
+- ✅ Response formatting
+
+**Must NOT:**
+- ❌ UI rendering (belongs in frontend)
+- ❌ Complex data transformations (use services)
+- ❌ Direct AI calls (use service layer)
+
+**Pattern:**
+```typescript
+export const POST: APIRoute = async ({ request, cookies }) => {
+  // 1. Authenticate
+  const session = await authenticate(cookies);
+  
+  // 2. Validate input
+  const body = await validateInput(request);
+  
+  // 3. Call service layer
+  const result = await service.execute(body);
+  
+  // 4. Track analytics (non-blocking)
+  trackEvent(session.id, 'action', result).catch(console.warn);
+  
+  // 5. Return response
+  return new Response(JSON.stringify(result), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+```
+
+---
+
+### Layer 3: Service Layer (Backend Logic)
+
+**Responsibilities:**
+- ✅ Business logic implementation
+- ✅ Data transformation
+- ✅ External service integration (Gemini AI)
+- ✅ Complex computations
+- ✅ Data validation
+
+**Must NOT:**
+- ❌ Direct HTTP handling (use API routes)
+- ❌ Session management (use auth middleware)
+
+**Pattern:**
+```typescript
+// src/lib/conversations.ts
+export async function createConversation(
+  userId: string,
+  title: string,
+  model: string
+): Promise<Conversation> {
+  // 1. Validate input
+  if (!userId || !title) {
+    throw new Error('Missing required fields');
+  }
+  
+  // 2. Create in Firestore
+  const conversation = await firestore
+    .collection('conversations')
+    .add({
+      userId,
+      title,
+      agentModel: model,
+      createdAt: new Date(),
+      messageCount: 0
+    });
+  
+  // 3. Track in BigQuery (non-blocking)
+  trackConversationCreated(conversation).catch(console.warn);
+  
+  // 4. Return result
+  return conversation;
+}
+```
+
+---
+
+### Layer 4: Data Layer (Firestore + BigQuery)
+
+**Firestore: Operational Database**
+- ✅ User-facing data (conversations, messages, users)
+- ✅ Real-time updates
+- ✅ Transactional operations
+- ✅ Source of truth for user data
+
+**BigQuery: Analytics Warehouse**
+- ✅ Historical analysis
+- ✅ Aggregated metrics
+- ✅ Complex queries
+- ✅ Reporting & dashboards
+
+**Separation:**
+```
+Firestore → User creates conversation → Store immediately
+    ↓
+BigQuery ← Sync conversation metadata ← Optional (analytics only)
+```
+
+**Never:**
+- ❌ Query BigQuery for operational data
+- ❌ Use Firestore for complex analytics
+- ❌ Mix concerns between databases
+
+---
+
+## 🔄 Data Flow Consistency
+
+### Complete User Action Flow
+
+```
+1. User Action (Frontend)
+   ↓
+2. Optimistic UI Update (Frontend)
+   ↓
+3. API Call (Frontend → Backend)
+   ↓
+4. Authentication Check (API Route)
+   ↓
+5. Input Validation (API Route)
+   ↓
+6. Business Logic (Service Layer)
+   ↓
+7. Firestore Write (Data Layer)
+   ↓
+8. BigQuery Sync (Optional, Non-blocking)
+   ↓
+9. Response to Frontend (API Route)
+   ↓
+10. UI Update (Frontend)
+```
+
+### Error at Any Step
+
+```
+Error Occurs
+   ↓
+Log Error Details (with context)
+   ↓
+Rollback Changes (if transactional)
+   ↓
+Return User-Friendly Error
+   ↓
+Show Recovery Options
+   ↓
+Track Error in Analytics
+```
+
+---
+
+## 💎 Quality Standards
+
+### Code Quality
+
+**TypeScript:**
+- ✅ Strict mode enabled
+- ✅ No `any` types
+- ✅ All functions have return types
+- ✅ All interfaces exported
+- ✅ `npm run type-check` passes
+
+**React:**
+- ✅ Functional components only
+- ✅ Proper hooks usage (deps arrays)
+- ✅ Memoization where needed
+- ✅ Error boundaries for resilience
+- ✅ No console.logs in production
+
+**API Routes:**
+- ✅ Always authenticate first
+- ✅ Always validate input
+- ✅ Always handle errors
+- ✅ Always return consistent structure
+- ✅ Always log important events
+
+**Database:**
+- ✅ All queries indexed
+- ✅ All writes batched where possible
+- ✅ All timestamps converted
+- ✅ All sensitive data filtered by userId
+- ✅ All collections have security rules
+
+---
+
+### Testing Standards
+
+**Unit Tests:**
+```typescript
+// Test individual functions
+describe('createConversation', () => {
+  it('should create conversation in Firestore', async () => {
+    const conv = await createConversation('user123', 'Test');
+    expect(conv.userId).toBe('user123');
+  });
+  
+  it('should throw error for missing userId', async () => {
+    await expect(createConversation('', 'Test')).rejects.toThrow();
+  });
+});
+```
+
+**Integration Tests:**
+```typescript
+// Test API endpoints
+describe('POST /api/conversations', () => {
+  it('should create conversation via API', async () => {
+    const response = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Cookie': 'flow_session=valid_token' },
+      body: JSON.stringify({ userId: 'user123', title: 'Test' })
+    });
+    
+    expect(response.status).toBe(200);
+  });
+});
+```
+
+**Manual Testing Checklist:**
+- [ ] Happy path works
+- [ ] Error cases handled
+- [ ] Loading states shown
+- [ ] Data persists on refresh
+- [ ] Works on mobile
+- [ ] No console errors
+
+---
+
+### Performance Standards
+
+**Frontend:**
+- First Contentful Paint: <1.5s
+- Time to Interactive: <3s
+- Lighthouse Score: >90
+- Bundle Size: <300KB gzipped
+
+**Backend:**
+- API Response Time (p95): <1s
+- Database Query Time (p95): <200ms
+- Memory Usage: <512MB
+- CPU Usage: <50% average
+
+**Database:**
+- Firestore Read Latency (p95): <100ms
+- Firestore Write Latency (p95): <200ms
+- BigQuery Query Time (p95): <2s
+- Index Coverage: 100%
+
+---
+
+## 🔐 Security Standards
+
+### Authentication
+
+**JWT Requirements:**
+```typescript
+interface JWTPayload {
+  id: string;        // User ID
+  email: string;     // User email
+  role: string;      // User role
+  iat: number;       // Issued at
+  exp: number;       // Expiration
+}
+
+// Expiration: 7 days
+// Signing: HS256 with secret
+// Storage: HTTP-only cookie
+```
+
+**OAuth Flow:**
+```
+1. User clicks "Login with Google"
+2. Redirect to Google OAuth
+3. Google redirects back with code
+4. Exchange code for user info
+5. Create/update user in Firestore
+6. Generate JWT
+7. Set HTTP-only cookie
+8. Redirect to /chat
+```
+
+---
+
+### Authorization
+
+**Role-Based Access Control:**
+
+```typescript
+const ROLE_PERMISSIONS = {
+  admin: ['*'], // All permissions
+  expert: ['validate_context', 'view_analytics'],
+  user: ['create_conversation', 'upload_context'],
+  context_signoff: ['validate_context'],
+  context_reviewer: ['review_context'],
+};
+
+function hasPermission(userRole: string, permission: string): boolean {
+  const permissions = ROLE_PERMISSIONS[userRole] || [];
+  return permissions.includes('*') || permissions.includes(permission);
+}
+```
+
+**Check Before Every Action:**
+```typescript
+if (!hasPermission(user.role, 'validate_context')) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), {
+    status: 403
+  });
+}
+```
+
+---
+
+### Data Protection
+
+**Sensitive Data:**
+- ✅ API keys: Environment variables only
+- ✅ Passwords: Never store (OAuth only)
+- ✅ JWT secrets: Rotate monthly
+- ✅ User data: Encrypted at rest (Firestore default)
+- ✅ PII: Minimize collection, comply with GDPR
+
+**Logging:**
+```typescript
+// ✅ GOOD: Log without sensitive data
+console.log({
+  action: 'user_login',
+  userId: hashUserId(userId), // Hashed
+  timestamp: new Date(),
+});
+
+// ❌ BAD: Log sensitive data
+console.log({
+  action: 'user_login',
+  email: user.email, // PII!
+  password: password, // CRITICAL SECURITY ISSUE!
+});
+```
+
+---
+
+## 🚀 Development Workflow
+
+### Local Development
+
+**Setup:**
+```bash
+# 1. Clone repo
+git clone https://github.com/org/flow.git
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your keys
+
+# 4. Authenticate with GCP
+gcloud auth application-default login
+
+# 5. Start dev server
+npm run dev
+
+# 6. Verify
+curl http://localhost:3000/api/health
+```
+
+**Development Loop:**
+```
+1. Create feature branch
+   git checkout -b feat/feature-name-YYYY-MM-DD
+
+2. Make changes
+   - Edit code
+   - Run type-check: npm run type-check
+   - Test manually in browser
+
+3. Commit
+   git add .
+   git commit -m "feat: Add feature"
+
+4. Push & create PR
+   git push origin feat/feature-name-YYYY-MM-DD
+
+5. Review & merge
+   - CI checks pass
+   - Code reviewed
+   - Merge to main
+
+6. Deploy
+   gcloud run deploy --source .
+```
+
+---
+
+### Production Deployment
+
+**Pre-Deployment Checklist:**
+- [ ] `npm run type-check` passes (0 errors)
+- [ ] `npm run build` succeeds
+- [ ] All tests pass
+- [ ] Environment variables configured
+- [ ] Firestore indexes deployed
+- [ ] BigQuery tables created
+- [ ] Secrets updated (if needed)
+- [ ] Backup created
+
+**Deployment Command:**
+```bash
+# Set project
+gcloud config set project gen-lang-client-0986191192
+
+# Build and deploy
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --min-instances=1 \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192"
+```
+
+**Post-Deployment Verification:**
+```bash
+# 1. Get service URL
+SERVICE_URL=$(gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format='value(status.url)')
+
+# 2. Health check
+curl -f "$SERVICE_URL/api/health" || echo "Health check failed!"
+
+# 3. Smoke test
+curl -f "$SERVICE_URL/chat" || echo "Chat page failed!"
+
+# 4. Check logs
+gcloud logging read "resource.type=cloud_run_revision" \
+  --limit 50 \
+  --format json
+
+# 5. Monitor metrics
+# Check Cloud Console for errors
+```
+
+---
+
+### Rollback Plan
+
+**If deployment fails:**
+
+```bash
+# 1. List revisions
+gcloud run revisions list \
+  --service flow-chat \
+  --region us-central1
+
+# 2. Rollback to previous
+gcloud run services update-traffic flow-chat \
+  --to-revisions=PREVIOUS_REVISION=100 \
+  --region us-central1
+
+# 3. Verify
+curl -f "$SERVICE_URL/api/health"
+```
+
+---
+
+## 📊 Success Metrics
+
+### User Experience Metrics
+
+**Core Metrics:**
+- Session Duration: >15 minutes (engaged)
+- Messages per Session: >10 (productive)
+- Context Sources per User: >3 (power user)
+- Return Rate (7-day): >60% (sticky)
+- NPS Score: >50 (satisfied)
+
+**Technical Metrics:**
+- Page Load Time (p95): <2s
+- API Response Time (p95): <1s
+- Error Rate: <0.5%
+- Uptime: >99.9%
+- Cost per User: <$2/month
+
+---
+
+### Development Metrics
+
+**Code Quality:**
+- TypeScript Coverage: 100%
+- Test Coverage: >80%
+- Linter Errors: 0
+- Security Vulnerabilities: 0
+- Tech Debt Ratio: <5%
+
+**Team Velocity:**
+- Features Delivered per Sprint: >5
+- Bug Fix Time (p95): <24 hours
+- PR Review Time (p95): <4 hours
+- Deploy Frequency: >2x per week
+- Lead Time: <2 days
+
+---
+
+## ✅ Alignment Checklist
+
+Before deploying ANY change, verify:
+
+### Data Persistence ✅
+- [ ] User data saves to Firestore
+- [ ] Data persists on page refresh
+- [ ] Data survives redeployments
+- [ ] No data loss scenarios
+
+### Architecture ✅
+- [ ] Frontend only handles UI
+- [ ] API routes handle auth & orchestration
+- [ ] Services handle business logic
+- [ ] Databases store data properly
+
+### Quality ✅
+- [ ] TypeScript type-check passes
+- [ ] No linter errors
+- [ ] All tests pass
+- [ ] Manual testing complete
+
+### Performance ✅
+- [ ] Page loads <2s
+- [ ] API responds <1s
+- [ ] No memory leaks
+- [ ] Efficient queries
+
+### Security ✅
+- [ ] All routes authenticated
+- [ ] All data filtered by userId
+- [ ] No sensitive data logged
+- [ ] Environment variables secure
+
+### User Experience ✅
+- [ ] Loading states shown
+- [ ] Errors handled gracefully
+- [ ] Empty states informative
+- [ ] Success feedback clear
+
+---
+
+## 🎓 Key Lessons Consolidated
+
+### From Backend Development
+1. ✅ Use correct Gemini API patterns (GoogleGenAI, not GoogleGenerativeAI)
+2. ✅ Never use mock mode as automatic fallback
+3. ✅ Always handle Firestore unavailable gracefully
+4. ✅ Always persist to GCP, never rely on local state only
+5. ✅ Always use same GCP project (gen-lang-client-0986191192)
+
+### From Frontend Development
+1. ✅ Always persist state to backend via API
+2. ✅ Always use TypeScript interfaces for all data
+3. ✅ Always handle loading, error, empty, and success states
+4. ✅ Never mix client state with server state
+5. ✅ Always use proper React hooks patterns (deps, cleanup)
+
+### From Database Operations
+1. ✅ Always use consistent project ID in all environments
+2. ✅ Always convert Firestore Timestamps to Date objects
+3. ✅ Always use batch operations for multiple writes
+4. ✅ Always create indexes for all queries
+5. ✅ Always filter by userId for user-specific data
+
+### From Analytics Integration
+1. ✅ Use sample data in development (no BigQuery setup required)
+2. ✅ Always partition tables by date for cost savings
+3. ✅ Always cluster frequently queried fields
+4. ✅ Set table expiration for high-volume data
+5. ✅ Use materialized views for dashboard queries
+
+### From UI/UX Design
+1. ✅ Progressive disclosure: show essentials, hide advanced features
+2. ✅ Feedback for every action: loading, success, error states
+3. ✅ Graceful degradation: work even when services fail
+4. ✅ Responsive design: mobile, tablet, desktop
+5. ✅ Accessibility: keyboard navigation, screen readers, color contrast
+
+---
+
+## 🔮 Future Alignment Considerations
+
+### Scalability
+- Horizontal scaling strategy
+- Caching layer (Redis)
+- CDN for static assets
+- Database read replicas
+- Queue system for async tasks
+
+### Observability
+- Structured logging
+- Distributed tracing
+- Real-time monitoring
+- Alerting system
+- Performance profiling
+
+### Internationalization
+- Multi-language support
+- Locale-specific formatting
+- RTL layout support
+- Translation management
+
+### Advanced Features
+- Real-time collaboration
+- Offline mode with sync
+- Mobile apps (iOS/Android)
+- API for third-party integrations
+- Webhooks for events
+
+---
+
+## 🔄 Change Management & Backward Compatibility
+
+### Purpose
+
+This section ensures we can safely evolve the codebase without losing the progress and features we've built. **Every change must preserve existing functionality unless explicitly requested otherwise.**
+
+---
+
+### 1. Pre-Change Review Protocol
+
+**BEFORE making ANY code changes, complete this checklist:**
+
+#### Step 1: Understand Current State
+```bash
+# Read the complete file or at least 100 lines of context
+# NEVER make changes based on assumptions
+```
+
+**Questions to Answer:**
+- [ ] What does this code currently do?
+- [ ] What features depend on this code?
+- [ ] Are there any protected features? (see `ui-features-protection.mdc`)
+- [ ] Is this file referenced in other rules?
+
+#### Step 2: Check for Protected Components
+
+**Protected Files** (require extra caution):
+- `src/components/ChatInterfaceWorking.tsx` - Main UI (see `ui-features-protection.mdc`)
+- `src/lib/firestore.ts` - Database operations (see `firestore.mdc`)
+- `src/lib/gemini.ts` - AI integration (see `gemini-api-usage.mdc`)
+- `src/lib/gcp.ts` - Cloud services (see `backend.mdc`)
+- `src/pages/api/**/*.ts` - API routes (see `backend.mdc`)
+
+**Check**: Does this file have a protection rule? Read it first!
+
+#### Step 3: Identify User Intent
+- [ ] Did user explicitly request removing/changing this?
+- [ ] Is this an optimization that might break something?
+- [ ] Are there alternative approaches that preserve more?
+
+**Golden Rule:** When in doubt, ASK the user before removing anything.
+
+---
+
+### 2. Backward Compatibility Strategies
+
+#### Strategy A: Additive Changes (Safest)
+
+```typescript
+// ✅ GOOD: Add new field without removing old one
+interface User {
+  email: string;              // Existing field
+  name: string;               // Existing field
+  newField?: string;          // ✅ NEW: Optional, doesn't break existing code
+}
+
+// ❌ BAD: Remove or rename existing field
+interface User {
+  userEmail: string;          // ❌ Renamed, breaks existing code
+  name: string;
+}
+```
+
+**When to Use:**
+- Adding new features
+- Extending existing functionality
+- Optional parameters/fields
+
+#### Strategy B: Deprecation Path (When removal needed)
+
+```typescript
+// Step 1: Mark as deprecated, keep functional
+/**
+ * @deprecated Use newFunction() instead. Will be removed in v2.0
+ */
+function oldFunction() {
+  console.warn('oldFunction is deprecated, use newFunction');
+  return newFunction();
+}
+
+function newFunction() {
+  // New implementation
+}
+
+// Step 2: Update all usage
+// Step 3: Remove after confirming no usage
+```
+
+**When to Use:**
+- Replacing old patterns
+- Major refactoring
+- Breaking changes needed
+
+#### Strategy C: Adapter Pattern (Preserve interfaces)
+
+```typescript
+// Old interface (don't change)
+interface OldAPI {
+  getData(): Promise<Data>;
+}
+
+// New interface (better design)
+interface NewAPI {
+  fetchData(options: Options): Promise<Data>;
+}
+
+// Adapter (preserves old interface)
+class APIAdapter implements OldAPI {
+  constructor(private newAPI: NewAPI) {}
+  
+  async getData(): Promise<Data> {
+    return this.newAPI.fetchData({ /* default options */ });
+  }
+}
+```
+
+**When to Use:**
+- Major API changes
+- External dependencies
+- Multiple consumers
+
+#### Strategy D: Feature Flags (Gradual rollout)
+
+```typescript
+// .env or config
+FEATURE_NEW_UI=false
+
+// Code
+if (process.env.FEATURE_NEW_UI === 'true') {
+  return <NewUI />;
+} else {
+  return <OldUI />; // Fallback
+}
+```
+
+**When to Use:**
+- Risky changes
+- A/B testing
+- Gradual migration
+
+---
+
+### 3. Change Validation Checklist
+
+**After making changes, verify:**
+
+#### Code Quality
+- [ ] `npm run type-check` passes (0 errors)
+- [ ] `npm run lint` passes (0 errors)
+- [ ] No new console errors in browser
+- [ ] All imports resolve correctly
+
+#### Functionality
+- [ ] Original feature still works
+- [ ] No regression in related features
+- [ ] New feature works as expected
+- [ ] Error handling preserved
+
+#### Data Persistence
+- [ ] Data still saves to Firestore
+- [ ] Data loads correctly
+- [ ] No data loss on refresh
+- [ ] Backward compatible with existing data
+
+#### UI/UX
+- [ ] All UI elements visible
+- [ ] No layout breaks
+- [ ] Responsive design intact
+- [ ] Loading states work
+- [ ] Error states work
+
+#### Testing
+- [ ] Manual testing in browser
+- [ ] Test with existing data
+- [ ] Test edge cases
+- [ ] Test error scenarios
+
+---
+
+### 4. Safe Refactoring Patterns
+
+#### Pattern 1: Extract Function (Safe)
+
+```typescript
+// Before
+function complexFunction() {
+  // 100 lines of code
+  const result1 = /* logic 1 */;
+  const result2 = /* logic 2 */;
+  return result1 + result2;
+}
+
+// After (preserves behavior)
+function complexFunction() {
+  const result1 = calculateResult1();
+  const result2 = calculateResult2();
+  return result1 + result2;
+}
+
+function calculateResult1() {
+  // extracted logic 1
+}
+
+function calculateResult2() {
+  // extracted logic 2
+}
+```
+
+#### Pattern 2: Introduce Parameter (Safe)
+
+```typescript
+// Before
+function fetchData() {
+  return fetch('/api/data');
+}
+
+// After (preserves old behavior)
+function fetchData(endpoint: string = '/api/data') {
+  return fetch(endpoint);
+}
+```
+
+#### Pattern 3: Replace with Equivalent (Verify carefully)
+
+```typescript
+// Before
+const items = array.filter(x => x > 0).map(x => x * 2);
+
+// After (MUST produce same results)
+const items = array.reduce((acc, x) => {
+  if (x > 0) acc.push(x * 2);
+  return acc;
+}, [] as number[]);
+
+// ALWAYS verify with tests!
+```
+
+---
+
+### 5. Version Control Best Practices
+
+#### Branching Strategy
+
+```bash
+# Never work directly on main
+git checkout main
+git pull origin main
+git checkout -b feat/feature-name-YYYY-MM-DD
+
+# Make changes in feature branch
+# (see branch-management.mdc for full protocol)
+```
+
+#### Commit Strategy
+
+```bash
+# Atomic commits (one logical change per commit)
+git add src/components/Feature.tsx
+git commit -m "feat: Add new feature
+
+- What: Added feature X
+- Why: User requested it
+- Impact: No breaking changes
+- Testing: Manual testing completed"
+
+# Never commit:
+# - Multiple unrelated changes
+# - Broken code
+# - Commented-out code (unless intentional)
+```
+
+#### Before Merging to Main
+
+```bash
+# Checklist
+1. All tests pass
+2. All features work
+3. Documentation updated
+4. No console errors
+5. User approved
+6. Backward compatible
+
+# Merge
+git checkout main
+git merge --no-ff feat/feature-name-YYYY-MM-DD
+git push origin main
+```
+
+---
+
+### 6. Breaking Changes (When Necessary)
+
+**When a breaking change is unavoidable:**
+
+#### Step 1: Document the Change
+```markdown
+# BREAKING CHANGE: API Endpoint Renamed
+
+## What Changed
+- `/api/old-endpoint` → `/api/new-endpoint`
+
+## Why
+- Better REST conventions
+- Clearer naming
+
+## Migration Guide
+### Before
+```typescript
+fetch('/api/old-endpoint')
+```
+
+### After
+```typescript
+fetch('/api/new-endpoint')
+```
+
+## Timeline
+- Deprecated: 2025-10-12
+- Removal: 2025-11-12 (30 days)
+
+## Support
+- Old endpoint will return 410 Gone with migration instructions
+```
+
+#### Step 2: Provide Migration Period
+```typescript
+// Keep both endpoints for 30 days
+export const GET_OLD: APIRoute = async (context) => {
+  console.warn('⚠️ Using deprecated endpoint. Migrate to /api/new-endpoint');
+  return GET_NEW(context);
+};
+
+export const GET_NEW: APIRoute = async (context) => {
+  // New implementation
+};
+```
+
+#### Step 3: Update All Internal Usage
+```bash
+# Find all usage
+grep -r "old-endpoint" src/
+
+# Update each file
+# Commit with clear message
+```
+
+#### Step 4: Monitor Usage
+```typescript
+// Log deprecated usage
+if (usingOldAPI) {
+  console.warn('Deprecated API usage detected');
+  // Track in BigQuery for monitoring
+}
+```
+
+#### Step 5: Remove After Period
+```bash
+# After 30 days, if no usage detected
+git rm src/pages/api/old-endpoint.ts
+git commit -m "remove: Deprecated old-endpoint
+
+All usage migrated to new-endpoint.
+Deprecated on: 2025-10-12
+Removed on: 2025-11-12"
+```
+
+---
+
+### 7. Code Review Guidelines
+
+**What to Look For:**
+
+#### Backward Compatibility
+- [ ] No removed functionality without approval
+- [ ] Optional parameters have defaults
+- [ ] New fields are optional
+- [ ] Database schema changes are additive
+
+#### Data Safety
+- [ ] No data loss scenarios
+- [ ] Migrations tested
+- [ ] Rollback plan exists
+- [ ] Backups available
+
+#### Testing
+- [ ] Existing tests still pass
+- [ ] New tests added
+- [ ] Edge cases covered
+- [ ] Manual testing documented
+
+#### Documentation
+- [ ] Breaking changes documented
+- [ ] Migration guides provided
+- [ ] Comments updated
+- [ ] Rules updated if needed
+
+---
+
+### 8. Emergency Rollback Procedures
+
+**If a change breaks production:**
+
+#### Step 1: Immediate Rollback
+```bash
+# Revert the breaking commit
+git revert <commit-hash>
+git push origin main
+
+# Or roll back to last known good
+git reset --hard <last-good-commit>
+git push --force origin main  # ONLY in emergencies!
+```
+
+#### Step 2: Assess Impact
+```bash
+# Check what broke
+# Check affected users
+# Check data integrity
+```
+
+#### Step 3: Fix Forward
+```bash
+# Create fix branch
+git checkout -b fix/emergency-fix-YYYY-MM-DD
+
+# Fix the issue
+# Test thoroughly
+# Deploy fix
+```
+
+#### Step 4: Post-Mortem
+```markdown
+# Incident Report
+
+## What Happened
+- [Description]
+
+## Root Cause
+- [Why it broke]
+
+## Impact
+- [Users affected]
+- [Data lost]
+- [Downtime]
+
+## Fix Applied
+- [What we did]
+
+## Prevention
+- [New checks]
+- [Updated tests]
+- [Process changes]
+```
+
+---
+
+### 9. Continuous Integration Checks
+
+**Every commit should trigger:**
+
+```yaml
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      
+      # Type check
+      - run: npm run type-check
+      
+      # Lint
+      - run: npm run lint
+      
+      # Build
+      - run: npm run build
+      
+      # Tests
+      - run: npm test
+      
+      # Check for protected features
+      - run: |
+          if ! grep -q "Sparkles" src/components/ChatInterfaceWorking.tsx; then
+            echo "ERROR: Protected feature removed!"
+            exit 1
+          fi
+```
+
+---
+
+### 10. Rule Evolution Process
+
+**When updating these rules:**
+
+#### Step 1: Identify Need
+- New pattern discovered
+- Repeated mistakes
+- User feedback
+- Technology changes
+
+#### Step 2: Document Change
+```markdown
+# Rule Change Proposal
+
+## Current Rule
+[What it says now]
+
+## Proposed Change
+[What it should say]
+
+## Rationale
+[Why this change is needed]
+
+## Impact
+[What code needs updating]
+
+## Backward Compatibility
+[How we maintain compatibility]
+```
+
+#### Step 3: Update Rule
+```bash
+# Update .cursor/rules/*.mdc
+git add .cursor/rules/
+git commit -m "docs: Update rule X
+
+- What changed: [summary]
+- Why: [rationale]
+- Impact: [affected areas]"
+```
+
+#### Step 4: Communicate
+- Update `COMPLETE_RULES_DOCUMENTATION.md`
+- Notify team
+- Update related docs
+
+---
+
+## 📚 References
+
+### Internal Documentation - Rules
+- `.cursor/rules/agents.mdc` - Agentic architecture (**CORE**)
+- `.cursor/rules/backend.mdc` - Backend architecture
+- `.cursor/rules/frontend.mdc` - Frontend architecture
+- `.cursor/rules/firestore.mdc` - Database schema
+- `.cursor/rules/bigquery.mdc` - Analytics architecture
+- `.cursor/rules/ui.mdc` - UI components
+- `.cursor/rules/prd.mdc` - Product requirements
+- `.cursor/rules/code-change-protocol.mdc` - Code change safety (**CRITICAL**)
+- `.cursor/rules/branch-management.mdc` - Branch safety (**CRITICAL**)
+- `.cursor/rules/ui-features-protection.mdc` - Protected features (**CRITICAL**)
+- `.cursor/rules/rule-precedence.mdc` - Rule hierarchy
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP enforcement
+- `.cursor/rules/gemini-api-usage.mdc` - Gemini API patterns
+
+### Internal Documentation - Guides
+- `docs/LocalToProduction.md` - Deployment guide
+- `docs/COMPLETE_RULES_DOCUMENTATION.md` - Rules summary
+- `docs/BranchLog.md` - Feature tracking
+
+### External Resources
+- [Astro Documentation](https://docs.astro.build/)
+- [React Best Practices](https://react.dev/learn)
+- [Firestore Best Practices](https://firebase.google.com/docs/firestore/best-practices)
+- [BigQuery Optimization](https://cloud.google.com/bigquery/docs/best-practices-performance-overview)
+- [Web Vitals](https://web.dev/vitals/)
+
+---
+
+**Last Updated**: 2025-10-12  
+**Version**: 1.1.0  
+**Status**: ✅ Production Ready  
+**Project**: Flow (gen-lang-client-0986191192)
+
+---
+
+**Remember:** This rule is the foundation. When in doubt, refer back to these principles. They prevent 95% of bugs, data loss, and user frustration. **Every change must preserve existing functionality unless explicitly approved.**

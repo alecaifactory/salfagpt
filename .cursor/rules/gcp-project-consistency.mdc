@@ -1,0 +1,403 @@
+---
+alwaysApply: true
+---
+## Service-Specific Rules
+
+### Firestore
+
+**Project Configuration**:
+```typescript
+// src/lib/firestore.ts
+const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env 
+  ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+  : process.env.GOOGLE_CLOUD_PROJECT;
+
+// Verify it matches .env
+console.log('🔥 Firestore Project:', PROJECT_ID); // Should be: gen-lang-client-0986191192
+```
+
+**Firestore Rules**:
+```bash
+# Deploy rules to correct project
+firebase use gen-lang-client-0986191192
+firebase deploy --only firestore:rules
+```
+
+**Database URL**:
+```
+https://firestore.googleapis.com/v1/projects/gen-lang-client-0986191192/databases/(default)
+```
+
+---
+
+### BigQuery
+
+**Project Configuration**:
+```typescript
+import { BigQuery } from '@google-cloud/bigquery';
+
+const projectId = process.env.GOOGLE_CLOUD_PROJECT; // Must be gen-lang-client-0986191192
+const bigquery = new BigQuery({ projectId });
+
+// Verify
+console.log('📊 BigQuery Project:', bigquery.projectId);
+```
+
+**Dataset Naming**:
+```bash
+# Format: projectId.datasetName.tableName
+gen-lang-client-0986191192.analytics.events
+gen-lang-client-0986191192.analytics.user_sessions
+gen-lang-client-0986191192.logs.application_logs
+```
+
+**Creating Datasets**:
+```bash
+# ALWAYS specify the project
+bq mk --project_id=gen-lang-client-0986191192 analytics
+bq mk --project_id=gen-lang-client-0986191192 logs
+```
+
+**Querying**:
+```sql
+-- ALWAYS prefix with project ID
+SELECT * FROM `gen-lang-client-0986191192.analytics.events`
+WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY);
+```
+
+---
+
+### Cloud Run
+
+**Deployment**:
+```bash
+# ALWAYS specify project
+gcloud config set project gen-lang-client-0986191192
+
+# Deploy
+gcloud run deploy salfagpt \
+  --project=gen-lang-client-0986191192 \
+  --region=us-central1 \
+  --source .
+```
+
+**Service URL Pattern**:
+```
+https://salfagpt-[hash]-uc.a.run.app
+```
+
+**Environment Variables**:
+```bash
+# Set in Cloud Run
+gcloud run services update salfagpt \
+  --project=gen-lang-client-0986191192 \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192"
+```
+
+---
+
+### Cloud Storage
+
+**Bucket Naming**:
+```bash
+# Format: projectId-purpose
+gen-lang-client-0986191192-uploads
+gen-lang-client-0986191192-context-documents
+gen-lang-client-0986191192-backups
+```
+
+**Creating Buckets**:
+```bash
+gsutil mb -p gen-lang-client-0986191192 gs://gen-lang-client-0986191192-uploads
+```
+
+**Code**:
+```typescript
+import { Storage } from '@google-cloud/storage';
+
+const storage = new Storage({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT
+});
+
+const bucket = storage.bucket('gen-lang-client-0986191192-uploads');
+```
+
+---
+
+### Cloud Functions
+
+**Deployment**:
+```bash
+gcloud functions deploy functionName \
+  --project=gen-lang-client-0986191192 \
+  --runtime=nodejs20 \
+  --trigger-http \
+  --allow-unauthenticated
+```
+
+**Function Code**:
+```typescript
+import * as functions from '@google-cloud/functions-framework';
+
+// Project ID is automatically available
+const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+console.log('🔧 Function Project:', projectId); // gen-lang-client-0986191192
+```
+
+---
+
+### Secret Manager
+
+**Secret Naming**:
+```bash
+# Format: projects/PROJECT_ID/secrets/SECRET_NAME
+projects/gen-lang-client-0986191192/secrets/jwt-secret
+projects/gen-lang-client-0986191192/secrets/google-oauth-client-secret
+```
+
+**Creating Secrets**:
+```bash
+# ALWAYS specify project
+echo -n "secret-value" | gcloud secrets create secret-name \
+  --project=gen-lang-client-0986191192 \
+  --data-file=-
+```
+
+**Accessing Secrets**:
+```typescript
+import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+
+const client = new SecretManagerServiceClient();
+const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+
+const [version] = await client.accessSecretVersion({
+  name: `projects/${projectId}/secrets/jwt-secret/versions/latest`,
+});
+```
+
+---
+
+### Pub/Sub
+
+**Topic Naming**:
+```bash
+# Format: projects/PROJECT_ID/topics/TOPIC_NAME
+projects/gen-lang-client-0986191192/topics/document-processing
+projects/gen-lang-client-0986191192/topics/user-events
+```
+
+**Creating Topics**:
+```bash
+gcloud pubsub topics create document-processing \
+  --project=gen-lang-client-0986191192
+```
+
+**Publishing**:
+```typescript
+import { PubSub } from '@google-cloud/pubsub';
+
+const pubsub = new PubSub({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT
+});
+
+const topic = pubsub.topic('document-processing');
+await topic.publishMessage({ data: Buffer.from('message') });
+```
+
+---
+
+## Verification Checklist
+
+Before deploying or configuring any GCP service:
+
+### Environment Variables Check
+```bash
+# 1. Verify .env has correct project
+cat .env | grep GOOGLE_CLOUD_PROJECT
+# Expected: GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+
+# 2. Verify runtime environment
+echo $GOOGLE_CLOUD_PROJECT
+# Expected: gen-lang-client-0986191192
+
+# 3. Verify gcloud CLI
+gcloud config get-value project
+# Expected: gen-lang-client-0986191192
+```
+
+### Code Verification
+```bash
+# Search for hard-coded project IDs (should return nothing)
+grep -r "projectId.*=.*['\"]" src/ --include="*.ts" --include="*.js" | grep -v "GOOGLE_CLOUD_PROJECT"
+
+# Search for other project IDs (should only show gen-lang-client-0986191192)
+grep -r "gen-lang-client" src/ docs/ scripts/
+```
+
+### Service Verification
+```bash
+# Firestore
+firebase projects:list | grep gen-lang-client-0986191192
+
+# BigQuery datasets
+bq ls --project_id=gen-lang-client-0986191192
+
+# Cloud Run services
+gcloud run services list --project=gen-lang-client-0986191192
+
+# Cloud Storage buckets
+gsutil ls -p gen-lang-client-0986191192
+```
+
+---
+
+## Migration from Multiple Projects
+
+If you accidentally created resources in different projects:
+
+### 1. Export Data
+```bash
+# Firestore
+gcloud firestore export gs://OTHER-PROJECT-backup \
+  --project=OTHER-PROJECT-ID
+
+# BigQuery
+bq extract --project_id=OTHER-PROJECT-ID \
+  dataset.table \
+  gs://OTHER-PROJECT-backup/table-*.json
+```
+
+### 2. Import to Correct Project
+```bash
+# Firestore
+gcloud firestore import gs://OTHER-PROJECT-backup \
+  --project=gen-lang-client-0986191192
+
+# BigQuery
+bq load --project_id=gen-lang-client-0986191192 \
+  dataset.table \
+  gs://OTHER-PROJECT-backup/table-*.json
+```
+
+### 3. Update All References
+```bash
+# Find all references to old project
+grep -r "OLD-PROJECT-ID" . --exclude-dir=node_modules
+
+# Replace with correct project
+sed -i 's/OLD-PROJECT-ID/gen-lang-client-0986191192/g' file.ts
+```
+
+---
+
+## Cost Management
+
+Using a single project makes cost tracking easier:
+
+### View All Costs
+```bash
+# All services in one project
+gcloud billing accounts list
+gcloud billing projects describe gen-lang-client-0986191192
+```
+
+### Set Budget Alerts
+```bash
+# Budget applies to entire project
+gcloud billing budgets create \
+  --billing-account=BILLING_ACCOUNT_ID \
+  --display-name="SalfaGPT Monthly Budget" \
+  --budget-amount=100USD
+```
+
+---
+
+## Troubleshooting
+
+### Error: "Permission denied on project"
+```bash
+# Verify you're using correct project
+gcloud config get-value project
+# If wrong:
+gcloud config set project gen-lang-client-0986191192
+```
+
+### Error: "Resource not found"
+```bash
+# Verify resource is in correct project
+gcloud [service] list --project=gen-lang-client-0986191192
+```
+
+### Error: "Project mismatch"
+```typescript
+// Check all environment variables
+console.log('Project from env:', process.env.GOOGLE_CLOUD_PROJECT);
+console.log('Project from config:', projectId);
+// Both should be: gen-lang-client-0986191192
+```
+
+---
+
+## Documentation References
+
+When adding GCP services, always reference the project:
+
+```markdown
+# In documentation
+## Setup Firestore
+
+1. Ensure project is set:
+   \`\`\`bash
+   gcloud config set project gen-lang-client-0986191192
+   \`\`\`
+
+2. Enable Firestore API:
+   \`\`\`bash
+   gcloud services enable firestore.googleapis.com --project=gen-lang-client-0986191192
+   \`\`\`
+```
+
+---
+
+## Summary
+
+### ✅ DO:
+- Use `GOOGLE_CLOUD_PROJECT` from `.env`
+- Verify project ID in logs
+- Use environment variables
+- Document project ID in setup guides
+- Check project before each deployment
+
+### ❌ DON'T:
+- Hard-code project IDs
+- Create new GCP projects
+- Use different projects for different services
+- Assume project ID without verification
+- Deploy without checking active project
+
+---
+
+## Quick Reference
+
+**Current Project**: `gen-lang-client-0986191192`
+
+**All Services**:
+```
+Firestore:      gen-lang-client-0986191192
+BigQuery:       gen-lang-client-0986191192  
+Cloud Run:      gen-lang-client-0986191192
+Cloud Storage:  gen-lang-client-0986191192
+Pub/Sub:        gen-lang-client-0986191192
+Secret Manager: gen-lang-client-0986191192
+```
+
+**Environment Variable**:
+```bash
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+```
+
+---
+
+**Last Updated**: October 11, 2025  
+**Reason**: Enforce single GCP project for all services  
+**Priority**: CRITICAL - Must follow for all GCP integrations

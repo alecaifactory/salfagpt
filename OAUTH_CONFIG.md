@@ -41,7 +41,7 @@ https://your-subdomain.your-domain.com
 
 **For Google Cloud Run:**
 ```
-https://salfagpt-[hash]-uc.a.run.app
+https://flow-[hash]-uc.a.run.app
 ```
 
 **Important Notes:**
@@ -58,7 +58,7 @@ https://your-subdomain.your-domain.com/auth/callback
 
 **For Google Cloud Run:**
 ```
-https://salfagpt-[hash]-uc.a.run.app/auth/callback
+https://flow-[hash]-uc.a.run.app/auth/callback
 ```
 
 ---
@@ -79,7 +79,7 @@ If this is your first time:
 1. Click **"Configure Consent Screen"**
 2. Select **"External"** (or "Internal" for Google Workspace)
 3. Fill in required information:
-   - **App name:** SalfaGPT
+   - **App name:** Flow
    - **User support email:** your-email@example.com
    - **Developer contact:** your-email@example.com
 4. Add scopes:
@@ -91,7 +91,7 @@ If this is your first time:
 ### 3. Create OAuth Client
 
 1. **Application type:** Web application
-2. **Name:** SalfaGPT Web Client
+2. **Name:** Flow Web Client
 3. Add **Authorized JavaScript origins** (see above)
 4. Add **Authorized redirect URIs** (see above)
 5. Click **"Create"**
