@@ -65,11 +65,11 @@ export default function SourceDetailPanel({
       {/* Metadata */}
       <div className="p-4 bg-slate-50 border-b border-slate-200">
         <div className="space-y-2">
-          {source.metadata?.fileSize && (
+          {source.metadata?.originalFileSize && (
             <div className="flex items-center gap-2 text-sm">
               <FileText className="w-4 h-4 text-slate-500" />
               <span className="text-slate-700">
-                {formatFileSize(source.metadata.fileSize)}
+                {formatFileSize(source.metadata.originalFileSize)}
               </span>
             </div>
           )}

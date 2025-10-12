@@ -18,9 +18,6 @@ export default function WorkflowConfigModal({
   const [config, setConfig] = useState<WorkflowConfig>({
     maxFileSize: 50,
     maxOutputLength: 10000,
-    extractImages: false,
-    extractTables: false,
-    ocrEnabled: false,
     language: 'es',
     model: 'gemini-2.5-flash',
   });
@@ -32,9 +29,6 @@ export default function WorkflowConfigModal({
       setConfig(workflow.config || {
         maxFileSize: 50,
         maxOutputLength: 10000,
-        extractImages: false,
-        extractTables: false,
-        ocrEnabled: false,
         language: 'es',
         model: 'gemini-2.5-flash',
       });
@@ -173,75 +167,6 @@ export default function WorkflowConfigModal({
               </button>
             </div>
           </div>
-
-          {/* Extract Images (for PDF workflows) */}
-          {(workflow.sourceType === 'pdf-images' || workflow.sourceType === 'pdf-text') && (
-            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Extraer Imágenes</p>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Procesar imágenes incrustadas en el PDF
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={config.extractImages || false}
-                  onChange={(e) =>
-                    setConfig({ ...config, extractImages: e.target.checked })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          )}
-
-          {/* Extract Tables */}
-          {(workflow.sourceType === 'pdf-tables' || workflow.sourceType === 'pdf-text') && (
-            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Extraer Tablas</p>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Identificar y procesar tablas estructuradas
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={config.extractTables || false}
-                  onChange={(e) =>
-                    setConfig({ ...config, extractTables: e.target.checked })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          )}
-
-          {/* OCR Enabled */}
-          {workflow.sourceType === 'pdf-images' && (
-            <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-slate-800">Habilitar OCR</p>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  Reconocimiento óptico de caracteres para imágenes
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={config.ocrEnabled || false}
-                  onChange={(e) =>
-                    setConfig({ ...config, ocrEnabled: e.target.checked })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-          )}
 
           {/* Language */}
           <div>
