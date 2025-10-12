@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight, Sparkles, Info } from 'lucide-react';
 import type { SourceType } from '../types/context';
 
@@ -6,13 +6,14 @@ interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddSource: (type: SourceType, file?: File, url?: string, config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string }) => Promise<void>;
+  preSelectedType?: SourceType; // Optional: pre-select source type and skip to configure step
 }
 
 type StepType = 'select-type' | 'configure' | 'processing';
 
-export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSourceModalProps) {
-  const [currentStep, setCurrentStep] = useState<StepType>('select-type');
-  const [selectedType, setSelectedType] = useState<SourceType | null>(null);
+export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelectedType }: AddSourceModalProps) {
+  const [currentStep, setCurrentStep] = useState<StepType>(preSelectedType ? 'configure' : 'select-type');
+  const [selectedType, setSelectedType] = useState<SourceType | null>(preSelectedType || null);
   const [file, setFile] = useState<File | null>(null);
   const [url, setUrl] = useState('');
   const [apiEndpoint, setApiEndpoint] = useState('');
@@ -20,11 +21,29 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
   const [showModelTooltip, setShowModelTooltip] = useState(false);
 
+  // Reset state when modal opens or preSelectedType changes
+  useEffect(() => {
+    if (isOpen) {
+      if (preSelectedType) {
+        setSelectedType(preSelectedType);
+        setCurrentStep('configure');
+      } else {
+        setSelectedType(null);
+        setCurrentStep('select-type');
+      }
+      setFile(null);
+      setUrl('');
+      setApiEndpoint('');
+      setIsProcessing(false);
+      setSelectedModel('gemini-2.5-flash');
+    }
+  }, [isOpen, preSelectedType]);
+
   if (!isOpen) return null;
 
   const sourceTypes = [
     {
-      type: 'pdf-text' as SourceType,
+      type: 'pdf' as SourceType,
       icon: <FileText className="w-6 h-6" />,
       title: 'Archivo',
       description: 'Sube un documento, hoja de cálculo, etc.',
@@ -45,9 +64,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
   ];
 
   const fileTypes = [
-    { type: 'pdf-text' as SourceType, label: 'PDF con Texto', icon: '📄' },
-    { type: 'pdf-images' as SourceType, label: 'PDF con Imágenes', icon: '🖼️' },
-    { type: 'pdf-tables' as SourceType, label: 'PDF con Tablas', icon: '📊' },
+    { type: 'pdf' as SourceType, label: 'PDF (Auto: texto, tablas, imágenes)', icon: '📄' },
     { type: 'csv' as SourceType, label: 'CSV', icon: '📈' },
     { type: 'excel' as SourceType, label: 'Excel', icon: '📊' },
     { type: 'word' as SourceType, label: 'Word', icon: '📝' },
@@ -182,30 +199,14 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-4">
-                  Selecciona el tipo de archivo
+                  Subir Documento
                 </h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  El modelo extraerá automáticamente texto, tablas e imágenes (como descripciones de texto).
+                </p>
                 
-                <div className="grid grid-cols-2 gap-3 mb-6">
-                  {fileTypes.map((type) => (
-                    <button
-                      key={type.type}
-                      onClick={() => setSelectedType(type.type)}
-                      className={`p-4 border-2 rounded-lg transition-all ${
-                        selectedType === type.type
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-slate-200 hover:border-blue-300'
-                      }`}
-                    >
-                      <div className="text-2xl mb-2">{type.icon}</div>
-                      <div className="text-sm font-medium text-slate-800">{type.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Subir Archivo
+                  Selecciona un archivo
                 </label>
                 <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors">
                   <input

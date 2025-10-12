@@ -80,6 +80,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
+  const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
   
   // User settings state
@@ -849,6 +850,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      setPreSelectedSourceType(workflow.sourceType);
                       setShowAddSourceModal(true);
                     }}
                     className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
@@ -911,8 +913,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       {/* Add Source Modal */}
       <AddSourceModal
         isOpen={showAddSourceModal}
-        onClose={() => setShowAddSourceModal(false)}
+        onClose={() => {
+          setShowAddSourceModal(false);
+          setPreSelectedSourceType(undefined); // Reset on close
+        }}
         onAddSource={handleAddSource}
+        preSelectedType={preSelectedSourceType}
       />
 
       {/* Workflow Config Modal */}
