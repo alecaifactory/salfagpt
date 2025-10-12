@@ -550,6 +550,20 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     setShowUserMenu(false);
   };
 
+  // Helper function to update source progress
+  const updateSourceProgress = (sourceId: string, stage: 'uploading' | 'processing' | 'complete' | 'error', percentage: number, message: string) => {
+    setContextSources(prev =>
+      prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              progress: { stage, percentage, message },
+            }
+          : s
+      )
+    );
+  };
+
   // Context and Workflows handlers
   const handleAddSource = async (type: SourceType, file?: File, url?: string, apiConfig?: any) => {
     const workflow = workflows.find(w => w.sourceType === type);
@@ -579,9 +593,21 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
         url,
         apiEndpoint: apiConfig?.apiEndpoint,
       },
+      progress: {
+        stage: 'uploading',
+        percentage: 0,
+        message: 'Preparando archivo...',
+      },
     };
 
     setContextSources(prev => [...prev, newSource]);
+
+    // Simulate upload progress (instant for local files, but shows user something is happening)
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(newSource.id, 'uploading', 30, 'Subiendo archivo...');
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(newSource.id, 'processing', 50, 'Procesando con IA...');
 
     // Process the source based on type
     try {
@@ -635,6 +661,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
         },
       ]);
 
+      updateSourceProgress(newSource.id, 'complete', 100, 'Completado');
+
       console.log('✅ Source processed successfully:', {
         name: newSource.name,
         type,
@@ -645,9 +673,30 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       });
     } catch (error) {
       console.error('❌ Error processing source:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      const errorDetails = error instanceof Error && error.stack 
+        ? error.stack.split('\n').slice(0, 3).join('\n')
+        : undefined;
+      
       setContextSources(prev =>
         prev.map(s =>
-          s.id === newSource.id ? { ...s, status: 'error' } : s
+          s.id === newSource.id
+            ? {
+                ...s,
+                status: 'error' as const,
+                progress: {
+                  stage: 'error' as const,
+                  percentage: 0,
+                  message: 'Error en extracción',
+                },
+                error: {
+                  message: errorMessage,
+                  details: errorDetails,
+                  timestamp: new Date(),
+                },
+              }
+            : s
         )
       );
     }
@@ -800,12 +849,30 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       newConfig,
     });
 
-    // Update source status to processing
+    // Update source status to processing with progress
     setContextSources(prev =>
       prev.map(s =>
-        s.id === sourceId ? { ...s, status: 'processing' as const } : s
+        s.id === sourceId
+          ? {
+              ...s,
+              status: 'processing' as const,
+              progress: {
+                stage: 'processing' as const,
+                percentage: 0,
+                message: 'Iniciando re-extracción...',
+              },
+              error: undefined, // Clear previous errors
+            }
+          : s
       )
     );
+
+    // Show progress updates
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(sourceId, 'processing', 30, 'Preparando archivo...');
+    
+    await new Promise(resolve => setTimeout(resolve, 300));
+    updateSourceProgress(sourceId, 'processing', 60, 'Procesando con IA...');
 
     const extractionStartTime = Date.now();
 
@@ -862,6 +929,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
         ]);
       }
 
+      updateSourceProgress(sourceId, 'complete', 100, 'Re-extracción completa');
+
       console.log('✅ Re-extraction successful:', {
         sourceId,
         extractionTime: `${extractionTime}ms`,
@@ -871,9 +940,30 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       });
     } catch (error) {
       console.error('❌ Error during re-extraction:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido durante re-extracción';
+      const errorDetails = error instanceof Error && error.stack 
+        ? error.stack.split('\n').slice(0, 3).join('\n')
+        : undefined;
+      
       setContextSources(prev =>
         prev.map(s =>
-          s.id === sourceId ? { ...s, status: 'error' as const } : s
+          s.id === sourceId
+            ? {
+                ...s,
+                status: 'error' as const,
+                progress: {
+                  stage: 'error' as const,
+                  percentage: 0,
+                  message: 'Error en re-extracción',
+                },
+                error: {
+                  message: errorMessage,
+                  details: errorDetails,
+                  timestamp: new Date(),
+                },
+              }
+            : s
         )
       );
     }
