@@ -5,6 +5,7 @@ import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
+import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 
@@ -774,15 +775,31 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 key={msg.id}
                 className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
               >
-                <div
-                  className={`inline-block max-w-2xl p-4 rounded-lg ${
-                    msg.role === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-slate-800 border border-slate-200'
-                  }`}
-                >
-                  {msg.content}
-                </div>
+                {msg.role === 'user' ? (
+                  <div className="inline-block max-w-2xl p-4 rounded-lg bg-blue-600 text-white">
+                    {msg.content}
+                  </div>
+                ) : (
+                  <div className="inline-block max-w-3xl p-5 rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
+                    <MessageRenderer 
+                      content={msg.content}
+                      contextSources={contextSources
+                        .filter(s => s.enabled)
+                        .map(s => ({
+                          id: s.id,
+                          name: s.name,
+                          validated: s.metadata?.validated || false,
+                        }))
+                      }
+                      onSourceClick={(sourceId) => {
+                        const source = contextSources.find(s => s.id === sourceId);
+                        if (source) {
+                          setSettingsSource(source);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -918,9 +935,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     ) : (
                       <div className="space-y-2">
                         {contextSources.filter(s => s.enabled).map(source => (
-                          <div key={source.id} className="bg-green-50 border border-green-200 rounded p-2">
+                          <button
+                            key={source.id}
+                            onClick={() => {
+                              setSettingsSource(source);
+                            }}
+                            className="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 transition-colors text-left cursor-pointer"
+                          >
                             <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-semibold text-slate-800">{source.name}</p>
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-3.5 h-3.5 text-green-600" />
+                                <p className="text-xs font-semibold text-slate-800">{source.name}</p>
+                                {source.metadata?.validated && (
+                                  <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold">
+                                    ✓ Validado
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[10px] text-slate-500">
                                 {source.metadata?.pageCount && `${source.metadata.pageCount} págs`}
                               </span>
@@ -929,7 +960,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                               {source.extractedData?.substring(0, 100)}
                               {(source.extractedData?.length || 0) > 100 && '...'}
                             </p>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}

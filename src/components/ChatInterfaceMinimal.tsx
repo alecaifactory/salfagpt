@@ -23,3 +23,4 @@ export default function ChatInterfaceMinimal({ userId }: { userId: string }) {
   );
 }
 
+
