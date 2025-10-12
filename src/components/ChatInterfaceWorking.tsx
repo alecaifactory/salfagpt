@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
-import type { Workflow, SourceType } from '../types/context';
+import WorkflowConfigModal from './WorkflowConfigModal';
+import type { Workflow, SourceType, WorkflowConfig } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 
 interface Message {
@@ -81,6 +82,7 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
       status: 'available' as const
     }))
   );
+  const [configWorkflow, setConfigWorkflow] = useState<Workflow | null>(null);
   const [showRightPanel, setShowRightPanel] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -355,6 +357,13 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
     }
   };
 
+  const handleSaveWorkflowConfig = (workflowId: string, config: WorkflowConfig) => {
+    setWorkflows(prev => prev.map(w => 
+      w.id === workflowId ? { ...w, config } : w
+    ));
+    console.log('✅ Workflow config saved:', workflowId, config);
+  };
+
   const getWorkflowStatusIcon = (status: Workflow['status']) => {
     switch (status) {
       case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
@@ -600,7 +609,7 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      console.log('Configure workflow:', workflow.id);
+                      setConfigWorkflow(workflow);
                     }}
                     className="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs rounded hover:bg-slate-100 transition-colors"
                   >
@@ -654,6 +663,14 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
         isOpen={showAddSourceModal}
         onClose={() => setShowAddSourceModal(false)}
         onAddSource={handleAddSource}
+      />
+
+      {/* Workflow Config Modal */}
+      <WorkflowConfigModal
+        workflow={configWorkflow}
+        isOpen={configWorkflow !== null}
+        onClose={() => setConfigWorkflow(null)}
+        onSave={handleSaveWorkflowConfig}
       />
     </div>
   );
