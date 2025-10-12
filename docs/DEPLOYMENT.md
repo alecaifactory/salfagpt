@@ -921,6 +921,121 @@ gcloud monitoring uptime create flow-chat-uptime \
 
 ---
 
+## ⚠️ ALWAYS Verify Gemini AI Connection
+
+**The #3 cause of runtime failures is missing Gemini AI API key in production.**
+
+### Problem
+Chat works in localhost but AI doesn't respond in production.
+
+### Solution
+```bash
+# 1. Verify secret exists
+gcloud secrets versions list gemini-api-key --project=gen-lang-client-0986191192
+
+# 2. Grant service account access
+gcloud secrets add-iam-policy-binding gemini-api-key \
+  --member="serviceAccount:YOUR-SA@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor" \
+  --project=gen-lang-client-0986191192
+
+# 3. Mount secret in Cloud Run
+gcloud run services update flow-chat \
+  --region=us-central1 \
+  --update-secrets="GOOGLE_AI_API_KEY=gemini-api-key:latest" \
+  --project=gen-lang-client-0986191192
+
+# 4. Test Gemini AI
+curl -X POST "https://YOUR-SERVICE-URL/api/conversations/temp-test/messages" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "test",
+    "message": "Hola",
+    "model": "gemini-2.5-flash",
+    "systemPrompt": "Eres útil.",
+    "contextSources": []
+  }'
+```
+
+### Expected Response
+```json
+{
+  "message": {
+    "content": {
+      "type": "text",
+      "text": "Hola, estoy muy bien, gracias por preguntar..."
+    },
+    "role": "assistant",
+    "tokenCount": 16
+  }
+}
+```
+
+### Documentation
+See `docs/fixes/gemini-production-fix-2025-01-12.md` for complete details.
+
+---
+
+## ✅ Final Deployment Checklist
+
+Before marking deployment as complete:
+
+### 1. Service Accessibility
+- [ ] Service URL is accessible: `https://YOUR-SERVICE-URL`
+- [ ] Health check passes: `curl https://YOUR-SERVICE-URL/api/health/firestore`
+- [ ] No 404 or 500 errors in logs
+
+### 2. Authentication
+- [ ] OAuth login works with Google
+- [ ] Session persists after page refresh
+- [ ] Logout clears session correctly
+
+### 3. Environment Variables
+- [ ] `GOOGLE_CLOUD_PROJECT` is set
+- [ ] `PUBLIC_BASE_URL` matches actual service URL
+- [ ] `NODE_ENV=production`
+
+### 4. Secrets
+- [ ] ✅ `GOOGLE_AI_API_KEY` (Gemini AI) - Test with chat
+- [ ] ✅ `GOOGLE_CLIENT_SECRET` (OAuth) - Test with login
+- [ ] ✅ `JWT_SECRET` (Session tokens) - Test with auth
+
+### 5. Firestore
+- [ ] Composite indexes deployed (users, conversations)
+- [ ] Index status is "Enabled" in Firebase Console
+- [ ] Conversations load after page refresh
+
+### 6. Gemini AI
+- [ ] Chat generates AI responses
+- [ ] Both Flash and Pro models work
+- [ ] Token counting is accurate
+- [ ] Error handling works gracefully
+
+### 7. Monitoring
+- [ ] Cloud Run logs show no errors
+- [ ] Uptime check configured
+- [ ] Cost alerts set up
+
+### Test Commands
+```bash
+# 1. Test Firestore health
+curl https://YOUR-SERVICE-URL/api/health/firestore
+
+# 2. Test Gemini AI
+curl -X POST "https://YOUR-SERVICE-URL/api/conversations/temp-test/messages" \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"test","message":"Hola","model":"gemini-2.5-flash","systemPrompt":"Eres útil.","contextSources":[]}'
+
+# 3. Test OAuth (in browser)
+open https://YOUR-SERVICE-URL/auth/login
+
+# 4. Check logs for errors
+gcloud logging read 'resource.type=cloud_run_revision AND severity>=ERROR' \
+  --limit=10 --project=gen-lang-client-0986191192
+```
+
+---
+
 ## Support & Resources
 
 ### Documentation
