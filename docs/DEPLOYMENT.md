@@ -4,6 +4,7 @@ Complete guide for deploying Flow to Google Cloud Run.
 
 ## Table of Contents
 
+- [Critical Lessons Learned](#critical-lessons-learned)
 - [Prerequisites](#prerequisites)
 - [Environment Variables](#environment-variables)
 - [Initial Setup](#initial-setup)
@@ -11,6 +12,250 @@ Complete guide for deploying Flow to Google Cloud Run.
 - [Post-Deployment](#post-deployment)
 - [Troubleshooting](#troubleshooting)
 - [Rollback](#rollback)
+
+---
+
+## 🚨 Critical Lessons Learned
+
+### ⚠️ ALWAYS Configure Environment Variables FIRST
+
+**The #1 cause of deployment failures is misconfigured environment variables.**
+
+#### Order of Operations (DO THIS FIRST)
+
+```bash
+# 1️⃣ FIRST: Create secrets in Secret Manager
+# 2️⃣ SECOND: Grant service account permissions
+# 3️⃣ THIRD: Deploy application
+# 4️⃣ FOURTH: Mount secrets in Cloud Run
+# 5️⃣ FIFTH: Set PUBLIC_BASE_URL
+# 6️⃣ SIXTH: Verify and test
+```
+
+### 🔐 Critical Environment Variables
+
+These variables **MUST** be configured correctly, or authentication will fail:
+
+| Variable | Type | Critical For | Failure Mode |
+|----------|------|--------------|--------------|
+| `GOOGLE_CLIENT_SECRET` | **Secret** | OAuth token exchange | `auth_processing_failed` |
+| `JWT_SECRET` | **Secret** | Session encryption | `invalid_token` |
+| `PUBLIC_BASE_URL` | **Env Var** | OAuth redirects | Redirects to `localhost` |
+| `GOOGLE_AI_API_KEY` | **Secret** | Gemini AI | AI responses fail |
+| `GOOGLE_CLOUD_PROJECT` | **Env Var** | Firestore, BigQuery | `Project not found` |
+| `GOOGLE_CLIENT_ID` | **Env Var** | OAuth flow | OAuth fails to start |
+
+### ❌ Common Mistakes (AVOID THESE)
+
+1. **Deploying before configuring secrets**
+   - Result: `auth_processing_failed`, `invalid_request`
+   - Fix: Create secrets in Secret Manager FIRST
+
+2. **Missing service account permissions**
+   - Result: `Error fetching secret`, `5 NOT_FOUND`
+   - Fix: Grant `secretAccessor` role to service account
+
+3. **Wrong variable name**
+   - Example: Using `GEMINI_API_KEY` instead of `GOOGLE_AI_API_KEY`
+   - Result: API calls fail silently
+   - Fix: Use EXACT names from `.env`
+
+4. **Not setting PUBLIC_BASE_URL**
+   - Result: OAuth redirects to `localhost:3000`
+   - Fix: Set to production URL AFTER deployment
+
+5. **Mixing secret and env var types**
+   - Result: `Cannot update environment variable... different type`
+   - Fix: Remove variable, then re-add with correct type
+
+### ✅ Verification Checklist
+
+After deployment, verify EVERY environment variable:
+
+```bash
+# Check all environment variables
+gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format="yaml(spec.template.spec.containers[0].env)" | grep -E "(name:|value:|valueFrom:)"
+
+# Expected output should show:
+# ✓ GOOGLE_CLOUD_PROJECT (value)
+# ✓ GOOGLE_CLIENT_ID (value)
+# ✓ PUBLIC_BASE_URL (value)
+# ✓ GOOGLE_CLIENT_SECRET (secret reference)
+# ✓ JWT_SECRET (secret reference)
+# ✓ GOOGLE_AI_API_KEY (secret reference)
+```
+
+### 🎯 Secret Manager Best Practices
+
+**Secrets in Secret Manager are MORE SECURE than environment variables.**
+
+#### When to Use Secrets vs Environment Variables
+
+| Use **Secret Manager** for: | Use **Environment Variables** for: |
+|------------------------------|-------------------------------------|
+| OAuth credentials | Project IDs |
+| API keys | Region names |
+| JWT secrets | Public URLs |
+| Database passwords | Feature flags |
+| Encryption keys | Non-sensitive config |
+
+#### Creating Secrets Properly
+
+```bash
+# ✅ CORRECT: Create from .env file
+GOOGLE_CLIENT_SECRET=$(cat .env | grep GOOGLE_CLIENT_SECRET | cut -d '=' -f2)
+echo -n "$GOOGLE_CLIENT_SECRET" | gcloud secrets create google-client-secret \
+  --data-file=- \
+  --replication-policy="automatic"
+
+# ✅ CORRECT: Grant permissions immediately
+gcloud secrets add-iam-policy-binding google-client-secret \
+  --member="serviceAccount:1030147139179-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+
+# ✅ CORRECT: Mount in Cloud Run
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --update-secrets="GOOGLE_CLIENT_SECRET=google-client-secret:latest"
+```
+
+#### ❌ WRONG Way to Create Secrets
+
+```bash
+# ❌ WRONG: Passing secret directly in command (leaves in history)
+gcloud secrets create jwt-secret --data-file=<(echo "my-secret-value")
+
+# ❌ WRONG: Not granting permissions to service account
+# (Results in: Error fetching secret)
+
+# ❌ WRONG: Using old version number instead of :latest
+--update-secrets="JWT_SECRET=jwt-secret:1"
+```
+
+### 📊 Complete Environment Variable Setup
+
+Here's the COMPLETE setup you need before your first deployment:
+
+```bash
+# ═══════════════════════════════════════════════════════
+#  STEP 1: Create ALL secrets in Secret Manager
+# ═══════════════════════════════════════════════════════
+
+# Load from .env
+GOOGLE_CLIENT_SECRET=$(cat .env | grep GOOGLE_CLIENT_SECRET | cut -d '=' -f2)
+JWT_SECRET=$(cat .env | grep JWT_SECRET | cut -d '=' -f2)
+GOOGLE_AI_API_KEY=$(cat .env | grep GOOGLE_AI_API_KEY | cut -d '=' -f2)
+
+# Create secrets
+echo -n "$GOOGLE_CLIENT_SECRET" | gcloud secrets create google-client-secret --data-file=- --replication-policy="automatic"
+echo -n "$JWT_SECRET" | gcloud secrets create jwt-secret --data-file=- --replication-policy="automatic"
+echo -n "$GOOGLE_AI_API_KEY" | gcloud secrets create gemini-api-key --data-file=- --replication-policy="automatic"
+
+# ═══════════════════════════════════════════════════════
+#  STEP 2: Grant permissions to service account
+# ═══════════════════════════════════════════════════════
+
+SERVICE_ACCOUNT="1030147139179-compute@developer.gserviceaccount.com"
+
+for SECRET in google-client-secret jwt-secret gemini-api-key; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/secretmanager.secretAccessor"
+done
+
+# ═══════════════════════════════════════════════════════
+#  STEP 3: Deploy application with basic env vars
+# ═══════════════════════════════════════════════════════
+
+GOOGLE_CLIENT_ID=$(cat .env | grep GOOGLE_CLIENT_ID | cut -d '=' -f2)
+
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,NODE_ENV=production"
+
+# ═══════════════════════════════════════════════════════
+#  STEP 4: Mount secrets in Cloud Run
+# ═══════════════════════════════════════════════════════
+
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --update-secrets="GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest,GOOGLE_AI_API_KEY=gemini-api-key:latest"
+
+# ═══════════════════════════════════════════════════════
+#  STEP 5: Set PUBLIC_BASE_URL
+# ═══════════════════════════════════════════════════════
+
+SERVICE_URL=$(gcloud run services describe flow-chat --region us-central1 --format='value(status.url)')
+
+gcloud run services update flow-chat \
+  --region us-central1 \
+  --update-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
+
+# ═══════════════════════════════════════════════════════
+#  STEP 6: Verify everything is configured
+# ═══════════════════════════════════════════════════════
+
+echo ""
+echo "✅ Verification:"
+echo ""
+gcloud run services describe flow-chat --region us-central1 --format="yaml(spec.template.spec.containers[0].env)" | grep -E "(name:|value:|valueFrom:)"
+```
+
+### 🔍 How to Debug Environment Variable Issues
+
+```bash
+# 1. Check what's configured in Cloud Run
+gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format="json" | jq '.spec.template.spec.containers[0].env'
+
+# 2. Check logs for missing variables
+gcloud logging read "resource.type=cloud_run_revision AND severity>=WARNING" \
+  --limit 10 \
+  --format="table(timestamp,textPayload)"
+
+# 3. Test health endpoint
+curl -s https://YOUR-SERVICE-URL/api/health/firestore | jq .
+
+# 4. Check if service account has permissions
+gcloud secrets get-iam-policy google-client-secret
+
+# 5. Verify secret exists and has data
+gcloud secrets versions access latest --secret="google-client-secret" | wc -c
+# Should output > 0
+```
+
+### 💡 Pro Tips
+
+1. **Use a deployment script** (like `deploy-production.sh`) that:
+   - Reads from `.env` automatically
+   - Creates secrets if they don't exist
+   - Grants permissions
+   - Deploys with all variables
+   - Verifies configuration
+   - Runs health checks
+
+2. **Always verify after changes:**
+   ```bash
+   # After any env var change, ALWAYS run:
+   curl -s $SERVICE_URL/api/health/firestore | jq .
+   ```
+
+3. **Keep .env file secure:**
+   - Never commit to git
+   - Store in password manager
+   - Rotate secrets regularly
+   - Use different values for dev/prod
+
+4. **Document your setup:**
+   - Keep a checklist of required variables
+   - Document why each variable is needed
+   - Include example values (not real ones!)
 
 ---
 
