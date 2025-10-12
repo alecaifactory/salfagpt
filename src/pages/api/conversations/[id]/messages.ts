@@ -96,11 +96,29 @@ export const POST: APIRoute = async ({ params, request }) => {
         contextSections: aiResponse.contextSections,
       };
 
+      // Calculate token stats
+      const totalInputTokens = aiResponse.contextSections
+        ?.filter(s => s.name !== 'Model Response')
+        .reduce((sum, s) => sum + (s.tokenCount || 0), 0) || 0;
+      const totalOutputTokens = aiResponse.tokenCount || 0;
+      const contextWindowCapacity = (model === 'gemini-2.5-pro') ? 2000000 : 1000000;
+      const contextWindowUsed = totalInputTokens + totalOutputTokens;
+      const contextWindowAvailable = contextWindowCapacity - contextWindowUsed;
+
       return new Response(
         JSON.stringify({
           message: assistantMessage,
-          contextUsage: 0.5,
+          contextUsage: (contextWindowUsed / contextWindowCapacity) * 100,
           contextSections: aiResponse.contextSections || [],
+          tokenStats: {
+            totalInputTokens,
+            totalOutputTokens,
+            contextWindowUsed,
+            contextWindowAvailable,
+            contextWindowCapacity,
+            model: model || 'gemini-2.5-flash',
+            systemPrompt: systemPrompt || 'Default system prompt',
+          },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -172,11 +190,29 @@ export const POST: APIRoute = async ({ params, request }) => {
       }
     }
 
+    // Calculate token stats
+    const totalInputTokens = aiResponse.contextSections
+      ?.filter(s => s.name !== 'Model Response')
+      .reduce((sum, s) => sum + (s.tokenCount || 0), 0) || 0;
+    const totalOutputTokens = aiResponse.tokenCount || 0;
+    const contextWindowCapacity = (model === 'gemini-2.5-pro') ? 2000000 : 1000000;
+    const contextWindowUsed = totalInputTokens + totalOutputTokens;
+    const contextWindowAvailable = contextWindowCapacity - contextWindowUsed;
+
     return new Response(
       JSON.stringify({
         message: assistantMessage,
         contextUsage: usage,
         contextSections: sections,
+        tokenStats: {
+          totalInputTokens,
+          totalOutputTokens,
+          contextWindowUsed,
+          contextWindowAvailable,
+          contextWindowCapacity,
+          model: model || 'gemini-2.5-flash',
+          systemPrompt: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
+        },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
