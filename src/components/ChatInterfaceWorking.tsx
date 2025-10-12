@@ -218,16 +218,55 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   };
 
   const createNewConversation = async () => {
-    const tempId = `temp-${Date.now()}`;
-    const newConv: Conversation = {
-      id: tempId,
-      title: 'Nuevo Agente',
-      lastMessageAt: new Date()
-    };
-    
-    setConversations(prev => [newConv, ...prev]);
-    setCurrentConversation(tempId);
-    setMessages([]);
+    try {
+      // Call API to create conversation in Firestore
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          title: 'Nuevo Agente',
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newConv: Conversation = {
+          id: data.conversation.id,
+          title: data.conversation.title,
+          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt)
+        };
+        
+        setConversations(prev => [newConv, ...prev]);
+        setCurrentConversation(newConv.id);
+        setMessages([]);
+        
+        console.log('✅ Conversación creada en Firestore:', newConv.id);
+        
+        if (data.warning) {
+          console.warn('⚠️', data.warning);
+        }
+      } else {
+        throw new Error('Failed to create conversation');
+      }
+    } catch (error) {
+      console.error('❌ Error creating conversation:', error);
+      
+      // Fallback: create temporary conversation in memory
+      const tempId = `temp-${Date.now()}`;
+      const newConv: Conversation = {
+        id: tempId,
+        title: 'Nuevo Agente',
+        lastMessageAt: new Date()
+      };
+      
+      setConversations(prev => [newConv, ...prev]);
+      setCurrentConversation(tempId);
+      setMessages([]);
+      
+      console.warn('⚠️ Conversación temporal creada (no persistente)');
+      console.warn('💡 Para persistencia, configura Firestore credentials');
+    }
   };
 
   const sendMessage = async () => {
