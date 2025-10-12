@@ -135,11 +135,30 @@ export default function ContextManager({
                     
                     {/* Error Message */}
                     {source.status === 'error' && source.error && (
-                      <div className="mt-1.5 text-xs text-red-600 bg-red-50 rounded p-2">
-                        <p className="font-semibold">❌ {source.error.message}</p>
-                        {source.error.details && (
-                          <p className="text-[10px] mt-0.5 text-red-500">{source.error.details}</p>
-                        )}
+                      <div className="mt-1.5 text-xs bg-red-50 rounded p-2 border border-red-200">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="font-semibold text-red-700 flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              {source.error.message}
+                            </p>
+                            {source.error.details && (
+                              <p className="text-[10px] mt-1 text-red-600">{source.error.details}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSourceSettings(source.id);
+                            }}
+                            className="flex-shrink-0 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-[10px] font-medium"
+                          >
+                            Ver detalles
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-1.5 italic">
+                          Click en "Ver detalles" para ver el error completo y reintentar
+                        </p>
                       </div>
                     )}
                     

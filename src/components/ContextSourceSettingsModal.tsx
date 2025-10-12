@@ -84,8 +84,64 @@ export default function ContextSourceSettingsModal({
           </button>
         </div>
 
+        {/* Error Alert - Prominent if status is error */}
+        {source.status === 'error' && source.error && (
+          <div className="mx-4 mt-4 bg-red-50 border-2 border-red-300 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-red-800 mb-2">
+                  ❌ Error al Procesar el Documento
+                </h3>
+                <div className="bg-white rounded-lg p-3 border border-red-200 mb-3">
+                  <p className="text-sm font-semibold text-red-700 mb-1">Mensaje de error:</p>
+                  <p className="text-sm text-red-600">{source.error.message}</p>
+                  {source.error.details && (
+                    <>
+                      <p className="text-sm font-semibold text-red-700 mt-2 mb-1">Detalles técnicos:</p>
+                      <p className="text-xs text-red-600 font-mono bg-red-50 p-2 rounded">
+                        {source.error.details}
+                      </p>
+                    </>
+                  )}
+                  <p className="text-xs text-slate-600 mt-2">
+                    <strong>Timestamp:</strong> {source.error.timestamp ? formatDate(source.error.timestamp) : 'N/A'}
+                  </p>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-blue-800 mb-2">💡 Posibles soluciones:</p>
+                  {source.error?.suggestions && source.error.suggestions.length > 0 ? (
+                    <ul className="text-xs text-slate-700 space-y-1 ml-4 list-disc">
+                      {source.error.suggestions.map((suggestion, idx) => (
+                        <li key={idx}>{suggestion}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul className="text-xs text-slate-700 space-y-1 ml-4 list-disc">
+                      <li>Verifica que el archivo no esté corrupto</li>
+                      <li>Intenta con un modelo diferente (Flash → Pro o viceversa)</li>
+                      <li>Asegúrate de que el archivo sea del tipo correcto ({getSourceTypeLabel(source.type)})</li>
+                      <li>Si el archivo es muy grande, intenta con uno más pequeño</li>
+                      <li>Revisa que tengas conexión a internet y acceso a Gemini AI</li>
+                    </ul>
+                  )}
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <p className="text-xs text-slate-600 mb-2">
+                      <strong>Acción sugerida:</strong> Cambia la configuración abajo y haz click en "Re-extraer" para intentar nuevamente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content - Compact 2-Column Layout */}
-        <div className="p-4 flex-1 grid grid-cols-2 gap-4">
+        <div className="p-4 flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
           {/* Left Column */}
           <div className="space-y-3">
             {/* Original Source Info - Compact */}

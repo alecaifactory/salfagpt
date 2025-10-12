@@ -59,6 +59,7 @@ export interface ContextSource {
     message: string;
     details?: string;
     timestamp: Date;
+    suggestions?: string[]; // Specific suggestions to fix the error
   };
 }
 

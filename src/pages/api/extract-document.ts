@@ -164,10 +164,62 @@ ${extractedText}`;
   } catch (error) {
     console.error('❌ Error extracting document:', error);
     
+    // Provide detailed error information
+    let errorMessage = 'Failed to extract document';
+    let errorDetails = 'Unknown error';
+    let suggestions: string[] = [];
+    
+    if (error instanceof Error) {
+      errorDetails = error.message;
+      
+      // Categorize errors and provide suggestions
+      if (errorDetails.includes('API key') || errorDetails.includes('GEMINI_API_KEY')) {
+        errorMessage = 'Gemini API Key no configurado';
+        errorDetails = 'La variable de entorno GEMINI_API_KEY no está disponible';
+        suggestions = [
+          'Verifica que GEMINI_API_KEY esté en el archivo .env',
+          'Reinicia el servidor después de agregar la key',
+          'Confirma que la key sea válida en https://aistudio.google.com/app/apikey'
+        ];
+      } else if (errorDetails.includes('network') || errorDetails.includes('fetch') || errorDetails.includes('ENOTFOUND')) {
+        errorMessage = 'Error de conexión a Gemini AI';
+        errorDetails = `No se pudo conectar al servicio: ${errorDetails}`;
+        suggestions = [
+          'Verifica tu conexión a internet',
+          'Comprueba que no haya firewall bloqueando la conexión',
+          'Intenta nuevamente en unos momentos'
+        ];
+      } else if (errorDetails.includes('quota') || errorDetails.includes('rate limit')) {
+        errorMessage = 'Límite de uso alcanzado';
+        errorDetails = 'Has excedido el límite de solicitudes de la API de Gemini';
+        suggestions = [
+          'Espera unos minutos antes de intentar nuevamente',
+          'Verifica tu cuota en https://aistudio.google.com/',
+          'Considera actualizar tu plan de Gemini AI'
+        ];
+      } else if (errorDetails.includes('model') || errorDetails.includes('not found')) {
+        errorMessage = 'Modelo no encontrado';
+        errorDetails = `El modelo especificado no está disponible: ${errorDetails}`;
+        suggestions = [
+          'Intenta con gemini-2.5-flash en lugar de gemini-2.5-pro',
+          'Verifica que tu API key tenga acceso al modelo solicitado'
+        ];
+      } else if (errorDetails.includes('timeout')) {
+        errorMessage = 'Timeout procesando el documento';
+        errorDetails = 'El documento tardó demasiado en procesarse';
+        suggestions = [
+          'El archivo puede ser muy grande, intenta con uno más pequeño',
+          'Intenta nuevamente, el servicio puede estar lento temporalmente'
+        ];
+      }
+    }
+    
     return new Response(
       JSON.stringify({
-        error: 'Failed to extract document',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        details: errorDetails,
+        suggestions: suggestions.length > 0 ? suggestions : undefined,
+        timestamp: new Date().toISOString()
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
