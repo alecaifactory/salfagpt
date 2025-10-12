@@ -237,6 +237,49 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  // Load conversations from Firestore on mount
+  useEffect(() => {
+    const loadConversations = async () => {
+      try {
+        console.log('📥 Cargando conversaciones desde Firestore...');
+        const response = await fetch(`/api/conversations?userId=${userId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.groups && data.groups.length > 0) {
+            // Flatten all groups into a single conversation list
+            const allConversations: Conversation[] = [];
+            data.groups.forEach((group: any) => {
+              group.conversations.forEach((conv: any) => {
+                allConversations.push({
+                  id: conv.id,
+                  title: conv.title,
+                  lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt)
+                });
+              });
+            });
+            
+            setConversations(allConversations);
+            console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
+          } else {
+            console.log('ℹ️ No hay conversaciones guardadas');
+          }
+          
+          if (data.warning) {
+            console.warn('⚠️', data.warning);
+          }
+        } else {
+          console.error('❌ Error al cargar conversaciones:', response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ Error al cargar conversaciones:', error);
+      }
+    };
+    
+    loadConversations();
+  }, [userId]);
+
   const createNewConversation = async () => {
     try {
       // Call API to create conversation in Firestore

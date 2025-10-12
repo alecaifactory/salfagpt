@@ -21,6 +21,60 @@ Complete guide for deploying Flow to Google Cloud Run.
 
 **The #1 cause of deployment failures is misconfigured environment variables.**
 
+### ⚠️ ALWAYS Deploy Firestore Indexes
+
+**The #2 cause of runtime failures is missing Firestore indexes.**
+
+Firestore requires composite indexes for queries that filter/sort on multiple fields. The error message will include a direct link to create the index.
+
+**What Happens if Index is Missing:**
+```
+Error: 9 FAILED_PRECONDITION: The query requires an index.
+You can create it here: https://console.firebase.google.com/...
+```
+
+**How to Deploy Indexes:**
+
+1. **Define indexes in `firestore.indexes.json`:**
+   ```json
+   {
+     "indexes": [
+       {
+         "collectionGroup": "conversations",
+         "queryScope": "COLLECTION",
+         "fields": [
+           { "fieldPath": "userId", "order": "ASCENDING" },
+           { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+         ]
+       }
+     ]
+   }
+   ```
+
+2. **Deploy indexes using Firebase CLI:**
+   ```bash
+   # Install Firebase CLI if not installed
+   npm install -g firebase-tools
+   
+   # Authenticate (if needed)
+   firebase login
+   
+   # Deploy indexes
+   firebase deploy --only firestore:indexes --project=gen-lang-client-0986191192
+   ```
+
+3. **Alternative: Use the error link**
+   - When you get the "index required" error, copy the URL from the error message
+   - Open it in a browser
+   - Click "Create Index"
+   - Wait 2-5 minutes for the index to build
+
+**Common Indexes Needed:**
+- `conversations`: `userId` + `lastMessageAt` (for loading user's conversations)
+- `messages`: `conversationId` + `timestamp` (for loading conversation history)
+
+**Pro Tip:** Always deploy indexes BEFORE deploying code that uses those queries.
+
 #### Order of Operations (DO THIS FIRST)
 
 ```bash
