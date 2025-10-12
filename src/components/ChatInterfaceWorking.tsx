@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
-import type { Workflow } from '../types/context';
+import AddSourceModal from './AddSourceModal';
+import type { Workflow, SourceType } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 
 interface Message {
@@ -28,6 +29,18 @@ interface ContextSource {
   metadata?: {
     originalFileSize?: number;
     pageCount?: number;
+    modelUsed?: string;
+    charactersExtracted?: number;
+  };
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Date;
   };
 }
 
@@ -58,6 +71,7 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
+  const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   
   // Workflows state
   const [workflows, setWorkflows] = useState<Workflow[]>(
@@ -251,6 +265,96 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
     }
   };
 
+  const handleAddSource = async (
+    type: SourceType,
+    file?: File,
+    url?: string,
+    config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string }
+  ) => {
+    const newSource: ContextSource = {
+      id: `source-${Date.now()}`,
+      name: file?.name || url || config?.apiEndpoint || 'Nueva Fuente',
+      type,
+      enabled: true,
+      status: 'processing',
+      extractedData: '',
+      addedAt: new Date(),
+      progress: {
+        stage: 'uploading',
+        percentage: 10,
+        message: 'Subiendo archivo...'
+      }
+    };
+
+    setContextSources(prev => [...prev, newSource]);
+
+    try {
+      // Update progress: processing
+      setContextSources(prev => prev.map(s => 
+        s.id === newSource.id
+          ? { ...s, progress: { stage: 'processing', percentage: 50, message: 'Extrayendo contenido...' } }
+          : s
+      ));
+
+      // Call extraction API
+      const formData = new FormData();
+      if (file) {
+        formData.append('file', file);
+        formData.append('type', type);
+        formData.append('model', config?.model || 'gemini-2.5-flash');
+
+        const response = await fetch('/api/extract-document', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to extract document');
+        }
+
+        const data = await response.json();
+
+        // Update source with extracted data
+        setContextSources(prev => prev.map(s => 
+          s.id === newSource.id
+            ? {
+                ...s,
+                status: 'active',
+                extractedData: data.extractedText || '',
+                metadata: {
+                  ...s.metadata,
+                  originalFileSize: file.size,
+                  pageCount: data.pageCount,
+                  modelUsed: config?.model || 'gemini-2.5-flash',
+                  charactersExtracted: data.extractedText?.length
+                },
+                progress: {
+                  stage: 'complete',
+                  percentage: 100,
+                  message: 'Completado'
+                }
+              }
+            : s
+        ));
+      }
+    } catch (error) {
+      console.error('Error adding source:', error);
+      setContextSources(prev => prev.map(s => 
+        s.id === newSource.id
+          ? {
+              ...s,
+              status: 'error',
+              error: {
+                message: 'Error al procesar el documento',
+                details: error instanceof Error ? error.message : 'Error desconocido',
+                timestamp: new Date()
+              }
+            }
+          : s
+      ));
+    }
+  };
+
   const getWorkflowStatusIcon = (status: Workflow['status']) => {
     switch (status) {
       case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
@@ -299,7 +403,7 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
         <ContextManager
           sources={contextSources}
           validations={new Map()}
-          onAddSource={() => console.log('Add source')}
+          onAddSource={() => setShowAddSourceModal(true)}
           onToggleSource={toggleContext}
           onRemoveSource={(id) => {
             setContextSources(prev => prev.filter(s => s.id !== id));
@@ -544,6 +648,13 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
           ← Workflows
         </button>
       )}
+
+      {/* Add Source Modal */}
+      <AddSourceModal
+        isOpen={showAddSourceModal}
+        onClose={() => setShowAddSourceModal(false)}
+        onAddSource={handleAddSource}
+      />
     </div>
   );
 }
