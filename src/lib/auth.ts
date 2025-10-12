@@ -23,10 +23,20 @@ export function getAuthorizationUrl(): string {
     'https://www.googleapis.com/auth/userinfo.profile',
   ];
 
+  // Explicitly pass redirect_uri to avoid production issues
+  const redirectUri = `${BASE_URL}/auth/callback`;
+  
+  console.log('OAuth Config:', {
+    clientId: GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET',
+    baseUrl: BASE_URL,
+    redirectUri,
+  });
+
   return oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
+    redirect_uri: redirectUri, // Explicitly set redirect_uri
   });
 }
 
