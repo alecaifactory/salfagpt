@@ -1,10 +1,10 @@
-// Real document extractors using Google Cloud Vision API
+// Intelligent document extractors using Gemini AI
 import type { WorkflowConfig } from '../types/context';
 
-// PDF extraction using Google Cloud Vision API
-export async function extractPdfText(file: File, config?: WorkflowConfig): Promise<string> {
+// PDF extraction using Gemini AI (text, tables, and image descriptions)
+export async function extractPdf(file: File, config?: WorkflowConfig): Promise<string> {
   try {
-    // Call our API endpoint that uses Google Cloud Vision
+    // Call our API endpoint that uses Gemini AI
     const formData = new FormData();
     formData.append('file', file);
     formData.append('model', config?.model || 'gemini-2.5-flash');
@@ -28,46 +28,16 @@ export async function extractPdfText(file: File, config?: WorkflowConfig): Promi
     let extractedText = result.text;
 
     // Apply maxOutputLength if specified
-    if (config?.maxOutputLength && extractedText.length > config.maxOutputLength) {
-      extractedText = extractedText.substring(0, config.maxOutputLength) + '\n\n[Texto truncado...]';
+    if (config?.maxOutputLength && extractedText.length > config.maxOutputLength * 4) {
+      // Note: maxOutputLength is in tokens, approximately 4 chars per token
+      const charLimit = config.maxOutputLength * 4;
+      extractedText = extractedText.substring(0, charLimit) + '\n\n[Texto truncado...]';
     }
 
     return extractedText;
   } catch (error) {
-    console.error('Error extracting PDF text:', error);
-    return `❌ Error al extraer texto del PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;
-  }
-}
-
-// PDF with images extraction using Google Cloud Vision (includes OCR automatically)
-export async function extractPdfWithImages(file: File, config?: WorkflowConfig): Promise<string> {
-  try {
-    // Vision API automatically handles OCR for images in PDFs
-    const result = await extractPdfText(file, { ...config, extractImages: true });
-    return result + '\n\n✅ Nota: Google Cloud Vision incluye OCR automático para imágenes.';
-  } catch (error) {
-    console.error('Error extracting PDF with images:', error);
-    return `❌ Error al extraer PDF con imágenes: ${error instanceof Error ? error.message : 'Error desconocido'}`;
-  }
-}
-
-// PDF tables extraction
-export async function extractPdfTables(file: File, config?: WorkflowConfig): Promise<string> {
-  try {
-    // Extract text first
-    const result = await extractPdfText(file, { ...config, extractTables: true });
-    
-    // Try to identify table-like structures in the extracted text
-    const lines = result.split('\n');
-    const tableLines = lines.filter((line: string) => {
-      // Simple heuristic: lines with multiple spaces or tabs might be tables
-      return line.includes('\t') || /\s{2,}/.test(line);
-    });
-    
-    return result + `\n\nℹ️ Nota: ${tableLines.length} líneas con estructura tabular identificadas. Para extracción avanzada de tablas, usa herramientas especializadas.`;
-  } catch (error) {
-    console.error('Error extracting PDF tables:', error);
-    return `❌ Error al extraer tablas del PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;
+    console.error('Error extracting PDF:', error);
+    return `❌ Error al extraer contenido del PDF: ${error instanceof Error ? error.message : 'Error desconocido'}`;
   }
 }
 

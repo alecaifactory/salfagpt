@@ -26,9 +26,7 @@ export default function ContextManager({
 
   const getSourceTypeLabel = (type: ContextSource['type']): string => {
     const labels: Record<ContextSource['type'], string> = {
-      'pdf-text': 'PDF Texto',
-      'pdf-images': 'PDF Imágenes',
-      'pdf-tables': 'PDF Tablas',
+      'pdf': 'PDF',
       'csv': 'CSV',
       'excel': 'Excel',
       'word': 'Word',

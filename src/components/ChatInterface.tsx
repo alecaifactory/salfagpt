@@ -126,7 +126,7 @@ export default function ChatInterface({ userId }: { userId: string }) {
     {
       id: `source-demo-${Date.now()}`,
       name: 'Documento de Prueba.pdf',
-      type: 'pdf-text',
+      type: 'pdf',
       addedAt: new Date(),
       metadata: {
         originalFileSize: 125000,
@@ -587,12 +587,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
     try {
       let extractedData = '';
 
-      if (type === 'pdf-text' && file) {
-        extractedData = await extractors.extractPdfText(file, config);
-      } else if (type === 'pdf-images' && file) {
-        extractedData = await extractors.extractPdfWithImages(file, config);
-      } else if (type === 'pdf-tables' && file) {
-        extractedData = await extractors.extractPdfTables(file, config);
+      if (type === 'pdf' && file) {
+        extractedData = await extractors.extractPdf(file, config);
       } else if (type === 'csv' && file) {
         extractedData = await extractors.extractCsv(file, config);
       } else if (type === 'excel' && file) {
@@ -818,12 +814,8 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       const { originalFile, type } = source;
 
       // Re-extract based on type
-      if (type === 'pdf-text') {
-        extractedData = await extractors.extractPdfText(originalFile!, newConfig);
-      } else if (type === 'pdf-images') {
-        extractedData = await extractors.extractPdfWithImages(originalFile!, newConfig);
-      } else if (type === 'pdf-tables') {
-        extractedData = await extractors.extractPdfTables(originalFile!, newConfig);
+      if (type === 'pdf') {
+        extractedData = await extractors.extractPdf(originalFile!, newConfig);
       } else if (type === 'csv') {
         extractedData = await extractors.extractCsv(originalFile!, newConfig);
       } else if (type === 'excel') {

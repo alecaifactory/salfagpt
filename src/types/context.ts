@@ -1,6 +1,6 @@
 // Types for Context Management and Workflows
 
-export type SourceType = 'pdf-text' | 'pdf-images' | 'pdf-tables' | 'csv' | 'excel' | 'word' | 'folder' | 'web-url' | 'api';
+export type SourceType = 'pdf' | 'csv' | 'excel' | 'word' | 'folder' | 'web-url' | 'api';
 
 export interface ExtractionMetadata {
   // Original file info
@@ -43,9 +43,6 @@ export interface ContextSource {
 export interface WorkflowConfig {
   maxFileSize?: number; // in MB
   maxOutputLength?: number; // in tokens
-  extractImages?: boolean;
-  extractTables?: boolean;
-  ocrEnabled?: boolean;
   language?: string;
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // AI model for extraction
 }
@@ -75,38 +72,14 @@ export interface WorkflowTemplate {
 // Default workflow configurations
 export const DEFAULT_WORKFLOWS: Omit<Workflow, 'id' | 'status'>[] = [
   {
-    name: 'Extraer Texto PDF',
-    description: 'Extrae todo el texto de documentos PDF',
-    sourceType: 'pdf-text',
+    name: 'Procesar PDF',
+    description: 'Extrae texto, tablas e imágenes (descritas como texto) automáticamente',
+    sourceType: 'pdf',
     icon: '📄',
     config: {
       maxFileSize: 50,
-      maxOutputLength: 10000,
-      extractImages: false,
-      extractTables: false,
-    },
-  },
-  {
-    name: 'Analizar PDF con Imágenes',
-    description: 'Procesa PDFs con contenido visual usando OCR',
-    sourceType: 'pdf-images',
-    icon: '🖼️',
-    config: {
-      maxFileSize: 100,
-      maxOutputLength: 15000,
-      extractImages: true,
-      ocrEnabled: true,
-    },
-  },
-  {
-    name: 'Extraer Tablas de PDF',
-    description: 'Identifica y extrae tablas estructuradas',
-    sourceType: 'pdf-tables',
-    icon: '📊',
-    config: {
-      maxFileSize: 50,
       maxOutputLength: 20000,
-      extractTables: true,
+      model: 'gemini-2.5-flash', // Default to Flash, can upgrade to Pro in settings
     },
   },
   {

@@ -93,7 +93,19 @@ export const POST: APIRoute = async ({ request }) => {
               },
             },
             {
-              text: 'Por favor, extrae TODO el texto de este documento de manera estructurada. Mantén el formato original tanto como sea posible, incluyendo títulos, párrafos, listas, y cualquier contenido de tablas. No resumas, extrae todo el texto completo.',
+              text: `Por favor, extrae TODO el contenido de este documento de manera completa y estructurada:
+
+1. TEXTO: Extrae todo el texto manteniendo el formato original (títulos, párrafos, listas, etc.)
+
+2. TABLAS: Si hay tablas, extráelas preservando la estructura en formato de texto (usa | para separar columnas)
+
+3. IMÁGENES: Si hay imágenes, gráficos o diagramas, descríbelos en texto claro y detallado. Describe:
+   - Qué muestra la imagen
+   - Elementos importantes (texto visible, datos, símbolos)
+   - Contexto o propósito aparente
+   - Usa formato tipo ASCII art si es relevante para diagramas simples
+
+NO resumas, extrae TODO el contenido de manera completa. El objetivo es preservar toda la información del documento en formato de texto para uso posterior.`,
             },
           ],
         },

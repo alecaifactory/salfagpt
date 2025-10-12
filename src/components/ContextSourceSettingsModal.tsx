@@ -41,9 +41,7 @@ export default function ContextSourceSettingsModal({
 
   const getSourceTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      'pdf-text': 'PDF con Texto',
-      'pdf-images': 'PDF con Imágenes',
-      'pdf-tables': 'PDF con Tablas',
+      'pdf': 'PDF',
       'csv': 'CSV',
       'excel': 'Excel',
       'word': 'Word',
@@ -267,47 +265,26 @@ export default function ContextSourceSettingsModal({
                 </div>
               </div>
 
-              {/* Extract Images */}
-              {(source.type === 'pdf-text' || source.type === 'pdf-images') && (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-slate-800">Extraer Imágenes</p>
-                    <p className="text-xs text-slate-500">Procesar imágenes incrustadas en el PDF</p>
+              {/* Info about automatic extraction */}
+              {source.type === 'pdf' && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-slate-700">
+                      <p className="font-semibold mb-1">✨ Extracción Inteligente Automática</p>
+                      <p>
+                        Gemini AI extrae automáticamente <strong>todo el contenido</strong> del PDF:
+                      </p>
+                      <ul className="list-disc list-inside mt-2 space-y-1 text-xs">
+                        <li>Texto completo con formato preservado</li>
+                        <li>Tablas en formato de texto estructurado</li>
+                        <li>Imágenes descritas en texto detallado (ASCII art cuando sea relevante)</li>
+                      </ul>
+                      <p className="mt-2 text-xs text-slate-600">
+                        No necesitas configurar opciones adicionales. El modelo se encarga de todo.
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setConfig({ ...config, extractImages: !config.extractImages })}
-                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${
-                      config.extractImages ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                        config.extractImages ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )}
-
-              {/* Extract Tables */}
-              {(source.type === 'pdf-text' || source.type === 'pdf-tables') && (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-slate-800">Extraer Tablas</p>
-                    <p className="text-xs text-slate-500">Identificar y procesar tablas estructuradas</p>
-                  </div>
-                  <button
-                    onClick={() => setConfig({ ...config, extractTables: !config.extractTables })}
-                    className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${
-                      config.extractTables ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
-                        config.extractTables ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
                 </div>
               )}
             </div>
