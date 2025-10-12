@@ -59,3 +59,43 @@ Status:      ✅ Serving 100% traffic
 - All secrets properly configured
 - System fully functional in production
 
+
+---
+
+### Fix #3: Cloud Storage Permissions (October 12, 2025 - 23:30 PST)
+
+**Issue**: Files not being saved to Cloud Storage
+- Bucket appeared empty in GCP Console
+- No files uploaded despite successful UI response
+- No error messages in logs (silent failure)
+
+**Root Cause**:
+```
+Service Account: 1030147139179-compute@developer.gserviceaccount.com
+Missing role: roles/storage.objectAdmin on bucket
+Result: Upload fails silently, no files saved
+```
+
+**Solution**:
+```bash
+# Grant Storage Object Admin role to Cloud Run Service Account
+gcloud storage buckets add-iam-policy-binding \
+  gs://gen-lang-client-0986191192-uploads \
+  --member="serviceAccount:1030147139179-compute@developer.gserviceaccount.com" \
+  --role="roles/storage.objectAdmin" \
+  --project gen-lang-client-0986191192
+```
+
+**Files Changed**: None (configuration only)
+
+**Verification**:
+```bash
+# Check bucket permissions
+gcloud storage buckets get-iam-policy \
+  gs://gen-lang-client-0986191192-uploads
+```
+
+**Status**: ✅ Fixed - Files now saving correctly to Cloud Storage
+
+**Documentation**: See `STORAGE_ARCHITECTURE.md` for complete storage details
+
