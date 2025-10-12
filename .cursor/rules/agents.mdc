@@ -1,0 +1,1573 @@
+---
+alwaysApply: true
+---
+
+# Agentic Architecture & Best Practices - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the complete agentic architecture of the Flow platform, where each **conversation is an AI agent** with its own configuration, context, memory, and behavior. It ensures consistent agent management, proper state persistence, and seamless integration across all system layers.
+
+---
+
+## 🤖 Agent Architecture Overview
+
+### What is an Agent in Flow?
+
+In Flow, an **agent** is represented by a `Conversation` document in Firestore. Each agent is:
+
+- **Autonomous**: Has its own AI model (Flash or Pro)
+- **Contextual**: Maintains its own set of active context sources
+- **Configurable**: Has custom system prompts and settings
+- **Persistent**: All state saved to Firestore
+- **Isolated**: Each agent's context is independent
+- **Traceable**: Full conversation history and token usage logged
+
+### Agent vs Conversation
+
+```
+Agent = Conversation + Configuration + Context + Memory
+```
+
+**Key Distinction:**
+- **Conversation**: The Firestore document (data structure)
+- **Agent**: The conceptual entity with behavior and personality
+- **Messages**: The agent's memory (conversation history)
+- **Context**: The agent's knowledge base (active context sources)
+- **Configuration**: The agent's personality (model, system prompt)
+
+---
+
+## 🏗️ Agent Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AGENT ARCHITECTURE                    │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Agent (Conversation)                                   │
+│  ├─ Identity                                            │
+│  │  ├─ id: string                                       │
+│  │  ├─ userId: string (owner)                           │
+│  │  ├─ title: string                                    │
+│  │  └─ folderId?: string                                │
+│  │                                                      │
+│  ├─ Configuration                                       │
+│  │  ├─ agentModel: 'flash' | 'pro'                     │
+│  │  ├─ systemPrompt: string                            │
+│  │  ├─ temperature: number                             │
+│  │  └─ maxOutputTokens: number                         │
+│  │                                                      │
+│  ├─ Context (Knowledge Base)                            │
+│  │  ├─ activeContextSourceIds: string[]                │
+│  │  ├─ contextWindowUsage: 0-100%                      │
+│  │  └─ contextSources: ContextSource[]                 │
+│  │                                                      │
+│  ├─ Memory (Conversation History)                       │
+│  │  ├─ messages: Message[]                             │
+│  │  ├─ messageCount: number                            │
+│  │  └─ lastMessageAt: timestamp                        │
+│  │                                                      │
+│  ├─ State                                               │
+│  │  ├─ createdAt: timestamp                            │
+│  │  ├─ updatedAt: timestamp                            │
+│  │  └─ status: 'active' | 'archived'                   │
+│  │                                                      │
+│  └─ Analytics                                           │
+│     ├─ totalTokensUsed: number                         │
+│     ├─ totalCost: number                               │
+│     └─ averageResponseTime: number                     │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔄 Agent Lifecycle
+
+### Complete Agent Lifecycle
+
+```
+1. CREATION
+   User clicks "Nuevo Agente"
+   ↓
+   Frontend calls POST /api/conversations
+   ↓
+   Backend creates in Firestore with defaults:
+   - title: "Nuevo Agente {timestamp}"
+   - agentModel: user's preferred model (from userSettings)
+   - activeContextSourceIds: []
+   - messageCount: 0
+   - contextWindowUsage: 0
+   ↓
+   Return agent to frontend
+   ↓
+   Frontend selects agent (shows in UI)
+
+2. CONFIGURATION
+   User opens UserSettingsModal or agent-specific settings
+   ↓
+   User selects:
+   - Model (Flash or Pro)
+   - System prompt (personality)
+   ↓
+   Frontend updates conversation document
+   ↓
+   Configuration persisted to Firestore
+
+3. CONTEXTUALIZATION
+   User adds/removes context sources
+   ↓
+   User toggles sources on/off for this agent
+   ↓
+   Frontend calls saveConversationContext(agentId, activeSourceIds)
+   ↓
+   activeContextSourceIds persisted to Firestore
+   ↓
+   Context reloaded when agent selected
+
+4. INTERACTION
+   User sends message
+   ↓
+   Frontend calls POST /api/conversations/{id}/messages
+   with: { message, model, systemPrompt, activeContextSourceIds }
+   ↓
+   Backend:
+   - Loads conversation history (memory)
+   - Loads active context sources (knowledge)
+   - Builds prompt with system instruction + context + history
+   - Calls Gemini AI with configured model
+   - Saves user message to Firestore
+   - Saves AI response to Firestore
+   - Updates conversation stats (messageCount, lastMessageAt)
+   - Tracks token usage and cost
+   ↓
+   Return response to frontend
+   ↓
+   Frontend displays message with markdown rendering
+
+5. MANAGEMENT
+   User can:
+   - Rename agent (update title)
+   - Move to folder (update folderId)
+   - Archive agent (soft delete)
+   - Delete agent (hard delete - cascade to messages)
+   - Share agent (future feature)
+   - Clone agent (duplicate with config)
+
+6. ANALYTICS
+   System tracks:
+   - Token usage per interaction
+   - Cost per interaction
+   - Context window utilization
+   - Response times
+   - Model performance
+   ↓
+   Data synced to BigQuery for reporting
+```
+
+---
+
+## 📊 Agent Data Model
+
+### Firestore Collection: `conversations`
+
+```typescript
+interface Agent {
+  // ===== IDENTITY =====
+  id: string;                           // Unique agent ID
+  userId: string;                       // Owner user ID
+  title: string;                        // Agent display name
+  folderId?: string;                    // Optional folder organization
+  
+  // ===== CONFIGURATION =====
+  agentModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt?: string;                // Custom personality/instructions
+  temperature?: number;                 // 0-1, creativity control
+  maxOutputTokens?: number;             // Response length limit
+  
+  // ===== CONTEXT (Knowledge Base) =====
+  activeContextSourceIds: string[];     // IDs of enabled context sources
+  contextWindowUsage: number;           // 0-100%, how much context window used
+  
+  // ===== MEMORY (Conversation History) =====
+  messageCount: number;                 // Total messages in conversation
+  lastMessageAt: Timestamp;             // Last interaction time
+  
+  // ===== STATE =====
+  createdAt: Timestamp;                 // Agent creation time
+  updatedAt: Timestamp;                 // Last modification time
+  status?: 'active' | 'archived';       // Agent status
+  
+  // ===== METADATA =====
+  tags?: string[];                      // For categorization
+  description?: string;                 // Agent purpose
+  version?: number;                     // For versioning
+  
+  // ===== SHARING (Future) =====
+  isPublic?: boolean;                   // Public template
+  sharedWith?: string[];                // User IDs with access
+  accessLevel?: 'view' | 'edit';        // Permission level
+  
+  // ===== ANALYTICS (Cached) =====
+  totalTokensUsed?: number;             // Lifetime token usage
+  totalCost?: number;                   // Lifetime cost in USD
+  averageResponseTime?: number;         // ms
+}
+```
+
+### Related Collections
+
+**messages** - Agent's memory:
+```typescript
+interface Message {
+  id: string;
+  conversationId: string;               // Agent ID
+  userId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: MessageContent;              // Rich content (markdown)
+  timestamp: Timestamp;
+  tokenCount: number;
+  contextSections?: ContextSection[];   // What context was used
+}
+```
+
+**context_sources** - Agent's potential knowledge:
+```typescript
+interface ContextSource {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
+  enabled: boolean;                     // Global enable/disable
+  extractedData?: string;               // Extracted content
+  metadata?: {
+    validated?: boolean;                // Expert sign-off
+    validatedBy?: string;
+    validatedAt?: Timestamp;
+  };
+}
+```
+
+**Note:** The `activeContextSourceIds` in the agent determines which sources are active for THAT specific agent. The global `enabled` flag on `ContextSource` determines if the source is available at all.
+
+---
+
+## 🎛️ Agent State Management
+
+### State Layers
+
+**Layer 1: Firestore (Source of Truth)**
+```typescript
+// Always the authoritative source
+const agentDoc = await firestore
+  .collection('conversations')
+  .doc(agentId)
+  .get();
+```
+
+**Layer 2: Frontend State (React)**
+```typescript
+// Synchronized with Firestore
+const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
+const [messages, setMessages] = useState<Message[]>([]);
+const [contextSources, setContextSources] = useState<ContextSource[]>([]);
+```
+
+**Layer 3: UI State (Ephemeral)**
+```typescript
+// Not persisted
+const [isLoading, setIsLoading] = useState(false);
+const [showContextPanel, setShowContextPanel] = useState(false);
+const [inputValue, setInputValue] = useState('');
+```
+
+### State Synchronization Rules
+
+**ALWAYS:**
+1. ✅ Persist agent changes to Firestore immediately
+2. ✅ Reload agent state when switching agents
+3. ✅ Update frontend state after backend confirms
+4. ✅ Handle temporary agents (temp-{timestamp}) during Firestore outage
+5. ✅ Clear UI state when switching agents
+
+**NEVER:**
+1. ❌ Rely solely on frontend state for agent data
+2. ❌ Skip backend calls for state changes
+3. ❌ Mix temporary and persisted agents in UI
+4. ❌ Lose agent configuration on page refresh
+
+---
+
+## 🧠 Agent Context Management
+
+### Agent-Specific Context
+
+Each agent maintains its own **active context sources**:
+
+```typescript
+// When user toggles a context source for an agent
+async function toggleContextForAgent(
+  agentId: string,
+  sourceId: string,
+  enabled: boolean
+) {
+  // 1. Update local state
+  const updatedSources = contextSources.map(s =>
+    s.id === sourceId ? { ...s, enabled } : s
+  );
+  setContextSources(updatedSources);
+  
+  // 2. Calculate active IDs
+  const activeIds = updatedSources
+    .filter(s => s.enabled)
+    .map(s => s.id);
+  
+  // 3. Persist to Firestore
+  await saveConversationContext(agentId, activeIds);
+  
+  // 4. Update agent state
+  setCurrentAgent(prev => ({
+    ...prev!,
+    activeContextSourceIds: activeIds
+  }));
+}
+```
+
+### Context Loading Flow
+
+```typescript
+// When agent is selected
+async function selectAgent(agentId: string) {
+  // 1. Load agent document
+  const agent = await getConversation(agentId);
+  
+  // 2. Load messages (agent's memory)
+  const messages = await getMessages(agentId);
+  
+  // 3. Load active context IDs
+  const activeIds = await loadConversationContext(agentId);
+  
+  // 4. Apply to context sources
+  const updatedSources = allContextSources.map(s => ({
+    ...s,
+    enabled: activeIds.includes(s.id)
+  }));
+  
+  // 5. Update all state
+  setCurrentAgent(agent);
+  setMessages(messages);
+  setContextSources(updatedSources);
+}
+```
+
+### Context in AI Requests
+
+```typescript
+// When sending message to agent
+async function sendMessage(agentId: string, userMessage: string) {
+  // 1. Get agent's active context sources
+  const activeContextSources = contextSources
+    .filter(s => currentAgent.activeContextSourceIds.includes(s.id))
+    .map(s => ({
+      name: s.name,
+      content: s.extractedData || '',
+      tokens: estimateTokens(s.extractedData)
+    }));
+  
+  // 2. Build context string
+  const contextString = activeContextSources
+    .map(s => `=== ${s.name} ===\n${s.content}`)
+    .join('\n\n');
+  
+  // 3. Send to API with full context
+  const response = await fetch(`/api/conversations/${agentId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify({
+      userId: currentUser.id,
+      message: userMessage,
+      model: currentAgent.agentModel,
+      systemPrompt: currentAgent.systemPrompt || defaultSystemPrompt,
+      activeContextSourceIds: currentAgent.activeContextSourceIds,
+      // Backend will load context sources and build prompt
+    })
+  });
+}
+```
+
+---
+
+## ⚙️ Agent Configuration
+
+### User-Level Configuration (Defaults)
+
+```typescript
+interface UserSettings {
+  preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+}
+
+// Applied to new agents by default
+async function createAgent(userId: string, title: string) {
+  const userSettings = await getUserSettings(userId);
+  
+  return await firestore.collection('conversations').add({
+    userId,
+    title,
+    agentModel: userSettings.preferredModel || 'gemini-2.5-flash',
+    systemPrompt: userSettings.systemPrompt || defaultSystemPrompt,
+    activeContextSourceIds: [],
+    messageCount: 0,
+    contextWindowUsage: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+}
+```
+
+### Agent-Level Configuration (Overrides)
+
+```typescript
+// Agent can override user defaults
+async function updateAgentConfig(
+  agentId: string,
+  config: {
+    model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+    systemPrompt?: string;
+    temperature?: number;
+    maxOutputTokens?: number;
+  }
+) {
+  await firestore.collection('conversations').doc(agentId).update({
+    agentModel: config.model || currentAgent.agentModel,
+    systemPrompt: config.systemPrompt || currentAgent.systemPrompt,
+    temperature: config.temperature ?? currentAgent.temperature,
+    maxOutputTokens: config.maxOutputTokens ?? currentAgent.maxOutputTokens,
+    updatedAt: new Date(),
+  });
+}
+```
+
+### Configuration Precedence
+
+```
+Agent-Specific Config
+  ↓ (if not set)
+User Default Config
+  ↓ (if not set)
+System Default Config
+```
+
+**Example:**
+```typescript
+function getEffectiveConfig(agent: Agent, userSettings: UserSettings) {
+  return {
+    model: agent.agentModel || userSettings.preferredModel || 'gemini-2.5-flash',
+    systemPrompt: agent.systemPrompt || userSettings.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    temperature: agent.temperature ?? userSettings.temperature ?? 0.7,
+    maxOutputTokens: agent.maxOutputTokens ?? userSettings.maxOutputTokens ?? 8192,
+  };
+}
+```
+
+---
+
+## 🔧 Agent Operations (CRUD)
+
+### Create Agent
+
+```typescript
+// Frontend: ChatInterfaceWorking.tsx
+async function handleCreateAgent() {
+  setIsCreating(true);
+  
+  try {
+    const response = await fetch('/api/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: currentUser.id,
+        title: `Nuevo Agente ${new Date().toLocaleString()}`,
+      })
+    });
+    
+    if (!response.ok) throw new Error('Failed to create agent');
+    
+    const newAgent = await response.json();
+    
+    // Update local state
+    setConversations(prev => [newAgent, ...prev]);
+    setCurrentConversation(newAgent.id);
+    setMessages([]);
+    
+    // Success feedback
+    console.log('✅ Agent created:', newAgent.id);
+  } catch (error) {
+    console.error('❌ Failed to create agent:', error);
+    setError('No se pudo crear el agente');
+  } finally {
+    setIsCreating(false);
+  }
+}
+```
+
+```typescript
+// Backend: /api/conversations.ts
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const session = await verifyJWT(cookies.get('flow_session')?.value);
+  if (!session) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+  
+  const { userId, title } = await request.json();
+  
+  // Get user's preferred model
+  const userSettings = await getUserSettings(userId);
+  
+  const agent = await firestore.collection('conversations').add({
+    userId,
+    title,
+    agentModel: userSettings.preferredModel || 'gemini-2.5-flash',
+    systemPrompt: userSettings.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    activeContextSourceIds: [],
+    messageCount: 0,
+    contextWindowUsage: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastMessageAt: new Date(),
+  });
+  
+  // Track in BigQuery (non-blocking)
+  trackAgentCreated(agent).catch(console.warn);
+  
+  return new Response(JSON.stringify({ id: agent.id, ...agent.data() }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+};
+```
+
+### Read Agent
+
+```typescript
+// Get single agent
+async function getAgent(agentId: string): Promise<Agent | null> {
+  try {
+    const doc = await firestore
+      .collection('conversations')
+      .doc(agentId)
+      .get();
+    
+    if (!doc.exists) return null;
+    
+    return {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+      updatedAt: doc.data().updatedAt.toDate(),
+      lastMessageAt: doc.data().lastMessageAt.toDate(),
+    } as Agent;
+  } catch (error) {
+    console.error('❌ Failed to get agent:', error);
+    return null;
+  }
+}
+
+// Get all agents for user
+async function getUserAgents(userId: string): Promise<Agent[]> {
+  try {
+    const snapshot = await firestore
+      .collection('conversations')
+      .where('userId', '==', userId)
+      .orderBy('lastMessageAt', 'desc')
+      .limit(100) // Pagination recommended for large datasets
+      .get();
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+      updatedAt: doc.data().updatedAt.toDate(),
+      lastMessageAt: doc.data().lastMessageAt.toDate(),
+    })) as Agent[];
+  } catch (error) {
+    console.error('❌ Failed to get user agents:', error);
+    return [];
+  }
+}
+```
+
+### Update Agent
+
+```typescript
+// Update agent metadata
+async function updateAgent(
+  agentId: string,
+  updates: {
+    title?: string;
+    folderId?: string;
+    agentModel?: string;
+    systemPrompt?: string;
+    status?: 'active' | 'archived';
+  }
+) {
+  try {
+    await firestore.collection('conversations').doc(agentId).update({
+      ...updates,
+      updatedAt: new Date(),
+    });
+    
+    console.log('✅ Agent updated:', agentId);
+  } catch (error) {
+    console.error('❌ Failed to update agent:', error);
+    throw error;
+  }
+}
+
+// Update agent context
+async function updateAgentContext(
+  agentId: string,
+  activeContextSourceIds: string[]
+) {
+  try {
+    await firestore.collection('conversations').doc(agentId).update({
+      activeContextSourceIds,
+      updatedAt: new Date(),
+    });
+    
+    console.log('✅ Agent context updated:', agentId, activeContextSourceIds);
+  } catch (error) {
+    console.error('❌ Failed to update agent context:', error);
+    throw error;
+  }
+}
+```
+
+### Delete Agent
+
+```typescript
+// Soft delete (archive)
+async function archiveAgent(agentId: string) {
+  await firestore.collection('conversations').doc(agentId).update({
+    status: 'archived',
+    updatedAt: new Date(),
+  });
+}
+
+// Hard delete (with cascade)
+async function deleteAgent(agentId: string) {
+  const batch = firestore.batch();
+  
+  // 1. Delete all messages
+  const messages = await firestore
+    .collection('messages')
+    .where('conversationId', '==', agentId)
+    .get();
+  
+  messages.docs.forEach(doc => batch.delete(doc.ref));
+  
+  // 2. Delete agent
+  batch.delete(firestore.collection('conversations').doc(agentId));
+  
+  // 3. Commit batch
+  await batch.commit();
+  
+  console.log('✅ Agent deleted with cascade:', agentId);
+}
+```
+
+---
+
+## 🤝 Agent Sharing & Collaboration (Future)
+
+### Sharing Model
+
+```typescript
+interface AgentShare {
+  id: string;
+  agentId: string;                      // Agent being shared
+  ownerId: string;                      // Original owner
+  sharedWith: string[];                 // User IDs or group IDs
+  accessLevel: 'view' | 'edit';         // Permission level
+  expiresAt?: Timestamp;                // Optional expiration
+  createdAt: Timestamp;
+}
+```
+
+### Share Operations
+
+```typescript
+// Share agent with user
+async function shareAgent(
+  agentId: string,
+  targetUserId: string,
+  accessLevel: 'view' | 'edit'
+) {
+  await firestore.collection('agent_shares').add({
+    agentId,
+    ownerId: currentUser.id,
+    sharedWith: [targetUserId],
+    accessLevel,
+    createdAt: new Date(),
+  });
+  
+  // Notify user
+  await sendShareNotification(targetUserId, agentId);
+}
+
+// Clone shared agent
+async function cloneSharedAgent(agentId: string) {
+  const originalAgent = await getAgent(agentId);
+  if (!originalAgent) throw new Error('Agent not found');
+  
+  // Create new agent with same config
+  const clonedAgent = await firestore.collection('conversations').add({
+    ...originalAgent,
+    id: undefined, // New ID
+    userId: currentUser.id, // New owner
+    title: `${originalAgent.title} (Copia)`,
+    messageCount: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  
+  return clonedAgent;
+}
+```
+
+---
+
+## 📋 Agent Templates (Future)
+
+### Template Structure
+
+```typescript
+interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  category: string;                     // 'customer-service', 'data-analysis', etc.
+  config: {
+    model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+    systemPrompt: string;
+    temperature: number;
+    maxOutputTokens: number;
+  };
+  defaultContextSources?: string[];     // Suggested context sources
+  tags: string[];
+  isPublic: boolean;
+  createdBy: string;
+  usageCount: number;
+  rating: number;
+}
+```
+
+### Template Operations
+
+```typescript
+// Create agent from template
+async function createAgentFromTemplate(templateId: string) {
+  const template = await getTemplate(templateId);
+  
+  const agent = await firestore.collection('conversations').add({
+    userId: currentUser.id,
+    title: template.name,
+    agentModel: template.config.model,
+    systemPrompt: template.config.systemPrompt,
+    temperature: template.config.temperature,
+    maxOutputTokens: template.config.maxOutputTokens,
+    activeContextSourceIds: template.defaultContextSources || [],
+    messageCount: 0,
+    contextWindowUsage: 0,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  
+  // Track usage
+  await incrementTemplateUsage(templateId);
+  
+  return agent;
+}
+
+// Save agent as template
+async function saveAgentAsTemplate(
+  agentId: string,
+  name: string,
+  description: string,
+  category: string,
+  isPublic: boolean
+) {
+  const agent = await getAgent(agentId);
+  if (!agent) throw new Error('Agent not found');
+  
+  await firestore.collection('agent_templates').add({
+    name,
+    description,
+    category,
+    config: {
+      model: agent.agentModel,
+      systemPrompt: agent.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+      temperature: agent.temperature || 0.7,
+      maxOutputTokens: agent.maxOutputTokens || 8192,
+    },
+    defaultContextSources: agent.activeContextSourceIds,
+    tags: [],
+    isPublic,
+    createdBy: currentUser.id,
+    usageCount: 0,
+    rating: 0,
+    createdAt: new Date(),
+  });
+}
+```
+
+---
+
+## ✅ Agent Validation & Sign-off
+
+### Validation Model
+
+```typescript
+interface AgentValidation {
+  id: string;
+  agentId: string;
+  validatedBy: string;                  // Expert user ID
+  validatedAt: Timestamp;
+  rating: number;                       // 1-5
+  notes: string;
+  approvedForProduction: boolean;
+  category: string;                     // Use case category
+}
+```
+
+### Validation Flow
+
+```typescript
+// Expert validates agent
+async function validateAgent(
+  agentId: string,
+  rating: number,
+  notes: string,
+  approvedForProduction: boolean
+) {
+  // Verify user has validation permission
+  if (!hasPermission(currentUser.role, 'validate_agent')) {
+    throw new Error('Unauthorized to validate agents');
+  }
+  
+  // Create validation record
+  await firestore.collection('agent_validations').add({
+    agentId,
+    validatedBy: currentUser.id,
+    validatedAt: new Date(),
+    rating,
+    notes,
+    approvedForProduction,
+  });
+  
+  // Update agent
+  await firestore.collection('conversations').doc(agentId).update({
+    validated: true,
+    validatedBy: currentUser.id,
+    validatedAt: new Date(),
+  });
+  
+  console.log('✅ Agent validated:', agentId);
+}
+```
+
+---
+
+## 📊 Agent Analytics
+
+### Per-Agent Metrics
+
+```typescript
+interface AgentMetrics {
+  agentId: string;
+  totalMessages: number;
+  totalTokensInput: number;
+  totalTokensOutput: number;
+  totalCost: number;
+  averageResponseTime: number;          // ms
+  contextWindowUtilization: number;     // average %
+  modelUsageBreakdown: {
+    flash: number;                      // count
+    pro: number;                        // count
+  };
+  contextSourcesUsed: Array<{
+    sourceId: string;
+    sourceName: string;
+    timesUsed: number;
+  }>;
+  lastActivity: Timestamp;
+}
+```
+
+### Analytics Tracking
+
+```typescript
+// Track agent interaction
+async function trackAgentInteraction(
+  agentId: string,
+  interaction: {
+    userMessage: string;
+    aiResponse: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    contextWindowUsed: number;
+    responseTimeMs: number;
+    contextSourcesUsed: string[];
+  }
+) {
+  // BigQuery insert (non-blocking)
+  try {
+    await bigquery.dataset('flow_analytics').table('agent_interactions').insert([{
+      agent_id: agentId,
+      timestamp: new Date(),
+      model: interaction.model,
+      input_tokens: interaction.inputTokens,
+      output_tokens: interaction.outputTokens,
+      context_window_used: interaction.contextWindowUsed,
+      response_time_ms: interaction.responseTimeMs,
+      context_sources_used: interaction.contextSourcesUsed,
+      estimated_cost_usd: calculateCost(interaction.model, interaction.inputTokens, interaction.outputTokens),
+    }]);
+  } catch (error) {
+    console.warn('⚠️ Failed to track agent interaction (non-critical):', error);
+  }
+}
+```
+
+### Agent Performance Queries
+
+```sql
+-- Top performing agents by message count
+SELECT
+  agent_id,
+  COUNT(*) as message_count,
+  AVG(response_time_ms) as avg_response_time,
+  SUM(estimated_cost_usd) as total_cost
+FROM `gen-lang-client-0986191192.flow_analytics.agent_interactions`
+WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+GROUP BY agent_id
+ORDER BY message_count DESC
+LIMIT 20;
+
+-- Context source effectiveness per agent
+SELECT
+  agent_id,
+  source_id,
+  COUNT(*) as usage_count,
+  AVG(response_time_ms) as avg_response_time
+FROM `gen-lang-client-0986191192.flow_analytics.agent_interactions`
+CROSS JOIN UNNEST(context_sources_used) as source_id
+WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+GROUP BY agent_id, source_id
+ORDER BY usage_count DESC;
+```
+
+---
+
+## 🎯 Best Practices
+
+### Agent Design
+
+**DO:**
+- ✅ Give agents descriptive names (not "Nuevo Agente 1")
+- ✅ Configure system prompts for specific use cases
+- ✅ Start with Flash model, upgrade to Pro only if needed
+- ✅ Select minimal but sufficient context sources
+- ✅ Organize agents into folders by category
+- ✅ Archive inactive agents to reduce clutter
+- ✅ Monitor token usage and costs
+- ✅ Test agent behavior with various inputs
+
+**DON'T:**
+- ❌ Create duplicate agents with same configuration
+- ❌ Enable all context sources for every agent
+- ❌ Use Pro model without testing Flash first
+- ❌ Leave agents with default "Nuevo Agente" names
+- ❌ Mix unrelated use cases in same agent
+- ❌ Ignore context window warnings (>80% usage)
+
+### Agent Configuration
+
+**System Prompt Guidelines:**
+```typescript
+// ✅ GOOD: Specific, actionable instructions
+const systemPrompt = `
+You are a customer service assistant for Salfa Corp.
+- Always be polite and professional
+- Respond in Spanish
+- Use the provided product catalog context
+- If you don't know something, say so clearly
+- Provide step-by-step solutions for technical issues
+`;
+
+// ❌ BAD: Vague, generic instructions
+const systemPrompt = "You are a helpful assistant.";
+```
+
+**Model Selection:**
+```typescript
+// ✅ GOOD: Appropriate model for task
+const config = {
+  // Simple Q&A, customer service, basic tasks
+  model: 'gemini-2.5-flash', // 94% cheaper
+  
+  // Complex analysis, code generation, creative writing
+  // model: 'gemini-2.5-pro',
+};
+
+// ❌ BAD: Pro model for simple tasks
+// Wastes money without quality improvement
+```
+
+### Agent Context Management
+
+**Context Source Selection:**
+```typescript
+// ✅ GOOD: Relevant, focused context
+activeContextSourceIds = [
+  'customer-service-handbook-id',
+  'product-catalog-id',
+  'faq-id'
+]; // Total: ~50K tokens
+
+// ❌ BAD: Kitchen sink approach
+activeContextSourceIds = [
+  'all-company-docs-id',
+  'entire-website-id',
+  'every-pdf-id',
+  // ...
+]; // Total: 900K tokens - will hit limits
+```
+
+### Agent Lifecycle Management
+
+**Regular Maintenance:**
+```typescript
+// Monthly review
+async function reviewAgents(userId: string) {
+  const agents = await getUserAgents(userId);
+  
+  // 1. Identify inactive agents (>30 days no activity)
+  const inactiveAgents = agents.filter(a => 
+    (Date.now() - a.lastMessageAt.getTime()) > 30 * 24 * 60 * 60 * 1000
+  );
+  
+  // 2. Archive or delete
+  for (const agent of inactiveAgents) {
+    console.log(`📦 Archive inactive agent: ${agent.title}`);
+    await archiveAgent(agent.id);
+  }
+  
+  // 3. Identify high-cost agents
+  const highCostAgents = agents.filter(a => 
+    (a.totalCost || 0) > 10 // $10 threshold
+  );
+  
+  // 4. Review for optimization
+  for (const agent of highCostAgents) {
+    console.log(`💰 High-cost agent: ${agent.title} ($${agent.totalCost})`);
+    // Suggest switching to Flash or reducing context
+  }
+}
+```
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ ALWAYS Persist Agent State to Firestore
+
+**❌ WRONG:**
+```typescript
+// Agent only in memory - lost on refresh
+const [agents, setAgents] = useState([
+  { id: 'temp-1', title: 'Agent 1', messages: [] }
+]);
+```
+
+**✅ CORRECT:**
+```typescript
+// Agent persisted to Firestore
+const response = await fetch('/api/conversations', {
+  method: 'POST',
+  body: JSON.stringify({ userId, title })
+});
+const agent = await response.json(); // Has real Firestore ID
+setAgents([agent, ...agents]);
+```
+
+### 2. ✅ ALWAYS Load Agent-Specific Context
+
+**❌ WRONG:**
+```typescript
+// Same context for all agents
+const contextSources = getAllContextSources();
+```
+
+**✅ CORRECT:**
+```typescript
+// Load agent's specific active context
+const activeIds = await loadConversationContext(agentId);
+const contextSources = allSources.map(s => ({
+  ...s,
+  enabled: activeIds.includes(s.id) // Agent-specific
+}));
+```
+
+### 3. ✅ ALWAYS Pass Agent Configuration to AI
+
+**❌ WRONG:**
+```typescript
+// Hardcoded config ignored
+const response = await gemini.generateContent({
+  model: 'gemini-2.5-flash', // Ignoring agent's model
+  contents: message,
+  config: { systemInstruction: 'Generic prompt' } // Ignoring agent's prompt
+});
+```
+
+**✅ CORRECT:**
+```typescript
+// Use agent's configuration
+const response = await gemini.generateContent({
+  model: agent.agentModel, // Respects agent's model choice
+  contents: message,
+  config: {
+    systemInstruction: agent.systemPrompt || DEFAULT_SYSTEM_PROMPT,
+    temperature: agent.temperature || 0.7,
+    maxOutputTokens: agent.maxOutputTokens || 8192
+  }
+});
+```
+
+### 4. ✅ ALWAYS Update Agent Metadata After Interaction
+
+**❌ WRONG:**
+```typescript
+// Save message but don't update agent
+await saveMessage(agentId, message);
+// Agent's lastMessageAt and messageCount now stale
+```
+
+**✅ CORRECT:**
+```typescript
+// Update agent metadata atomically
+const batch = firestore.batch();
+
+// Save messages
+batch.set(userMessageRef, userMessage);
+batch.set(aiMessageRef, aiMessage);
+
+// Update agent
+batch.update(agentRef, {
+  messageCount: admin.firestore.FieldValue.increment(2),
+  lastMessageAt: new Date(),
+  contextWindowUsage: newUsagePercentage,
+});
+
+await batch.commit();
+```
+
+### 5. ✅ ALWAYS Handle Agent Not Found
+
+**❌ WRONG:**
+```typescript
+// Assume agent exists
+const agent = await getAgent(agentId);
+const messages = await getMessages(agent.id); // Crash if agent null
+```
+
+**✅ CORRECT:**
+```typescript
+// Handle missing agent
+const agent = await getAgent(agentId);
+if (!agent) {
+  console.warn('⚠️ Agent not found:', agentId);
+  return { error: 'Agent no encontrado' };
+}
+
+const messages = await getMessages(agent.id);
+```
+
+---
+
+## 🛠️ Local Development
+
+### Setup for Agent Development
+
+```bash
+# 1. Ensure Firestore connection
+gcloud auth application-default login
+
+# 2. Verify environment
+cat .env | grep GOOGLE_CLOUD_PROJECT
+# Should output: gen-lang-client-0986191192
+
+# 3. Start dev server
+npm run dev
+
+# 4. Test agent creation
+curl -X POST http://localhost:3000/api/conversations \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"test-user","title":"Test Agent"}'
+```
+
+### Local Testing Workflow
+
+```typescript
+// Test agent lifecycle locally
+async function testAgentLifecycle() {
+  console.log('🧪 Testing agent lifecycle...');
+  
+  // 1. Create agent
+  const agent = await createAgent('test-user', 'Test Agent');
+  console.log('✅ Created:', agent.id);
+  
+  // 2. Load agent
+  const loaded = await getAgent(agent.id);
+  console.assert(loaded !== null, 'Agent should exist');
+  
+  // 3. Update configuration
+  await updateAgent(agent.id, {
+    agentModel: 'gemini-2.5-pro',
+    systemPrompt: 'Test prompt'
+  });
+  console.log('✅ Updated configuration');
+  
+  // 4. Add context
+  await updateAgentContext(agent.id, ['source-1', 'source-2']);
+  console.log('✅ Updated context');
+  
+  // 5. Send message
+  const response = await sendMessageToAgent(agent.id, 'Hello');
+  console.assert(response.text.length > 0, 'Should get response');
+  console.log('✅ Sent message');
+  
+  // 6. Verify persistence
+  const reloaded = await getAgent(agent.id);
+  console.assert(reloaded.messageCount === 2, 'Should have 2 messages');
+  console.log('✅ State persisted');
+  
+  // 7. Cleanup
+  await deleteAgent(agent.id);
+  console.log('✅ Deleted agent');
+}
+```
+
+---
+
+## 🚀 Production Deployment
+
+### Pre-Deployment Checklist
+
+**Agent System Checks:**
+- [ ] Agent creation works in production
+- [ ] Agent context saves properly
+- [ ] Agent configuration persists
+- [ ] Messages associate with correct agent
+- [ ] Agent list loads for all users
+- [ ] Agent deletion cascades correctly
+- [ ] No orphaned messages
+- [ ] No orphaned context associations
+
+**Firestore Checks:**
+- [ ] `conversations` collection exists
+- [ ] Proper indexes created:
+  - `userId ASC, lastMessageAt DESC`
+  - `userId ASC, folderId ASC, lastMessageAt DESC`
+- [ ] Security rules deployed
+- [ ] No public read/write access
+
+**BigQuery Checks:**
+- [ ] `agent_interactions` table exists
+- [ ] Proper schema defined
+- [ ] Streaming insert working
+- [ ] Queries performant
+
+### Deployment Process
+
+```bash
+# 1. Build
+npm run build
+
+# 2. Deploy to Cloud Run
+gcloud run deploy flow-chat \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192"
+
+# 3. Test agent creation
+curl -X POST https://your-domain.run.app/api/conversations \
+  -H "Content-Type: application/json" \
+  -H "Cookie: flow_session=YOUR_JWT" \
+  -d '{"userId":"YOUR_USER_ID","title":"Production Test Agent"}'
+
+# 4. Verify in Firestore
+# Check Firebase Console > Firestore > conversations collection
+```
+
+---
+
+## 🧪 Testing
+
+### Unit Tests
+
+```typescript
+// Test agent creation
+describe('Agent Creation', () => {
+  it('should create agent with default config', async () => {
+    const agent = await createAgent('user-123', 'Test Agent');
+    
+    expect(agent.userId).toBe('user-123');
+    expect(agent.title).toBe('Test Agent');
+    expect(agent.agentModel).toBe('gemini-2.5-flash');
+    expect(agent.activeContextSourceIds).toEqual([]);
+    expect(agent.messageCount).toBe(0);
+  });
+  
+  it('should use user preferred model', async () => {
+    const userSettings = { preferredModel: 'gemini-2.5-pro' };
+    const agent = await createAgent('user-123', 'Test Agent', userSettings);
+    
+    expect(agent.agentModel).toBe('gemini-2.5-pro');
+  });
+});
+
+// Test context management
+describe('Agent Context', () => {
+  it('should save agent-specific context', async () => {
+    const agentId = await createAgent('user-123', 'Test Agent');
+    
+    await updateAgentContext(agentId, ['source-1', 'source-2']);
+    
+    const agent = await getAgent(agentId);
+    expect(agent.activeContextSourceIds).toEqual(['source-1', 'source-2']);
+  });
+  
+  it('should load agent-specific context', async () => {
+    const agentId = 'agent-with-context';
+    const activeIds = await loadConversationContext(agentId);
+    
+    expect(Array.isArray(activeIds)).toBe(true);
+  });
+});
+```
+
+### Integration Tests
+
+```typescript
+// Test complete agent lifecycle
+describe('Agent Lifecycle Integration', () => {
+  let agentId: string;
+  
+  beforeEach(async () => {
+    agentId = await createAgent('test-user', 'Integration Test Agent');
+  });
+  
+  afterEach(async () => {
+    await deleteAgent(agentId);
+  });
+  
+  it('should handle full conversation flow', async () => {
+    // 1. Configure agent
+    await updateAgent(agentId, {
+      agentModel: 'gemini-2.5-flash',
+      systemPrompt: 'Test prompt'
+    });
+    
+    // 2. Add context
+    await updateAgentContext(agentId, ['source-1']);
+    
+    // 3. Send message
+    const response = await fetch(`/api/conversations/${agentId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        userId: 'test-user',
+        message: 'Hello',
+        model: 'gemini-2.5-flash',
+        systemPrompt: 'Test prompt'
+      })
+    });
+    
+    expect(response.ok).toBe(true);
+    
+    // 4. Verify persistence
+    const agent = await getAgent(agentId);
+    expect(agent.messageCount).toBe(2); // User + AI
+  });
+});
+```
+
+---
+
+## 📈 Monitoring
+
+### Agent Health Metrics
+
+```typescript
+// Monitor agent system health
+async function checkAgentSystemHealth() {
+  const metrics = {
+    totalAgents: 0,
+    activeAgents: 0,
+    avgMessagesPerAgent: 0,
+    avgContextWindowUsage: 0,
+    avgCostPerAgent: 0,
+  };
+  
+  const agents = await getAllAgents(); // Admin only
+  
+  metrics.totalAgents = agents.length;
+  metrics.activeAgents = agents.filter(a => 
+    (Date.now() - a.lastMessageAt.getTime()) < 7 * 24 * 60 * 60 * 1000 // Active in last 7 days
+  ).length;
+  
+  metrics.avgMessagesPerAgent = agents.reduce((sum, a) => sum + a.messageCount, 0) / agents.length;
+  metrics.avgContextWindowUsage = agents.reduce((sum, a) => sum + a.contextWindowUsage, 0) / agents.length;
+  metrics.avgCostPerAgent = agents.reduce((sum, a) => sum + (a.totalCost || 0), 0) / agents.length;
+  
+  return metrics;
+}
+```
+
+### Alerting Rules
+
+```typescript
+// Alert on high context window usage
+if (agent.contextWindowUsage > 90) {
+  console.warn('🚨 Agent context window critically high:', agent.id, agent.contextWindowUsage);
+  // Send alert to admin
+}
+
+// Alert on high cost
+if (agent.totalCost > 50) {
+  console.warn('💰 Agent cost exceeds threshold:', agent.id, agent.totalCost);
+  // Review agent configuration
+}
+
+// Alert on orphaned agents
+if (agent.messageCount === 0 && agentAgeInDays > 7) {
+  console.info('📦 Orphaned agent candidate:', agent.id);
+  // Suggest archival
+}
+```
+
+---
+
+## 🎯 Success Metrics
+
+### Agent Adoption
+
+- **Total Agents Created**: Track growth
+- **Active Agents (7-day)**: Measure engagement
+- **Agents per User**: Average and distribution
+- **Agent Retention**: % of agents still used after 30 days
+
+### Agent Performance
+
+- **Messages per Agent**: Average and median
+- **Response Quality**: User feedback (future)
+- **Response Time**: p50, p95, p99
+- **Context Window Utilization**: Average and distribution
+- **Cost per Agent**: Total and per-message
+
+### Agent Effectiveness
+
+- **User Satisfaction**: NPS per agent
+- **Task Completion**: Success rate
+- **Model Usage**: Flash vs Pro distribution
+- **Context Source Effectiveness**: Usage correlation with satisfaction
+
+---
+
+## 🎓 Lessons Learned
+
+### From Development
+
+1. ✅ **Agents are Conversations**: Treating conversations as agents simplified architecture
+2. ✅ **Agent-Specific Context**: Per-agent context enables focused, relevant responses
+3. ✅ **Configuration Hierarchy**: User defaults + agent overrides = flexibility
+4. ✅ **Persistent State Critical**: Firestore ensures no data loss
+5. ✅ **Batch Operations**: Update agent + messages atomically
+
+### From Production
+
+1. ✅ **Monitor Context Usage**: High usage degrades performance
+2. ✅ **Cost Tracking Essential**: Pro model can be expensive
+3. ✅ **Cleanup Inactive Agents**: Reduces clutter and DB size
+4. ✅ **Analytics Drive Optimization**: BigQuery insights guide improvements
+5. ✅ **Validation Adds Trust**: Expert sign-off increases confidence
+
+### From User Feedback
+
+1. ✅ **Descriptive Names Matter**: "Nuevo Agente 1" is confusing
+2. ✅ **Folder Organization Key**: Users need categorization
+3. ✅ **Flash vs Pro**: Most use cases work fine with Flash
+4. ✅ **Context Transparency**: Users want to see what context is used
+5. ✅ **Quick Agent Creation**: Minimize steps to create agent
+
+---
+
+## 🔮 Future Enhancements
+
+### Short-Term (1-3 months)
+
+- [ ] Agent cloning/duplication
+- [ ] Agent export/import (JSON)
+- [ ] Bulk agent operations
+- [ ] Agent search and filtering
+- [ ] Agent tags and labels
+
+### Medium-Term (3-6 months)
+
+- [ ] Agent sharing with users/groups
+- [ ] Agent templates marketplace
+- [ ] Agent validation workflow
+- [ ] Agent performance dashboard
+- [ ] A/B testing agents
+
+### Long-Term (6-12 months)
+
+- [ ] Multi-agent conversations
+- [ ] Agent orchestration (workflows)
+- [ ] Agent fine-tuning
+- [ ] Agent memory optimization
+- [ ] Agent collaboration tools
+
+---
+
+## 📚 References
+
+### Internal Documentation
+- `.cursor/rules/alignment.mdc` - Design principles
+- `.cursor/rules/backend.mdc` - Backend architecture
+- `.cursor/rules/frontend.mdc` - Frontend patterns
+- `.cursor/rules/firestore.mdc` - Database schema
+- `.cursor/rules/bigquery.mdc` - Analytics
+- `.cursor/rules/ui.mdc` - UI components
+- `.cursor/rules/prd.mdc` - Product vision
+- `src/components/ChatInterfaceWorking.tsx` - Main UI
+- `src/lib/firestore.ts` - Agent operations
+
+### External Resources
+- [Gemini AI Documentation](https://ai.google.dev/docs)
+- [Firestore Best Practices](https://firebase.google.com/docs/firestore/best-practices)
+- [Conversational AI Design](https://www.nngroup.com/articles/chatbot-design/)
+
+---
+
+**Last Updated**: 2025-10-12  
+**Version**: 1.0.0  
+**Status**: ✅ Production Ready  
+**Project**: Flow (gen-lang-client-0986191192)
+
+---
+
+**Remember:** Every agent is a unique entity with its own personality, knowledge, and memory. Treat agents as first-class citizens in the system, not just database records.
