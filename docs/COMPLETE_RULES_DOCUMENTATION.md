@@ -2,7 +2,7 @@
 
 **Created:** 2025-10-12  
 **Status:** ✅ Complete  
-**Total Lines:** ~10,936+ lines of comprehensive documentation
+**Total Lines:** ~12,276+ lines of comprehensive documentation
 
 ---
 
@@ -10,7 +10,9 @@
 
 This document provides an overview of all Cursor project rules created for the Flow platform. These rules ensure consistent development practices, prevent data loss, and maintain architectural integrity across local development and production environments.
 
-**NEW:** The `alignment.mdc` rule now serves as the foundational "north star" that consolidates all design principles and architectural patterns across all layers.
+**NEW:** 
+- The `alignment.mdc` rule serves as the foundational "north star" that consolidates all design principles and architectural patterns across all layers.
+- The `agents.mdc` rule documents the complete agentic architecture, where each conversation is an AI agent with its own configuration, context, and memory.
 
 ---
 
@@ -227,7 +229,61 @@ This document provides an overview of all Cursor project rules created for the F
 
 ---
 
-### 9. **prd.mdc** (Existing)
+### 9. **agents.mdc** (1,340 lines) 🤖
+**Purpose:** Complete agentic architecture - Agents as intelligent, autonomous conversational entities
+
+**Key Content:**
+- ✅ Agent Architecture Overview (Agent = Conversation + Config + Context + Memory)
+- ✅ Complete Agent Lifecycle (6 phases: Creation, Configuration, Contextualization, Interaction, Management, Analytics)
+- ✅ Agent Data Model (Complete Firestore schema for conversations, messages, context sources)
+- ✅ Agent State Management (3 layers: Firestore, Frontend, UI)
+- ✅ Agent Context Management (Per-agent active sources, context loading, AI request integration)
+- ✅ Agent Configuration (User defaults, agent overrides, configuration precedence)
+- ✅ Agent Operations (Complete CRUD with frontend + backend examples)
+- ✅ Agent Sharing & Collaboration (Future features)
+- ✅ Agent Templates (Template system, marketplace vision)
+- ✅ Agent Validation & Sign-off (Expert validation workflow)
+- ✅ Agent Analytics (Per-agent metrics, BigQuery queries, cost tracking)
+- ✅ Best Practices (Design, configuration, context, lifecycle management)
+- ✅ 5 Critical Rules (Persistence, context loading, config passing, metadata updates, error handling)
+- ✅ Local Development (Setup, testing workflow, lifecycle test function)
+- ✅ Production Deployment (Checklist, process, verification)
+- ✅ Testing (Unit tests, integration tests with examples)
+- ✅ Monitoring (Health metrics, alerting rules)
+- ✅ Success Metrics (Adoption, performance, effectiveness)
+- ✅ Lessons Learned (Development, production, user feedback - 15 lessons)
+- ✅ Future Enhancements (Short, medium, long-term roadmap)
+
+**Why Critical:**
+- **Defines the core abstraction** - Conversations as intelligent agents
+- Documents complete agent architecture and behavior
+- Ensures agent state persistence across sessions
+- Per-agent context management (isolated knowledge bases)
+- Agent lifecycle from creation to deletion
+- Configuration inheritance (user defaults → agent overrides)
+- Production-ready patterns and best practices
+- Testing and monitoring strategies
+- Future-proofs the agentic architecture
+
+**Alignment with Other Rules:**
+- Implements alignment.mdc design principles (data persistence, progressive disclosure, etc.)
+- Uses backend.mdc service patterns for agent operations
+- Follows frontend.mdc component patterns for agent UI
+- Uses firestore.mdc schema for agent data model
+- Tracks agent analytics in bigquery.mdc
+- References ui.mdc for agent interface components
+- Realizes prd.mdc vision of multi-agent platform
+
+**Key Insights:**
+- **Agent = Conversation**: Simplified architecture by treating each conversation as an autonomous agent
+- **Agent-Specific Context**: Each agent maintains its own active context sources for focused, relevant responses
+- **Configuration Hierarchy**: User defaults + agent overrides = flexibility without complexity
+- **Persistent State Critical**: All agent state in Firestore ensures no data loss
+- **Lifecycle Management**: Complete lifecycle from creation through interaction to archival/deletion
+
+---
+
+### 10. **prd.mdc** (Existing)
 **Purpose:** Product Requirements Document
 
 **Key Content:**
@@ -285,6 +341,7 @@ This document provides an overview of all Cursor project rules created for the F
 | Rule | Lines | Focus Area | Priority |
 |------|-------|-----------|----------|
 | **alignment.mdc** 🌟 | 1,037 | **Foundational Principles** | **FUNDAMENTAL** |
+| **agents.mdc** 🤖 | 1,340 | **Agentic Architecture** | **CORE** |
 | **backend.mdc** | 1,041 | Backend architecture | Critical |
 | **frontend.mdc** | 1,397 | Frontend architecture | Critical |
 | **firestore.mdc** | 1,221 | Database schema | Critical |
@@ -296,9 +353,11 @@ This document provides an overview of all Cursor project rules created for the F
 | **gcp-project-consistency.mdc** | Existing | GCP consistency | Critical |
 | **gemini-api-usage.mdc** | Existing | Gemini AI | Critical |
 
-**Total:** ~10,936+ lines of comprehensive documentation
+**Total:** ~12,276+ lines of comprehensive documentation
 
-**🌟 alignment.mdc** is the **foundational "north star"** that consolidates all design principles and architectural patterns across all other rules.
+**🌟 alignment.mdc** is the **foundational "north star"** that consolidates all design principles and architectural patterns.
+
+**🤖 agents.mdc** is the **core abstraction** that defines how conversations function as intelligent, autonomous agents.
 
 ---
 
@@ -482,20 +541,26 @@ This document provides an overview of all Cursor project rules created for the F
 ### **🌟 Start Here - The Foundation**
 → Read: **alignment.mdc** - The north star for all development decisions
 
+### **🤖 Understanding Agents**
+→ Read: **agents.mdc** - The core abstraction (conversations as intelligent agents)
+
+### For Agent Development
+→ Read: **alignment.mdc** → **agents.mdc** → **backend.mdc** → **firestore.mdc**
+
 ### For API Development
-→ Read: **alignment.mdc** → **backend.mdc** → **firestore.mdc**
+→ Read: **alignment.mdc** → **agents.mdc** → **backend.mdc** → **firestore.mdc**
 
 ### For UI Development
-→ Read: **alignment.mdc** → **frontend.mdc** → **ui.mdc**
+→ Read: **alignment.mdc** → **agents.mdc** → **frontend.mdc** → **ui.mdc**
 
 ### For Analytics
-→ Read: **alignment.mdc** → **bigquery.mdc**
+→ Read: **alignment.mdc** → **agents.mdc** → **bigquery.mdc**
 
 ### For Deployment
 → Read: **alignment.mdc** → **project-identity.mdc** → **gcp-project-consistency.mdc**
 
 ### For Architecture
-→ Read: **alignment.mdc** → **prd.mdc** → **backend.mdc** → **frontend.mdc**
+→ Read: **alignment.mdc** → **agents.mdc** → **prd.mdc** → **backend.mdc** → **frontend.mdc**
 
 ### For Quality Assurance
 → Read: **alignment.mdc** (Quality Standards, Alignment Checklist)
