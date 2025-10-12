@@ -14,6 +14,16 @@ PROJECT_ID="gen-lang-client-0986191192"
 REGION="us-central1"
 SERVICE_NAME="flow-chat"
 
+# Load .env file if it exists
+if [ -f .env ]; then
+  echo "📄 Loading credentials from .env file..."
+  export $(grep -v '^#' .env | grep -E '(GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|JWT_SECRET|GEMINI_API_KEY)' | xargs)
+  echo "✅ Credentials loaded from .env"
+else
+  echo "⚠️  No .env file found. You'll need to set credentials manually."
+fi
+echo ""
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -61,14 +71,36 @@ SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
 echo -e "${GREEN}✅ Service deployed at: $SERVICE_URL${NC}"
 echo ""
 
-# Update PUBLIC_BASE_URL environment variable
-echo "🔧 Setting PUBLIC_BASE_URL environment variable..."
-gcloud run services update $SERVICE_NAME \
-  --platform managed \
-  --region $REGION \
-  --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
+# Configure all environment variables from .env
+echo "🔧 Configuring environment variables from .env..."
 
-echo -e "${GREEN}✅ PUBLIC_BASE_URL set to: $SERVICE_URL${NC}"
+# Check if credentials are available
+if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ] && [ -n "$JWT_SECRET" ]; then
+  echo "✅ Found credentials in .env, configuring Cloud Run..."
+  
+  gcloud run services update $SERVICE_NAME \
+    --platform managed \
+    --region $REGION \
+    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,NODE_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
+    --update-secrets="GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest" 2>/dev/null || \
+  gcloud run services update $SERVICE_NAME \
+    --platform managed \
+    --region $REGION \
+    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET,JWT_SECRET=$JWT_SECRET,GEMINI_API_KEY=$GEMINI_API_KEY,NODE_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+  
+  echo -e "${GREEN}✅ Environment variables configured${NC}"
+  echo "   PUBLIC_BASE_URL: $SERVICE_URL"
+  echo "   GOOGLE_CLIENT_ID: ***${GOOGLE_CLIENT_ID: -10}"
+else
+  # Fallback: just set PUBLIC_BASE_URL
+  echo "⚠️  Credentials not found in .env, setting PUBLIC_BASE_URL only..."
+  gcloud run services update $SERVICE_NAME \
+    --platform managed \
+    --region $REGION \
+    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
+  
+  echo -e "${YELLOW}⚠️  You'll need to set OAuth credentials manually${NC}"
+fi
 echo ""
 
 # Display current environment variables
@@ -82,33 +114,30 @@ echo ""
 # OAuth Configuration Instructions
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo -e "${YELLOW}⚠️  IMPORTANT: OAuth Configuration Required${NC}"
+echo -e "${YELLOW}⚠️  FINAL STEP: Configure OAuth in Google Cloud Console${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "To fix the 'Missing redirect_uri' error, configure OAuth:"
+echo "✅ Credentials from .env have been configured in Cloud Run"
+echo "✅ PUBLIC_BASE_URL has been set to: $SERVICE_URL"
 echo ""
-echo "1️⃣  Add to Google Cloud Console OAuth Credentials:"
+echo "📝 Now add these URLs to your OAuth 2.0 Client:"
+echo ""
+echo "1️⃣  Go to Google Cloud Console:"
 echo -e "   ${BLUE}https://console.cloud.google.com/apis/credentials?project=$PROJECT_ID${NC}"
 echo ""
-echo "   ${GREEN}Authorized JavaScript origins:${NC}"
+echo "2️⃣  Click on your OAuth 2.0 Client ID (or create one)"
+echo ""
+echo "3️⃣  Add to ${GREEN}Authorized JavaScript origins:${NC}"
 echo "   $SERVICE_URL"
 echo ""
-echo "   ${GREEN}Authorized redirect URIs:${NC}"
+echo "4️⃣  Add to ${GREEN}Authorized redirect URIs:${NC}"
 echo "   $SERVICE_URL/auth/callback"
 echo ""
-echo "2️⃣  Set OAuth credentials (if not already set):"
+echo "5️⃣  Click SAVE"
 echo ""
-echo -e "   ${BLUE}gcloud run services update $SERVICE_NAME \\${NC}"
-echo -e "   ${BLUE}  --platform managed \\${NC}"
-echo -e "   ${BLUE}  --region $REGION \\${NC}"
-echo -e "   ${BLUE}  --set-env-vars=\"GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com\" \\${NC}"
-echo -e "   ${BLUE}  --set-secrets=\"GOOGLE_CLIENT_SECRET=google-client-secret:latest,\\${NC}"
-echo -e "   ${BLUE}JWT_SECRET=jwt-secret:latest,\\${NC}"
-echo -e "   ${BLUE}GEMINI_API_KEY=gemini-api-key:latest\"${NC}"
+echo "6️⃣  ⏰ Wait 5-10 minutes for changes to propagate"
 echo ""
-echo "3️⃣  Wait 5-10 minutes for OAuth changes to propagate"
-echo ""
-echo "4️⃣  Test OAuth login:"
+echo "7️⃣  Test your OAuth login:"
 echo "   $SERVICE_URL/auth/login"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
