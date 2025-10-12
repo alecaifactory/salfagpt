@@ -2,6 +2,22 @@
 
 Complete guide for deploying Flow to Google Cloud Run.
 
+## 📋 Quick Reference
+
+**BEFORE EVERY DEPLOYMENT:**
+```bash
+# 1. Verify environment variables
+./scripts/verify-cloud-run-env.sh
+
+# 2. Deploy Firestore indexes (if changed)
+firebase deploy --only firestore:indexes
+
+# 3. Deploy to Cloud Run
+gcloud run deploy flow-chat --source . --project=gen-lang-client-0986191192
+```
+
+**⚠️ See `.cursor/rules/env.mdc` for complete environment variable management rules.**
+
 ## Table of Contents
 
 - [Critical Lessons Learned](#critical-lessons-learned)
@@ -492,6 +508,29 @@ done
 
 ## Deployment Process
 
+### 🔍 Pre-Deployment Verification (MANDATORY)
+
+**⚠️ ALWAYS run these checks BEFORE deploying:**
+
+```bash
+# 1. Verify environment variables match between local and Cloud Run
+./scripts/verify-cloud-run-env.sh
+
+# Expected output:
+# ✅ Todas las variables críticas están configuradas
+
+# 2. If any variables are missing, fix them BEFORE deploying
+# See .cursor/rules/env.mdc for complete instructions
+```
+
+**If verification fails:**
+- DO NOT deploy yet
+- Fix missing variables (see [Environment Variables](#environment-variables))
+- Re-run verification script
+- Only deploy when all checks pass
+
+---
+
 ### Quick Deploy (Recommended)
 
 ```bash
@@ -541,6 +580,46 @@ gcloud run services update flow-chat \
 ---
 
 ## Post-Deployment
+
+### 🔍 Post-Deployment Verification (MANDATORY)
+
+**⚠️ ALWAYS run these checks AFTER deploying:**
+
+```bash
+# 1. Verify environment variables in Cloud Run
+./scripts/verify-cloud-run-env.sh
+
+# 2. Get service URL
+SERVICE_URL=$(gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format='value(status.url)')
+
+echo "Service URL: $SERVICE_URL"
+
+# 3. Test all critical endpoints
+echo "Testing Firestore..."
+curl -s $SERVICE_URL/api/health/firestore | jq .
+
+echo "Testing OAuth..."
+curl -I $SERVICE_URL/auth/google
+
+echo "Testing Gemini AI..."
+curl -X POST "$SERVICE_URL/api/conversations/temp-test/messages" \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"test","message":"Hola","model":"gemini-2.5-flash"}'
+
+# 4. Check for errors in logs
+gcloud logging read "resource.type=cloud_run_revision AND severity>=ERROR" \
+  --limit=10 \
+  --project=gen-lang-client-0986191192
+```
+
+**If any test fails:**
+- Check Cloud Run logs: `gcloud logging read "resource.type=cloud_run_revision" --limit=50`
+- Verify all environment variables are set correctly
+- See [Troubleshooting](#troubleshooting)
+
+---
 
 ### 1. Health Check
 
