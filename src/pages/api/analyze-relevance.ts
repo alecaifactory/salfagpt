@@ -6,9 +6,9 @@ let geminiClient: GoogleGenAI | null = null;
 function getGeminiClient() {
   if (!geminiClient) {
     try {
-      const apiKey = process.env.GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY;
+      const apiKey = process.env.GOOGLE_AI_API_KEY || import.meta.env.GOOGLE_AI_API_KEY;
       if (!apiKey) {
-        throw new Error('GEMINI_API_KEY not configured');
+        throw new Error('GOOGLE_AI_API_KEY not configured');
       }
       geminiClient = new GoogleGenAI({ apiKey });
       console.log('✅ Gemini AI client initialized for relevance analysis');
