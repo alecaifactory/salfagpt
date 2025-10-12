@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2 } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut } from 'lucide-react';
+import ContextManager from './ContextManager';
 
 interface Message {
   id: string;
@@ -17,8 +18,15 @@ interface Conversation {
 interface ContextSource {
   id: string;
   name: string;
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'folder' | 'web-url' | 'api';
   enabled: boolean;
+  status: 'processing' | 'active' | 'error' | 'disabled';
   extractedData: string;
+  addedAt: Date;
+  metadata?: {
+    originalFileSize?: number;
+    pageCount?: number;
+  };
 }
 
 export default function ChatInterfaceWorking({ userId }: { userId: string }) {
@@ -34,10 +42,20 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
     {
       id: 'demo-1',
       name: 'Documento Demo.pdf',
+      type: 'pdf',
       enabled: false,
-      extractedData: 'Contenido de ejemplo del PDF para contexto del AI.'
+      status: 'active',
+      extractedData: 'Contenido de ejemplo del PDF para contexto del AI.',
+      addedAt: new Date(),
+      metadata: {
+        originalFileSize: 1024 * 500, // 500 KB
+        pageCount: 5
+      }
     }
   ]);
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showContextPanel, setShowContextPanel] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -257,26 +275,55 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
         </div>
 
         {/* Context Sources */}
+        <ContextManager
+          sources={contextSources}
+          validations={new Map()}
+          onAddSource={() => console.log('Add source')}
+          onToggleSource={toggleContext}
+          onRemoveSource={(id) => {
+            setContextSources(prev => prev.filter(s => s.id !== id));
+          }}
+          onSourceClick={setSelectedSourceId}
+          onSourceSettings={(id) => console.log('Settings for', id)}
+        />
+
+        {/* User Menu */}
         <div className="border-t border-slate-200 p-4">
-          <h3 className="text-sm font-semibold text-slate-700 mb-2">Fuentes de Contexto</h3>
-          {contextSources.map(source => (
-            <div key={source.id} className="flex items-center justify-between p-2 bg-slate-50 rounded mb-2">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-slate-500" />
-                <span className="text-sm text-slate-700">{source.name}</span>
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-medium text-slate-700">{userId}</span>
               </div>
-              <button
-                onClick={() => toggleContext(source.id)}
-                className={`w-10 h-6 rounded-full transition-colors ${
-                  source.enabled ? 'bg-green-500' : 'bg-slate-300'
-                }`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
-                  source.enabled ? 'translate-x-5' : 'translate-x-1'
-                }`} />
-              </button>
-            </div>
-          ))}
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  onClick={() => console.log('Settings')}
+                >
+                  <Settings className="w-4 h-4" />
+                  Configuración
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  onClick={() => {
+                    document.cookie = 'flow_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+                    window.location.href = '/auth/login';
+                  }}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Cerrar Sesión
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -312,6 +359,40 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
         {/* Input Area */}
         <div className="border-t border-slate-200 bg-white p-4">
           <div className="max-w-4xl mx-auto">
+            {/* Context Button */}
+            <div className="mb-3 flex justify-center">
+              <button
+                onClick={() => setShowContextPanel(!showContextPanel)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors"
+              >
+                <span className="font-medium">Contexto:</span>
+                <span className="text-blue-600">{contextSources.filter(s => s.enabled).length} activas</span>
+                <span className="text-slate-400">•</span>
+                <span>{contextSources.filter(s => s.enabled).reduce((sum, s) => sum + (s.extractedData?.length || 0), 0)} chars</span>
+              </button>
+            </div>
+
+            {/* Context Panel */}
+            {showContextPanel && (
+              <div className="mb-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <h4 className="text-sm font-semibold text-slate-700 mb-2">Fuentes Activas</h4>
+                {contextSources.filter(s => s.enabled).length === 0 ? (
+                  <p className="text-sm text-slate-500">No hay fuentes activas</p>
+                ) : (
+                  <div className="space-y-2">
+                    {contextSources.filter(s => s.enabled).map(source => (
+                      <div key={source.id} className="p-3 bg-white rounded border border-slate-200">
+                        <p className="text-sm font-medium text-slate-800">{source.name}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {source.extractedData.substring(0, 100)}...
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <input
                 type="text"
