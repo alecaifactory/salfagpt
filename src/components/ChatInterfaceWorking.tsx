@@ -85,6 +85,12 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
   const [configWorkflow, setConfigWorkflow] = useState<Workflow | null>(null);
   const [showRightPanel, setShowRightPanel] = useState(true);
 
+  // Panel resizing state
+  const [leftPanelWidth, setLeftPanelWidth] = useState(320); // 80 * 4 = 320px (w-80)
+  const [rightPanelWidth, setRightPanelWidth] = useState(320);
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load conversations on mount
@@ -104,6 +110,39 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle panel resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft) {
+        const newWidth = Math.max(250, Math.min(600, e.clientX));
+        setLeftPanelWidth(newWidth);
+      }
+      if (isResizingRight) {
+        const newWidth = Math.max(250, Math.min(600, window.innerWidth - e.clientX));
+        setRightPanelWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false);
+      setIsResizingRight(false);
+    };
+
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingLeft, isResizingRight]);
 
   const loadConversations = async () => {
     try {
@@ -376,7 +415,10 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
   return (
     <div className="flex h-screen bg-slate-50">
       {/* Left Sidebar - Conversations */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col">
+      <div 
+        className="bg-white border-r border-slate-200 flex flex-col relative"
+        style={{ width: `${leftPanelWidth}px` }}
+      >
         {/* Header */}
         <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <button
@@ -459,6 +501,12 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
             )}
           </div>
         </div>
+
+        {/* Resize Divider */}
+        <div
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors"
+          onMouseDown={() => setIsResizingLeft(true)}
+        />
       </div>
 
       {/* Main Chat Area */}
@@ -558,7 +606,16 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
 
       {/* Right Panel - Workflows */}
       {showRightPanel && (
-        <div className="w-80 bg-white border-l border-slate-200 flex flex-col">
+        <div 
+          className="bg-white border-l border-slate-200 flex flex-col relative"
+          style={{ width: `${rightPanelWidth}px` }}
+        >
+          {/* Resize Divider */}
+          <div
+            className="absolute top-0 left-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors z-10"
+            onMouseDown={() => setIsResizingRight(true)}
+          />
+
           <div className="p-4 border-b border-slate-200">
             <h3 className="text-lg font-bold text-slate-800">Workflows</h3>
             <p className="text-xs text-slate-500 mt-1">Procesa documentos y APIs</p>
