@@ -21,6 +21,19 @@ Complete guide for deploying Flow to Google Cloud Run.
 
 **The #1 cause of deployment failures is misconfigured environment variables.**
 
+**Critical Rule:** Every variable in `.env` MUST be in Cloud Run (as env var or secret).
+
+### Required Variables Checklist
+| Variable | Type | Purpose | Critical |
+|---|---|---|---|
+| `GOOGLE_CLOUD_PROJECT` | Env Var | Firestore/BigQuery | ✅ YES |
+| `GOOGLE_AI_API_KEY` | Secret | Gemini AI | ✅ YES |
+| `GOOGLE_CLIENT_ID` | Secret | OAuth2 | ✅ YES |
+| `GOOGLE_CLIENT_SECRET` | Secret | OAuth2 | ✅ YES |
+| `JWT_SECRET` | Secret | Session tokens | ✅ YES |
+| `PUBLIC_BASE_URL` | Env Var | OAuth2 redirect | ✅ YES |
+| `NODE_ENV` | Env Var | Environment flag | ✅ YES |
+
 ### ⚠️ ALWAYS Deploy Firestore Indexes
 
 **The #2 cause of runtime failures is missing Firestore indexes.**
