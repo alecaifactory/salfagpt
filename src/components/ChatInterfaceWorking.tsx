@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
+import type { Workflow } from '../types/context';
+import { DEFAULT_WORKFLOWS } from '../types/context';
 
 interface Message {
   id: string;
@@ -56,6 +58,16 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
+  
+  // Workflows state
+  const [workflows, setWorkflows] = useState<Workflow[]>(
+    DEFAULT_WORKFLOWS.map((w, i) => ({
+      ...w,
+      id: `workflow-${i}`,
+      status: 'available' as const
+    }))
+  );
+  const [showRightPanel, setShowRightPanel] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -236,6 +248,15 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
         .filter(s => s.enabled)
         .map(s => s.id);
       saveContextForConversation(currentConversation, newActiveIds);
+    }
+  };
+
+  const getWorkflowStatusIcon = (status: Workflow['status']) => {
+    switch (status) {
+      case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
+      case 'completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'failed': return <XCircle className="w-4 h-4 text-red-600" />;
+      default: return <Play className="w-4 h-4 text-slate-400" />;
     }
   };
 
@@ -421,6 +442,108 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Right Panel - Workflows */}
+      {showRightPanel && (
+        <div className="w-80 bg-white border-l border-slate-200 flex flex-col">
+          <div className="p-4 border-b border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800">Workflows</h3>
+            <p className="text-xs text-slate-500 mt-1">Procesa documentos y APIs</p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {workflows.map((workflow) => (
+              <div
+                key={workflow.id}
+                className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => console.log('Open workflow:', workflow.id)}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{workflow.icon}</span>
+                    <div>
+                      <h4 className="text-sm font-semibold text-slate-800">{workflow.name}</h4>
+                      <p className="text-xs text-slate-500">{workflow.description}</p>
+                    </div>
+                  </div>
+                  {getWorkflowStatusIcon(workflow.status)}
+                </div>
+
+                {/* Workflow Config Preview */}
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>Max: {workflow.config.maxFileSize} MB</span>
+                    {workflow.config.model && (
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                        {workflow.config.model === 'gemini-2.5-flash' ? 'Flash' : 'Pro'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Run workflow:', workflow.id);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                  >
+                    <Play className="w-3 h-3" />
+                    Ejecutar
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('Configure workflow:', workflow.id);
+                    }}
+                    className="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs rounded hover:bg-slate-100 transition-colors"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {/* Workflow Output Preview */}
+                {workflow.status === 'completed' && workflow.output && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                    <p className="font-medium">✓ Completado</p>
+                    <p className="mt-1 text-[10px] text-green-700">
+                      {workflow.output.substring(0, 80)}...
+                    </p>
+                  </div>
+                )}
+
+                {workflow.status === 'failed' && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                    <p className="font-medium">✗ Error</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Toggle Panel Button */}
+          <div className="p-4 border-t border-slate-200">
+            <button
+              onClick={() => setShowRightPanel(false)}
+              className="w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded transition-colors"
+            >
+              Ocultar Panel →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Show Panel Button (when hidden) */}
+      {!showRightPanel && (
+        <button
+          onClick={() => setShowRightPanel(true)}
+          className="fixed right-0 top-1/2 transform -translate-y-1/2 px-2 py-4 bg-blue-600 text-white rounded-l-lg shadow-lg hover:bg-blue-700 transition-colors"
+        >
+          ← Workflows
+        </button>
+      )}
     </div>
   );
 }
