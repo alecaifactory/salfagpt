@@ -20,6 +20,9 @@
     "deploy:build": "gcloud builds submit --tag gcr.io/${GOOGLE_CLOUD_PROJECT}/flow",
     "deploy:run": "gcloud run deploy flow --image gcr.io/${GOOGLE_CLOUD_PROJECT}/flow --platform managed --region us-central1 --allow-unauthenticated",
     "test:emulators": "firebase emulators:exec --only firestore 'npm run build'",
+    "test:firestore": "node scripts/test-firestore-consistency.js",
+    "test:consistency": "./scripts/validate-consistency.sh",
+    "health:check": "curl -s http://localhost:3000/api/health/firestore | json_pp",
     "seed:users": "tsx scripts/seed-users.ts"
   },
   "dependencies": {
