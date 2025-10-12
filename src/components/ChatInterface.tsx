@@ -75,6 +75,8 @@ interface ContextSection {
 }
 
 export default function ChatInterface({ userId }: { userId: string }) {
+  console.log('🚀 ChatInterface mounting with userId:', userId);
+  
   const [conversations, setConversations] = useState<ConversationGroup[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -225,10 +227,14 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
 
   // Calculate local context for temporary conversations when messages or config change
   useEffect(() => {
+    try {
     if (currentConversation && currentConversation.startsWith('temp-')) {
       calculateLocalContext();
     }
-  }, [messages, userConfig]);
+    } catch (error) {
+      console.error('Error calculating context:', error);
+    }
+  }, [messages, userConfig, currentConversation]);
 
   // Handle panel resizing
   useEffect(() => {
@@ -307,9 +313,14 @@ Este es un documento de ejemplo para demostrar la funcionalidad de fuentes de co
       .map((msg, index) => {
         const role = msg.role === 'user' ? '👤 User' : '🤖 Assistant';
         const text = msg.content.text || JSON.stringify(msg.content);
-        const timestamp = msg.timestamp instanceof Date 
+        let timestamp = '';
+        try {
+          timestamp = msg.timestamp instanceof Date 
           ? msg.timestamp.toLocaleString() 
           : new Date(msg.timestamp).toLocaleString();
+        } catch (e) {
+          timestamp = 'N/A';
+        }
         return `[${index + 1}] ${role} (${timestamp}):\n${text}`;
       })
       .join('\n\n---\n\n');

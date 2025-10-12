@@ -1,5 +1,5 @@
 ---
-import ChatInterface from '../components/ChatInterface.tsx';
+import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
 import { verifyJWT } from '../lib/auth';
 import '../styles/global.css';
 
@@ -39,6 +39,6 @@ if (isDevelopment && !token) {
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   </head>
   <body class="h-full m-0 p-0">
-    <ChatInterface client:only="react" userId={userId} />
+    <ChatInterfaceWorking client:only="react" userId={userId} />
   </body>
 </html>
