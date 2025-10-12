@@ -181,9 +181,22 @@ export const POST: APIRoute = async ({ params, request }) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('Error processing message:', error);
+    console.error('❌ Error processing message:', error);
+    console.error('📝 Error details:', error.message);
+    
+    // Check if it's a Firestore error
+    if (error.code === 7 || error.message?.includes('PERMISSION_DENIED') || error.message?.includes('credentials')) {
+      console.error('🔐 Firestore authentication error detected');
+      console.error('💡 Run: gcloud auth application-default login');
+      console.error('💡 Ensure GOOGLE_CLOUD_PROJECT is set in .env');
+      console.error('💡 Verify your account has Firestore permissions');
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to process message' }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to process message',
+        hint: error.code === 7 ? 'Firestore authentication error. Run: gcloud auth application-default login' : undefined
+      }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }

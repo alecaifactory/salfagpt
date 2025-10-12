@@ -5,10 +5,26 @@ const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env
   ? import.meta.env.GOOGLE_CLOUD_PROJECT 
   : process.env.GOOGLE_CLOUD_PROJECT;
 
+if (!PROJECT_ID) {
+  console.error('❌ GOOGLE_CLOUD_PROJECT is not set! Please configure your .env file.');
+  console.error('💡 See ENV_VARIABLES_REFERENCE.md for setup instructions.');
+}
+
+console.log('🔧 Initializing Firestore client...');
+console.log(`📦 Project ID: ${PROJECT_ID || 'NOT SET'}`);
+console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+
 // Initialize Firestore client
+// In production (Cloud Run): Uses Workload Identity automatically
+// In local development: Uses Application Default Credentials (gcloud auth application-default login)
 export const firestore = new Firestore({
   projectId: PROJECT_ID,
+  // No need to specify keyFilename or credentials - ADC handles it automatically
 });
+
+console.log('✅ Firestore client initialized successfully');
+console.log('💡 Local dev: Ensure you have run "gcloud auth application-default login"');
+console.log('💡 Production: Uses Workload Identity automatically');
 
 // Collections
 export const COLLECTIONS = {

@@ -36,11 +36,19 @@ export const GET: APIRoute = async ({ request }) => {
         JSON.stringify({ groups }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
-    } catch (firestoreError) {
+    } catch (firestoreError: any) {
       // Firestore not available (dev mode) - return empty conversations
       console.warn('⚠️ Firestore unavailable, returning empty conversations');
+      console.warn('💡 Ensure you have run: gcloud auth application-default login');
+      console.warn('💡 And configured: GOOGLE_CLOUD_PROJECT in .env');
+      console.warn(`📝 Error details: ${firestoreError.message || 'Unknown error'}`);
+      
       return new Response(
-        JSON.stringify({ groups: [] }),
+        JSON.stringify({ 
+          groups: [],
+          warning: 'Firestore not configured. Using temporary storage.',
+          hint: 'Run: gcloud auth application-default login'
+        }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -73,9 +81,14 @@ export const POST: APIRoute = async ({ request }) => {
         JSON.stringify({ conversation }),
         { status: 201, headers: { 'Content-Type': 'application/json' } }
       );
-    } catch (firestoreError) {
+    } catch (firestoreError: any) {
       // Firestore not available (dev mode) - return temporary conversation
       console.warn('⚠️ Firestore unavailable, creating temporary conversation');
+      console.warn('💡 This conversation will NOT be saved to GCP');
+      console.warn('💡 To persist conversations, run: gcloud auth application-default login');
+      console.warn('💡 And ensure GOOGLE_CLOUD_PROJECT is set in .env');
+      console.warn(`📝 Error details: ${firestoreError.message || 'Unknown error'}`);
+      
       const tempConversation = {
         id: `temp-${Date.now()}`,
         userId,
@@ -86,10 +99,15 @@ export const POST: APIRoute = async ({ request }) => {
         messageCount: 0,
         contextWindowUsage: 0,
         agentModel: 'gemini-2.5-flash',
+        _temporary: true, // Flag to indicate this is not persisted
       };
 
       return new Response(
-        JSON.stringify({ conversation: tempConversation }),
+        JSON.stringify({ 
+          conversation: tempConversation,
+          warning: 'Conversation created in memory only (not persisted to GCP)',
+          hint: 'Configure Firestore credentials to enable persistence'
+        }),
         { status: 201, headers: { 'Content-Type': 'application/json' } }
       );
     }
