@@ -3,6 +3,7 @@ import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, P
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
+import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import type { Workflow, SourceType, WorkflowConfig } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 
@@ -79,6 +80,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
+  const [showUserSettings, setShowUserSettings] = useState(false);
+  
+  // User settings state
+  const [userSettings, setUserSettings] = useState<UserSettings>(() => {
+    // Load from localStorage on init
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('flow_user_settings');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch (e) {
+          console.error('Error loading user settings:', e);
+        }
+      }
+    }
+    // Default settings
+    return {
+      preferredModel: 'gemini-2.5-flash',
+      systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
+      language: 'es',
+    };
+  });
   
   // Workflows state
   const [workflows, setWorkflows] = useState<Workflow[]>(
@@ -409,6 +432,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     console.log('✅ Workflow config saved:', workflowId, config);
   };
 
+  const handleSaveUserSettings = (settings: UserSettings) => {
+    setUserSettings(settings);
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flow_user_settings', JSON.stringify(settings));
+    }
+    console.log('✅ User settings saved:', settings);
+  };
+
   const getWorkflowStatusIcon = (status: Workflow['status']) => {
     switch (status) {
       case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
@@ -495,7 +527,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                  onClick={() => console.log('Settings')}
+                  onClick={() => {
+                    setShowUserSettings(true);
+                    setShowUserMenu(false);
+                  }}
                 >
                   <Settings className="w-4 h-4" />
                   Configuración
@@ -741,6 +776,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={configWorkflow !== null}
         onClose={() => setConfigWorkflow(null)}
         onSave={handleSaveWorkflowConfig}
+      />
+
+      {/* User Settings Modal */}
+      <UserSettingsModal
+        isOpen={showUserSettings}
+        onClose={() => setShowUserSettings(false)}
+        onSave={handleSaveUserSettings}
+        currentSettings={userSettings}
+        userName={userName}
+        userEmail={userEmail}
       />
     </div>
   );
