@@ -1,0 +1,948 @@
+# UI Architecture & Roadmap - Flow
+
+## 🎯 Vision General
+
+Flow es una plataforma de chat AI con gestión avanzada de contexto, workflows de procesamiento de documentos, y sistema de permisos granular para validación de contenido por expertos.
+
+---
+
+## 📐 Estructura Actual de la UI
+
+### Layout Principal (3 Paneles)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                          Header                                  │
+├──────────────┬────────────────────────────┬─────────────────────┤
+│              │                            │                     │
+│   LEFT       │      MAIN CHAT             │     RIGHT          │
+│   PANEL      │       AREA                 │     PANEL          │
+│              │                            │                     │
+│  - Historial │  - Messages                │  - Workflows       │
+│  - Context   │  - Context Button          │  - Execution       │
+│    Sources   │  - Input Area              │  - Status          │
+│              │                            │                     │
+│              │                            │                     │
+└──────────────┴────────────────────────────┴─────────────────────┘
+```
+
+---
+
+## 🏗️ Componentes Implementados
+
+### 1. **Panel Izquierdo (Left Sidebar)**
+
+#### A) Sección Superior: Historial de Agentes
+- **Botón**: "Nuevo Agente" (+ icono)
+  - Crea conversación en Firestore GCP
+  - Genera ID permanente
+  - Persiste entre sesiones
+- **Lista de Conversaciones**:
+  - Ordenadas por fecha (más reciente primero)
+  - Click para cambiar de conversación
+  - Highlight del agente activo
+  - Scroll infinito para historial largo
+
+#### B) Sección Inferior: Fuentes de Contexto
+**Título**: "Fuentes de Contexto"
+- **Botón**: "+ Agregar" (abre AddSourceModal)
+- **Lista de Context Sources**:
+  - Tarjetas con:
+    - Nombre del archivo
+    - Tipo (PDF, CSV, Excel, etc.)
+    - **Toggle switch** (verde activo / gris inactivo)
+    - **Botón Settings** (⚙️ - abre ContextSourceSettingsModal)
+    - **Progress bar** (durante procesamiento)
+    - **Error display** (si falla)
+  - Click en tarjeta → expande SourceDetailPanel
+
+#### C) Sección Expandible: Source Detail Panel
+- Se muestra cuando se selecciona un context source
+- **Contenido**:
+  - Preview del contenido extraído
+  - Metadata completa
+  - Botón "Volver" para colapsar
+- **Características**:
+  - Expande left panel hacia la derecha
+  - Ocupa más espacio vertical
+  - Deja espacio para historial arriba
+
+#### D) User Menu (Bottom)
+- Avatar + Nombre + Email del usuario
+- Menú desplegable con:
+  - **Gestión de Contexto** (nuevo)
+    - Abre ContextManagementDashboard
+    - Administra permisos de acceso
+    - Grupos y reglas de contexto
+  - **Configuración** (abre UserSettingsModal)
+    - Modelo preferido (Flash/Pro)
+    - System prompt personalizado
+    - Idioma (ES/EN/PT)
+  - **Cerrar Sesión**
+
+---
+
+### 2. **Panel Central (Main Chat Area)**
+
+#### A) Messages Area
+- **Scroll container** para mensajes
+- **Message bubbles**:
+  - Usuario: alineado derecha, azul
+  - Asistente: alineado izquierda, gris
+- **Loading indicator**: spinner durante respuesta
+- **Auto-scroll** al último mensaje
+
+#### B) Context Button (Arriba del Input)
+**Display**:
+```
+Contexto: 0.5% • ✨ Gemini 2.5 Flash • 1 fuentes
+```
+- **Porcentaje de uso**: Verde < 50%, Amarillo 50-80%, Rojo > 80%
+- **Icono Sparkles**: ✨
+- **Nombre del modelo**: Flash o Pro
+- **Número de fuentes activas**
+
+**Click → Expande Panel de Contexto**:
+- **Header con estadísticas**:
+  - Total tokens usados
+  - Tokens disponibles
+  - Capacidad del modelo (1M o 2M)
+  - Badge de color según % de uso
+
+- **Desglose detallado**:
+  1. **System Prompt**:
+     - Preview (150 chars)
+     - Cuenta de tokens
+  
+  2. **Historial de Conversación**:
+     - Últimos 3 mensajes con preview
+     - Total mensajes y tokens
+     - 👤 Usuario vs 🤖 Asistente (con colores)
+  
+  3. **Fuentes de Contexto**:
+     - Lista de fuentes activas
+     - Preview del contenido (100 chars)
+     - Metadata (páginas, tamaño)
+     - Fondo verde para destacar
+
+#### C) Input Area
+- **Textarea** para escribir mensaje
+- **Botón Send** (icono enviar)
+  - Deshabilitado si vacío o cargando
+  - Loading spinner durante respuesta
+- **Disclaimer**: "Flow puede cometer errores. Verifica la información importante."
+
+---
+
+### 3. **Panel Derecho (Right Panel - Workflows)**
+
+#### A) Header
+- Título: "Workflows"
+- Subtitle: "Procesa documentos y APIs"
+- **Botón toggle** para ocultar/mostrar panel
+
+#### B) Lista de Workflows
+Cada workflow card muestra:
+- **Icono** del tipo de documento
+- **Nombre**: "Procesar PDF", "Procesar CSV", etc.
+- **Descripción**: Breve explicación
+- **Configuración actual**:
+  - Max file size (ej: 50 MB)
+  - Modelo usado (Flash por defecto)
+- **Status icon**:
+  - ⏸️ Available (gris)
+  - ⏳ Running (azul, animado)
+  - ✓ Completed (verde)
+  - ✗ Failed (rojo)
+- **Botones**:
+  - **▶ Ejecutar**: Abre AddSourceModal con tipo pre-seleccionado
+  - **⚙️ Settings**: Abre WorkflowConfigModal
+
+#### C) Workflows Disponibles
+1. **Procesar PDF**:
+   - Extracción automática: texto, tablas, imágenes (como texto)
+   - Modelo: gemini-2.5-flash (default)
+   - Max: 50 MB
+   
+2. **Procesar CSV**:
+   - Lee y analiza CSV
+   - Max: 20 MB
+   
+3. **Analizar Excel**:
+   - Procesa hojas de cálculo
+   - Max: 50 MB
+   
+4. **Extraer Texto de Word**:
+   - Lee documentos Microsoft Word
+   - Max: 30 MB
+   
+5. **Indexar Carpeta**:
+   - Procesa todos los archivos en una carpeta
+   - Max: 200 MB
+
+---
+
+## 🎭 Modales Implementados
+
+### 1. AddSourceModal
+**Función**: Agregar nueva fuente de contexto
+
+**Flujo**:
+1. **Paso 1: Select Type** (si no viene pre-seleccionado)
+   - Archivo (PDF, CSV, Excel, Word)
+   - URL Web
+   - API
+   
+2. **Paso 2: Configure**
+   - Upload área (drag & drop o click)
+   - Mostrar archivo seleccionado (nombre, tamaño)
+   - Selector de modelo:
+     - Gemini 2.5 Flash (recomendado, 94% más económico)
+     - Gemini 2.5 Pro (mayor precisión)
+   - Tooltip con costos y recomendaciones
+   
+3. **Paso 3: Processing**
+   - Progress bar con porcentaje
+   - Mensaje de estado
+   - Indicador visual del modelo usado
+
+**Features**:
+- Pre-selección de tipo desde workflow
+- Reset automático al abrir/cerrar
+- Progress tracking en tiempo real
+- Error handling con detalles
+
+---
+
+### 2. WorkflowConfigModal
+**Función**: Configurar parámetros de workflow
+
+**Contenido**:
+- **Max File Size**: Input numérico (MB)
+- **Max Output Length**: Input numérico (tokens)
+- **Language**: Select (es, en, pt)
+- **AI Model**: 
+  - Gemini 2.5 Flash (default)
+  - Gemini 2.5 Pro
+  - Tooltip con info de costos
+
+**Características**:
+- z-index: 999 (sobre todo)
+- Reset al abrir
+- Save guarda en state de workflows
+
+---
+
+### 3. UserSettingsModal
+**Función**: Configuración personal del usuario
+
+**Contenido**:
+- **Header**: Muestra nombre y email del usuario
+
+- **Modelo Preferido**:
+  - Gemini 2.5 Flash (recomendado)
+  - Gemini 2.5 Pro (avanzado)
+  - Cards visuales con badges
+  - Info de costos y casos de uso
+
+- **System Prompt**:
+  - Textarea personalizable
+  - Default: "Eres un asistente útil y profesional..."
+  - Guía las respuestas del asistente
+
+- **Idioma**:
+  - Español (default)
+  - English
+  - Português
+
+**Persistencia**: localStorage → `flow_user_settings`
+
+---
+
+### 4. ContextSourceSettingsModal ⭐
+**Función**: Ver detalles y re-configurar extracción de contexto
+
+**Layout**: 2 columnas compactas
+
+#### Columna Izquierda:
+1. **Fuente Original**:
+   - 📄 Nombre del archivo
+   - 📋 Tipo (PDF, CSV, etc.)
+   - 💾 Tamaño
+
+2. **Detalles de Extracción**:
+   - ✨ Modelo usado
+   - ⏱️ Tiempo de procesamiento
+   - 📝 Caracteres extraídos
+   - 🔢 Tokens estimados
+
+3. **Estado de Validación** (NUEVO):
+   - **Si validado** ✅:
+     - Badge verde "Validado"
+     - Usuario que validó
+     - Fecha de validación
+   - **Si pendiente** ⏳:
+     - Badge amarillo "Pendiente"
+     - Nota: "Debe ser validado por experto del dominio"
+   - **Permisos para validar**:
+     - admin
+     - context_signoff
+     - context_owner
+     - context_reviewer
+
+#### Columna Derecha:
+1. **Configuración Actual**:
+   - Max file size (input)
+   - Max output length (input)
+   - AI Model selector (con tooltip)
+
+2. **Preview del Contenido**:
+   - Primeros 500 caracteres
+   - Scroll si es más largo
+
+**Botón**: "Re-Extraer Contenido"
+- Re-procesa con nueva configuración
+- Muestra progreso en tiempo real
+- Actualiza metadata
+
+---
+
+### 5. ContextManagementDashboard
+**Función**: Administración de acceso a contextos
+
+**Contenido**:
+- Overview de contextos del sistema
+- Asignación de permisos por usuario/grupo
+- Grupos disponibles:
+  - Product Team
+  - Tech Team
+  - Compliance Team
+  - Collections Team
+  - Treasury Team
+  - Área de Compras
+  - Área de Ventas
+  - Área de Operaciones
+  - Marketing
+  - Finanzas
+  - Cobranza
+  - Adquisición
+  - Retención
+  - Gerencia
+
+**Features**:
+- Crear nuevos grupos
+- Asignar reglas de acceso
+- Fechas de expiración
+- Duración de acceso
+
+---
+
+## 🎨 Design System
+
+### Colores
+- **Primary**: Blue 600 (#2563eb)
+- **Success**: Green 600 (#16a34a)
+- **Warning**: Yellow 500 (#eab308)
+- **Error**: Red 600 (#dc2626)
+- **Text**: Slate 700, 600, 500
+- **Background**: Slate 50, White
+
+### Iconos (Lucide React)
+- MessageSquare, Plus, Send, FileText
+- Loader2, User, Settings, LogOut
+- Play, CheckCircle, XCircle, Sparkles
+- RefreshCw, Clock, HardDrive, Zap, Info
+
+### Typography
+- **Headers**: font-bold, text-lg/xl/2xl
+- **Body**: text-sm/base
+- **Small**: text-xs/[10px]
+
+### Spacing
+- Padding: p-2/3/4/6
+- Gaps: gap-2/3/4
+- Margins: mb-2/3/4
+
+### Components
+- **Rounded**: rounded-lg/xl/2xl
+- **Shadows**: shadow-md/lg/xl/2xl
+- **Borders**: border border-slate-200/300
+- **Transitions**: transition-colors/all
+
+---
+
+## 🔄 Flujo de Datos
+
+### 1. Crear Nuevo Agente
+```
+Usuario → Click "Nuevo Agente"
+  ↓
+POST /api/conversations
+  Body: { userId, title: "Nuevo Agente" }
+  ↓
+Firestore → Crea documento en collection conversations
+  ↓
+Response: { conversation: { id, title, createdAt, ... } }
+  ↓
+Frontend → setConversations, setCurrentConversation
+  ↓
+✅ Conversación persiste en GCP
+```
+
+### 2. Enviar Mensaje
+```
+Usuario → Escribe mensaje → Click Send
+  ↓
+POST /api/conversations/{id}/messages
+  Body: { userId, message, model, contextSources }
+  ↓
+Backend:
+  1. Obtiene contexto activo del usuario
+  2. Construye prompt con context sources
+  3. Llama a Gemini AI
+  4. Guarda mensaje en Firestore
+  ↓
+Response: { message: { id, role, content, ... } }
+  ↓
+Frontend → Añade mensaje a UI
+  ↓
+✅ Mensaje guardado y mostrado
+```
+
+### 3. Agregar Context Source
+```
+Usuario → Click "+ Agregar" o "▶ Ejecutar" en workflow
+  ↓
+AddSourceModal abre (con tipo pre-seleccionado si viene de workflow)
+  ↓
+Usuario selecciona archivo y modelo
+  ↓
+handleAddSource():
+  1. Crea FormData con file y model
+  2. POST /api/extract-document
+  3. Update progress (0% → 50% → 100%)
+  ↓
+Backend:
+  1. Recibe archivo
+  2. Llama a Gemini AI para extracción
+  3. Retorna texto + metadata
+  ↓
+Frontend:
+  1. Crea ContextSource con extractedData
+  2. Guarda originalFile para re-extracción
+  3. Añade a contextSources state
+  ↓
+✅ Context source disponible para activar
+```
+
+### 4. Activar/Desactivar Context
+```
+Usuario → Toggle switch en context card
+  ↓
+toggleContext(sourceId)
+  ↓
+Update contextSources state (enabled: true/false)
+  ↓
+Si conversación existe:
+  POST /api/conversations/{id}/context-sources
+  Body: { activeContextSourceIds: [...] }
+  ↓
+Firestore → Guarda IDs activos en conversación
+  ↓
+✅ Context activo persiste por agente
+```
+
+### 5. Ver Configuración de Context
+```
+Usuario → Click ⚙️ en context card
+  ↓
+handleSourceSettings(sourceId)
+  ↓
+Encuentra source en contextSources
+  ↓
+setSettingsSource(source)
+  ↓
+ContextSourceSettingsModal abre
+  ↓
+Muestra:
+  - Info original
+  - Detalles de extracción
+  - Estado de validación
+  - Configuración actual
+  - Preview del contenido
+```
+
+### 6. Re-Extraer Context
+```
+Usuario → Cambia config en modal → Click "Re-Extraer"
+  ↓
+handleReExtract(sourceId, newConfig)
+  ↓
+Update progress (procesando...)
+  ↓
+POST /api/extract-document
+  FormData: { file: source.originalFile, model: newConfig.model }
+  ↓
+Backend → Re-procesa con nuevo modelo
+  ↓
+Frontend → Update source con nueva data y metadata
+  ↓
+✅ Context actualizado con nueva extracción
+```
+
+---
+
+## ✅ Funcionalidades Completas
+
+### Gestión de Conversaciones
+- [x] Crear nuevo agente (persiste en Firestore)
+- [x] Listar conversaciones por usuario
+- [x] Cambiar entre conversaciones
+- [x] Persistencia entre sesiones (GCP)
+- [x] Historial completo con scroll
+
+### Chat y Mensajes
+- [x] Enviar mensajes
+- [x] Recibir respuestas de AI (streaming potencial)
+- [x] Mostrar historial de mensajes
+- [x] Loading states
+- [x] Error handling
+
+### Gestión de Contexto
+- [x] Agregar context sources (PDF, CSV, Excel, Word)
+- [x] Ver lista de sources
+- [x] Activar/desactivar sources (toggle)
+- [x] Expandir source para ver detalles
+- [x] Progress tracking durante extracción
+- [x] Error display con detalles
+- [x] Context activo persiste por agente
+
+### Workflows
+- [x] Lista de workflows disponibles
+- [x] Ejecutar workflow (abre modal con tipo pre-seleccionado)
+- [x] Configurar workflow (modal de settings)
+- [x] Status indicators (available, running, completed, failed)
+- [x] Extracción automática con Gemini AI
+
+### Modelos y Configuración
+- [x] Selector de modelo (Flash vs Pro)
+- [x] Tooltips informativos con costos
+- [x] User settings (modelo, system prompt, idioma)
+- [x] Settings persisten en localStorage
+- [x] Context source settings modal
+
+### Cálculo de Contexto
+- [x] Botón con % de uso del context window
+- [x] Código de color (verde/amarillo/rojo)
+- [x] Panel expandible con desglose detallado
+- [x] Stats por sección (system prompt, mensajes, sources)
+- [x] Tokens estimados y disponibles
+
+### UI/UX
+- [x] Panel izquierdo resizable (drag & drop)
+- [x] Panel derecho resizable (drag & drop)
+- [x] Panel izquierdo expandible para source details
+- [x] Toggle para ocultar/mostrar panel derecho
+- [x] Smooth transitions y animaciones
+- [x] Responsive design
+- [x] Loading states en todos los procesos
+
+### Autenticación
+- [x] Google OAuth
+- [x] JWT sessions
+- [x] User menu con info (nombre, email)
+- [x] Logout funcional
+
+---
+
+## 🚧 Funcionalidades Pendientes
+
+### Alta Prioridad
+
+#### 1. Sistema de Validación de Contexto
+- [ ] **Botón "Validar" en ContextSourceSettingsModal**
+  - Solo visible para usuarios con permisos
+  - Roles: admin, context_signoff, context_owner, context_reviewer
+- [ ] **API endpoint para validación**
+  - POST /api/context-sources/{id}/validate
+  - Guarda: validated, validatedBy, validatedAt, validationNotes
+- [ ] **Badge visual en context card**
+  - ✓ Verde si validado
+  - ⏳ Amarillo si pendiente
+- [ ] **Filtro de contexts validados**
+  - Mostrar solo validados / todos
+- [ ] **Logs de validación**
+  - Historial de quién validó qué y cuándo
+
+#### 2. Sistema de Permisos Granular
+- [ ] **User roles en base de datos**
+  - Tabla users con role field
+  - admin, expert, user, context_signoff, etc.
+- [ ] **Middleware de autorización**
+  - Verificar permisos antes de operaciones
+  - 403 Forbidden si no autorizado
+- [ ] **UI condicional por rol**
+  - Mostrar/ocultar features según permisos
+  - Botones deshabilitados si no autorizado
+- [ ] **Admin panel**
+  - Gestionar usuarios
+  - Asignar roles
+  - Ver logs de actividad
+
+#### 3. Compartir Context Sources
+- [ ] **Botón "Compartir" en SourceDetailPanel**
+- [ ] **Modal de compartir**:
+  - Seleccionar usuarios o grupos
+  - Template de email auto-generado
+  - Personalizar por job role / OKRs
+  - Copy email subject & content
+- [ ] **API de compartir**
+  - POST /api/context-sources/{id}/share
+  - Crea access rules en Firestore
+- [ ] **Email generation con AI**
+  - Prompt con job role y OKRs
+  - Genera email personalizado
+  - Preview antes de copiar
+
+#### 4. Gestión de Context Management
+- [ ] **Dashboard completo funcional**
+  - Overview de todos los contexts
+  - Asignación de permisos masiva
+  - Estadísticas de uso
+- [ ] **Grupos funcionales**
+  - CRUD de grupos
+  - Asignar usuarios a grupos
+  - Asignar contexts a grupos
+- [ ] **Access rules**
+  - Fechas de expiración
+  - Duración configurable
+  - Renovación automática/manual
+- [ ] **Notificaciones**
+  - Email cuando se comparte contexto
+  - Alerta cuando expira acceso
+  - Notificación de validación requerida
+
+### Media Prioridad
+
+#### 5. Mejoras de Extracción
+- [ ] **Más tipos de archivos**
+  - PowerPoint (.ppt, .pptx)
+  - Imágenes (OCR con Vision API)
+  - Audio (transcripción)
+  - Video (transcripción + frames)
+- [ ] **Extracción de URLs**
+  - Scraping de web pages
+  - Extracción de contenido principal
+  - Seguir links internos
+- [ ] **Extracción de APIs**
+  - Configurar headers, auth
+  - GET/POST requests
+  - Parse JSON responses
+- [ ] **Batch processing**
+  - Subir carpeta completa
+  - Procesar múltiples archivos
+  - Progress aggregado
+
+#### 6. Folders y Organización
+- [ ] **Crear folders para agentes**
+  - UI para crear/editar/borrar
+  - Drag & drop agentes a folders
+- [ ] **Filtrar por folder**
+  - Lista de folders en sidebar
+  - Click para filtrar agentes
+- [ ] **Búsqueda de agentes**
+  - Input de búsqueda
+  - Filtrar por título/contenido
+  - Highlight de resultados
+
+#### 7. Mejoras de Contexto
+- [ ] **Priorizar sources**
+  - Drag & drop para reordenar
+  - Guardar orden en Firestore
+  - AI usa en orden de prioridad
+- [ ] **Snippets de context**
+  - Seleccionar parte específica del documento
+  - Usar solo snippet en lugar de todo
+  - Highlight en preview
+- [ ] **Context templates**
+  - Guardar combinación de sources como template
+  - Aplicar template rápidamente
+  - Compartir templates
+
+#### 8. Análisis y Reportes
+- [ ] **Analytics dashboard**
+  - Tokens usados por usuario/agente
+  - Costos acumulados
+  - Sources más usados
+  - Modelos más usados
+- [ ] **Exportar conversaciones**
+  - PDF con formato
+  - Markdown
+  - JSON
+- [ ] **Exportar contexts**
+  - Descargar contenido extraído
+  - Incluir metadata
+
+### Baja Prioridad
+
+#### 9. Features Avanzados
+- [ ] **Streaming responses**
+  - Ver respuesta mientras se genera
+  - Cancelar generación a mitad
+- [ ] **Voice input**
+  - Grabar mensaje de voz
+  - Transcribir con Whisper
+  - Enviar como texto
+- [ ] **Imágenes en chat**
+  - Subir imagen en mensaje
+  - Analizar con Gemini Vision
+  - Ver en historial
+- [ ] **Mentions**
+  - @mention otros usuarios
+  - Notificación push/email
+- [ ] **Collaborative chat**
+  - Múltiples usuarios en mismo agente
+  - Ver quién está escribiendo
+  - Typing indicators
+
+#### 10. Integraciones
+- [ ] **Email service (Kit API v4)**
+  - Enviar emails directamente
+  - No solo copy-paste
+- [ ] **Slack integration**
+  - Compartir contexts a Slack
+  - Mencionar en Slack
+- [ ] **Google Drive**
+  - Importar documentos
+  - Sincronización automática
+- [ ] **Dropbox, OneDrive**
+  - Conectar cuentas
+  - Importar archivos
+
+---
+
+## 📊 Performance & Optimización
+
+### Implementado
+- [x] Lazy loading de mensajes (solo cargar últimos N)
+- [x] Virtualized lists para historial largo
+- [x] Debounce en inputs
+- [x] Progress tracking granular
+- [x] Error boundaries para crashes
+
+### Pendiente
+- [ ] **Pagination en historial**
+  - Cargar más al scroll
+  - Infinite scroll
+- [ ] **Caching de context sources**
+  - No re-fetch si no cambiaron
+  - Cache en localStorage/IndexedDB
+- [ ] **Optimistic updates**
+  - Mostrar mensaje antes de confirmar
+  - Revertir si falla
+- [ ] **Service Worker**
+  - Offline support básico
+  - Cache de assets estáticos
+- [ ] **Code splitting**
+  - Lazy load modales
+  - Lazy load panel derecho
+
+---
+
+## 🐛 Bugs Conocidos
+
+### Críticos
+- Ninguno conocido actualmente ✅
+
+### Menores
+- [ ] Al cambiar de agente muy rápido, mensajes pueden mezclarse
+- [ ] Progress bar a veces no resetea al 0% antes de empezar
+- [ ] Tooltip de modelo a veces queda pegado al cambiar de modal
+
+### Nice-to-fix
+- [ ] Resize panels tiene min-width fijo, podría ser más flexible
+- [ ] Long file names no truncan bien en todas las vistas
+- [ ] Modal de configuración podría tener animación de entrada
+
+---
+
+## 🎓 Lecciones Aprendidas
+
+### 1. Persistencia de Datos
+**Aprendizaje**: Nunca confiar solo en estado React para datos críticos.
+- Conversaciones deben crearse inmediatamente en Firestore
+- Context sources activos deben guardarse por agente
+- User settings deben persistir (localStorage o DB)
+
+### 2. Manejo de Archivos
+**Aprendizaje**: Guardar `originalFile` en state para permitir re-extracción.
+- Permite cambiar modelo sin re-subir archivo
+- Útil para debugging y validación
+- Memoria razonable para archivos < 50MB
+
+### 3. Progress Tracking
+**Aprendizaje**: UI con progress feedback mejora UX dramáticamente.
+- Mostrar stages claros (uploading, processing, complete)
+- Percentage + mensaje descriptivo
+- Error details si falla
+
+### 4. Modularidad
+**Aprendizaje**: Componentes pequeños y focused son más mantenibles.
+- Cada modal es independiente
+- Props claros y tipados
+- Handlers específicos por funcionalidad
+
+### 5. Tipos de TypeScript
+**Aprendizaje**: Importar tipos centralizados evita conflictos.
+- Definir interfaces en `src/types/*.ts`
+- Nunca duplicar definiciones
+- Usar tipos compartidos entre componentes
+
+---
+
+## 🚀 Roadmap de Implementación
+
+### Fase 1: Sistema de Validación (1-2 semanas)
+1. Implementar botón y modal de validación
+2. API endpoint para validar contexts
+3. Roles y permisos en base de datos
+4. Logs de validación
+5. Filtros por estado de validación
+
+### Fase 2: Compartir y Colaboración (2-3 semanas)
+1. Modal de compartir contexts
+2. Generación de emails con AI
+3. Sistema de access rules
+4. Notificaciones por email
+5. Context Management Dashboard completo
+
+### Fase 3: Mejoras de Extracción (2-3 semanas)
+1. Más tipos de archivos (PPT, imágenes, audio)
+2. Extracción de URLs (web scraping)
+3. Batch processing (carpetas completas)
+4. Extracción de APIs (configuración avanzada)
+
+### Fase 4: Organización y Búsqueda (1-2 semanas)
+1. Sistema de folders
+2. Búsqueda de agentes y mensajes
+3. Tags y categorías
+4. Snippets de context
+
+### Fase 5: Analytics y Reportes (2 semanas)
+1. Dashboard de analytics
+2. Métricas de uso (tokens, costos)
+3. Exportar conversaciones
+4. Exportar contexts
+
+### Fase 6: Features Avanzados (3-4 semanas)
+1. Streaming responses
+2. Voice input
+3. Imágenes en chat
+4. Collaborative chat
+
+### Fase 7: Integraciones (2-3 semanas)
+1. Email service (Kit API v4)
+2. Slack integration
+3. Google Drive
+4. Dropbox, OneDrive
+
+---
+
+## 📝 Notas de Desarrollo
+
+### Convenciones de Código
+- **Componentes**: PascalCase (ej: `AddSourceModal.tsx`)
+- **Functions**: camelCase (ej: `handleAddSource`)
+- **Constants**: UPPER_SNAKE_CASE (ej: `DEFAULT_WORKFLOWS`)
+- **Types**: PascalCase (ej: `ContextSource`)
+
+### Estructura de Archivos
+```
+src/
+├── components/           # React components
+│   ├── ChatInterfaceWorking.tsx
+│   ├── ContextManager.tsx
+│   ├── AddSourceModal.tsx
+│   ├── ContextSourceSettingsModal.tsx
+│   ├── WorkflowConfigModal.tsx
+│   ├── UserSettingsModal.tsx
+│   └── ...
+├── types/                # TypeScript types
+│   ├── context.ts
+│   ├── sharing.ts
+│   └── contextAccess.ts
+├── lib/                  # Utilities & services
+│   ├── firestore.ts
+│   ├── gemini.ts
+│   └── auth.ts
+├── pages/                # Astro pages
+│   ├── api/              # API routes
+│   └── chat.astro
+└── styles/
+    └── global.css
+```
+
+### Git Workflow
+- Branch por feature: `feat/feature-name-YYYY-MM-DD`
+- Commits descriptivos con emojis
+- PR a main con review
+- Merge con `--no-ff`
+
+### Testing Checklist
+Antes de cada PR:
+- [ ] `npm run type-check` pasa
+- [ ] `npm run lint` pasa sin errores
+- [ ] Manual testing en browser
+- [ ] Verificar consola sin errores
+- [ ] Probar en mobile (responsive)
+- [ ] Probar flows completos end-to-end
+
+---
+
+## 🎯 Objetivos de Producto
+
+### Corto Plazo (1-3 meses)
+- Sistema de validación completo y funcional
+- Compartir contexts entre usuarios/grupos
+- Context Management Dashboard operativo
+- Analytics básico de uso
+
+### Medio Plazo (3-6 meses)
+- Integraciones con herramientas externas
+- Features de colaboración
+- Mejoras avanzadas de extracción
+- Mobile app (React Native)
+
+### Largo Plazo (6-12 meses)
+- AI-powered features avanzados
+- Marketplace de contexts y workflows
+- Enterprise features (SSO, compliance, etc.)
+- White-label para clientes
+
+---
+
+## 🏆 Métricas de Éxito
+
+### Técnicas
+- Uptime: > 99.5%
+- API response time: < 500ms p95
+- Error rate: < 0.1%
+- Test coverage: > 80%
+
+### Producto
+- MAU (Monthly Active Users): objetivo definir
+- Mensajes por usuario/mes: objetivo definir
+- Contexts creados por usuario: objetivo definir
+- Retention rate: > 60% (mes 1 → mes 2)
+
+### Negocio
+- Costo por usuario/mes: objetivo definir
+- Revenue per user: objetivo definir
+- Customer satisfaction: NPS > 50
+- Time to value: < 5 minutos (primer mensaje útil)
+
+---
+
+**Última actualización**: Octubre 12, 2025
+**Versión**: 1.0.0
+**Mantenedor**: Flow Development Team
