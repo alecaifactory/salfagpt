@@ -1,0 +1,917 @@
+---
+alwaysApply: true
+---
+
+# BigQuery Architecture & Best Practices - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the complete BigQuery analytics architecture, dataset schemas, query patterns, and best practices. It ensures proper analytics data collection, efficient querying, and seamless integration with Firestore while maintaining cost efficiency.
+
+---
+
+## 🏗️ BigQuery Architecture Overview
+
+### Analytics Infrastructure
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 BIGQUERY ANALYTICS                      │
+│                gen-lang-client-0986191192               │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Dataset: flow_analytics                                │
+│  ├─ users                    # User profiles            │
+│  ├─ sessions                 # User sessions            │
+│  ├─ conversations            # Conversation analytics   │
+│  ├─ messages                 # Message-level data       │
+│  ├─ analytics_events         # Interaction events       │
+│  ├─ context_usage            # Context source usage     │
+│  ├─ model_usage              # AI model usage           │
+│  └─ daily_metrics            # Aggregated daily stats   │
+│                                                         │
+│  ┌──────────────────────────────────────────┐          │
+│  │  Firestore → BigQuery Sync               │          │
+│  │  • Real-time streaming (optional)        │          │
+│  │  • Batch export (daily)                  │          │
+│  │  • Scheduled queries                     │          │
+│  └──────────────────────────────────────────┘          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Integration Flow
+
+```
+User Action
+    ↓
+Frontend (React)
+    ↓
+API Route (Astro)
+    ↓
+┌───────────┬────────────┐
+│ Firestore │ BigQuery   │
+│ (primary) │ (analytics)│
+└───────────┴────────────┘
+     ↓            ↓
+ Operational   Analytics
+    Data         Data
+```
+
+---
+
+## 📊 Dataset Structure
+
+### Dataset: `flow_analytics`
+
+**Purpose:** Store all analytics and aggregated data for reporting and insights.
+
+**Location:** `us-central1` (same as Firestore)
+
+**Default Expiration:** None (manual cleanup via retention policies)
+
+---
+
+## 📋 Table Schemas
+
+### 1. users
+
+**Purpose:** User profile analytics and engagement metrics
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.users` (
+  user_id STRING NOT NULL,
+  email STRING NOT NULL,
+  name STRING,
+  role STRING,
+  company STRING,
+  department STRING,
+  created_at TIMESTAMP NOT NULL,
+  last_login TIMESTAMP,
+  total_conversations INT64 DEFAULT 0,
+  total_messages INT64 DEFAULT 0,
+  total_context_sources INT64 DEFAULT 0,
+  avg_conversation_length FLOAT64,
+  preferred_model STRING,
+  is_active BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(created_at)
+CLUSTER BY user_id, role;
+```
+
+**Key Fields:**
+- `user_id`: Unique identifier (from Firestore users collection)
+- `total_conversations`: Lifetime conversation count
+- `total_messages`: Lifetime message count
+- `avg_conversation_length`: Average messages per conversation
+
+**Partitioning:** By `created_at` date (for efficient date range queries)
+
+**Clustering:** By `user_id`, `role` (for user-specific and role-based queries)
+
+---
+
+### 2. sessions
+
+**Purpose:** Track user sessions and engagement time
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.sessions` (
+  session_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  started_at TIMESTAMP NOT NULL,
+  ended_at TIMESTAMP,
+  duration_seconds INT64,
+  page_views INT64 DEFAULT 0,
+  conversations_created INT64 DEFAULT 0,
+  messages_sent INT64 DEFAULT 0,
+  context_sources_added INT64 DEFAULT 0,
+  device_type STRING,
+  browser STRING,
+  referrer STRING,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(started_at)
+CLUSTER BY user_id, DATE(started_at);
+```
+
+**Key Fields:**
+- `session_id`: Unique session identifier
+- `duration_seconds`: Session length
+- `conversations_created`: Conversations started in this session
+- `messages_sent`: Messages sent during session
+
+**Partitioning:** By `started_at` date
+
+**Clustering:** By `user_id` and date for efficient user activity queries
+
+---
+
+### 3. conversations
+
+**Purpose:** Conversation-level analytics and performance metrics
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.conversations` (
+  conversation_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  title STRING,
+  model STRING NOT NULL,
+  created_at TIMESTAMP NOT NULL,
+  completed_at TIMESTAMP,
+  message_count INT64 DEFAULT 0,
+  total_input_tokens INT64 DEFAULT 0,
+  total_output_tokens INT64 DEFAULT 0,
+  total_context_tokens INT64 DEFAULT 0,
+  avg_response_time_ms FLOAT64,
+  context_sources_used ARRAY<STRING>,
+  context_sources_count INT64 DEFAULT 0,
+  folder_id STRING,
+  is_archived BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(created_at)
+CLUSTER BY user_id, model, DATE(created_at);
+```
+
+**Key Fields:**
+- `model`: AI model used (gemini-2.5-flash, gemini-2.5-pro)
+- `total_input_tokens`: Sum of all input tokens
+- `total_output_tokens`: Sum of all output tokens
+- `context_sources_used`: Array of context source IDs
+- `avg_response_time_ms`: Average AI response time
+
+**Partitioning:** By `created_at` date
+
+**Clustering:** By `user_id`, `model`, and date for model usage analysis
+
+---
+
+### 4. messages
+
+**Purpose:** Individual message analytics and content analysis
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.messages` (
+  message_id STRING NOT NULL,
+  conversation_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  role STRING NOT NULL,
+  content_preview STRING,
+  content_length INT64,
+  input_tokens INT64 DEFAULT 0,
+  output_tokens INT64 DEFAULT 0,
+  context_window_used INT64 DEFAULT 0,
+  context_window_capacity INT64,
+  response_time_ms INT64,
+  model STRING,
+  timestamp TIMESTAMP NOT NULL,
+  has_code BOOLEAN DEFAULT FALSE,
+  has_table BOOLEAN DEFAULT FALSE,
+  has_image BOOLEAN DEFAULT FALSE,
+  context_sources ARRAY<STRING>,
+  error_occurred BOOLEAN DEFAULT FALSE,
+  error_message STRING
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY user_id, conversation_id, DATE(timestamp);
+```
+
+**Key Fields:**
+- `role`: 'user' | 'assistant' | 'system'
+- `context_window_used`: Tokens used in context window
+- `response_time_ms`: AI response latency
+- `has_code`, `has_table`, `has_image`: Content type flags
+- `error_occurred`: Track failed generations
+
+**Partitioning:** By `timestamp` date
+
+**Clustering:** By `user_id`, `conversation_id`, and date
+
+---
+
+### 5. analytics_events
+
+**Purpose:** User interaction and behavior tracking
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.analytics_events` (
+  event_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  session_id STRING,
+  event_type STRING NOT NULL,
+  event_category STRING,
+  event_action STRING,
+  event_label STRING,
+  event_value FLOAT64,
+  event_data JSON,
+  page_url STRING,
+  referrer STRING,
+  timestamp TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY user_id, event_type, DATE(timestamp);
+```
+
+**Event Types:**
+- `page_view`: Page navigation
+- `button_click`: Button interactions
+- `conversation_start`: New conversation created
+- `message_sent`: User message sent
+- `context_added`: Context source added
+- `context_validated`: Expert validation
+- `model_changed`: Model switch (flash ↔ pro)
+- `error_occurred`: Error events
+
+**Partitioning:** By `timestamp` date
+
+**Clustering:** By `user_id`, `event_type`, and date
+
+---
+
+### 6. context_usage
+
+**Purpose:** Context source usage and performance tracking
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.context_usage` (
+  usage_id STRING NOT NULL,
+  context_source_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  conversation_id STRING NOT NULL,
+  message_id STRING NOT NULL,
+  source_name STRING,
+  source_type STRING,
+  tokens_used INT64,
+  extraction_model STRING,
+  is_validated BOOLEAN DEFAULT FALSE,
+  validated_by STRING,
+  timestamp TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY user_id, context_source_id, DATE(timestamp);
+```
+
+**Key Fields:**
+- `source_type`: pdf, csv, excel, word, web-url, api
+- `tokens_used`: Tokens contributed by this source
+- `extraction_model`: Model used for extraction
+- `is_validated`: Whether source was expert-validated
+
+**Partitioning:** By `timestamp` date
+
+**Clustering:** By `user_id`, `context_source_id`, and date
+
+---
+
+### 7. model_usage
+
+**Purpose:** AI model usage, costs, and performance metrics
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.model_usage` (
+  usage_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  conversation_id STRING NOT NULL,
+  message_id STRING NOT NULL,
+  model STRING NOT NULL,
+  input_tokens INT64,
+  output_tokens INT64,
+  total_tokens INT64,
+  estimated_cost_usd FLOAT64,
+  response_time_ms INT64,
+  timestamp TIMESTAMP NOT NULL,
+  success BOOLEAN DEFAULT TRUE,
+  error_type STRING
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY model, user_id, DATE(timestamp);
+```
+
+**Cost Calculation:**
+```sql
+-- Example cost formula (adjust based on actual pricing)
+CASE model
+  WHEN 'gemini-2.5-flash' THEN 
+    (input_tokens / 1000000 * 0.075) + (output_tokens / 1000000 * 0.30)
+  WHEN 'gemini-2.5-pro' THEN 
+    (input_tokens / 1000000 * 1.25) + (output_tokens / 1000000 * 5.00)
+  ELSE 0
+END AS estimated_cost_usd
+```
+
+**Partitioning:** By `timestamp` date
+
+**Clustering:** By `model`, `user_id`, and date
+
+---
+
+### 8. daily_metrics
+
+**Purpose:** Pre-aggregated daily statistics for dashboard performance
+
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.daily_metrics` (
+  date DATE NOT NULL,
+  total_users INT64,
+  new_users INT64,
+  active_users INT64,
+  total_sessions INT64,
+  total_conversations INT64,
+  total_messages INT64,
+  total_input_tokens INT64,
+  total_output_tokens INT64,
+  avg_session_duration_minutes FLOAT64,
+  avg_messages_per_conversation FLOAT64,
+  flash_usage_pct FLOAT64,
+  pro_usage_pct FLOAT64,
+  total_cost_usd FLOAT64,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY date
+CLUSTER BY date;
+```
+
+**Update Schedule:** Daily at 02:00 UTC via scheduled query
+
+**Retention:** Keep last 730 days (2 years)
+
+---
+
+## 🔄 Firestore → BigQuery Sync Patterns
+
+### Pattern 1: Event-Driven Sync (Recommended)
+
+```typescript
+// src/lib/analytics.ts
+import { BigQuery } from '@google-cloud/bigquery';
+
+const bigquery = new BigQuery({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT,
+});
+
+const DATASET_ID = 'flow_analytics';
+
+// Track conversation creation
+export async function trackConversationCreated(conversation: Conversation) {
+  try {
+    await bigquery
+      .dataset(DATASET_ID)
+      .table('conversations')
+      .insert([{
+        conversation_id: conversation.id,
+        user_id: conversation.userId,
+        title: conversation.title,
+        model: conversation.agentModel,
+        created_at: conversation.createdAt,
+        message_count: 0,
+        total_input_tokens: 0,
+        total_output_tokens: 0,
+        updated_at: new Date(),
+      }]);
+  } catch (error) {
+    console.warn('⚠️ BigQuery sync failed (non-critical):', error);
+    // Don't throw - analytics failure shouldn't break app
+  }
+}
+
+// Track message sent
+export async function trackMessageSent(
+  message: Message,
+  tokenStats: TokenStats
+) {
+  try {
+    await bigquery
+      .dataset(DATASET_ID)
+      .table('messages')
+      .insert([{
+        message_id: message.id,
+        conversation_id: message.conversationId,
+        user_id: message.userId,
+        role: message.role,
+        content_preview: message.content.substring(0, 100),
+        content_length: message.content.length,
+        input_tokens: tokenStats.inputTokens,
+        output_tokens: tokenStats.outputTokens,
+        context_window_used: tokenStats.contextWindowUsed,
+        response_time_ms: tokenStats.responseTimeMs,
+        model: tokenStats.model,
+        timestamp: message.timestamp,
+      }]);
+  } catch (error) {
+    console.warn('⚠️ BigQuery sync failed (non-critical):', error);
+  }
+}
+```
+
+**Why Event-Driven?**
+- ✅ Real-time analytics
+- ✅ No data loss
+- ✅ Low latency
+- ❌ Slightly higher costs (more insert operations)
+
+---
+
+### Pattern 2: Batch Export (Alternative)
+
+```bash
+# Daily export from Firestore to BigQuery
+# Schedule via Cloud Scheduler
+
+# Export conversations
+gcloud firestore export gs://gen-lang-client-0986191192-exports/$(date +%Y%m%d) \
+  --collection-ids=conversations \
+  --project=gen-lang-client-0986191192
+
+# Load to BigQuery
+bq load \
+  --source_format=DATASTORE_BACKUP \
+  --replace \
+  gen-lang-client-0986191192:flow_analytics.conversations \
+  gs://gen-lang-client-0986191192-exports/$(date +%Y%m%d)/all_namespaces/kind_conversations/all_namespaces_kind_conversations.export_metadata
+```
+
+**Why Batch Export?**
+- ✅ Lower costs
+- ✅ Bulk operations
+- ❌ Delayed analytics (daily)
+- ❌ More complex setup
+
+---
+
+## 📊 Common Analytics Queries
+
+### Daily Active Users (DAU)
+
+```sql
+SELECT
+  DATE(timestamp) AS date,
+  COUNT(DISTINCT user_id) AS active_users
+FROM `gen-lang-client-0986191192.flow_analytics.analytics_events`
+WHERE
+  DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+  AND event_type IN ('page_view', 'message_sent')
+GROUP BY date
+ORDER BY date DESC;
+```
+
+---
+
+### Model Usage Distribution
+
+```sql
+SELECT
+  model,
+  COUNT(*) AS usage_count,
+  SUM(total_tokens) AS total_tokens,
+  ROUND(SUM(estimated_cost_usd), 2) AS total_cost_usd,
+  ROUND(AVG(response_time_ms), 0) AS avg_response_time_ms
+FROM `gen-lang-client-0986191192.flow_analytics.model_usage`
+WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+GROUP BY model
+ORDER BY usage_count DESC;
+```
+
+---
+
+### Top Context Sources
+
+```sql
+SELECT
+  source_name,
+  source_type,
+  COUNT(*) AS usage_count,
+  SUM(tokens_used) AS total_tokens_used,
+  COUNT(DISTINCT user_id) AS unique_users,
+  COUNTIF(is_validated) AS validated_count
+FROM `gen-lang-client-0986191192.flow_analytics.context_usage`
+WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+GROUP BY source_name, source_type
+ORDER BY usage_count DESC
+LIMIT 20;
+```
+
+---
+
+### User Engagement Funnel
+
+```sql
+WITH user_actions AS (
+  SELECT
+    user_id,
+    COUNTIF(event_type = 'conversation_start') AS conversations_started,
+    COUNTIF(event_type = 'message_sent') AS messages_sent,
+    COUNTIF(event_type = 'context_added') AS context_added
+  FROM `gen-lang-client-0986191192.flow_analytics.analytics_events`
+  WHERE DATE(timestamp) = CURRENT_DATE()
+  GROUP BY user_id
+)
+SELECT
+  COUNT(DISTINCT user_id) AS total_users,
+  COUNTIF(conversations_started > 0) AS users_with_conversations,
+  COUNTIF(messages_sent > 0) AS users_with_messages,
+  COUNTIF(context_added > 0) AS users_with_context,
+  ROUND(COUNTIF(messages_sent > 0) / COUNT(DISTINCT user_id) * 100, 2) AS message_conversion_pct
+FROM user_actions;
+```
+
+---
+
+### Cost Analysis by User
+
+```sql
+SELECT
+  u.user_id,
+  u.email,
+  u.role,
+  COUNT(DISTINCT m.conversation_id) AS total_conversations,
+  SUM(m.total_tokens) AS total_tokens,
+  ROUND(SUM(m.estimated_cost_usd), 2) AS total_cost_usd,
+  ROUND(AVG(m.estimated_cost_usd), 4) AS avg_cost_per_message
+FROM `gen-lang-client-0986191192.flow_analytics.users` u
+JOIN `gen-lang-client-0986191192.flow_analytics.model_usage` m
+  ON u.user_id = m.user_id
+WHERE DATE(m.timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+GROUP BY u.user_id, u.email, u.role
+ORDER BY total_cost_usd DESC
+LIMIT 50;
+```
+
+---
+
+## 🔧 Local Development Setup
+
+### Using Sample Data (Default)
+
+```typescript
+// src/lib/analytics.ts
+const IS_DEVELOPMENT = import.meta.env.DEV;
+
+export async function getDailyMetrics(days: number = 30): Promise<DailyMetrics[]> {
+  if (IS_DEVELOPMENT) {
+    console.log('📝 [DEV] Using sample daily metrics');
+    return generateSampleDailyMetrics(days);
+  }
+  
+  try {
+    const query = `
+      SELECT * FROM \`${PROJECT_ID}.flow_analytics.daily_metrics\`
+      WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+      ORDER BY date DESC
+    `;
+    
+    const [rows] = await bigquery.query({ query });
+    return rows;
+  } catch (error) {
+    console.error('❌ BigQuery error:', error);
+    console.warn('💡 Falling back to sample data');
+    return generateSampleDailyMetrics(days);
+  }
+}
+```
+
+**Why Sample Data in Dev?**
+- ✅ No BigQuery setup required
+- ✅ Instant development
+- ✅ No costs
+- ✅ Predictable data for testing
+
+---
+
+### Using Real BigQuery (Optional)
+
+```bash
+# 1. Authenticate
+gcloud auth application-default login
+
+# 2. Create dataset
+bq mk --dataset \
+  --location=us-central1 \
+  --description="Flow Analytics Dataset" \
+  gen-lang-client-0986191192:flow_analytics
+
+# 3. Create tables (run SQL from schemas above)
+bq query --use_legacy_sql=false < create_tables.sql
+
+# 4. Set environment variable
+export GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+export USE_REAL_BIGQUERY=true
+
+# 5. Run dev server
+npm run dev
+```
+
+---
+
+## 🚀 Production Deployment
+
+### Pre-Deployment Checklist
+
+```bash
+# 1. Verify dataset exists
+bq ls --project_id=gen-lang-client-0986191192 | grep flow_analytics
+
+# 2. Create dataset if needed
+bq mk --dataset \
+  --location=us-central1 \
+  --default_table_expiration=0 \
+  gen-lang-client-0986191192:flow_analytics
+
+# 3. Create all tables
+for table in users sessions conversations messages analytics_events context_usage model_usage daily_metrics; do
+  bq query --use_legacy_sql=false < schemas/${table}.sql
+done
+
+# 4. Set up scheduled queries
+bq query --use_legacy_sql=false < scheduled_queries/daily_metrics.sql
+
+# 5. Configure data retention
+bq update --time_partitioning_expiration=5256000 \
+  gen-lang-client-0986191192:flow_analytics.analytics_events
+```
+
+---
+
+### Scheduled Queries
+
+**Daily Metrics Aggregation** (runs at 02:00 UTC)
+
+```sql
+-- scheduled_queries/daily_metrics.sql
+MERGE `gen-lang-client-0986191192.flow_analytics.daily_metrics` T
+USING (
+  SELECT
+    CURRENT_DATE() - 1 AS date,
+    COUNT(DISTINCT u.user_id) AS total_users,
+    COUNTIF(DATE(u.created_at) = CURRENT_DATE() - 1) AS new_users,
+    COUNT(DISTINCT s.user_id) AS active_users,
+    COUNT(DISTINCT s.session_id) AS total_sessions,
+    COUNT(DISTINCT c.conversation_id) AS total_conversations,
+    COUNT(DISTINCT m.message_id) AS total_messages,
+    SUM(m.input_tokens) AS total_input_tokens,
+    SUM(m.output_tokens) AS total_output_tokens,
+    AVG(s.duration_seconds / 60) AS avg_session_duration_minutes,
+    AVG(c.message_count) AS avg_messages_per_conversation,
+    COUNTIF(mu.model = 'gemini-2.5-flash') / COUNT(*) * 100 AS flash_usage_pct,
+    COUNTIF(mu.model = 'gemini-2.5-pro') / COUNT(*) * 100 AS pro_usage_pct,
+    SUM(mu.estimated_cost_usd) AS total_cost_usd,
+    CURRENT_TIMESTAMP() AS updated_at
+  FROM `gen-lang-client-0986191192.flow_analytics.users` u
+  LEFT JOIN `gen-lang-client-0986191192.flow_analytics.sessions` s
+    ON u.user_id = s.user_id AND DATE(s.started_at) = CURRENT_DATE() - 1
+  LEFT JOIN `gen-lang-client-0986191192.flow_analytics.conversations` c
+    ON u.user_id = c.user_id AND DATE(c.created_at) = CURRENT_DATE() - 1
+  LEFT JOIN `gen-lang-client-0986191192.flow_analytics.messages` m
+    ON u.user_id = m.user_id AND DATE(m.timestamp) = CURRENT_DATE() - 1
+  LEFT JOIN `gen-lang-client-0986191192.flow_analytics.model_usage` mu
+    ON u.user_id = mu.user_id AND DATE(mu.timestamp) = CURRENT_DATE() - 1
+) S
+ON T.date = S.date
+WHEN MATCHED THEN
+  UPDATE SET
+    T.total_users = S.total_users,
+    T.new_users = S.new_users,
+    T.active_users = S.active_users,
+    T.total_sessions = S.total_sessions,
+    T.total_conversations = S.total_conversations,
+    T.total_messages = S.total_messages,
+    T.total_input_tokens = S.total_input_tokens,
+    T.total_output_tokens = S.total_output_tokens,
+    T.avg_session_duration_minutes = S.avg_session_duration_minutes,
+    T.avg_messages_per_conversation = S.avg_messages_per_conversation,
+    T.flash_usage_pct = S.flash_usage_pct,
+    T.pro_usage_pct = S.pro_usage_pct,
+    T.total_cost_usd = S.total_cost_usd,
+    T.updated_at = S.updated_at
+WHEN NOT MATCHED THEN
+  INSERT ROW;
+```
+
+---
+
+## 💰 Cost Optimization
+
+### 1. Partitioning & Clustering
+
+**Always partition by date:**
+```sql
+PARTITION BY DATE(timestamp)
+```
+
+**Cluster frequently queried fields:**
+```sql
+CLUSTER BY user_id, event_type, DATE(timestamp)
+```
+
+**Savings:** Up to 90% on query costs for date-range queries
+
+---
+
+### 2. Table Expiration
+
+```bash
+# Set expiration for high-volume tables
+bq update --time_partitioning_expiration=15552000 \
+  gen-lang-client-0986191192:flow_analytics.analytics_events
+# 180 days retention
+
+# Keep important tables indefinitely
+bq update --time_partitioning_expiration=0 \
+  gen-lang-client-0986191192:flow_analytics.conversations
+```
+
+---
+
+### 3. Query Cost Monitoring
+
+```sql
+-- Check query costs in INFORMATION_SCHEMA
+SELECT
+  user_email,
+  query,
+  total_bytes_processed / 1024 / 1024 / 1024 AS gb_processed,
+  (total_bytes_processed / 1024 / 1024 / 1024) * 5 AS estimated_cost_usd,
+  creation_time
+FROM `gen-lang-client-0986191192.region-us-central1.INFORMATION_SCHEMA.JOBS_BY_PROJECT`
+WHERE DATE(creation_time) = CURRENT_DATE()
+  AND job_type = 'QUERY'
+ORDER BY total_bytes_processed DESC
+LIMIT 20;
+```
+
+---
+
+### 4. Materialized Views for Dashboards
+
+```sql
+-- Create materialized view for faster dashboard queries
+CREATE MATERIALIZED VIEW `gen-lang-client-0986191192.flow_analytics.user_stats_mv`
+AS
+SELECT
+  user_id,
+  COUNT(DISTINCT conversation_id) AS total_conversations,
+  COUNT(*) AS total_messages,
+  SUM(total_tokens) AS total_tokens,
+  SUM(estimated_cost_usd) AS total_cost
+FROM `gen-lang-client-0986191192.flow_analytics.model_usage`
+WHERE DATE(timestamp) >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+GROUP BY user_id;
+```
+
+**Refresh:** Automatic (every 30 minutes by default)
+
+**Cost Savings:** Up to 99% for repeated queries
+
+---
+
+## 🔍 Monitoring & Alerts
+
+### Cloud Monitoring Metrics
+
+```yaml
+# monitoring/bigquery_alerts.yaml
+alertPolicies:
+  - displayName: "BigQuery Daily Cost Threshold"
+    conditions:
+      - displayName: "Daily cost > $50"
+        conditionThreshold:
+          filter: 'resource.type="bigquery_project"'
+          comparison: COMPARISON_GT
+          thresholdValue: 50
+          duration: 0s
+    notificationChannels:
+      - projects/gen-lang-client-0986191192/notificationChannels/email-alerts
+
+  - displayName: "BigQuery Query Failures"
+    conditions:
+      - displayName: "Failed queries > 10"
+        conditionThreshold:
+          filter: 'resource.type="bigquery_project" AND metric.type="bigquery.googleapis.com/job/num_failed"'
+          comparison: COMPARISON_GT
+          thresholdValue: 10
+          duration: 300s
+```
+
+---
+
+### Query Performance Dashboard
+
+```sql
+-- Slow queries report
+SELECT
+  user_email,
+  REGEXP_EXTRACT(query, r'FROM `[^`]+\.([^`]+)`') AS table_name,
+  AVG(total_slot_ms) AS avg_slot_ms,
+  AVG(total_bytes_processed) AS avg_bytes_processed,
+  COUNT(*) AS query_count
+FROM `gen-lang-client-0986191192.region-us-central1.INFORMATION_SCHEMA.JOBS_BY_PROJECT`
+WHERE
+  DATE(creation_time) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+  AND job_type = 'QUERY'
+  AND state = 'DONE'
+GROUP BY user_email, table_name
+HAVING avg_slot_ms > 10000
+ORDER BY avg_slot_ms DESC;
+```
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented BigQuery analytics system should:
+
+1. **Data Collection**
+   - ✅ All key events tracked
+   - ✅ Real-time or near-real-time sync
+   - ✅ No data loss
+   - ✅ Consistent with Firestore
+
+2. **Query Performance**
+   - ✅ Dashboard queries < 2s (p95)
+   - ✅ Partitioning on all large tables
+   - ✅ Clustering on frequent filters
+   - ✅ Materialized views for dashboards
+
+3. **Cost Efficiency**
+   - ✅ Monthly costs < $100 for 10k users
+   - ✅ Query costs monitored
+   - ✅ Data retention policies active
+   - ✅ Scheduled queries optimized
+
+4. **Reliability**
+   - ✅ Graceful degradation (sample data in dev)
+   - ✅ Error handling on sync failures
+   - ✅ Scheduled queries running
+   - ✅ Monitoring alerts configured
+
+5. **Insights**
+   - ✅ Real-time dashboards
+   - ✅ User engagement metrics
+   - ✅ Cost analysis per user/model
+   - ✅ Context usage tracking
+
+---
+
+## 📚 Reference Documentation
+
+### Internal Docs
+- `src/lib/analytics.ts` - BigQuery integration
+- `.cursor/rules/backend.mdc` - Backend integration
+- `.cursor/rules/firestore.mdc` - Firestore sync patterns
+- `schemas/*.sql` - Table creation scripts
+
+### External Docs
+- [BigQuery Documentation](https://cloud.google.com/bigquery/docs)
+- [BigQuery Node.js Client](https://cloud.google.com/nodejs/docs/reference/bigquery/latest)
+- [Partitioning & Clustering](https://cloud.google.com/bigquery/docs/partitioned-tables)
+- [Cost Optimization](https://cloud.google.com/bigquery/docs/best-practices-costs)
+- [Scheduled Queries](https://cloud.google.com/bigquery/docs/scheduling-queries)
+
+---
+
+**Last Updated**: 2025-10-12
+**Version**: 1.0.0
+**Status**: ✅ Production Ready
+**Project**: gen-lang-client-0986191192
+**Dataset**: flow_analytics
