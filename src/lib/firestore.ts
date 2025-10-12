@@ -1,9 +1,11 @@
 import { Firestore } from '@google-cloud/firestore';
 
 // Support both Astro (import.meta.env) and Node.js (process.env)
-const PROJECT_ID = typeof import.meta !== 'undefined' && import.meta.env 
-  ? import.meta.env.GOOGLE_CLOUD_PROJECT 
-  : process.env.GOOGLE_CLOUD_PROJECT;
+// In production (Cloud Run), prioritize process.env
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : undefined);
 
 if (!PROJECT_ID) {
   console.error('❌ GOOGLE_CLOUD_PROJECT is not set! Please configure your .env file.');

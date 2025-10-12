@@ -71,29 +71,46 @@ SERVICE_URL=$(gcloud run services describe $SERVICE_NAME \
 echo -e "${GREEN}✅ Service deployed at: $SERVICE_URL${NC}"
 echo ""
 
-# Configure all environment variables from .env
-echo "🔧 Configuring environment variables from .env..."
+# Configure environment variables
+echo "🔧 Configuring environment variables..."
 
 # Check if credentials are available
-if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ] && [ -n "$JWT_SECRET" ]; then
-  echo "✅ Found credentials in .env, configuring Cloud Run..."
+if [ -n "$GOOGLE_CLIENT_ID" ]; then
+  echo "✅ Found GOOGLE_CLIENT_ID in .env"
   
+  # Set basic environment variables (PUBLIC_BASE_URL is critical for OAuth)
   gcloud run services update $SERVICE_NAME \
     --platform managed \
     --region $REGION \
-    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,NODE_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
-    --update-secrets="GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest" 2>/dev/null || \
-  gcloud run services update $SERVICE_NAME \
-    --platform managed \
-    --region $REGION \
-    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET,JWT_SECRET=$JWT_SECRET,GEMINI_API_KEY=$GEMINI_API_KEY,NODE_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+    --set-env-vars="PUBLIC_BASE_URL=$SERVICE_URL,GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID,NODE_ENV=production,GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
   
   echo -e "${GREEN}✅ Environment variables configured${NC}"
   echo "   PUBLIC_BASE_URL: $SERVICE_URL"
   echo "   GOOGLE_CLIENT_ID: ***${GOOGLE_CLIENT_ID: -10}"
+  echo ""
+  
+  # Try to update secrets if they exist, otherwise suggest manual setup
+  echo "🔐 Checking for Secret Manager secrets..."
+  if gcloud secrets describe google-client-secret --project=$PROJECT_ID &>/dev/null; then
+    echo "✅ Secrets already configured in Secret Manager"
+    echo "   Using existing secrets..."
+  else
+    echo -e "${YELLOW}⚠️  Secrets not found in Secret Manager${NC}"
+    echo ""
+    echo "To configure secrets (one-time setup):"
+    echo ""
+    echo "1️⃣  Create secrets:"
+    echo -e "   ${BLUE}echo -n \"\$GOOGLE_CLIENT_SECRET\" | gcloud secrets create google-client-secret --data-file=- --project=$PROJECT_ID${NC}"
+    echo -e "   ${BLUE}echo -n \"\$JWT_SECRET\" | gcloud secrets create jwt-secret --data-file=- --project=$PROJECT_ID${NC}"
+    echo -e "   ${BLUE}echo -n \"\$GEMINI_API_KEY\" | gcloud secrets create gemini-api-key --data-file=- --project=$PROJECT_ID${NC}"
+    echo ""
+    echo "2️⃣  Update Cloud Run to use secrets:"
+    echo -e "   ${BLUE}gcloud run services update $SERVICE_NAME --update-secrets=GOOGLE_CLIENT_SECRET=google-client-secret:latest,JWT_SECRET=jwt-secret:latest,GEMINI_API_KEY=gemini-api-key:latest --region=$REGION${NC}"
+    echo ""
+  fi
 else
   # Fallback: just set PUBLIC_BASE_URL
-  echo "⚠️  Credentials not found in .env, setting PUBLIC_BASE_URL only..."
+  echo "⚠️  GOOGLE_CLIENT_ID not found in .env, setting PUBLIC_BASE_URL only..."
   gcloud run services update $SERVICE_NAME \
     --platform managed \
     --region $REGION \

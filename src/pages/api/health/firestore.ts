@@ -46,9 +46,11 @@ export const GET: APIRoute = async () => {
 
   try {
     // Check 1: Project ID
-    const projectId = typeof import.meta !== 'undefined' && import.meta.env 
-      ? import.meta.env.GOOGLE_CLOUD_PROJECT 
-      : process.env.GOOGLE_CLOUD_PROJECT;
+    // Prioritize process.env for Cloud Run
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || 
+      (typeof import.meta !== 'undefined' && import.meta.env 
+        ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+        : undefined);
 
     if (projectId) {
       healthCheck.checks.projectId.status = 'pass';

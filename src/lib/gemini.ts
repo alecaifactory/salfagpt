@@ -9,7 +9,11 @@ import { GoogleGenAI } from '@google/genai';
 import type { MessageContent, ContextSection } from './firestore';
 
 // Initialize Gemini AI client
-const API_KEY = import.meta.env.GOOGLE_AI_API_KEY || import.meta.env.GEMINI_API_KEY;
+// Prioritize process.env for Cloud Run
+const API_KEY = process.env.GOOGLE_AI_API_KEY || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? (import.meta.env.GOOGLE_AI_API_KEY || import.meta.env.GEMINI_API_KEY)
+    : undefined);
 
 if (!API_KEY) {
   console.warn('⚠️ No Google AI API key found. Set GOOGLE_AI_API_KEY or GEMINI_API_KEY in .env file');

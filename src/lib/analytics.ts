@@ -1,8 +1,14 @@
 import { BigQuery } from '@google-cloud/bigquery';
 
 // Initialize BigQuery client
+// Prioritize process.env for Cloud Run
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : undefined);
+
 const bigquery = new BigQuery({
-  projectId: import.meta.env.GOOGLE_CLOUD_PROJECT,
+  projectId: PROJECT_ID,
 });
 
 const DATASET_ID = 'flow_analytics';
@@ -172,7 +178,7 @@ export async function getTableSample(tableName: string, limit: number = 10): Pro
   try {
     const query = `
       SELECT *
-      FROM \`${import.meta.env.GOOGLE_CLOUD_PROJECT}.${DATASET_ID}.${tableName}\`
+      FROM \`${PROJECT_ID}.${DATASET_ID}.${tableName}\`
       LIMIT ${limit}
     `;
     
