@@ -33,6 +33,7 @@
     "@google-cloud/error-reporting": "^3.0.5",
     "@google-cloud/firestore": "^7.10.0",
     "@google-cloud/logging": "^11.2.1",
+    "@google-cloud/storage": "^7.17.2",
     "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.23.0",
     "@types/react-syntax-highlighter": "^15.5.13",
