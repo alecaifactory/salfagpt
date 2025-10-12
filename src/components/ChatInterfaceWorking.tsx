@@ -45,7 +45,13 @@ interface ContextSource {
   };
 }
 
-export default function ChatInterfaceWorking({ userId }: { userId: string }) {
+interface ChatInterfaceWorkingProps {
+  userId: string;
+  userEmail?: string;
+  userName?: string;
+}
+
+export default function ChatInterfaceWorking({ userId, userEmail, userName }: ChatInterfaceWorkingProps) {
   // Core state
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
@@ -470,11 +476,18 @@ export default function ChatInterfaceWorking({ userId }: { userId: string }) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
                   <User className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-sm font-medium text-slate-700">{userId}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-700 truncate">
+                    {userName || userEmail || userId}
+                  </p>
+                  {userName && userEmail && (
+                    <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+                  )}
+                </div>
               </div>
             </button>
 
