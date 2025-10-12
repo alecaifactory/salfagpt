@@ -1,0 +1,207 @@
+# OAuth Client Configuration - URL Stability Rules
+
+## 🚨 CRITICAL: Never Change These Values
+
+This rule protects the OAuth configuration by ensuring the Cloud Run URL remains stable.
+
+---
+
+## �� Protected Values
+
+### Service Name: `flow-chat`
+**NEVER** change this value in any `gcloud run deploy` command.
+
+```bash
+# ✅ CORRECT:
+gcloud run deploy flow-chat --region us-central1 --source .
+
+# ❌ FORBIDDEN:
+gcloud run deploy flow-chat-v2         # Changes URL
+gcloud run deploy production           # Changes URL
+gcloud run deploy salfagpt             # Changes URL
+```
+
+### Region: `us-central1`
+**NEVER** change this value in any `gcloud run deploy` command.
+
+```bash
+# ✅ CORRECT:
+gcloud run deploy flow-chat --region us-central1
+
+# ❌ FORBIDDEN:
+gcloud run deploy flow-chat --region us-east1      # Changes URL
+gcloud run deploy flow-chat --region europe-west1  # Changes URL
+```
+
+---
+
+## 📌 Current OAuth Configuration
+
+### Registered URL
+```
+https://flow-chat-cno6l2kfga-uc.a.run.app
+```
+
+### OAuth Client ID
+```
+1030147139179-20gjd3cru9jhgmhlkj88majubn2130ic.apps.googleusercontent.com
+```
+
+### Authorized Redirect URIs
+```
+http://localhost:3000/auth/callback
+https://flow-chat-cno6l2kfga-uc.a.run.app/auth/callback
+```
+
+**Status**: ✅ Verified in 21+ deployments
+
+---
+
+## ✅ Safe Operations (DO NOT Affect URL)
+
+- ✅ Update code with `gcloud run deploy flow-chat --source .`
+- ✅ Change environment variables
+- ✅ Change CPU/memory/timeout
+- ✅ Change scaling configuration
+- ✅ Update secrets
+
+---
+
+## ❌ Dangerous Operations (WILL Change URL)
+
+Only **3 actions** change the URL:
+
+1. **Changing Service Name** - `gcloud run deploy DIFFERENT-NAME`
+2. **Changing Region** - `gcloud run deploy flow-chat --region DIFFERENT-REGION`
+3. **Deleting Service** - `gcloud run services delete flow-chat`
+
+---
+
+## 🔍 Verification Protocol
+
+### Before ANY Deploy
+```bash
+./verify-url.sh
+```
+
+### Expected Output
+```
+✅ URL correcta: https://flow-chat-cno6l2kfga-uc.a.run.app
+```
+
+### Manual Verification
+```bash
+gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format="value(status.url)"
+```
+
+---
+
+## 🚨 If URL Changes Accidentally
+
+### Step 1: Identify New URL
+```bash
+gcloud run services describe flow-chat \
+  --region us-central1 \
+  --format="value(status.url)"
+```
+
+### Step 2: Update OAuth Configuration
+1. Open: https://console.cloud.google.com/apis/credentials?project=gen-lang-client-0986191192
+2. Edit OAuth Client: `1030147139179-20gjd3cru9jhgmhlkj88majubn2130ic`
+3. Update Authorized Redirect URIs with new URL
+
+### Step 3: Update Project Documentation
+- `.cursor/rules/project-identity.mdc`
+- `.cursor/rules/oauthclient.mdc`
+- `OAUTH_SETUP_GUIDE.md`
+- `PRE_DEPLOY_CHECKLIST.md`
+
+---
+
+## 🛡️ AI Assistant Rules
+
+### BEFORE Suggesting Deploy Commands
+1. **Always verify** service name is `flow-chat`
+2. **Always verify** region is `us-central1`
+3. **Never suggest** changing service name
+4. **Never suggest** changing region
+5. **Always mention** running `./verify-url.sh` before deploy
+
+### When User Asks About URLs
+1. **Remind** that current URL is permanent
+2. **Explain** only 3 actions change URL
+3. **Reference** this file and `CLOUD_RUN_URL_STABILITY.md`
+4. **Suggest** Domain Mapping for custom domain (not Load Balancer)
+
+### When User Wants to Rename/Move
+**STOP and ASK**:
+```
+⚠️ WARNING: This will change your OAuth URL!
+
+Current URL: https://flow-chat-cno6l2kfga-uc.a.run.app
+
+You'll need to:
+1. Update OAuth redirect URIs
+2. Update project documentation
+3. Test login again
+
+Are you sure?
+```
+
+---
+
+## 📚 Related Documentation
+
+### Primary Docs
+- `PRE_DEPLOY_CHECKLIST.md` - Quick checklist
+- `CLOUD_RUN_URL_STABILITY.md` - Complete guide
+- `OAUTH_SETUP_GUIDE.md` - OAuth configuration
+- `verify-url.sh` - Verification script
+
+### Reference Docs
+- `LOAD_BALANCER_EXPLANATION.md` - Why LB not needed
+- `CUSTOM_DOMAIN_SETUP.md` - Custom domain setup
+- `FIXED_URL_OPTIONS.md` - URL permanence
+
+---
+
+## 🔧 Quick Commands
+
+### Verify URL
+```bash
+./verify-url.sh
+```
+
+### Check Configuration
+```bash
+gcloud run services describe flow-chat --region us-central1
+```
+
+### Standard Deploy
+```bash
+gcloud run deploy flow-chat \
+  --region us-central1 \
+  --source .
+```
+
+---
+
+## ✅ Verification History
+
+- ✅ 21+ deployments verified stable
+- ✅ URL never changed
+- ✅ OAuth working correctly
+
+**Last Verified**: 2025-10-12  
+**URL**: `https://flow-chat-cno6l2kfga-uc.a.run.app`  
+**Status**: ✅ STABLE
+
+---
+
+**Remember**: When in doubt, verify first. The URL is stable - keep it that way.
+
+**Last Updated**: 2025-10-12  
+**Version**: 1.0.0  
+**Project**: Flow (gen-lang-client-0986191192)
