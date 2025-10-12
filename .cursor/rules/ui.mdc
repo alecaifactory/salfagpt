@@ -1,948 +1,1495 @@
-# UI Architecture & Roadmap - Flow
+# UI Documentation - Flow Platform
 
-## 🎯 Vision General
+## 🎨 Design System & Layout
 
-Flow es una plataforma de chat AI con gestión avanzada de contexto, workflows de procesamiento de documentos, y sistema de permisos granular para validación de contenido por expertos.
+### Color Palette
 
----
+#### Primary Colors
+```css
+Blue (Primary):
+  - blue-50: #eff6ff   /* Backgrounds */
+  - blue-100: #dbeafe  /* Hover states */
+  - blue-600: #2563eb  /* Primary actions */
+  - blue-700: #1d4ed8  /* Hover actions */
+  - blue-800: #1e40af  /* Dark blue */
 
-## 📐 Estructura Actual de la UI
+Green (Success/Flash Model):
+  - green-50: #f0fdf4   /* Backgrounds */
+  - green-100: #dcfce7  /* Light backgrounds */
+  - green-600: #16a34a  /* Success text */
+  - green-700: #15803d  /* Hover success */
 
-### Layout Principal (3 Paneles)
+Purple (Pro Model):
+  - purple-50: #faf5ff  /* Backgrounds */
+  - purple-100: #f3e8ff /* Light backgrounds */
+  - purple-600: #9333ea /* Pro model badge */
+  - purple-700: #7e22ce /* Hover purple */
 
+Yellow (Warning):
+  - yellow-50: #fefce8  /* Backgrounds */
+  - yellow-500: #eab308 /* Warning text */
+  - yellow-600: #ca8a04 /* Warning icons */
+
+Red (Error):
+  - red-50: #fef2f2    /* Backgrounds */
+  - red-600: #dc2626   /* Error text */
+  - red-700: #b91c1c   /* Hover error */
+
+Neutral (Slate):
+  - slate-50: #f8fafc   /* Light backgrounds */
+  - slate-100: #f1f5f9  /* Borders, dividers */
+  - slate-200: #e2e8f0  /* Input borders */
+  - slate-400: #94a3b8  /* Placeholder text */
+  - slate-500: #64748b  /* Secondary text */
+  - slate-600: #475569  /* Body text */
+  - slate-700: #334155  /* Headings */
+  - slate-800: #1e293b  /* Dark headings */
+  - slate-900: #0f172a  /* Black text */
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                          Header                                  │
-├──────────────┬────────────────────────────┬─────────────────────┤
-│              │                            │                     │
-│   LEFT       │      MAIN CHAT             │     RIGHT          │
-│   PANEL      │       AREA                 │     PANEL          │
-│              │                            │                     │
-│  - Historial │  - Messages                │  - Workflows       │
-│  - Context   │  - Context Button          │  - Execution       │
-│    Sources   │  - Input Area              │  - Status          │
-│              │                            │                     │
-│              │                            │                     │
-└──────────────┴────────────────────────────┴─────────────────────┘
-```
-
----
-
-## 🏗️ Componentes Implementados
-
-### 1. **Panel Izquierdo (Left Sidebar)**
-
-#### A) Sección Superior: Historial de Agentes
-- **Botón**: "Nuevo Agente" (+ icono)
-  - Crea conversación en Firestore GCP
-  - Genera ID permanente
-  - Persiste entre sesiones
-- **Lista de Conversaciones**:
-  - Ordenadas por fecha (más reciente primero)
-  - Click para cambiar de conversación
-  - Highlight del agente activo
-  - Scroll infinito para historial largo
-
-#### B) Sección Inferior: Fuentes de Contexto
-**Título**: "Fuentes de Contexto"
-- **Botón**: "+ Agregar" (abre AddSourceModal)
-- **Lista de Context Sources**:
-  - Tarjetas con:
-    - Nombre del archivo
-    - Tipo (PDF, CSV, Excel, etc.)
-    - **Toggle switch** (verde activo / gris inactivo)
-    - **Botón Settings** (⚙️ - abre ContextSourceSettingsModal)
-    - **Progress bar** (durante procesamiento)
-    - **Error display** (si falla)
-  - Click en tarjeta → expande SourceDetailPanel
-
-#### C) Sección Expandible: Source Detail Panel
-- Se muestra cuando se selecciona un context source
-- **Contenido**:
-  - Preview del contenido extraído
-  - Metadata completa
-  - Botón "Volver" para colapsar
-- **Características**:
-  - Expande left panel hacia la derecha
-  - Ocupa más espacio vertical
-  - Deja espacio para historial arriba
-
-#### D) User Menu (Bottom)
-- Avatar + Nombre + Email del usuario
-- Menú desplegable con:
-  - **Gestión de Contexto** (nuevo)
-    - Abre ContextManagementDashboard
-    - Administra permisos de acceso
-    - Grupos y reglas de contexto
-  - **Configuración** (abre UserSettingsModal)
-    - Modelo preferido (Flash/Pro)
-    - System prompt personalizado
-    - Idioma (ES/EN/PT)
-  - **Cerrar Sesión**
-
----
-
-### 2. **Panel Central (Main Chat Area)**
-
-#### A) Messages Area
-- **Scroll container** para mensajes
-- **Message bubbles**:
-  - Usuario: alineado derecha, azul
-  - Asistente: alineado izquierda, gris
-- **Loading indicator**: spinner durante respuesta
-- **Auto-scroll** al último mensaje
-
-#### B) Context Button (Arriba del Input)
-**Display**:
-```
-Contexto: 0.5% • ✨ Gemini 2.5 Flash • 1 fuentes
-```
-- **Porcentaje de uso**: Verde < 50%, Amarillo 50-80%, Rojo > 80%
-- **Icono Sparkles**: ✨
-- **Nombre del modelo**: Flash o Pro
-- **Número de fuentes activas**
-
-**Click → Expande Panel de Contexto**:
-- **Header con estadísticas**:
-  - Total tokens usados
-  - Tokens disponibles
-  - Capacidad del modelo (1M o 2M)
-  - Badge de color según % de uso
-
-- **Desglose detallado**:
-  1. **System Prompt**:
-     - Preview (150 chars)
-     - Cuenta de tokens
-  
-  2. **Historial de Conversación**:
-     - Últimos 3 mensajes con preview
-     - Total mensajes y tokens
-     - 👤 Usuario vs 🤖 Asistente (con colores)
-  
-  3. **Fuentes de Contexto**:
-     - Lista de fuentes activas
-     - Preview del contenido (100 chars)
-     - Metadata (páginas, tamaño)
-     - Fondo verde para destacar
-
-#### C) Input Area
-- **Textarea** para escribir mensaje
-- **Botón Send** (icono enviar)
-  - Deshabilitado si vacío o cargando
-  - Loading spinner durante respuesta
-- **Disclaimer**: "Flow puede cometer errores. Verifica la información importante."
-
----
-
-### 3. **Panel Derecho (Right Panel - Workflows)**
-
-#### A) Header
-- Título: "Workflows"
-- Subtitle: "Procesa documentos y APIs"
-- **Botón toggle** para ocultar/mostrar panel
-
-#### B) Lista de Workflows
-Cada workflow card muestra:
-- **Icono** del tipo de documento
-- **Nombre**: "Procesar PDF", "Procesar CSV", etc.
-- **Descripción**: Breve explicación
-- **Configuración actual**:
-  - Max file size (ej: 50 MB)
-  - Modelo usado (Flash por defecto)
-- **Status icon**:
-  - ⏸️ Available (gris)
-  - ⏳ Running (azul, animado)
-  - ✓ Completed (verde)
-  - ✗ Failed (rojo)
-- **Botones**:
-  - **▶ Ejecutar**: Abre AddSourceModal con tipo pre-seleccionado
-  - **⚙️ Settings**: Abre WorkflowConfigModal
-
-#### C) Workflows Disponibles
-1. **Procesar PDF**:
-   - Extracción automática: texto, tablas, imágenes (como texto)
-   - Modelo: gemini-2.5-flash (default)
-   - Max: 50 MB
-   
-2. **Procesar CSV**:
-   - Lee y analiza CSV
-   - Max: 20 MB
-   
-3. **Analizar Excel**:
-   - Procesa hojas de cálculo
-   - Max: 50 MB
-   
-4. **Extraer Texto de Word**:
-   - Lee documentos Microsoft Word
-   - Max: 30 MB
-   
-5. **Indexar Carpeta**:
-   - Procesa todos los archivos en una carpeta
-   - Max: 200 MB
-
----
-
-## 🎭 Modales Implementados
-
-### 1. AddSourceModal
-**Función**: Agregar nueva fuente de contexto
-
-**Flujo**:
-1. **Paso 1: Select Type** (si no viene pre-seleccionado)
-   - Archivo (PDF, CSV, Excel, Word)
-   - URL Web
-   - API
-   
-2. **Paso 2: Configure**
-   - Upload área (drag & drop o click)
-   - Mostrar archivo seleccionado (nombre, tamaño)
-   - Selector de modelo:
-     - Gemini 2.5 Flash (recomendado, 94% más económico)
-     - Gemini 2.5 Pro (mayor precisión)
-   - Tooltip con costos y recomendaciones
-   
-3. **Paso 3: Processing**
-   - Progress bar con porcentaje
-   - Mensaje de estado
-   - Indicador visual del modelo usado
-
-**Features**:
-- Pre-selección de tipo desde workflow
-- Reset automático al abrir/cerrar
-- Progress tracking en tiempo real
-- Error handling con detalles
-
----
-
-### 2. WorkflowConfigModal
-**Función**: Configurar parámetros de workflow
-
-**Contenido**:
-- **Max File Size**: Input numérico (MB)
-- **Max Output Length**: Input numérico (tokens)
-- **Language**: Select (es, en, pt)
-- **AI Model**: 
-  - Gemini 2.5 Flash (default)
-  - Gemini 2.5 Pro
-  - Tooltip con info de costos
-
-**Características**:
-- z-index: 999 (sobre todo)
-- Reset al abrir
-- Save guarda en state de workflows
-
----
-
-### 3. UserSettingsModal
-**Función**: Configuración personal del usuario
-
-**Contenido**:
-- **Header**: Muestra nombre y email del usuario
-
-- **Modelo Preferido**:
-  - Gemini 2.5 Flash (recomendado)
-  - Gemini 2.5 Pro (avanzado)
-  - Cards visuales con badges
-  - Info de costos y casos de uso
-
-- **System Prompt**:
-  - Textarea personalizable
-  - Default: "Eres un asistente útil y profesional..."
-  - Guía las respuestas del asistente
-
-- **Idioma**:
-  - Español (default)
-  - English
-  - Português
-
-**Persistencia**: localStorage → `flow_user_settings`
-
----
-
-### 4. ContextSourceSettingsModal ⭐
-**Función**: Ver detalles y re-configurar extracción de contexto
-
-**Layout**: 2 columnas compactas
-
-#### Columna Izquierda:
-1. **Fuente Original**:
-   - 📄 Nombre del archivo
-   - 📋 Tipo (PDF, CSV, etc.)
-   - 💾 Tamaño
-
-2. **Detalles de Extracción**:
-   - ✨ Modelo usado
-   - ⏱️ Tiempo de procesamiento
-   - 📝 Caracteres extraídos
-   - 🔢 Tokens estimados
-
-3. **Estado de Validación** (NUEVO):
-   - **Si validado** ✅:
-     - Badge verde "Validado"
-     - Usuario que validó
-     - Fecha de validación
-   - **Si pendiente** ⏳:
-     - Badge amarillo "Pendiente"
-     - Nota: "Debe ser validado por experto del dominio"
-   - **Permisos para validar**:
-     - admin
-     - context_signoff
-     - context_owner
-     - context_reviewer
-
-#### Columna Derecha:
-1. **Configuración Actual**:
-   - Max file size (input)
-   - Max output length (input)
-   - AI Model selector (con tooltip)
-
-2. **Preview del Contenido**:
-   - Primeros 500 caracteres
-   - Scroll si es más largo
-
-**Botón**: "Re-Extraer Contenido"
-- Re-procesa con nueva configuración
-- Muestra progreso en tiempo real
-- Actualiza metadata
-
----
-
-### 5. ContextManagementDashboard
-**Función**: Administración de acceso a contextos
-
-**Contenido**:
-- Overview de contextos del sistema
-- Asignación de permisos por usuario/grupo
-- Grupos disponibles:
-  - Product Team
-  - Tech Team
-  - Compliance Team
-  - Collections Team
-  - Treasury Team
-  - Área de Compras
-  - Área de Ventas
-  - Área de Operaciones
-  - Marketing
-  - Finanzas
-  - Cobranza
-  - Adquisición
-  - Retención
-  - Gerencia
-
-**Features**:
-- Crear nuevos grupos
-- Asignar reglas de acceso
-- Fechas de expiración
-- Duración de acceso
-
----
-
-## 🎨 Design System
-
-### Colores
-- **Primary**: Blue 600 (#2563eb)
-- **Success**: Green 600 (#16a34a)
-- **Warning**: Yellow 500 (#eab308)
-- **Error**: Red 600 (#dc2626)
-- **Text**: Slate 700, 600, 500
-- **Background**: Slate 50, White
-
-### Iconos (Lucide React)
-- MessageSquare, Plus, Send, FileText
-- Loader2, User, Settings, LogOut
-- Play, CheckCircle, XCircle, Sparkles
-- RefreshCw, Clock, HardDrive, Zap, Info
 
 ### Typography
-- **Headers**: font-bold, text-lg/xl/2xl
-- **Body**: text-sm/base
-- **Small**: text-xs/[10px]
 
-### Spacing
-- Padding: p-2/3/4/6
-- Gaps: gap-2/3/4
-- Margins: mb-2/3/4
+```css
+Font Family: Inter, system-ui, sans-serif
 
-### Components
-- **Rounded**: rounded-lg/xl/2xl
-- **Shadows**: shadow-md/lg/xl/2xl
-- **Borders**: border border-slate-200/300
-- **Transitions**: transition-colors/all
+Headings:
+  h1: 2rem (32px), font-bold, text-slate-900
+  h2: 1.5rem (24px), font-bold, text-slate-800
+  h3: 1.25rem (20px), font-semibold, text-slate-700
+  h4: 1.125rem (18px), font-semibold, text-slate-700
 
----
+Body:
+  Base: 1rem (16px), font-normal, text-slate-800
+  Small: 0.875rem (14px), text-slate-600
+  XSmall: 0.75rem (12px), text-slate-500
 
-## 🔄 Flujo de Datos
-
-### 1. Crear Nuevo Agente
-```
-Usuario → Click "Nuevo Agente"
-  ↓
-POST /api/conversations
-  Body: { userId, title: "Nuevo Agente" }
-  ↓
-Firestore → Crea documento en collection conversations
-  ↓
-Response: { conversation: { id, title, createdAt, ... } }
-  ↓
-Frontend → setConversations, setCurrentConversation
-  ↓
-✅ Conversación persiste en GCP
+Code:
+  Inline: 0.875rem, font-mono, bg-slate-100
+  Block: 0.875rem, font-mono, VSCode Dark theme
 ```
 
-### 2. Enviar Mensaje
-```
-Usuario → Escribe mensaje → Click Send
-  ↓
-POST /api/conversations/{id}/messages
-  Body: { userId, message, model, contextSources }
-  ↓
-Backend:
-  1. Obtiene contexto activo del usuario
-  2. Construye prompt con context sources
-  3. Llama a Gemini AI
-  4. Guarda mensaje en Firestore
-  ↓
-Response: { message: { id, role, content, ... } }
-  ↓
-Frontend → Añade mensaje a UI
-  ↓
-✅ Mensaje guardado y mostrado
+### Spacing System
+
+```css
+Gap & Padding Scale:
+  0.5: 0.125rem (2px)
+  1: 0.25rem (4px)
+  2: 0.5rem (8px)
+  3: 0.75rem (12px)
+  4: 1rem (16px)
+  6: 1.5rem (24px)
+  8: 2rem (32px)
+  12: 3rem (48px)
+  16: 4rem (64px)
 ```
 
-### 3. Agregar Context Source
-```
-Usuario → Click "+ Agregar" o "▶ Ejecutar" en workflow
-  ↓
-AddSourceModal abre (con tipo pre-seleccionado si viene de workflow)
-  ↓
-Usuario selecciona archivo y modelo
-  ↓
-handleAddSource():
-  1. Crea FormData con file y model
-  2. POST /api/extract-document
-  3. Update progress (0% → 50% → 100%)
-  ↓
-Backend:
-  1. Recibe archivo
-  2. Llama a Gemini AI para extracción
-  3. Retorna texto + metadata
-  ↓
-Frontend:
-  1. Crea ContextSource con extractedData
-  2. Guarda originalFile para re-extracción
-  3. Añade a contextSources state
-  ↓
-✅ Context source disponible para activar
+### Border Radius
+
+```css
+rounded-sm: 0.125rem (2px)
+rounded: 0.25rem (4px)
+rounded-lg: 0.5rem (8px)
+rounded-xl: 0.75rem (12px)
+rounded-2xl: 1rem (16px)
+rounded-full: 9999px
 ```
 
-### 4. Activar/Desactivar Context
-```
-Usuario → Toggle switch en context card
-  ↓
-toggleContext(sourceId)
-  ↓
-Update contextSources state (enabled: true/false)
-  ↓
-Si conversación existe:
-  POST /api/conversations/{id}/context-sources
-  Body: { activeContextSourceIds: [...] }
-  ↓
-Firestore → Guarda IDs activos en conversación
-  ↓
-✅ Context activo persiste por agente
-```
+### Shadows
 
-### 5. Ver Configuración de Context
-```
-Usuario → Click ⚙️ en context card
-  ↓
-handleSourceSettings(sourceId)
-  ↓
-Encuentra source en contextSources
-  ↓
-setSettingsSource(source)
-  ↓
-ContextSourceSettingsModal abre
-  ↓
-Muestra:
-  - Info original
-  - Detalles de extracción
-  - Estado de validación
-  - Configuración actual
-  - Preview del contenido
-```
-
-### 6. Re-Extraer Context
-```
-Usuario → Cambia config en modal → Click "Re-Extraer"
-  ↓
-handleReExtract(sourceId, newConfig)
-  ↓
-Update progress (procesando...)
-  ↓
-POST /api/extract-document
-  FormData: { file: source.originalFile, model: newConfig.model }
-  ↓
-Backend → Re-procesa con nuevo modelo
-  ↓
-Frontend → Update source con nueva data y metadata
-  ↓
-✅ Context actualizado con nueva extracción
+```css
+shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05)
+shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1)
+shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1)
+shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1)
+shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25)
 ```
 
 ---
 
-## ✅ Funcionalidades Completas
+## 📐 Layout Structure
 
-### Gestión de Conversaciones
-- [x] Crear nuevo agente (persiste en Firestore)
-- [x] Listar conversaciones por usuario
-- [x] Cambiar entre conversaciones
-- [x] Persistencia entre sesiones (GCP)
-- [x] Historial completo con scroll
+### Overall Layout
 
-### Chat y Mensajes
-- [x] Enviar mensajes
-- [x] Recibir respuestas de AI (streaming potencial)
-- [x] Mostrar historial de mensajes
-- [x] Loading states
-- [x] Error handling
-
-### Gestión de Contexto
-- [x] Agregar context sources (PDF, CSV, Excel, Word)
-- [x] Ver lista de sources
-- [x] Activar/desactivar sources (toggle)
-- [x] Expandir source para ver detalles
-- [x] Progress tracking durante extracción
-- [x] Error display con detalles
-- [x] Context activo persiste por agente
-
-### Workflows
-- [x] Lista de workflows disponibles
-- [x] Ejecutar workflow (abre modal con tipo pre-seleccionado)
-- [x] Configurar workflow (modal de settings)
-- [x] Status indicators (available, running, completed, failed)
-- [x] Extracción automática con Gemini AI
-
-### Modelos y Configuración
-- [x] Selector de modelo (Flash vs Pro)
-- [x] Tooltips informativos con costos
-- [x] User settings (modelo, system prompt, idioma)
-- [x] Settings persisten en localStorage
-- [x] Context source settings modal
-
-### Cálculo de Contexto
-- [x] Botón con % de uso del context window
-- [x] Código de color (verde/amarillo/rojo)
-- [x] Panel expandible con desglose detallado
-- [x] Stats por sección (system prompt, mensajes, sources)
-- [x] Tokens estimados y disponibles
-
-### UI/UX
-- [x] Panel izquierdo resizable (drag & drop)
-- [x] Panel derecho resizable (drag & drop)
-- [x] Panel izquierdo expandible para source details
-- [x] Toggle para ocultar/mostrar panel derecho
-- [x] Smooth transitions y animaciones
-- [x] Responsive design
-- [x] Loading states en todos los procesos
-
-### Autenticación
-- [x] Google OAuth
-- [x] JWT sessions
-- [x] User menu con info (nombre, email)
-- [x] Logout funcional
-
----
-
-## 🚧 Funcionalidades Pendientes
-
-### Alta Prioridad
-
-#### 1. Sistema de Validación de Contexto
-- [ ] **Botón "Validar" en ContextSourceSettingsModal**
-  - Solo visible para usuarios con permisos
-  - Roles: admin, context_signoff, context_owner, context_reviewer
-- [ ] **API endpoint para validación**
-  - POST /api/context-sources/{id}/validate
-  - Guarda: validated, validatedBy, validatedAt, validationNotes
-- [ ] **Badge visual en context card**
-  - ✓ Verde si validado
-  - ⏳ Amarillo si pendiente
-- [ ] **Filtro de contexts validados**
-  - Mostrar solo validados / todos
-- [ ] **Logs de validación**
-  - Historial de quién validó qué y cuándo
-
-#### 2. Sistema de Permisos Granular
-- [ ] **User roles en base de datos**
-  - Tabla users con role field
-  - admin, expert, user, context_signoff, etc.
-- [ ] **Middleware de autorización**
-  - Verificar permisos antes de operaciones
-  - 403 Forbidden si no autorizado
-- [ ] **UI condicional por rol**
-  - Mostrar/ocultar features según permisos
-  - Botones deshabilitados si no autorizado
-- [ ] **Admin panel**
-  - Gestionar usuarios
-  - Asignar roles
-  - Ver logs de actividad
-
-#### 3. Compartir Context Sources
-- [ ] **Botón "Compartir" en SourceDetailPanel**
-- [ ] **Modal de compartir**:
-  - Seleccionar usuarios o grupos
-  - Template de email auto-generado
-  - Personalizar por job role / OKRs
-  - Copy email subject & content
-- [ ] **API de compartir**
-  - POST /api/context-sources/{id}/share
-  - Crea access rules en Firestore
-- [ ] **Email generation con AI**
-  - Prompt con job role y OKRs
-  - Genera email personalizado
-  - Preview antes de copiar
-
-#### 4. Gestión de Context Management
-- [ ] **Dashboard completo funcional**
-  - Overview de todos los contexts
-  - Asignación de permisos masiva
-  - Estadísticas de uso
-- [ ] **Grupos funcionales**
-  - CRUD de grupos
-  - Asignar usuarios a grupos
-  - Asignar contexts a grupos
-- [ ] **Access rules**
-  - Fechas de expiración
-  - Duración configurable
-  - Renovación automática/manual
-- [ ] **Notificaciones**
-  - Email cuando se comparte contexto
-  - Alerta cuando expira acceso
-  - Notificación de validación requerida
-
-### Media Prioridad
-
-#### 5. Mejoras de Extracción
-- [ ] **Más tipos de archivos**
-  - PowerPoint (.ppt, .pptx)
-  - Imágenes (OCR con Vision API)
-  - Audio (transcripción)
-  - Video (transcripción + frames)
-- [ ] **Extracción de URLs**
-  - Scraping de web pages
-  - Extracción de contenido principal
-  - Seguir links internos
-- [ ] **Extracción de APIs**
-  - Configurar headers, auth
-  - GET/POST requests
-  - Parse JSON responses
-- [ ] **Batch processing**
-  - Subir carpeta completa
-  - Procesar múltiples archivos
-  - Progress aggregado
-
-#### 6. Folders y Organización
-- [ ] **Crear folders para agentes**
-  - UI para crear/editar/borrar
-  - Drag & drop agentes a folders
-- [ ] **Filtrar por folder**
-  - Lista de folders en sidebar
-  - Click para filtrar agentes
-- [ ] **Búsqueda de agentes**
-  - Input de búsqueda
-  - Filtrar por título/contenido
-  - Highlight de resultados
-
-#### 7. Mejoras de Contexto
-- [ ] **Priorizar sources**
-  - Drag & drop para reordenar
-  - Guardar orden en Firestore
-  - AI usa en orden de prioridad
-- [ ] **Snippets de context**
-  - Seleccionar parte específica del documento
-  - Usar solo snippet en lugar de todo
-  - Highlight en preview
-- [ ] **Context templates**
-  - Guardar combinación de sources como template
-  - Aplicar template rápidamente
-  - Compartir templates
-
-#### 8. Análisis y Reportes
-- [ ] **Analytics dashboard**
-  - Tokens usados por usuario/agente
-  - Costos acumulados
-  - Sources más usados
-  - Modelos más usados
-- [ ] **Exportar conversaciones**
-  - PDF con formato
-  - Markdown
-  - JSON
-- [ ] **Exportar contexts**
-  - Descargar contenido extraído
-  - Incluir metadata
-
-### Baja Prioridad
-
-#### 9. Features Avanzados
-- [ ] **Streaming responses**
-  - Ver respuesta mientras se genera
-  - Cancelar generación a mitad
-- [ ] **Voice input**
-  - Grabar mensaje de voz
-  - Transcribir con Whisper
-  - Enviar como texto
-- [ ] **Imágenes en chat**
-  - Subir imagen en mensaje
-  - Analizar con Gemini Vision
-  - Ver en historial
-- [ ] **Mentions**
-  - @mention otros usuarios
-  - Notificación push/email
-- [ ] **Collaborative chat**
-  - Múltiples usuarios en mismo agente
-  - Ver quién está escribiendo
-  - Typing indicators
-
-#### 10. Integraciones
-- [ ] **Email service (Kit API v4)**
-  - Enviar emails directamente
-  - No solo copy-paste
-- [ ] **Slack integration**
-  - Compartir contexts a Slack
-  - Mencionar en Slack
-- [ ] **Google Drive**
-  - Importar documentos
-  - Sincronización automática
-- [ ] **Dropbox, OneDrive**
-  - Conectar cuentas
-  - Importar archivos
-
----
-
-## 📊 Performance & Optimización
-
-### Implementado
-- [x] Lazy loading de mensajes (solo cargar últimos N)
-- [x] Virtualized lists para historial largo
-- [x] Debounce en inputs
-- [x] Progress tracking granular
-- [x] Error boundaries para crashes
-
-### Pendiente
-- [ ] **Pagination en historial**
-  - Cargar más al scroll
-  - Infinite scroll
-- [ ] **Caching de context sources**
-  - No re-fetch si no cambiaron
-  - Cache en localStorage/IndexedDB
-- [ ] **Optimistic updates**
-  - Mostrar mensaje antes de confirmar
-  - Revertir si falla
-- [ ] **Service Worker**
-  - Offline support básico
-  - Cache de assets estáticos
-- [ ] **Code splitting**
-  - Lazy load modales
-  - Lazy load panel derecho
-
----
-
-## 🐛 Bugs Conocidos
-
-### Críticos
-- Ninguno conocido actualmente ✅
-
-### Menores
-- [ ] Al cambiar de agente muy rápido, mensajes pueden mezclarse
-- [ ] Progress bar a veces no resetea al 0% antes de empezar
-- [ ] Tooltip de modelo a veces queda pegado al cambiar de modal
-
-### Nice-to-fix
-- [ ] Resize panels tiene min-width fijo, podría ser más flexible
-- [ ] Long file names no truncan bien en todas las vistas
-- [ ] Modal de configuración podría tener animación de entrada
-
----
-
-## 🎓 Lecciones Aprendidas
-
-### 1. Persistencia de Datos
-**Aprendizaje**: Nunca confiar solo en estado React para datos críticos.
-- Conversaciones deben crearse inmediatamente en Firestore
-- Context sources activos deben guardarse por agente
-- User settings deben persistir (localStorage o DB)
-
-### 2. Manejo de Archivos
-**Aprendizaje**: Guardar `originalFile` en state para permitir re-extracción.
-- Permite cambiar modelo sin re-subir archivo
-- Útil para debugging y validación
-- Memoria razonable para archivos < 50MB
-
-### 3. Progress Tracking
-**Aprendizaje**: UI con progress feedback mejora UX dramáticamente.
-- Mostrar stages claros (uploading, processing, complete)
-- Percentage + mensaje descriptivo
-- Error details si falla
-
-### 4. Modularidad
-**Aprendizaje**: Componentes pequeños y focused son más mantenibles.
-- Cada modal es independiente
-- Props claros y tipados
-- Handlers específicos por funcionalidad
-
-### 5. Tipos de TypeScript
-**Aprendizaje**: Importar tipos centralizados evita conflictos.
-- Definir interfaces en `src/types/*.ts`
-- Nunca duplicar definiciones
-- Usar tipos compartidos entre componentes
-
----
-
-## 🚀 Roadmap de Implementación
-
-### Fase 1: Sistema de Validación (1-2 semanas)
-1. Implementar botón y modal de validación
-2. API endpoint para validar contexts
-3. Roles y permisos en base de datos
-4. Logs de validación
-5. Filtros por estado de validación
-
-### Fase 2: Compartir y Colaboración (2-3 semanas)
-1. Modal de compartir contexts
-2. Generación de emails con AI
-3. Sistema de access rules
-4. Notificaciones por email
-5. Context Management Dashboard completo
-
-### Fase 3: Mejoras de Extracción (2-3 semanas)
-1. Más tipos de archivos (PPT, imágenes, audio)
-2. Extracción de URLs (web scraping)
-3. Batch processing (carpetas completas)
-4. Extracción de APIs (configuración avanzada)
-
-### Fase 4: Organización y Búsqueda (1-2 semanas)
-1. Sistema de folders
-2. Búsqueda de agentes y mensajes
-3. Tags y categorías
-4. Snippets de context
-
-### Fase 5: Analytics y Reportes (2 semanas)
-1. Dashboard de analytics
-2. Métricas de uso (tokens, costos)
-3. Exportar conversaciones
-4. Exportar contexts
-
-### Fase 6: Features Avanzados (3-4 semanas)
-1. Streaming responses
-2. Voice input
-3. Imágenes en chat
-4. Collaborative chat
-
-### Fase 7: Integraciones (2-3 semanas)
-1. Email service (Kit API v4)
-2. Slack integration
-3. Google Drive
-4. Dropbox, OneDrive
-
----
-
-## 📝 Notas de Desarrollo
-
-### Convenciones de Código
-- **Componentes**: PascalCase (ej: `AddSourceModal.tsx`)
-- **Functions**: camelCase (ej: `handleAddSource`)
-- **Constants**: UPPER_SNAKE_CASE (ej: `DEFAULT_WORKFLOWS`)
-- **Types**: PascalCase (ej: `ContextSource`)
-
-### Estructura de Archivos
 ```
-src/
-├── components/           # React components
-│   ├── ChatInterfaceWorking.tsx
-│   ├── ContextManager.tsx
-│   ├── AddSourceModal.tsx
-│   ├── ContextSourceSettingsModal.tsx
-│   ├── WorkflowConfigModal.tsx
-│   ├── UserSettingsModal.tsx
-│   └── ...
-├── types/                # TypeScript types
-│   ├── context.ts
-│   ├── sharing.ts
-│   └── contextAccess.ts
-├── lib/                  # Utilities & services
-│   ├── firestore.ts
-│   ├── gemini.ts
-│   └── auth.ts
-├── pages/                # Astro pages
-│   ├── api/              # API routes
-│   └── chat.astro
-└── styles/
-    └── global.css
+┌──────────────────────────────────────────────────────────────┐
+│                        Chat Interface                         │
+│  (100vw x 100vh, flex, no scroll on root)                   │
+├──────────────┬───────────────────────────────┬───────────────┤
+│              │                               │               │
+│   Sidebar    │       Main Chat Area          │   Workflows   │
+│   Izquierdo  │                               │   Panel       │
+│              │                               │  (Opcional)   │
+│  320px       │         flex-1                │    400px      │
+│  (resizable) │                               │  (resizable)  │
+│              │                               │               │
+│  ┌─────────┐ │  ┌──────────────────────────┐ │  ┌─────────┐ │
+│  │ Header  │ │  │                          │ │  │ Header  │ │
+│  │ "Flow"  │ │  │    Messages Container    │ │  │"Flujos" │ │
+│  └─────────┘ │  │    (overflow-y-auto)     │ │  └─────────┘ │
+│              │  │                          │ │               │
+│  ┌─────────┐ │  │  • User Message          │ │  ┌─────────┐ │
+│  │ New     │ │  │  • AI Message            │ │  │Workflow │ │
+│  │ Agent   │ │  │  • User Message          │ │  │ Cards   │ │
+│  └─────────┘ │  │  • AI Message            │ │  │         │ │
+│              │  │  • ...                   │ │  │ (scroll)│ │
+│  ┌─────────┐ │  │                          │ │  └─────────┘ │
+│  │ Agent   │ │  └──────────────────────────┘ │               │
+│  │ List    │ │                               │  ┌─────────┐ │
+│  │         │ │  ┌──────────────────────────┐ │  │ Hide    │ │
+│  │(scroll) │ │  │   Context Button         │ │  │ Panel   │ │
+│  └─────────┘ │  │   (Contexto: 0.0% • ✨)  │ │  └─────────┘ │
+│              │  └──────────────────────────┘ │               │
+│  ┌─────────┐ │                               │               │
+│  │ Context │ │  ┌──────────────────────────┐ │               │
+│  │ Manager │ │  │      Input Area          │ │               │
+│  └─────────┘ │  │  [Type message...]       │ │               │
+│              │  │              [Send] ↗    │ │               │
+│  ┌─────────┐ │  └──────────────────────────┘ │               │
+│  │ User    │ │                               │               │
+│  │ Menu    │ │                               │               │
+│  └─────────┘ │                               │               │
+└──────────────┴───────────────────────────────┴───────────────┘
 ```
 
-### Git Workflow
-- Branch por feature: `feat/feature-name-YYYY-MM-DD`
-- Commits descriptivos con emojis
-- PR a main con review
-- Merge con `--no-ff`
+### Responsive Behavior
 
-### Testing Checklist
-Antes de cada PR:
-- [ ] `npm run type-check` pasa
-- [ ] `npm run lint` pasa sin errores
-- [ ] Manual testing en browser
-- [ ] Verificar consola sin errores
-- [ ] Probar en mobile (responsive)
-- [ ] Probar flows completos end-to-end
+```css
+Desktop (>= 1024px):
+  - Sidebar: 320px (resizable 240-480px)
+  - Chat: flex-1
+  - Workflows: 400px (resizable 300-600px, hideable)
 
----
+Tablet (768-1023px):
+  - Sidebar: 280px
+  - Chat: flex-1
+  - Workflows: Hidden by default, overlay when shown
 
-## 🎯 Objetivos de Producto
-
-### Corto Plazo (1-3 meses)
-- Sistema de validación completo y funcional
-- Compartir contexts entre usuarios/grupos
-- Context Management Dashboard operativo
-- Analytics básico de uso
-
-### Medio Plazo (3-6 meses)
-- Integraciones con herramientas externas
-- Features de colaboración
-- Mejoras avanzadas de extracción
-- Mobile app (React Native)
-
-### Largo Plazo (6-12 meses)
-- AI-powered features avanzados
-- Marketplace de contexts y workflows
-- Enterprise features (SSO, compliance, etc.)
-- White-label para clientes
+Mobile (< 768px):
+  - Sidebar: Hidden, overlay when triggered
+  - Chat: 100%
+  - Workflows: Hidden, full-screen overlay when shown
+```
 
 ---
 
-## 🏆 Métricas de Éxito
+## 🗂️ Sidebar Izquierdo
 
-### Técnicas
-- Uptime: > 99.5%
-- API response time: < 500ms p95
-- Error rate: < 0.1%
-- Test coverage: > 80%
+### Header Section
 
-### Producto
-- MAU (Monthly Active Users): objetivo definir
-- Mensajes por usuario/mes: objetivo definir
-- Contexts creados por usuario: objetivo definir
-- Retention rate: > 60% (mes 1 → mes 2)
+```html
+<div class="h-16 bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center">
+  <h1 class="text-2xl font-bold text-white">Flow</h1>
+</div>
+```
 
-### Negocio
-- Costo por usuario/mes: objetivo definir
-- Revenue per user: objetivo definir
-- Customer satisfaction: NPS > 50
-- Time to value: < 5 minutos (primer mensaje útil)
+**Estilos:**
+- Height: 64px
+- Gradient: blue-600 → indigo-600
+- Text: 2xl, bold, white
+- Center alignment
 
 ---
 
-**Última actualización**: Octubre 12, 2025
-**Versión**: 1.0.0
-**Mantenedor**: Flow Development Team
+### New Agent Button
+
+```html
+<button class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+  <Plus class="w-5 h-5" />
+  <span class="font-medium">Nuevo Agente</span>
+</button>
+```
+
+**Estados:**
+- Default: bg-blue-600
+- Hover: bg-blue-700
+- Click: Crea nuevo agente con nombre "Nuevo Agente {timestamp}"
+
+**Interacción:**
+1. Click en botón
+2. POST a `/api/conversations`
+3. Agente aparece en lista
+4. Se selecciona automáticamente
+5. Chat limpio listo para usar
+
+---
+
+### Agent List (Conversations)
+
+```html
+<div class="flex-1 overflow-y-auto px-3 py-2">
+  {conversations.map(conv => (
+    <button
+      class={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors ${
+        selected ? 'bg-blue-100 text-blue-800' : 'hover:bg-slate-100'
+      }`}
+    >
+      <MessageSquare class="w-5 h-5" />
+      <div class="flex-1 text-left min-w-0">
+        <p class="text-sm font-medium truncate">{conv.title}</p>
+        <p class="text-xs text-slate-500">{timeAgo}</p>
+      </div>
+      {conv.lastMessage && (
+        <ChevronRight class="w-4 h-4 text-slate-400" />
+      )}
+    </button>
+  ))}
+</div>
+```
+
+**Estados:**
+- **Default**: bg-white, hover:bg-slate-100
+- **Selected**: bg-blue-100, text-blue-800, border-l-4 border-blue-600
+- **Empty**: Muestra placeholder "No hay conversaciones"
+
+**Elementos:**
+- Icono: MessageSquare (Lucide)
+- Título: Truncado con ellipsis
+- Timestamp: Relativo ("hace 5 min", "ayer", etc.)
+- Indicador: ChevronRight si tiene mensajes
+
+**Interacción:**
+1. Click selecciona conversación
+2. Carga mensajes del agente
+3. Carga contexto activo del agente
+4. Actualiza área de chat
+5. Scroll al último mensaje
+
+---
+
+### Context Manager Section
+
+```html
+<div class="p-4 border-t border-slate-200">
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-semibold text-slate-700">Fuentes de Contexto</h3>
+    <button class="text-slate-500 hover:text-slate-700">
+      <ChevronRight class="w-4 h-4" />
+    </button>
+  </div>
+
+  <button class="w-full flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+    <Plus class="w-4 h-4" />
+    <span class="text-sm font-medium">Agregar Fuente</span>
+  </button>
+
+  <div class="space-y-2 mt-3 max-h-60 overflow-y-auto">
+    {sources.map(source => (
+      <button class="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 text-left">
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center gap-2">
+            <FileText class="w-3.5 h-3.5 text-green-600" />
+            <span class="text-xs font-semibold">{source.name}</span>
+            {source.validated && (
+              <span class="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full">
+                ✓ Validado
+              </span>
+            )}
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="p-1 text-slate-400 hover:text-blue-500">
+              <Settings class="w-4 h-4" />
+            </button>
+            <!-- Toggle Switch -->
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" checked={source.enabled} class="sr-only peer" />
+              <div class="w-9 h-5 bg-slate-200 peer-checked:bg-green-600 rounded-full"></div>
+            </label>
+          </div>
+        </div>
+        <p class="text-xs text-slate-600">{source.extractedData.substring(0, 80)}...</p>
+      </button>
+    ))}
+  </div>
+</div>
+```
+
+**Componentes:**
+
+#### Fuente Individual
+- **Card**: bg-green-50, border-green-200, rounded, padding
+- **Hover**: bg-green-100
+- **Badge Validado**: bg-green-600, text-white, rounded-full, font-semibold
+- **Settings Button**: Abre `ContextSourceSettingsModal`
+- **Toggle Switch**: 
+  - Desactivado: bg-slate-200
+  - Activado: bg-green-600
+  - Smooth transition
+
+**Estados de Fuente:**
+- **Processing**: Loader2 animado, badge azul "Procesando"
+- **Active**: CheckCircle verde, toggle activado
+- **Error**: XCircle roja, badge rojo con mensaje
+- **Disabled**: Toggle desactivado, card gris
+
+**Progress Tracking:**
+```html
+{source.progress && (
+  <div class="mt-2 space-y-1">
+    <div class="flex items-center justify-between text-xs">
+      <span class="text-blue-600">{source.progress.message}</span>
+      <span class="font-semibold">{source.progress.percentage}%</span>
+    </div>
+    <div class="w-full bg-slate-200 rounded-full h-1.5">
+      <div 
+        class="bg-blue-600 h-1.5 rounded-full transition-all"
+        style={`width: ${source.progress.percentage}%`}
+      />
+    </div>
+  </div>
+)}
+```
+
+**Error Display:**
+```html
+{source.error && (
+  <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+    <p class="font-medium">Error: {source.error.message}</p>
+    {source.error.details && <p class="mt-1">{source.error.details}</p>}
+  </div>
+)}
+```
+
+---
+
+### User Menu Section
+
+```html
+<div class="border-t border-slate-200 p-4">
+  <div class="relative">
+    <button class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50">
+      <div class="flex items-center gap-3 min-w-0 flex-1">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+          <User class="w-4 h-4 text-white" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-medium text-slate-700 truncate">{userName}</p>
+          <p class="text-xs text-slate-500 truncate">{userEmail}</p>
+        </div>
+      </div>
+    </button>
+
+    {showMenu && (
+      <div class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border">
+        <button class="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-slate-50">
+          <Settings class="w-4 h-4" />
+          Configuración
+        </button>
+        <button class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+          <LogOut class="w-4 h-4" />
+          Cerrar Sesión
+        </button>
+      </div>
+    )}
+  </div>
+</div>
+```
+
+**Menú Expandido:**
+- **Configuración**: Abre `UserSettingsModal`
+- **Cerrar Sesión**: Limpia cookie, redirect a `/auth/login`
+
+---
+
+### Resize Divider (Sidebar)
+
+```html
+<div
+  class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500 transition-colors"
+  onMouseDown={startResize}
+/>
+```
+
+**Comportamiento:**
+- Width: 4px (1 para visual, 3 transparente para hit area)
+- Hover: bg-blue-500
+- Drag: Cambia `leftPanelWidth` entre 240-480px
+- Cursor: col-resize
+
+---
+
+## 💬 Main Chat Area
+
+### Messages Container
+
+```html
+<div class="flex-1 overflow-y-auto p-6">
+  {messages.length === 0 ? (
+    <div class="h-full flex items-center justify-center text-slate-400">
+      <p>Comienza una conversación...</p>
+    </div>
+  ) : (
+    messages.map(msg => (
+      <div class={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}>
+        {/* Message bubble */}
+      </div>
+    ))
+  )}
+  <div ref={messagesEndRef} />
+</div>
+```
+
+**Auto-scroll:**
+- Scroll suave al último mensaje al enviar
+- Scroll suave al cargar nuevo agente
+- Scroll suave al recibir respuesta AI
+
+---
+
+### User Message Bubble
+
+```html
+<div class="inline-block max-w-2xl p-4 rounded-lg bg-blue-600 text-white">
+  {msg.content}
+</div>
+```
+
+**Estilos:**
+- Background: bg-blue-600
+- Text: text-white, font-normal
+- Max-width: 2xl (42rem / 672px)
+- Padding: p-4
+- Border-radius: rounded-lg
+- Alignment: text-right (parent)
+
+---
+
+### AI Message Bubble
+
+```html
+<div class="inline-block max-w-3xl p-5 rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
+  <MessageRenderer 
+    content={msg.content}
+    contextSources={activeContextSources}
+    onSourceClick={handleSourceClick}
+  />
+</div>
+```
+
+**Estilos:**
+- Background: bg-white
+- Border: border-slate-200
+- Shadow: shadow-sm
+- Max-width: 3xl (48rem / 768px)
+- Padding: p-5 (más que user para legibilidad)
+- Border-radius: rounded-lg
+- Alignment: text-left (parent)
+
+**Contenido:**
+- Renderizado con `MessageRenderer` (Markdown enriquecido)
+- Soporte para código, tablas, imágenes, enlaces
+- Referencias clickables a fuentes de contexto
+
+---
+
+### Context Button
+
+```html
+<div class="mb-3 flex justify-center">
+  <button class="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg border border-slate-200">
+    <span class="font-medium">Contexto:</span>
+    <span class={`font-semibold ${
+      usage > 80 ? 'text-red-600' : 
+      usage > 50 ? 'text-yellow-600' : 
+      'text-green-600'
+    }`}>
+      {usage}%
+    </span>
+    <span class="text-slate-400">•</span>
+    <Sparkles class="w-4 h-4 text-blue-600" />
+    <span class="font-medium text-slate-700">
+      {model === 'pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+    </span>
+    <span class="text-slate-400">•</span>
+    <span class="text-blue-600">{activeSources} fuentes</span>
+  </button>
+</div>
+```
+
+**Indicadores:**
+- **Uso de Contexto**: Verde (<50%), Amarillo (50-80%), Rojo (>80%)
+- **Modelo**: Icono Sparkles + nombre del modelo
+- **Fuentes Activas**: Contador en azul
+
+**Click:**
+- Expande/colapsa `Context Panel` con detalles completos
+
+---
+
+### Context Panel (Expandible)
+
+```html
+{showContextPanel && (
+  <div class="mb-3 bg-white rounded-lg border border-slate-200 overflow-hidden">
+    {/* Header with stats */}
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-lg font-bold text-slate-800">Desglose del Contexto</h4>
+        <span class={`text-2xl font-bold ${usageColor}`}>{usage}% usado</span>
+      </div>
+      
+      <div class="grid grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="text-slate-600">Total Tokens</p>
+          <p class="text-xl font-bold text-slate-800">{total.toLocaleString()}</p>
+        </div>
+        <div>
+          <p class="text-slate-600">Disponible</p>
+          <p class="text-xl font-bold text-green-600">{available.toLocaleString()}</p>
+        </div>
+        <div>
+          <p class="text-slate-600">Capacidad</p>
+          <p class="text-xl font-bold text-slate-600">{capacity.toLocaleString()}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Context Sections */}
+    <div class="border border-slate-200 rounded-lg p-3">
+      <div class="space-y-2">
+        {sections.map(section => (
+          <div class="flex items-center justify-between p-2 bg-slate-50 rounded">
+            <div class="flex items-center gap-2">
+              {section.icon}
+              <span class="text-xs font-medium">{section.name}</span>
+            </div>
+            <span class="text-xs font-mono text-slate-600">
+              {section.tokens.toLocaleString()} tokens
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Active Context Sources */}
+    <div class="border border-slate-200 rounded-lg p-3">
+      <div class="flex items-center justify-between mb-2">
+        <h5 class="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
+        <span class="text-xs text-slate-500">
+          {activeSources} activas • ~{totalTokens} tokens
+        </span>
+      </div>
+      {activeSources === 0 ? (
+        <p class="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
+          No hay fuentes activas
+        </p>
+      ) : (
+        <div class="space-y-2">
+          {sources.map(source => (
+            <button
+              onClick={() => openSourceDetails(source.id)}
+              class="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 text-left"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <FileText class="w-3.5 h-3.5 text-green-600" />
+                  <span class="text-xs font-semibold">{source.name}</span>
+                  {source.validated && (
+                    <span class="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full">
+                      ✓ Validado
+                    </span>
+                  )}
+                </div>
+                <span class="text-[10px] text-slate-500">
+                  {source.metadata?.pageCount} págs
+                </span>
+              </div>
+              <p class="text-xs text-slate-600">
+                {source.extractedData.substring(0, 100)}...
+              </p>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    {/* Context Logs Table */}
+    {contextLogs.length > 0 && (
+      <div class="border border-slate-200 rounded-lg p-3">
+        <div class="flex items-center justify-between mb-2">
+          <h5 class="text-xs font-semibold text-slate-700">📊 Log de Contexto por Interacción</h5>
+          <span class="text-xs text-slate-500">{contextLogs.length} interacciones</span>
+        </div>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-[10px]">
+            <thead class="bg-slate-100 border-b">
+              <tr>
+                <th class="px-2 py-1 text-left font-semibold">Hora</th>
+                <th class="px-2 py-1 text-left font-semibold">Pregunta</th>
+                <th class="px-2 py-1 text-left font-semibold">Modelo</th>
+                <th class="px-2 py-1 text-right font-semibold">Input</th>
+                <th class="px-2 py-1 text-right font-semibold">Output</th>
+                <th class="px-2 py-1 text-right font-semibold">Total</th>
+                <th class="px-2 py-1 text-right font-semibold">Disponible</th>
+                <th class="px-2 py-1 text-center font-semibold">Uso%</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contextLogs.map((log, idx) => (
+                <tr class={`border-b hover:bg-slate-50 cursor-pointer ${
+                  idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                }`}>
+                  <td class="px-2 py-2 text-slate-600">{formatTime(log.timestamp)}</td>
+                  <td class="px-2 py-2 text-slate-800">
+                    <div class="max-w-xs truncate">{log.userMessage}</div>
+                  </td>
+                  <td class="px-2 py-2">
+                    <span class={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                      log.model === 'pro' 
+                        ? 'bg-purple-100 text-purple-700' 
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {log.model === 'pro' ? 'Pro' : 'Flash'}
+                    </span>
+                  </td>
+                  <td class="px-2 py-2 text-right font-mono">{log.totalInputTokens.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono">{log.totalOutputTokens.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono font-semibold">{log.contextWindowUsed.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-right font-mono">{log.contextWindowAvailable.toLocaleString()}</td>
+                  <td class="px-2 py-2 text-center">
+                    <span class={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                      usagePercent < 50 ? 'bg-green-100 text-green-700' :
+                      usagePercent < 80 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {usagePercent.toFixed(2)}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+```
+
+**Secciones del Panel:**
+1. **Header con Stats** - Gradiente azul, métricas principales
+2. **Context Sections** - Desglose por componente (system, history, user, etc.)
+3. **Active Context Sources** - Cards clickables de fuentes activas
+4. **Context Logs Table** - Tabla con todas las interacciones registradas
+
+**Filas Expandibles en Logs:**
+- Click en fila abre detalles completos
+- Muestra pregunta completa, system prompt, fuentes usadas, respuesta completa
+- Todos los tokens desglosados
+
+---
+
+### Input Area
+
+```html
+<div class="border-t border-slate-200 bg-white p-4">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex gap-3">
+      <textarea
+        placeholder="Escribe tu mensaje..."
+        class="flex-1 px-4 py-3 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        rows={3}
+        value={input}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+      />
+      <button
+        onClick={handleSend}
+        disabled={!input.trim() || isLoading}
+        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+      >
+        {isLoading ? (
+          <>
+            <Loader2 class="w-5 h-5 animate-spin" />
+            Enviando...
+          </>
+        ) : (
+          <>
+            <Send class="w-5 h-5" />
+            Enviar
+          </>
+        )}
+      </button>
+    </div>
+    
+    <div class="mt-2 text-center">
+      <p class="text-xs text-slate-500">
+        Flow puede cometer errores. Ante cualquier duda, consulta las respuestas con un experto.
+      </p>
+    </div>
+  </div>
+</div>
+```
+
+**Textarea:**
+- Auto-resize up to 5 rows
+- Enter sin shift: envía mensaje
+- Shift+Enter: nueva línea
+- Focus: ring-2 ring-blue-500
+
+**Send Button:**
+- Default: bg-blue-600, hover:bg-blue-700
+- Loading: Loader2 animado, text "Enviando..."
+- Disabled: bg-slate-300, cursor-not-allowed
+
+**Disclaimer:**
+- Texto pequeño (xs)
+- Color slate-500
+- Centrado
+
+---
+
+## 🔄 Workflows Panel (Derecho)
+
+```html
+{showRightPanel && (
+  <div class="w-96 border-l border-slate-200 bg-white flex flex-col">
+    {/* Header */}
+    <div class="h-16 border-b border-slate-200 flex items-center justify-between px-4">
+      <h2 class="text-lg font-bold text-slate-800">Flujos de Trabajo</h2>
+      <button onClick={() => setShowRightPanel(false)}>
+        <X class="w-5 h-5 text-slate-500" />
+      </button>
+    </div>
+
+    {/* Workflows List */}
+    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+      {workflows.map(workflow => (
+        <div class="border border-slate-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-3">
+              <span class="text-3xl">{workflow.icon}</span>
+              <div>
+                <h3 class="font-semibold text-slate-800">{workflow.name}</h3>
+                <p class="text-xs text-slate-600">{workflow.description}</p>
+              </div>
+            </div>
+            <span class={`px-2 py-1 rounded-full text-xs font-semibold ${
+              workflow.status === 'available' ? 'bg-slate-100 text-slate-600' :
+              workflow.status === 'running' ? 'bg-blue-100 text-blue-700' :
+              workflow.status === 'completed' ? 'bg-green-100 text-green-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {statusLabels[workflow.status]}
+            </span>
+          </div>
+
+          <div class="flex gap-2 mt-3">
+            <button
+              onClick={() => handleRunWorkflow(workflow)}
+              disabled={workflow.status === 'running'}
+              class="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:bg-slate-300"
+            >
+              <Play class="w-4 h-4 inline mr-1" />
+              Ejecutar
+            </button>
+            <button
+              onClick={() => handleConfigWorkflow(workflow)}
+              class="px-3 py-2 border border-slate-300 rounded text-sm hover:bg-slate-50"
+            >
+              <Settings class="w-4 h-4" />
+            </button>
+          </div>
+
+          {workflow.status === 'completed' && workflow.output && (
+            <div class="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs">
+              <p class="font-medium text-green-800 mb-1">✓ Completado</p>
+              <p class="text-slate-700">{workflow.output.substring(0, 100)}...</p>
+            </div>
+          )}
+
+          {workflow.status === 'running' && (
+            <div class="mt-3 flex items-center gap-2 text-xs text-blue-600">
+              <Loader2 class="w-4 h-4 animate-spin" />
+              Procesando...
+            </div>
+          )}
+
+          {workflow.status === 'failed' && (
+            <div class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+              <p class="font-medium">✗ Error</p>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {/* Hide Panel Button */}
+    <div class="p-4 border-t">
+      <button
+        onClick={() => setShowRightPanel(false)}
+        class="w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded"
+      >
+        Ocultar Panel →
+      </button>
+    </div>
+  </div>
+)}
+
+{/* Show Panel Button (when hidden) */}
+{!showRightPanel && (
+  <button
+    onClick={() => setShowRightPanel(true)}
+    class="fixed right-0 top-1/2 transform -translate-y-1/2 px-2 py-4 bg-blue-600 text-white rounded-l-lg shadow-lg hover:bg-blue-700"
+  >
+    ← Workflows
+  </button>
+)}
+```
+
+**Workflow States:**
+- **Available**: Listo para ejecutar
+- **Running**: Loader animado, botones deshabilitados
+- **Completed**: Badge verde, preview del output
+- **Failed**: Badge rojo, mensaje de error
+
+**Acciones:**
+- **Ejecutar**: Abre `AddSourceModal` con `preSelectedType`
+- **Configurar**: Abre `WorkflowConfigModal`
+
+---
+
+## 🎛️ Modals
+
+### AddSourceModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [1] ─── [2] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 1: Select Type                        │
+│  ┌─────────────────────────┐                │
+│  │ 📄 Archivo              │ →              │
+│  │ Sube un documento...    │                │
+│  └─────────────────────────┘                │
+│  ┌─────────────────────────┐                │
+│  │ 🔗 URL Web              │ →              │
+│  │ Link a un sitio...      │                │
+│  └─────────────────────────┘                │
+│  ┌─────────────────────────┐                │
+│  │ 📡 API                  │ →              │
+│  │ Conecta a una API...    │                │
+│  └─────────────────────────┘                │
+│                                             │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [✓] ─── [2] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 2: Configure                          │
+│                                             │
+│  Subir Documento                            │
+│  El modelo extraerá automáticamente         │
+│  texto, tablas e imágenes.                  │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │   📤 Upload Area        │                │
+│  │   Drag & drop or click  │                │
+│  │   PDF, Word, Excel...   │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  Modelo de IA para Extracción       ℹ️     │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Rápido    │ │ Preciso   │                │
+│  │ 94% ahorro│ │ Complejo  │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│              [Agregar Fuente]              │
+└─────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────┐
+│  Agregar Fuente de Contexto             [X]│
+├─────────────────────────────────────────────┤
+│  Progress: [✓] ─── [✓] ─── [3]              │
+├─────────────────────────────────────────────┤
+│                                             │
+│  STEP 3: Processing                         │
+│                                             │
+│     ⏳ Spinner animado                     │
+│                                             │
+│     Procesando Fuente...                    │
+│     Esto puede tardar unos momentos.        │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+**Pasos:**
+1. **Select Type**: Cards clickables por tipo
+2. **Configure**: Form según tipo (file upload, URL input, etc.)
+3. **Processing**: Loader animado mientras procesa
+
+**Model Selection:**
+- Tooltip informativo con comparación de costos
+- Flash (recomendado): Verde, ahorro 94%
+- Pro (avanzado): Morado, mayor precisión
+
+---
+
+### WorkflowConfigModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Configurar Workflow                     [X]│
+├─────────────────────────────────────────────┤
+│                                             │
+│  📄 Procesar PDF                            │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Tamaño Máximo de Archivo│                │
+│  │ [50] MB                 │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Longitud Máxima Output  │                │
+│  │ [20000] tokens          │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  ┌─────────────────────────┐                │
+│  │ Idioma                  │                │
+│  │ [Español ▼]             │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  Modelo de IA           ℹ️                 │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Selected  │ │           │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│              [Guardar Config]              │
+└─────────────────────────────────────────────┘
+```
+
+**Campos:**
+- Max File Size: Number input en MB
+- Max Output Length: Number input en tokens
+- Language: Dropdown
+- Model: Toggle entre Flash/Pro con tooltip
+
+---
+
+### UserSettingsModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  Configuración de Usuario               [X]│
+├─────────────────────────────────────────────┤
+│                                             │
+│  👤 {userName}                              │
+│  📧 {userEmail}                             │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Modelo Preferido                           │
+│  ○ Gemini 2.5 Flash (Rápido, económico)    │
+│  ● Gemini 2.5 Pro (Preciso, costoso)       │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Instrucciones del Sistema                  │
+│  ┌─────────────────────────┐                │
+│  │ Eres un asistente...    │                │
+│  │                         │                │
+│  │ [textarea]              │                │
+│  │                         │                │
+│  └─────────────────────────┘                │
+│                                             │
+│  💡 Ejemplo: "Utiliza emojis en todas      │
+│     tus respuestas 🎉"                      │
+│                                             │
+│              [Guardar]                      │
+└─────────────────────────────────────────────┘
+```
+
+**Campos:**
+- **Modelo Preferido**: Radio buttons
+- **System Prompt**: Textarea con ejemplo
+
+---
+
+### ContextSourceSettingsModal
+
+**Estructura:**
+```
+┌─────────────────────────────────────────────┐
+│  ⚙️ Configuración de Extracción          [X]│
+│  Documento Demo.pdf                          │
+├─────────────────────────────────────────────┤
+│                                             │
+│  ┌─────────────┬─────────────┐              │
+│  │ Fuente      │ Extracción  │              │
+│  │ Original    │             │              │
+│  │             │             │              │
+│  │ • Archivo   │ • Modelo    │              │
+│  │ • Tipo      │ • Tiempo    │              │
+│  │ • Tamaño    │ • Caracteres│              │
+│  │             │ • Tokens    │              │
+│  │             │             │              │
+│  │ ℹ️ Auto     │ ✅ Validado │              │
+│  │ Extraction  │ Por: email  │              │
+│  │             │ Fecha: ...  │              │
+│  └─────────────┴─────────────┘              │
+│                                             │
+│  ────────────────────────────────────────   │
+│                                             │
+│  Modelo de IA           ℹ️                 │
+│  ┌───────────┐ ┌───────────┐                │
+│  │ ✨ Flash  │ │   Pro     │                │
+│  │ Selected  │ │           │                │
+│  └───────────┘ └───────────┘                │
+│                                             │
+│  [🔄 Re-extraer]      [Cerrar]             │
+└─────────────────────────────────────────────┘
+```
+
+**Secciones:**
+- **Fuente Original**: Metadata del archivo
+- **Extracción**: Detalles del procesamiento
+- **Validación**: Estado y aprobador
+- **Modelo**: Selección para re-extracción
+- **Acciones**: Re-extraer con nueva config
+
+---
+
+## 🎬 Animaciones y Transiciones
+
+### Fade In/Out
+```css
+transition: opacity 200ms ease-in-out
+```
+
+### Slide In (Modals)
+```css
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+```
+
+### Spin (Loaders)
+```css
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+### Hover Effects
+```css
+transition: all 150ms ease-in-out
+
+:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+```
+
+---
+
+## 📱 Responsive Design
+
+### Breakpoints
+
+```css
+sm: 640px   /* Small devices */
+md: 768px   /* Medium devices (tablets) */
+lg: 1024px  /* Large devices (desktops) */
+xl: 1280px  /* Extra large */
+2xl: 1536px /* 2X Extra large */
+```
+
+### Layout Adjustments
+
+**Mobile (<768px):**
+```css
+/* Sidebar: Hidden by default, overlay when open */
+.sidebar {
+  position: fixed;
+  left: -100%;
+  transition: left 300ms;
+}
+
+.sidebar.open {
+  left: 0;
+  z-index: 50;
+}
+
+/* Chat: Full width */
+.chat {
+  width: 100%;
+}
+
+/* Workflows: Hidden */
+.workflows {
+  display: none;
+}
+```
+
+**Tablet (768-1023px):**
+```css
+/* Sidebar: 280px fixed */
+.sidebar {
+  width: 280px;
+}
+
+/* Chat: Flex-1 */
+.chat {
+  flex: 1;
+}
+
+/* Workflows: Overlay on demand */
+.workflows {
+  position: fixed;
+  right: -100%;
+  transition: right 300ms;
+}
+
+.workflows.open {
+  right: 0;
+}
+```
+
+**Desktop (>=1024px):**
+```css
+/* All panels visible and resizable */
+.sidebar {
+  width: var(--sidebar-width, 320px);
+  resize: horizontal;
+}
+
+.workflows {
+  width: var(--workflows-width, 400px);
+  resize: horizontal;
+}
+```
+
+---
+
+## 🔧 Interactive Components
+
+### Toggle Switch
+
+```html
+<label class="relative inline-flex items-center cursor-pointer">
+  <input type="checkbox" checked={enabled} class="sr-only peer" />
+  <div class="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-600"></div>
+</label>
+```
+
+**Estados:**
+- Desactivado: bg-slate-200
+- Activado: bg-green-600
+- Focus: ring-2 ring-blue-300
+- Transition: all 150ms
+
+---
+
+### Progress Bar
+
+```html
+<div class="w-full bg-slate-200 rounded-full h-2">
+  <div 
+    class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+    style={`width: ${percentage}%`}
+  />
+</div>
+```
+
+**Variantes:**
+- Success: bg-green-600
+- Warning: bg-yellow-600
+- Error: bg-red-600
+
+---
+
+### Badge
+
+```html
+<span class="px-2 py-1 bg-green-600 text-white text-xs rounded-full font-semibold">
+  ✓ Validado
+</span>
+```
+
+**Variantes:**
+- Success: bg-green-600
+- Info: bg-blue-600
+- Warning: bg-yellow-600
+- Error: bg-red-600
+
+---
+
+## 📊 Data Visualization
+
+### Stats Card
+
+```html
+<div class="p-4 border border-slate-200 rounded-lg">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-sm text-slate-600">Label</span>
+    <Icon class="w-5 h-5 text-blue-600" />
+  </div>
+  <p class="text-2xl font-bold text-slate-900">1,234</p>
+  <p class="text-xs text-green-600">↑ 12% from last month</p>
+</div>
+```
+
+---
+
+### Table (Context Logs)
+
+```html
+<table class="w-full text-xs">
+  <thead class="bg-slate-100 border-b border-slate-200">
+    <tr>
+      <th class="px-2 py-1 text-left font-semibold text-slate-700">Column</th>
+      ...
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-b border-slate-100 hover:bg-slate-50 cursor-pointer">
+      <td class="px-2 py-2 text-slate-800">Value</td>
+      ...
+    </tr>
+  </tbody>
+</table>
+```
+
+**Features:**
+- Striped rows: `idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'`
+- Hover: `hover:bg-slate-50`
+- Sticky header (if scrollable)
+- Font-mono for numbers
+- Color-coded badges
+
+---
+
+## ✅ Status Indicators
+
+### Context Usage
+
+```html
+<span class={`font-semibold ${
+  usage < 50 ? 'text-green-600' :
+  usage < 80 ? 'text-yellow-600' :
+  'text-red-600'
+}`}>
+  {usage}%
+</span>
+```
+
+### Model Badge
+
+```html
+<span class={`px-2 py-1 rounded text-xs font-semibold ${
+  model === 'pro' 
+    ? 'bg-purple-100 text-purple-700' 
+    : 'bg-green-100 text-green-700'
+}`}>
+  {model === 'pro' ? 'Pro' : 'Flash'}
+</span>
+```
+
+### Source Status
+
+```html
+{source.status === 'processing' && (
+  <div class="flex items-center gap-2 text-xs text-blue-600">
+    <Loader2 class="w-4 h-4 animate-spin" />
+    Procesando
+  </div>
+)}
+
+{source.status === 'active' && (
+  <CheckCircle class="w-4 h-4 text-green-600" />
+)}
+
+{source.status === 'error' && (
+  <XCircle class="w-4 h-4 text-red-600" />
+)}
+```
+
+---
+
+## 🎨 Markdown Rendering Styles
+
+### Code Block
+
+```css
+/* Syntax highlighted code */
+.code-block {
+  @apply rounded-lg overflow-hidden;
+  background: #1e1e1e; /* VS Code Dark */
+}
+
+.code-block pre {
+  @apply p-4 overflow-x-auto;
+}
+
+.code-block .copy-button {
+  @apply absolute top-2 right-2 opacity-0;
+  @apply px-2 py-1 bg-slate-700 text-white text-xs rounded;
+  @apply hover:bg-slate-600 transition-all;
+}
+
+.code-block:hover .copy-button {
+  @apply opacity-100;
+}
+```
+
+### Inline Code
+
+```css
+.inline-code {
+  @apply px-1.5 py-0.5 bg-slate-100 text-slate-800;
+  @apply rounded text-sm font-mono;
+}
+```
+
+### Table
+
+```css
+.markdown-table {
+  @apply min-w-full divide-y divide-slate-200;
+  @apply border border-slate-200 rounded-lg;
+}
+
+.markdown-table thead {
+  @apply bg-slate-100;
+}
+
+.markdown-table th {
+  @apply px-4 py-2 text-left text-xs font-semibold;
+  @apply text-slate-700 uppercase tracking-wider;
+}
+
+.markdown-table td {
+  @apply px-4 py-2 text-sm text-slate-800;
+  @apply border-t border-slate-200;
+}
+```
+
+### Blockquote
+
+```css
+.markdown-blockquote {
+  @apply border-l-4 border-blue-500 pl-4 py-2 my-4;
+  @apply bg-blue-50 text-slate-700 italic;
+}
+```
+
+### Image Card
+
+```css
+.markdown-image-card {
+  @apply my-4 rounded-xl overflow-hidden;
+  @apply border border-slate-200 shadow-lg;
+}
+
+.markdown-image-card img {
+  @apply w-full h-auto;
+}
+
+.markdown-image-card .caption {
+  @apply px-4 py-2 bg-slate-50 text-sm text-slate-600;
+  @apply flex items-center gap-2;
+}
+```
+
+---
+
+## 🔗 Source References
+
+### In Markdown
+
+```markdown
+Según el [Documento Demo](#source-abc123), la política indica...
+```
+
+### Rendered as
+
+```html
+<button
+  onClick={() => openSourceDetails('abc123')}
+  class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium"
+>
+  <FileText class="w-3.5 h-3.5" />
+  Documento Demo
+  <CheckCircle class="w-3.5 h-3.5 text-green-600" /> <!-- If validated -->
+</button>
+```
+
+**Behavior:**
+- Clickable link
+- Opens `ContextSourceSettingsModal`
+- Shows validation badge
+- Document icon
+
+---
+
+## 📏 Component Sizes Reference
+
+```css
+/* Icons */
+icon-sm: 16px (w-4 h-4)
+icon-md: 20px (w-5 h-5)
+icon-lg: 24px (w-6 h-6)
+
+/* Buttons */
+button-sm: px-3 py-1.5 text-sm
+button-md: px-4 py-2 text-base
+button-lg: px-6 py-3 text-lg
+
+/* Inputs */
+input-sm: px-3 py-1.5 text-sm
+input-md: px-4 py-2 text-base
+input-lg: px-6 py-3 text-lg
+
+/* Modals */
+modal-sm: max-w-md
+modal-md: max-w-2xl
+modal-lg: max-w-4xl
+modal-xl: max-w-6xl
+```
+
+---
+
+## 🎯 Key UX Patterns
+
+### Loading States
+- Skeleton screens for initial load
+- Spinners for short waits (<3s)
+- Progress bars for long operations (>3s)
+- Inline loaders for button actions
+
+### Error States
+- Toast notifications for quick errors
+- Inline errors for form validation
+- Modal dialogs for critical errors
+- Retry buttons where applicable
+
+### Empty States
+- Friendly illustrations
+- Clear call-to-action
+- Examples or suggestions
+- Help links
+
+### Success States
+- Checkmark animations
+- Green success badges
+- Toast confirmations
+- Subtle celebrations (no confetti)
+
+---
+
+**Última Actualización**: 2025-10-12
+**Versión UI**: 2.0.0
+**Framework**: Astro + React + Tailwind CSS v3.4.x
