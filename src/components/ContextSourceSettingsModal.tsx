@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings } from 'lucide-react';
+import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User } from 'lucide-react';
 import type { ContextSource, WorkflowConfig } from '../types/context';
 
 interface ContextSourceSettingsModalProps {
-  source: ContextSource;
+  source: ContextSource | null;
   isOpen: boolean;
   onClose: () => void;
   onReExtract: (sourceId: string, newConfig: WorkflowConfig) => Promise<void>;
@@ -15,17 +15,17 @@ export default function ContextSourceSettingsModal({
   onClose,
   onReExtract,
 }: ContextSourceSettingsModalProps) {
-  const [config, setConfig] = useState<WorkflowConfig>(source.metadata?.extractionConfig || {});
+  const [config, setConfig] = useState<WorkflowConfig>({});
   const [isReExtracting, setIsReExtracting] = useState(false);
   const [showModelTooltip, setShowModelTooltip] = useState(false);
 
   useEffect(() => {
-    if (source.metadata?.extractionConfig) {
+    if (source?.metadata?.extractionConfig) {
       setConfig(source.metadata.extractionConfig);
     }
   }, [source]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !source) return null;
 
   const handleReExtract = async () => {
     setIsReExtracting(true);
@@ -164,6 +164,74 @@ export default function ContextSourceSettingsModal({
                 </div>
               </div>
             )}
+
+            {/* Validation Status - New Section */}
+            <section className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                {source.metadata?.validated ? (
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-yellow-600" />
+                )}
+                Estado de Validación
+              </h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500">Estado:</span>
+                  {source.metadata?.validated ? (
+                    <span className="px-2 py-0.5 bg-green-600 text-white rounded-full text-[10px] font-semibold">
+                      ✓ Validado
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-yellow-500 text-white rounded-full text-[10px] font-semibold">
+                      ⏳ Pendiente
+                    </span>
+                  )}
+                </div>
+                
+                {source.metadata?.validated && source.metadata?.validatedBy && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Validado por:</span>
+                      <span className="font-medium text-slate-800 flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        {source.metadata.validatedBy}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Fecha:</span>
+                      <span className="font-medium text-slate-800">
+                        {formatDate(source.metadata.validatedAt)}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-2 pt-2 border-t border-green-200">
+                  <p className="text-[10px] text-slate-600 mb-1">
+                    <strong>Permisos para validar:</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {['admin', 'context_signoff', 'context_owner', 'context_reviewer'].map(role => (
+                      <span 
+                        key={role}
+                        className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium"
+                      >
+                        {role}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {!source.metadata?.validated && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <p className="text-[10px] text-yellow-800">
+                      <strong>ℹ️ Nota:</strong> Este contexto debe ser validado por un experto del dominio antes de ser considerado oficial.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
 
           {/* Right Column */}

@@ -14,6 +14,8 @@ export interface ExtractionMetadata {
   extractionConfig?: WorkflowConfig;
   extractionDate?: Date;
   extractionTime?: number; // milliseconds
+  extractedAt?: string; // ISO date string
+  model?: string; // AI model used
   
   // Output details
   charactersExtracted?: number;
@@ -24,6 +26,12 @@ export interface ExtractionMetadata {
   pageCount?: number;
   url?: string;
   apiEndpoint?: string;
+  
+  // Validation metadata
+  validated?: boolean;
+  validatedBy?: string; // User email or ID
+  validatedAt?: Date;
+  validationNotes?: string;
 }
 
 export interface ContextSource {

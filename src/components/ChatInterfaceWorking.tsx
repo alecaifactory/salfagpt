@@ -4,7 +4,8 @@ import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
-import type { Workflow, SourceType, WorkflowConfig } from '../types/context';
+import ContextSourceSettingsModal from './ContextSourceSettingsModal';
+import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 
 interface Message {
@@ -18,32 +19,6 @@ interface Conversation {
   id: string;
   title: string;
   lastMessageAt: Date;
-}
-
-interface ContextSource {
-  id: string;
-  name: string;
-  type: 'pdf' | 'csv' | 'excel' | 'word' | 'folder' | 'web-url' | 'api';
-  enabled: boolean;
-  status: 'processing' | 'active' | 'error' | 'disabled';
-  extractedData: string;
-  addedAt: Date;
-  metadata?: {
-    originalFileSize?: number;
-    pageCount?: number;
-    modelUsed?: string;
-    charactersExtracted?: number;
-  };
-  progress?: {
-    stage: 'uploading' | 'processing' | 'complete' | 'error';
-    percentage: number;
-    message: string;
-  };
-  error?: {
-    message: string;
-    details?: string;
-    timestamp: Date;
-  };
 }
 
 interface ChatInterfaceWorkingProps {
@@ -82,6 +57,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
   // User settings state
   const [userSettings, setUserSettings] = useState<UserSettings>(() => {
@@ -442,6 +418,117 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     console.log('✅ User settings saved:', settings);
   };
 
+  const handleSourceSettings = (sourceId: string) => {
+    const source = contextSources.find(s => s.id === sourceId);
+    if (source) {
+      setSettingsSource(source);
+    }
+  };
+
+  const handleReExtract = async (sourceId: string, newConfig: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro' }) => {
+    console.log('Re-extracting source:', sourceId, 'with config:', newConfig);
+    
+    // Find the source
+    const source = contextSources.find(s => s.id === sourceId);
+    if (!source || !source.originalFile) {
+      console.error('Cannot re-extract: source or original file not found');
+      return;
+    }
+
+    // Update source to show it's processing
+    setContextSources(prev => prev.map(s =>
+      s.id === sourceId
+        ? {
+            ...s,
+            status: 'processing' as const,
+            progress: {
+              stage: 'processing' as const,
+              percentage: 0,
+              message: 'Re-extrayendo contenido...',
+            },
+            error: undefined,
+          }
+        : s
+    ));
+
+    // Close settings modal
+    setSettingsSource(null);
+
+    try {
+      // Re-extract using the same logic as handleAddSource
+      const formData = new FormData();
+      formData.append('file', source.originalFile);
+      formData.append('model', newConfig.model || 'gemini-2.5-flash');
+
+      // Update progress
+      setContextSources(prev => prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              progress: {
+                stage: 'processing' as const,
+                percentage: 50,
+                message: 'Procesando con ' + (newConfig.model === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash') + '...',
+              },
+            }
+          : s
+      ));
+
+      const response = await fetch('/api/extract-document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Extraction failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      // Update source with new extracted data
+      setContextSources(prev => prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              extractedData: result.text,
+              status: 'active' as const,
+              metadata: {
+                ...s.metadata,
+                ...result.metadata,
+                model: newConfig.model || 'gemini-2.5-flash',
+                extractedAt: new Date().toISOString(),
+              },
+              progress: {
+                stage: 'complete' as const,
+                percentage: 100,
+                message: '✓ Re-extracción completada',
+              },
+              error: undefined,
+            }
+          : s
+      ));
+
+      console.log('✅ Re-extraction successful:', sourceId);
+    } catch (error) {
+      console.error('❌ Re-extraction failed:', error);
+      
+      setContextSources(prev => prev.map(s =>
+        s.id === sourceId
+          ? {
+              ...s,
+              status: 'error' as const,
+              progress: undefined,
+              error: {
+                message: 'Error al re-extraer contenido',
+                details: error instanceof Error ? error.message : String(error),
+                timestamp: new Date(),
+              },
+            }
+          : s
+      ));
+    }
+  };
+
   const calculateContextUsage = () => {
     // Context window sizes for each model
     const contextWindows = {
@@ -532,7 +619,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             setContextSources(prev => prev.filter(s => s.id !== id));
           }}
           onSourceClick={setSelectedSourceId}
-          onSourceSettings={(id) => console.log('Settings for', id)}
+          onSourceSettings={handleSourceSettings}
         />
 
         {/* User Menu */}
@@ -937,6 +1024,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         currentSettings={userSettings}
         userName={userName}
         userEmail={userEmail}
+      />
+
+      {/* Context Source Settings Modal */}
+      <ContextSourceSettingsModal
+        source={settingsSource}
+        isOpen={settingsSource !== null}
+        onClose={() => setSettingsSource(null)}
+        onReExtract={handleReExtract}
       />
     </div>
   );
