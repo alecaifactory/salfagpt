@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -441,6 +441,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     console.log('✅ User settings saved:', settings);
   };
 
+  const calculateContextUsage = () => {
+    // Context window sizes for each model
+    const contextWindows = {
+      'gemini-2.5-flash': 1000000, // 1M tokens
+      'gemini-2.5-pro': 2000000,   // 2M tokens
+    };
+
+    const modelWindow = contextWindows[userSettings.preferredModel];
+
+    // Calculate total characters from:
+    // 1. System prompt
+    const systemChars = userSettings.systemPrompt.length;
+    
+    // 2. Messages (rough estimate: 4 chars = 1 token)
+    const messageChars = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+    
+    // 3. Active context sources
+    const contextChars = contextSources
+      .filter(s => s.enabled)
+      .reduce((sum, s) => sum + (s.extractedData?.length || 0), 0);
+
+    const totalChars = systemChars + messageChars + contextChars;
+    const estimatedTokens = Math.ceil(totalChars / 4); // Rough estimate
+    const usagePercent = ((estimatedTokens / modelWindow) * 100).toFixed(1);
+
+    return {
+      totalChars,
+      estimatedTokens,
+      usagePercent: parseFloat(usagePercent),
+      modelWindow,
+    };
+  };
+
   const getWorkflowStatusIcon = (status: Workflow['status']) => {
     switch (status) {
       case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
@@ -593,33 +626,145 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             <div className="mb-3 flex justify-center">
               <button
                 onClick={() => setShowContextPanel(!showContextPanel)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
               >
                 <span className="font-medium">Contexto:</span>
-                <span className="text-blue-600">{contextSources.filter(s => s.enabled).length} activas</span>
+                <span className={`${
+                  calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
+                  calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
+                  'text-green-600'
+                } font-semibold`}>
+                  {calculateContextUsage().usagePercent}%
+                </span>
                 <span className="text-slate-400">•</span>
-                <span>{contextSources.filter(s => s.enabled).reduce((sum, s) => sum + (s.extractedData?.length || 0), 0)} chars</span>
+                <Sparkles className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-slate-700">
+                  {userSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-blue-600">{contextSources.filter(s => s.enabled).length} fuentes</span>
               </button>
             </div>
 
             {/* Context Panel */}
             {showContextPanel && (
-              <div className="mb-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <h4 className="text-sm font-semibold text-slate-700 mb-2">Fuentes Activas</h4>
-                {contextSources.filter(s => s.enabled).length === 0 ? (
-                  <p className="text-sm text-slate-500">No hay fuentes activas</p>
-                ) : (
-                  <div className="space-y-2">
-                    {contextSources.filter(s => s.enabled).map(source => (
-                      <div key={source.id} className="p-3 bg-white rounded border border-slate-200">
-                        <p className="text-sm font-medium text-slate-800">{source.name}</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {source.extractedData.substring(0, 100)}...
-                        </p>
-                      </div>
-                    ))}
+              <div className="mb-3 bg-white rounded-lg border border-slate-200 overflow-hidden">
+                {/* Header with stats */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-bold text-slate-800">Desglose del Contexto</h4>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        calculateContextUsage().usagePercent > 80 ? 'bg-red-100 text-red-700' :
+                        calculateContextUsage().usagePercent > 50 ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-green-100 text-green-700'
+                      }`}>
+                        {calculateContextUsage().usagePercent}% usado
+                      </span>
+                    </div>
                   </div>
-                )}
+                  
+                  <div className="grid grid-cols-3 gap-3 text-xs">
+                    <div className="bg-white rounded p-2">
+                      <p className="text-slate-500 mb-1">Total Tokens</p>
+                      <p className="font-bold text-slate-800">
+                        {calculateContextUsage().estimatedTokens.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-slate-500 mb-1">Disponible</p>
+                      <p className="font-bold text-slate-800">
+                        {(calculateContextUsage().modelWindow - calculateContextUsage().estimatedTokens).toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-slate-500 mb-1">Capacidad</p>
+                      <p className="font-bold text-slate-800">
+                        {(calculateContextUsage().modelWindow / 1000).toFixed(0)}K
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content breakdown */}
+                <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+                  {/* System Prompt */}
+                  <div className="border border-slate-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-xs font-semibold text-slate-700">System Prompt</h5>
+                      <span className="text-xs text-slate-500">
+                        ~{Math.ceil(userSettings.systemPrompt.length / 4)} tokens
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
+                      {userSettings.systemPrompt.substring(0, 150)}
+                      {userSettings.systemPrompt.length > 150 && '...'}
+                    </p>
+                  </div>
+
+                  {/* Messages */}
+                  {messages.length > 0 && (
+                    <div className="border border-slate-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-xs font-semibold text-slate-700">Historial de Conversación</h5>
+                        <span className="text-xs text-slate-500">
+                          {messages.length} mensajes • ~{Math.ceil(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)} tokens
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {messages.slice(-3).map((msg, idx) => (
+                          <div key={msg.id} className="text-xs bg-slate-50 p-2 rounded">
+                            <span className={`font-semibold ${msg.role === 'user' ? 'text-blue-600' : 'text-purple-600'}`}>
+                              {msg.role === 'user' ? '👤 Usuario' : '🤖 Asistente'}:
+                            </span>
+                            <span className="text-slate-600 ml-2">
+                              {msg.content.substring(0, 80)}{msg.content.length > 80 && '...'}
+                            </span>
+                          </div>
+                        ))}
+                        {messages.length > 3 && (
+                          <p className="text-xs text-slate-500 text-center pt-1">
+                            ...y {messages.length - 3} mensajes más
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Context Sources */}
+                  <div className="border border-slate-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
+                      <span className="text-xs text-slate-500">
+                        {contextSources.filter(s => s.enabled).length} activas • ~{Math.ceil(
+                          contextSources.filter(s => s.enabled).reduce((sum, s) => sum + (s.extractedData?.length || 0), 0) / 4
+                        )} tokens
+                      </span>
+                    </div>
+                    {contextSources.filter(s => s.enabled).length === 0 ? (
+                      <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
+                        No hay fuentes activas
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {contextSources.filter(s => s.enabled).map(source => (
+                          <div key={source.id} className="bg-green-50 border border-green-200 rounded p-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs font-semibold text-slate-800">{source.name}</p>
+                              <span className="text-[10px] text-slate-500">
+                                {source.metadata?.pageCount && `${source.metadata.pageCount} págs`}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600">
+                              {source.extractedData?.substring(0, 100)}
+                              {(source.extractedData?.length || 0) > 100 && '...'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
