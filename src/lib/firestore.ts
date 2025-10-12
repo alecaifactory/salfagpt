@@ -226,7 +226,7 @@ export async function addMessage(
     content,
     timestamp: new Date(),
     tokenCount,
-    contextSections,
+    ...(contextSections && { contextSections }),
   };
 
   await messageRef.set(message);
