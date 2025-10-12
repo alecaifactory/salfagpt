@@ -56,7 +56,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
 
   const handleTypeSelect = (type: SourceType) => {
     setSelectedType(type);
-    if (type === 'pdf-text') {
+    if (type === 'pdf') {
       // For file uploads, go to file type selection
       setCurrentStep('configure');
     } else {
@@ -178,7 +178,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource }: AddSour
             </div>
           )}
 
-          {currentStep === 'configure' && selectedType === 'pdf-text' && (
+          {currentStep === 'configure' && selectedType === 'pdf' && (
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-slate-800 mb-4">
