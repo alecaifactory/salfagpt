@@ -57,11 +57,12 @@ steps:
       - '--cpu=${_CPU}'
       - '--timeout=60s'
       - '--concurrency=80'
-      - '--service-account=flow-runtime@$PROJECT_ID.iam.gserviceaccount.com'
-      # Secrets from Secret Manager
-      - '--set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
-      - '--set-secrets=OAUTH_CLIENT_SECRET=OAUTH_CLIENT_SECRET:latest'
-      - '--set-secrets=SESSION_SECRET=SESSION_SECRET:latest'
+      # Service account - commented out if not exists
+      # - '--service-account=flow-runtime@$PROJECT_ID.iam.gserviceaccount.com'
+      # Secrets from Secret Manager - commented out for now
+      # - '--set-secrets=ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest'
+      # - '--set-secrets=OAUTH_CLIENT_SECRET=OAUTH_CLIENT_SECRET:latest'
+      # - '--set-secrets=SESSION_SECRET=SESSION_SECRET:latest'
       # Environment variables
       - '--set-env-vars=NODE_ENV=production'
       - '--set-env-vars=NEXT_PUBLIC_PLATFORM=www'
@@ -78,20 +79,20 @@ steps:
       - '-c'
       - |
         # Get the service URL
-        SERVICE_URL=$(gcloud run services describe ${_SERVICE_NAME} \
+        SERVICE_URL=$$(gcloud run services describe ${_SERVICE_NAME} \
           --region=${_REGION} \
           --format='value(status.url)')
         
-        echo "Service URL: $SERVICE_URL"
+        echo "Service URL: $$SERVICE_URL"
         
         # Wait for service to be ready (max 2 minutes)
         for i in {1..24}; do
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $SERVICE_URL)
-          if [ $HTTP_CODE -eq 200 ] || [ $HTTP_CODE -eq 302 ]; then
-            echo "✅ Health check passed! HTTP $HTTP_CODE"
+          HTTP_CODE=$$(curl -s -o /dev/null -w "%{http_code}" $$SERVICE_URL)
+          if [ $$HTTP_CODE -eq 200 ] || [ $$HTTP_CODE -eq 302 ]; then
+            echo "✅ Health check passed! HTTP $$HTTP_CODE"
             exit 0
           fi
-          echo "⏳ Waiting for service... (attempt $i/24) HTTP $HTTP_CODE"
+          echo "⏳ Waiting for service... (attempt $$i/24) HTTP $$HTTP_CODE"
           sleep 5
         done
         
@@ -114,19 +115,20 @@ options:
   
   # Build logs
   logging: CLOUD_LOGGING_ONLY
-  
-  # Timeout for entire deployment
-  timeout: '1200s'  # 20 minutes
 
-# Service account with deployment permissions
-serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/$PROJECT_NUMBER@cloudbuild.gserviceaccount.com'
+# Timeout for entire deployment (must be at root level)
+timeout: '1200s'  # 20 minutes
+
+# Service account - let Cloud Build select automatically
+# serviceAccount: 'projects/$PROJECT_ID/serviceAccounts/$PROJECT_NUMBER@cloudbuild.gserviceaccount.com'
 
 # Access to secrets during build (if needed for build-time operations)
-availableSecrets:
-  secretManager:
-    - versionName: 'projects/$PROJECT_ID/secrets/ANTHROPIC_API_KEY/versions/latest'
-      env: 'ANTHROPIC_API_KEY'
-    - versionName: 'projects/$PROJECT_ID/secrets/OAUTH_CLIENT_SECRET/versions/latest'
-      env: 'OAUTH_CLIENT_SECRET'
-    - versionName: 'projects/$PROJECT_ID/secrets/SESSION_SECRET/versions/latest'
-      env: 'SESSION_SECRET'
+# Commented out - configure secrets in Secret Manager first
+# availableSecrets:
+#   secretManager:
+#     - versionName: 'projects/$PROJECT_ID/secrets/ANTHROPIC_API_KEY/versions/latest'
+#       env: 'ANTHROPIC_API_KEY'
+#     - versionName: 'projects/$PROJECT_ID/secrets/OAUTH_CLIENT_SECRET/versions/latest'
+#       env: 'OAUTH_CLIENT_SECRET'
+#     - versionName: 'projects/$PROJECT_ID/secrets/SESSION_SECRET/versions/latest'
+#       env: 'SESSION_SECRET'

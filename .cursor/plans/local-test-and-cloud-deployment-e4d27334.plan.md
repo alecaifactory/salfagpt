@@ -111,7 +111,7 @@ gcloud run deploy flow \
 2. Configure Docker to use gcr.io
 3. Deploy using Container Registry path:
    ```bash
-   gcloud builds submit --tag gcr.io/gen-lang-client-0986191192/flow
+   gcloud builds submit --tag gcr.io/gen-lang-wclient-0986191192/flow
    gcloud run deploy flow --image gcr.io/gen-lang-client-0986191192/flow
    ```
 
@@ -177,4 +177,3 @@ Common failure modes:
 - [ ] Attempt 2: Deploy via Cloud Shell if Attempt 1 fails
 - [ ] Attempt 3: Pre-build image then deploy if Attempt 2 fails
 - [ ] Test deployed URL and verify all routes work
-- [ ] 

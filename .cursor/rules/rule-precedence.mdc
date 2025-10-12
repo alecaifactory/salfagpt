@@ -1,34 +1,6 @@
-# Rule Precedence & Conflict Resolution
-
-## 🎯 Purpose
-
-This rule defines the hierarchy of rules when conflicts arise between different sources of instructions (project rules, user rules, general best practices, etc.).
-
 ---
-
-## 📊 Rule Hierarchy (Highest to Lowest Priority)
-
-### 1. 🏆 PROJECT-SPECIFIC RULES (Highest Priority)
-**Location**: `.cursor/rules/*.mdc` files in THIS project
-
-**These rules ALWAYS take precedence over everything else.**
-
-Examples:
-- `project-identity.mdc` - Project identity & deployment
-- `prd.mdc` - Product requirements
-- `ui.mdc` - UI documentation
-- `gcp-project-consistency.mdc` - GCP configuration
-- `gemini-api-usage.mdc` - Gemini AI usage
-- And all other `.mdc` files in `.cursor/rules/`
-
-**Why highest priority?**
-- Project-specific requirements
-- Tested and validated for THIS project
-- Critical for project functionality
-- Prevents breaking changes
-
+alwaysApply: true
 ---
-
 ### 2. 📚 PROJECT DOCUMENTATION
 **Location**: `docs/` folder, `README.md`, `*.md` files in root
 

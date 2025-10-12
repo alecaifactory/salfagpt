@@ -1,48 +1,6 @@
-# Project Identity & Deployment Rules - Flow Platform
-
-## 🚨 CRITICAL: Project Identity
-
-**THIS IS THE FLOW PROJECT (formerly SalfaGPT)**
-
-### DO NOT CONFUSE WITH:
-- ❌ PAME.AI project
-- ❌ pame-core-cli
-- ❌ PAME platform rules
-- ❌ Any other user's projects
-
-### THIS PROJECT IS:
-- ✅ **Flow** - AI-first conversational platform
-- ✅ Formerly known as **SalfaGPT**
-- ✅ Independent project with its own rules
-- ✅ Deployed to GCP Cloud Run directly
-
 ---
-
-## 📋 Project Information
-
-### Project Name
-- **Current**: Flow
-- **Previous**: SalfaGPT
-- **Code**: `salfagpt` (directory name)
-
-### Google Cloud Platform
-- **Project ID**: `gen-lang-client-0986191192`
-- **Firestore**: Same project
-- **BigQuery**: Same project
-- **Cloud Run**: Same project
-- **Region**: us-central1
-
-### Technology Stack
-- **Frontend**: Astro 5.1.x + React 18.3.x
-- **Backend**: Astro API Routes
-- **Database**: Google Firestore
-- **Analytics**: Google BigQuery
-- **AI**: Google Gemini AI 2.5 (Flash, Pro)
-- **Auth**: JWT + Google OAuth2
-- **Deployment**: Google Cloud Run
-
+alwaysApply: true
 ---
-
 ## 🚀 CORRECT Deployment Method
 
 ### ❌ NEVER USE:
