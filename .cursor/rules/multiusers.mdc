@@ -1,0 +1,820 @@
+---
+alwaysApply: true
+---
+
+# Multi-User Support & Testing - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the multi-user architecture, testing procedures, and technical requirements to ensure complete data isolation between users. It ensures that the platform can safely support multiple users with guaranteed privacy.
+
+---
+
+## 🌟 Multi-User Architecture
+
+### User Isolation Model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              MULTI-USER ARCHITECTURE                     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  User A (alec@getaifactory.com)                        │
+│  ├─ userId: "114671162830729001607"                    │
+│  ├─ Conversations: 65+                                 │
+│  ├─ Messages: 100+                                     │
+│  ├─ Context Sources: 2                                 │
+│  └─ Settings: Personal                                 │
+│     NO ACCESS to User B data ❌                        │
+│                                                         │
+│  User B (hello@getaifactory.com)                       │
+│  ├─ userId: "116745562509015715931"                    │
+│  ├─ Conversations: 2                                   │
+│  ├─ Messages: 4                                        │
+│  ├─ Context Sources: 1                                 │
+│  └─ Settings: Personal                                 │
+│     NO ACCESS to User A data ❌                        │
+│                                                         │
+│  COMPLETE ISOLATION ✅                                  │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🔒 Data Isolation Requirements
+
+### 1. Every Collection Filters by userId
+
+**Pattern:**
+```typescript
+// ✅ CORRECT: All user-specific queries
+export async function getConversations(userId: string) {
+  return firestore
+    .collection('conversations')
+    .where('userId', '==', userId) // CRITICAL
+    .orderBy('lastMessageAt', 'desc')
+    .get();
+}
+
+export async function getContextSources(userId: string) {
+  return firestore
+    .collection('context_sources')
+    .where('userId', '==', userId) // CRITICAL
+    .orderBy('addedAt', 'desc')
+    .get();
+}
+```
+
+**Collections with userId isolation:**
+- ✅ `conversations` - Filtered by userId
+- ✅ `messages` - Filtered by conversationId → userId
+- ✅ `context_sources` - Filtered by userId
+- ✅ `user_settings` - Document ID = userId
+- ✅ `agent_configs` - Filtered by userId
+- ✅ `conversation_context` - Filtered by userId
+
+---
+
+### 2. Every API Endpoint Verifies Ownership
+
+**Pattern:**
+```typescript
+export const GET: APIRoute = async ({ request, cookies }) => {
+  // 1. Authenticate
+  const session = getSession({ cookies });
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      status: 401 
+    });
+  }
+
+  // 2. Verify ownership
+  const userId = url.searchParams.get('userId');
+  if (session.id !== userId) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+      status: 403 
+    });
+  }
+
+  // 3. Proceed safely
+  const data = await getData(userId);
+  return data;
+};
+```
+
+**Protected Endpoints:**
+- ✅ All `/api/conversations` endpoints
+- ✅ All `/api/context-sources` endpoints
+- ✅ All `/api/user-settings` endpoints
+- ✅ All `/api/agent-config` endpoints
+
+---
+
+## 🧪 Multi-User Testing
+
+### Test Setup
+
+**Requirement**: 2+ Google accounts for OAuth testing
+
+**Recommended**:
+- User A: `alec@getaifactory.com` (admin/existing)
+- User B: `hello@getaifactory.com` (new user)
+
+**Browser Setup**:
+- User A: Normal window
+- User B: Incognito window
+
+**Why**: Prevents cookie/cache conflicts
+
+---
+
+### Test 1: User A (Baseline)
+
+**Objective**: Verify existing user data loads correctly
+
+**Steps**:
+1. Open `http://localhost:3000/chat` in normal window
+2. Login with User A (`alec@getaifactory.com`)
+3. Verify conversations load
+4. Verify context sources load
+5. Note conversation count
+
+**Expected Result**:
+```
+✅ Login successful
+✅ Conversations: 65+
+✅ Context Sources: 1-2
+✅ All features working
+```
+
+**Console logs**:
+```
+📥 Cargando conversaciones desde Firestore...
+✅ 65 conversaciones cargadas desde Firestore
+📚 Cargando fuentes de contexto desde Firestore...
+✅ 2 fuentes de contexto cargadas desde Firestore
+```
+
+---
+
+### Test 2: User B (New User)
+
+**Objective**: Verify new user sees empty state, NOT User A's data
+
+**Steps**:
+1. Open **Incognito window** (Cmd+Shift+N)
+2. Navigate to `http://localhost:3000/chat`
+3. Login with User B (`hello@getaifactory.com`)
+4. Verify empty state
+5. Check console for errors
+
+**Expected Result**:
+```
+✅ Login successful
+✅ Conversations: 0 (empty state shown)
+✅ Context Sources: 0 (empty state shown)
+✅ Message: "Comienza una conversación..."
+✅ NO User A data visible ⭐
+```
+
+**Console logs**:
+```
+📥 Cargando conversaciones desde Firestore...
+ℹ️ No hay conversaciones guardadas
+📚 Cargando fuentes de contexto desde Firestore...
+ℹ️ No hay fuentes de contexto guardadas
+```
+
+**CRITICAL Verification**:
+- ❌ User B MUST NOT see any of User A's conversations
+- ❌ User B MUST NOT see any of User A's context sources
+
+---
+
+### Test 3: Create Data in User B
+
+**Objective**: Verify User B can create and persist their own data
+
+**Steps** (in incognito window as User B):
+1. Click "+ Nuevo Agente"
+2. Rename to "Agente de Hello" (hover → pencil → edit)
+3. Send message: "Hola, soy Hello"
+4. Verify AI responds
+5. Click "+ Agregar" in Fuentes de Contexto
+6. Upload a PDF
+7. Wait for extraction
+8. Verify PDF appears with toggle ON
+
+**Expected Result**:
+```
+✅ Agent created
+✅ Title edited and saved
+✅ Message sent and responded
+✅ PDF uploaded and extracted
+✅ PDF visible with toggle ON
+✅ All persisted to Firestore with User B's userId
+```
+
+**Firestore verification**:
+```bash
+# Check User B's data in Firestore
+npx tsx -e "
+import { firestore } from './src/lib/firestore.js';
+async function check() {
+  const convs = await firestore.collection('conversations')
+    .where('userId', '==', '116745562509015715931') // User B
+    .get();
+  console.log('User B conversations:', convs.size);
+  process.exit(0);
+}
+check();
+"
+```
+
+---
+
+### Test 4: Verify Complete Isolation
+
+**Objective**: Confirm no data leakage in either direction
+
+**Steps**:
+1. **In User A window**:
+   - Refresh page
+   - Count conversations
+   - Verify NO "Agente de Hello"
+   - Verify NO User B's PDF
+
+2. **In User B window** (incognito):
+   - Refresh page
+   - Count conversations (should be 1-2)
+   - Verify NO User A's 65+ conversations
+   - Verify NO User A's context sources
+
+**Expected Result**:
+```
+✅ User A: 65+ conversations (unchanged)
+✅ User A: NO "Agente de Hello"
+✅ User B: 1-2 conversations only
+✅ User B: NO User A conversations
+✅ Complete bidirectional isolation ⭐
+```
+
+---
+
+### Test 5: Security - Unauthorized Access Attempt
+
+**Objective**: Verify API blocks cross-user access attempts
+
+**Steps**:
+1. In User B window, open DevTools → Network
+2. Find API call: `GET /api/conversations?userId=116745562509015715931`
+3. Copy User B's userId
+4. In User A window, open DevTools → Console
+5. Execute:
+   ```javascript
+   fetch('/api/conversations?userId=116745562509015715931')
+     .then(r => r.json())
+     .then(console.log)
+   ```
+
+**Expected Result**:
+```javascript
+{
+  "error": "Forbidden - Cannot access other user data"
+}
+```
+
+✅ **HTTP 403 Forbidden** - Security working correctly
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue 1: React Hooks Error (Blank Screen)
+
+**Symptom**:
+```
+TypeError: Cannot read properties of null (reading 'useState')
+Warning: Invalid hook call
+```
+
+**Cause**: Multiple copies of React in bundle, or corrupted cache
+
+**Solutions**:
+
+#### Solution 1: vite.config.ts (Done)
+```typescript
+// Already added to project
+export default defineConfig({
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
+});
+```
+
+#### Solution 2: Clear Browser Cache
+```
+1. Open DevTools (F12)
+2. Application tab
+3. Clear Storage → Clear site data
+4. Hard reload (Cmd+Shift+R)
+```
+
+#### Solution 3: Incognito Window
+```
+1. Open incognito (Cmd+Shift+N)
+2. Navigate to http://localhost:3000/chat
+3. Login with new user
+4. Should work ✅
+```
+
+#### Solution 4: Different Browser
+```
+- User A: Chrome
+- User B: Firefox incognito
+- Avoids all cache conflicts
+```
+
+#### Solution 5: Rebuild
+```bash
+pkill -f "astro dev"
+rm -rf node_modules/.vite dist .astro
+npm run dev
+```
+
+---
+
+### Issue 2: BigQuery Dataset Not Found (Warning)
+
+**Symptom**:
+```
+Error inserting session: ApiError: Not found: Dataset gen-lang-client-0986191192:flow_dataset
+```
+
+**Status**: ⚠️ **NON-BLOCKING** - Safe to ignore
+
+**Why**: Analytics in development mode tries to log to BigQuery but dataset doesn't exist. This is expected and doesn't affect core functionality.
+
+**Future**: When deploying to production, create BigQuery dataset or disable analytics in dev mode.
+
+---
+
+### Issue 3: User Sees Other User's Data
+
+**Diagnosis**:
+```bash
+# Check if userId filter is working
+curl "http://localhost:3000/api/conversations?userId=USER_A_ID"
+# Should only return User A's conversations
+
+curl "http://localhost:3000/api/conversations?userId=USER_B_ID"  
+# Should only return User B's conversations
+```
+
+**If seeing mixed data**:
+- ❌ BUG in Firestore query (check .where clause)
+- ❌ BUG in API endpoint (missing ownership check)
+- ❌ Frontend showing cached data (clear cache)
+
+**Solution**: Review `privacy.mdc` and `SECURITY_USER_DATA_ISOLATION_2025-10-13.md`
+
+---
+
+## 📋 Multi-User Checklist
+
+Before deploying to production with multiple users:
+
+### Backend ✅
+- [x] All Firestore queries filter by userId
+- [x] All API endpoints verify authentication
+- [x] All API endpoints verify ownership
+- [x] Firestore Security Rules documented (pending deploy)
+- [x] Session management working (JWT + cookies)
+- [x] OAuth flow working (Google)
+
+### Frontend ✅
+- [x] Each user sees only their data
+- [x] Empty states for new users
+- [x] No data bleeding between users
+- [x] vite.config.ts prevents React duplicates
+- [x] Cache-resistant (works in incognito)
+
+### Data Layer ✅
+- [x] userId field on all user-specific collections
+- [x] Indexes include userId for performance
+- [x] source field tracks origin (localhost/production)
+- [x] assignedToAgents for agent-specific context
+
+### Security ✅
+- [x] HTTP 401 for unauthenticated requests
+- [x] HTTP 403 for unauthorized access attempts
+- [x] HTTP-only cookies for session tokens
+- [x] No sensitive data in logs
+- [x] Audit trail of security events
+
+### Testing ✅
+- [x] Manual testing with 2+ users
+- [x] Verified data isolation
+- [x] Verified agent context isolation
+- [x] Verified security (403 on cross-access)
+- [x] Works in incognito mode
+
+---
+
+## 🔧 Configuration for Multi-User
+
+### vite.config.ts (Required)
+
+```typescript
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
+});
+```
+
+**Why**: Prevents multiple copies of React in bundle, which causes hooks errors for different users.
+
+**Status**: ✅ Added on 2025-10-13
+
+---
+
+### OAuth Configuration
+
+**Required Environment Variables**:
+```bash
+GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+JWT_SECRET=...
+PUBLIC_BASE_URL=http://localhost:3000
+```
+
+**Authorized Redirect URIs** (in Google Console):
+```
+http://localhost:3000/auth/callback
+https://your-production-domain.com/auth/callback
+```
+
+---
+
+## 📊 User Data Structure
+
+### Each User Has
+
+```typescript
+User {
+  id: string,              // Unique (from Google OAuth)
+  email: string,           // Email address
+  name: string,            // Display name
+  role: string,            // Permissions
+  
+  // Owns these collections (filtered by userId):
+  conversations: Conversation[],
+  messages: Message[],
+  contextSources: ContextSource[],
+  settings: UserSettings,
+  agentConfigs: AgentConfig[],
+}
+```
+
+**Isolation**:
+- User A's userId: "114671162830729001607"
+- User B's userId: "116745562509015715931"
+- Queries filter by userId → complete isolation
+
+---
+
+## 🧪 Testing Procedures
+
+### Daily Testing (During Development)
+
+```bash
+# Test 1: Multiple users can login
+# Test 2: Each sees only their data
+# Test 3: Create/edit/delete works per user
+# Test 4: Refresh preserves isolation
+# Test 5: Security blocks cross-access
+```
+
+### Pre-Deploy Testing (Before Production)
+
+```bash
+# 1. Create 3+ test users
+# 2. Each user creates 5+ conversations
+# 3. Each user uploads 2+ PDFs
+# 4. Verify no data bleeding
+# 5. Attempt unauthorized access (should fail)
+# 6. Monitor logs for security events
+```
+
+### Production Monitoring
+
+```bash
+# 1. Daily audit of access logs
+# 2. Monitor 403 Forbidden events
+# 3. Check for unauthorized access attempts
+# 4. Verify userId distribution in queries
+# 5. Review security incident reports
+```
+
+---
+
+## 🚨 Common Multi-User Issues
+
+### Issue 1: React Hooks Error for Some Users
+
+**Symptom**: User A works, User B sees blank screen
+
+**Cause**: Browser cache has old React bundle
+
+**Solution**:
+```
+1. Add vite.config.ts (done)
+2. Clear browser cache completely
+3. Use incognito window
+4. Hard reload (Cmd+Shift+R)
+```
+
+**Prevention**: Always test new users in incognito
+
+---
+
+### Issue 2: User Sees Another User's Data
+
+**Symptom**: User B sees User A's conversations
+
+**Cause**: Missing userId filter or ownership check
+
+**Diagnosis**:
+```typescript
+// Check query in Firestore function
+console.log('Querying for userId:', userId);
+
+// Check API endpoint
+console.log('Session userId:', session.id);
+console.log('Requested userId:', requestedUserId);
+console.log('Match:', session.id === requestedUserId);
+```
+
+**Solution**: Review `privacy.mdc` → Always filter + verify
+
+---
+
+### Issue 3: Session Cookie Issues
+
+**Symptom**: User keeps getting logged out
+
+**Diagnosis**:
+```typescript
+// Check cookie settings
+context.cookies.get('flow_session')
+// Should be present and valid
+```
+
+**Causes**:
+- JWT_SECRET not set
+- Cookie expired (>7 days)
+- Domain mismatch (localhost vs 127.0.0.1)
+
+**Solution**:
+```typescript
+// Ensure proper cookie config
+context.cookies.set('flow_session', token, {
+  httpOnly: true,
+  secure: false, // true in production
+  sameSite: 'lax',
+  maxAge: 7 * 24 * 60 * 60, // 7 days
+  path: '/',
+});
+```
+
+---
+
+## 📚 Best Practices for Multi-User
+
+### DO's ✅
+
+1. ✅ **Test in incognito** for new users
+   - Prevents cache conflicts
+   - Clean slate for testing
+
+2. ✅ **Verify userId in logs**
+   - Each API call should log userId
+   - Easy to spot data leaks
+
+3. ✅ **Use different browsers** for different users
+   - Chrome for User A
+   - Firefox for User B
+   - Avoids session conflicts
+
+4. ✅ **Clear cache between tests**
+   - Prevents false positives
+   - Ensures clean testing
+
+5. ✅ **Monitor 403 errors**
+   - Should see 403 when testing cross-access
+   - Confirms security working
+
+6. ✅ **Document test users**
+   - Keep list of test accounts
+   - Know their expected data state
+
+---
+
+### DON'Ts ❌
+
+1. ❌ **Don't test multiple users in same browser**
+   - Cookie conflicts
+   - Cache issues
+   - False results
+
+2. ❌ **Don't share userId between users**
+   - Each user has unique userId from OAuth
+   - Never hardcode or reuse
+
+3. ❌ **Don't trust client-provided userId**
+   - Always verify against session
+   - session.id === userId check required
+
+4. ❌ **Don't skip incognito testing**
+   - Cache can hide bugs
+   - Incognito ensures clean state
+
+5. ❌ **Don't ignore 403 errors in logs**
+   - Legitimate if testing security
+   - Investigate if unexpected
+
+---
+
+## 🔍 Monitoring & Logging
+
+### Security Event Logging
+
+**Pattern**:
+```typescript
+// Successful access
+console.log('✅ User accessed data:', {
+  userId: session.id,
+  action: 'read_conversations',
+  timestamp: new Date(),
+});
+
+// Blocked access
+console.warn('🚨 Unauthorized access attempt:', {
+  userId: session.id,
+  attemptedUserId: requestedUserId,
+  action: 'read_conversations',
+  result: '403 Forbidden',
+  timestamp: new Date(),
+});
+```
+
+**Review daily**: Check for unexpected 403 errors
+
+---
+
+### Metrics to Track
+
+**Per User**:
+- Conversations created
+- Messages sent
+- Context sources uploaded
+- Login frequency
+- Session duration
+
+**Platform-wide**:
+- Total users
+- Active users (7-day)
+- 403 errors (security blocks)
+- Data isolation compliance
+- Average data per user
+
+---
+
+## 🚀 Scaling to Multiple Users
+
+### Current Capacity
+
+**Localhost**: 
+- Tested with: 2 users
+- Works with: Unlimited (Firestore scales)
+- Limit: OAuth rate limits
+
+**Production** (future):
+- Firestore: 10,000+ users easily
+- Cloud Run: Auto-scales
+- OAuth: Rate limits per project
+
+---
+
+### Performance Considerations
+
+**Per-User Queries**:
+```typescript
+// Efficient: Uses userId index
+.where('userId', '==', userId)
+.orderBy('lastMessageAt', 'desc')
+.limit(50) // Pagination recommended
+```
+
+**Multi-User Dashboard** (admin):
+```typescript
+// For admin viewing all users
+// Use pagination + limits
+.orderBy('createdAt', 'desc')
+.limit(100)
+.get()
+
+// Then filter by role/company if needed
+```
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented multi-user system should:
+
+### Data Isolation ✅
+- ✅ Each user sees only their data
+- ✅ Queries filter by userId
+- ✅ API verifies ownership
+- ✅ No data leakage possible
+
+### User Experience ✅
+- ✅ New users see empty state
+- ✅ Existing users see their data
+- ✅ Each user can create/edit independently
+- ✅ No confusion between users
+
+### Security ✅
+- ✅ Authentication required
+- ✅ Ownership verified
+- ✅ Cross-access blocked (403)
+- ✅ Audit trail maintained
+
+### Performance ✅
+- ✅ Queries use indexes
+- ✅ Response times <1s
+- ✅ Scales to 1000+ users
+- ✅ No bottlenecks
+
+---
+
+## 📖 Reference Documentation
+
+### Internal Docs
+- `.cursor/rules/privacy.mdc` - Privacy framework ⭐
+- `.cursor/rules/alignment.mdc` - Security by default
+- `.cursor/rules/firestore.mdc` - Database isolation
+- `SECURITY_USER_DATA_ISOLATION_2025-10-13.md` - Implementation
+- `MULTI_USER_TESTING_GUIDE_2025-10-13.md` - Testing guide
+
+### Testing Guides
+- Test 1: User A baseline
+- Test 2: User B empty state
+- Test 3: Create data in User B
+- Test 4: Verify isolation
+- Test 5: Security test (403)
+
+### External Resources
+- [Multi-Tenancy Patterns](https://cloud.google.com/architecture/multitenant-architectures)
+- [Firestore Multi-Tenant](https://firebase.google.com/docs/firestore/solutions/multi-tenancy)
+- [OAuth 2.0 Multi-User](https://developers.google.com/identity/protocols/oauth2)
+
+---
+
+## 🎯 Multi-User Status
+
+```
+✅ Architecture: Complete user isolation
+✅ Authentication: OAuth + JWT working
+✅ Authorization: Ownership verification
+✅ Database: userId filtering everywhere
+✅ API: Authentication + ownership checks
+✅ Testing: Manual with 2 users successful
+✅ Security: 403 blocks cross-access
+✅ Vite Config: React deduplication
+✅ Documentation: Complete
+✅ Backward Compatible: Yes
+```
+
+---
+
+**Last Updated**: 2025-10-13  
+**Version**: 1.0.0  
+**Status**: ✅ Production Ready  
+**Tested With**: 2 users (alec@, hello@)  
+**Aligned With**: privacy.mdc, alignment.mdc, firestore.mdc  
+
+---
+
+**Remember:** Every new user should have a completely isolated experience. Test with incognito windows to avoid cache issues. Multi-user support is not an afterthought - it's architected from the beginning with complete data isolation.

@@ -1573,11 +1573,12 @@ git commit -m "docs: Update rule X
 - `.cursor/rules/gemini-api-usage.mdc` - Gemini AI API patterns
 - `.cursor/rules/userpersonas.mdc` - User roles & permissions
 
-**🔒 Quality & Safety (5):**
+**🔒 Quality & Safety (6):**
 - `.cursor/rules/code-change-protocol.mdc` - Code change safety (**CRITICAL**)
 - `.cursor/rules/branch-management.mdc` - Branch safety (**CRITICAL**)
 - `.cursor/rules/ui-features-protection.mdc` - Protected features (**CRITICAL**)
-- `.cursor/rules/privacy.mdc` - Privacy & data security (**CRITICAL**) ⭐ NEW
+- `.cursor/rules/privacy.mdc` - Privacy & data security (**CRITICAL**) ⭐
+- `.cursor/rules/multiusers.mdc` - Multi-user testing & isolation (**CRITICAL**) ⭐ NEW
 - `.cursor/rules/error-prevention-checklist.mdc` - Common errors & fixes
 
 **⚙️ Configuration & Infrastructure (6):**
@@ -1610,18 +1611,20 @@ git commit -m "docs: Update rule X
 ---
 
 **Last Updated**: 2025-10-13  
-**Version**: 1.5.0  
+**Version**: 1.6.0  
 **Status**: ✅ Production Ready  
 **Project**: Flow (gen-lang-client-0986191192)  
 **Data Schema**: See `data.mdc` for complete schema documentation  
-**All Rules**: ✅ All 24 project rules documented above with `alwaysApply: true`  
-**Alignment**: Verified with all 24 rules (see `RULES_ALIGNMENT.md`)
+**All Rules**: ✅ All 25 core project rules documented above with `alwaysApply: true`  
+**Total Rules**: 27 cursor rules (including config rules)  
+**Alignment**: Verified with all 27 rules (see `RULES_ALIGNMENT.md`)
 
 **Recent Critical Updates**:
 - Added Firestore composite index requirements (see `firestore.mdc`)
 - Added MessageContent transformation pattern for React compatibility
 - Updated database operations lessons with 2025-10-13 fixes
 - **NEW**: Added `privacy.mdc` - User data isolation and privacy requirements (2025-10-13)
+- **NEW**: Added `multiusers.mdc` - Multi-user support and testing (2025-10-13)
 
 ---
 
