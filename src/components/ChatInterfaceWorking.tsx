@@ -189,19 +189,37 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const loadContextForConversation = async (conversationId: string) => {
     try {
-      const response = await fetch(`/api/conversations/${conversationId}/context-sources`);
-      if (response.ok) {
-        const data = await response.json();
-        const activeIds = data.activeContextSourceIds || [];
-        
-        // Update context sources enabled state
-        setContextSources(prev => 
-          prev.map(source => ({
-            ...source,
-            enabled: activeIds.includes(source.id)
-          }))
-        );
+      // Reload all sources for this user
+      const sourcesResponse = await fetch(`/api/context-sources?userId=${userId}`);
+      if (!sourcesResponse.ok) {
+        console.warn('⚠️ No se pudieron cargar fuentes de contexto');
+        return;
       }
+      
+      const sourcesData = await sourcesResponse.json();
+      const allSources = sourcesData.sources || [];
+      
+      // Get active source IDs for this conversation
+      const contextResponse = await fetch(`/api/conversations/${conversationId}/context-sources`);
+      const contextData = contextResponse.ok ? await contextResponse.json() : { activeContextSourceIds: [] };
+      const activeIds = contextData.activeContextSourceIds || [];
+      
+      // Filter sources assigned to this agent and set enabled state
+      const filteredSources = allSources
+        .filter((source: any) => {
+          // Show if assigned to this agent, or no assignment (backward compat)
+          return !source.assignedToAgents || 
+                 source.assignedToAgents.length === 0 ||
+                 source.assignedToAgents.includes(conversationId);
+        })
+        .map((source: any) => ({
+          ...source,
+          enabled: activeIds.includes(source.id),
+          addedAt: new Date(source.addedAt)
+        }));
+      
+      setContextSources(filteredSources);
+      console.log(`🎯 ${activeIds.length} fuentes activas de ${filteredSources.length} asignadas para agente ${conversationId}`);
     } catch (error) {
       console.error('Error loading context:', error);
     }
@@ -316,8 +334,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         if (response.ok) {
           const data = await response.json();
           if (data.sources && data.sources.length > 0) {
+            // Store all sources globally (filtering happens per-agent)
             setContextSources(data.sources.map((s: any) => ({
               ...s,
+              enabled: false, // Will be set by loadContextForConversation
               addedAt: new Date(s.addedAt)
             })));
             console.log(`✅ ${data.sources.length} fuentes de contexto cargadas desde Firestore`);
@@ -613,7 +633,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
         const data = await response.json();
 
-        // Save to Firestore
+        // Save to Firestore - Assign to current agent only
         const savedSource = await fetch('/api/context-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -624,6 +644,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             enabled: true,
             status: 'active',
             extractedData: data.extractedText || '',
+            assignedToAgents: currentConversation ? [currentConversation] : [], // Assign to current agent
             metadata: {
               originalFileName: file.name,
               originalFileSize: file.size,
@@ -640,13 +661,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }
 
         const savedData = await savedSource.json();
+        const sourceId = savedData.source.id;
 
-        // Update local state with Firestore ID
+        // Update local state with Firestore ID and enabled=true
         setContextSources(prev => prev.map(s => 
           s.id === newSource.id
             ? {
                 ...savedData.source,
                 addedAt: new Date(savedData.source.addedAt),
+                enabled: true, // Activate toggle by default
                 progress: {
                   stage: 'complete',
                   percentage: 100,
@@ -656,7 +679,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             : s
         ));
 
-        console.log('✅ Fuente de contexto guardada en Firestore:', savedData.source.id);
+        console.log('✅ Fuente de contexto guardada en Firestore:', sourceId);
+
+        // Auto-activate in current conversation
+        if (currentConversation) {
+          const currentActiveIds = contextSources
+            .filter(s => s.enabled)
+            .map(s => s.id);
+          const newActiveIds = [...currentActiveIds, sourceId];
+          
+          await saveContextForConversation(currentConversation, newActiveIds);
+          console.log(`✅ Fuente activada automáticamente para agente ${currentConversation}`);
+        }
       }
     } catch (error) {
       console.error('Error adding source:', error);

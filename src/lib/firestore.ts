@@ -1149,10 +1149,11 @@ export interface ContextSource {
   userId: string;
   name: string;
   type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
-  enabled: boolean;
+  enabled: boolean; // Global enabled state (used in UI, not for filtering)
   status: 'active' | 'processing' | 'error' | 'disabled';
   addedAt: Date;
   extractedData?: string;
+  assignedToAgents?: string[]; // NEW: List of conversation IDs that can access this source
   metadata?: {
     originalFileName?: string;
     originalFileSize?: number;
@@ -1212,6 +1213,9 @@ export async function createContextSource(
   }
   if (data.progress !== undefined) {
     contextSource.progress = data.progress;
+  }
+  if (data.assignedToAgents !== undefined) {
+    contextSource.assignedToAgents = data.assignedToAgents;
   }
 
   await sourceRef.set(contextSource);
