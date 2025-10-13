@@ -188,10 +188,11 @@ interface ContextSource {
   userId: string;                   // Owner (indexed)
   name: string;                     // Display name
   type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
-  enabled: boolean;                 // Active/inactive
+  enabled: boolean;                 // UI state (not used for filtering)
   status: 'active' | 'processing' | 'error' | 'disabled';
   addedAt: Timestamp;               // When added (indexed)
   extractedData?: string;           // Extracted content (text)
+  assignedToAgents?: string[];      // NEW (2025-10-13): Conversation IDs with access
   metadata?: {
     originalFileName?: string;
     originalFileSize?: number;
@@ -218,15 +219,25 @@ interface ContextSource {
     percentage: number;
     message: string;
   };
+  source?: 'localhost' | 'production'; // Data origin tracking
 }
 ```
 
 **Indexes Required:**
 ```
-- userId ASC, addedAt DESC
-- userId ASC, status ASC, addedAt DESC
-- userId ASC, validated ASC
+- userId ASC, addedAt DESC (READY - 2025-10-13)
+- userId ASC, status ASC, addedAt DESC (future)
+- userId ASC, validated ASC (future)
 ```
+
+**Agent-Specific Assignment (2025-10-13):**
+
+When a user uploads a document to an agent:
+1. Document is saved to `context_sources` collection
+2. `assignedToAgents` field contains list of conversation IDs that can see it
+3. When switching agents, only sources with matching assignment are shown
+4. Default: `assignedToAgents = [currentConversationId]` (private to agent)
+5. Future: Owner can add more agents to `assignedToAgents` array
 
 **Security Rules:**
 ```javascript
@@ -1576,8 +1587,131 @@ curl -s "http://localhost:3000/api/conversations/CONVERSATION_ID/messages" | jq 
 
 ---
 
+---
+
+## 🎯 Context Sources: Agent-Specific Assignment Pattern
+
+### Problem Solved (2025-10-13)
+
+Users upload PDFs to specific agents, but sources were appearing in ALL agents, causing confusion and context pollution.
+
+### Solution: assignedToAgents Field
+
+**Pattern:**
+```typescript
+// When uploading to Agent A
+const contextSource = {
+  id: 'source-123',
+  userId: 'user-abc',
+  name: 'CV Tomás Alarcón.pdf',
+  type: 'pdf',
+  extractedData: 'Full text...',
+  assignedToAgents: ['agent-A-id'], // ← Only visible in Agent A
+  addedAt: new Date()
+}
+
+// When switching to Agent B
+const visibleSources = allSources.filter(s =>
+  !s.assignedToAgents ||
+  s.assignedToAgents.length === 0 ||
+  s.assignedToAgents.includes('agent-B-id')
+);
+// Result: source-123 NOT visible in Agent B
+```
+
+### Toggle State Per-Agent
+
+**Pattern:**
+```typescript
+// In conversation_context collection
+{
+  id: 'agent-A-id',
+  conversationId: 'agent-A-id',
+  userId: 'user-abc',
+  activeContextSourceIds: ['source-123'], // ← Toggle ON for Agent A
+  updatedAt: timestamp
+}
+
+{
+  id: 'agent-B-id',
+  conversationId: 'agent-B-id',
+  userId: 'user-abc',
+  activeContextSourceIds: [], // ← Toggle OFF for Agent B
+  updatedAt: timestamp
+}
+```
+
+### Complete Flow
+
+```
+1. User in Agent A uploads PDF
+   ↓
+2. PDF saved to context_sources:
+   - assignedToAgents: ['agent-A-id']
+   - enabled: true (UI state only)
+   ↓
+3. PDF auto-activated in Agent A:
+   - conversation_context.activeContextSourceIds: ['source-123']
+   ↓
+4. User switches to Agent B
+   ↓
+5. loadContextForConversation('agent-B-id'):
+   - Loads all user sources
+   - Filters: assignedToAgents.includes('agent-B-id')
+   - Result: PDF not shown
+   ↓
+6. User switches back to Agent A
+   ↓
+7. loadContextForConversation('agent-A-id'):
+   - Loads all user sources
+   - Filters: assignedToAgents.includes('agent-A-id')
+   - Result: PDF shown
+   - Loads activeIds from conversation_context
+   - Sets enabled: true (toggle ON)
+   ↓
+8. User refreshes page
+   ↓
+9. All state restored from Firestore ✅
+```
+
+### Backward Compatibility
+
+**Legacy sources** (no assignedToAgents field):
+```typescript
+// Show if assignedToAgents is missing or empty
+const isVisible = !source.assignedToAgents || 
+                  source.assignedToAgents.length === 0 ||
+                  source.assignedToAgents.includes(conversationId);
+```
+
+**Result:** Old sources visible in all agents (previous behavior preserved)
+
+### API Endpoints
+
+**Create with assignment:**
+```bash
+POST /api/context-sources
+{
+  "userId": "user-abc",
+  "name": "CV.pdf",
+  "type": "pdf",
+  "extractedData": "...",
+  "assignedToAgents": ["agent-A-id"] # Assign to current agent
+}
+```
+
+**Update assignment (future):**
+```bash
+PUT /api/context-sources/source-123
+{
+  "assignedToAgents": ["agent-A-id", "agent-C-id"] # Add more agents
+}
+```
+
+---
+
 **Last Updated**: 2025-10-13
-**Version**: 1.1.0
+**Version**: 1.2.0
 **Status**: ✅ Production Ready
 **Project**: gen-lang-client-0986191192
 
@@ -1587,3 +1721,6 @@ curl -s "http://localhost:3000/api/conversations/CONVERSATION_ID/messages" | jq 
 - Added troubleshooting section
 - Added data verification commands
 - Added quick setup checklist
+- **NEW (2025-10-13)**: Agent-specific context source assignment pattern
+- **NEW (2025-10-13)**: Per-agent toggle state persistence
+- **NEW (2025-10-13)**: Undefined value filtering for Firestore writes

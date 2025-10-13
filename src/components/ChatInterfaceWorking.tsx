@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -64,6 +64,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
+  
+  // Edit conversation state
+  const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
   
   // User settings state
   const [globalUserSettings, setGlobalUserSettings] = useState<UserSettings>({
@@ -770,6 +774,46 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  const startEditingConversation = (conv: Conversation) => {
+    setEditingConversationId(conv.id);
+    setEditingTitle(conv.title);
+  };
+
+  const cancelEditingConversation = () => {
+    setEditingConversationId(null);
+    setEditingTitle('');
+  };
+
+  const saveConversationTitle = async (conversationId: string, newTitle: string) => {
+    if (!newTitle.trim()) {
+      cancelEditingConversation();
+      return;
+    }
+
+    try {
+      // Update in Firestore
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update conversation title');
+      }
+
+      // Update local state
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId ? { ...c, title: newTitle.trim() } : c
+      ));
+
+      console.log('✅ Título del agente actualizado en Firestore:', conversationId);
+      cancelEditingConversation();
+    } catch (error) {
+      console.error('❌ Error al actualizar título del agente:', error);
+    }
+  };
+
   const handleReExtract = async (sourceId: string, newConfig: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro' }) => {
     console.log('Re-extracting source:', sourceId, 'with config:', newConfig);
     
@@ -937,20 +981,71 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto p-2">
           {conversations.map(conv => (
-            <button
+            <div
               key={conv.id}
-              onClick={() => setCurrentConversation(conv.id)}
-              className={`w-full text-left p-3 rounded-lg mb-1 transition-colors ${
+              className={`w-full p-3 rounded-lg mb-1 transition-colors ${
                 currentConversation === conv.id
                   ? 'bg-blue-50 border border-blue-200'
                   : 'hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-slate-400" />
-                <span className="text-sm font-medium text-slate-700">{conv.title}</span>
-              </div>
-            </button>
+              {editingConversationId === conv.id ? (
+                // Edit mode
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        saveConversationTitle(conv.id, editingTitle);
+                      } else if (e.key === 'Escape') {
+                        cancelEditingConversation();
+                      }
+                    }}
+                    onBlur={() => saveConversationTitle(conv.id, editingTitle)}
+                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => saveConversationTitle(conv.id, editingTitle)}
+                    className="p-1 text-green-600 hover:bg-green-50 rounded"
+                    title="Guardar"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={cancelEditingConversation}
+                    className="p-1 text-red-600 hover:bg-red-50 rounded"
+                    title="Cancelar"
+                  >
+                    <XIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                // View mode
+                <div className="flex items-center gap-2 group">
+                  <button
+                    onClick={() => setCurrentConversation(conv.id)}
+                    className="flex-1 flex items-center gap-2 text-left"
+                  >
+                    <MessageSquare className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm font-medium text-slate-700">{conv.title}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditingConversation(conv);
+                    }}
+                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Editar nombre"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 

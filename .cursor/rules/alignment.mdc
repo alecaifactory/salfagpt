@@ -958,8 +958,10 @@ Before deploying ANY change, verify:
 3. ✅ Always use batch operations for multiple writes
 4. ✅ **CRITICAL**: Always create Firestore composite indexes BEFORE querying (2025-10-13)
 5. ✅ **CRITICAL**: Always transform MessageContent objects to strings when loading (2025-10-13)
-6. ✅ Always filter by userId for user-specific data
-7. ✅ Always verify indexes are in READY state after deployment
+6. ✅ **CRITICAL**: Always filter undefined values before Firestore writes (2025-10-13)
+7. ✅ Always filter by userId for user-specific data
+8. ✅ Always verify indexes are in READY state after deployment
+9. ✅ Use agent-specific assignment for context sources (assignedToAgents pattern)
 
 ### From Analytics Integration
 1. ✅ Use sample data in development (no BigQuery setup required)
