@@ -1556,7 +1556,10 @@ git commit -m "docs: Update rule X
 
 ## 📚 References
 
-### Internal Documentation - Rules (All 24 Rules ✅)
+### Internal Documentation - Rules (All 25 Rules ✅)
+
+**📚 Master Index**:
+- `.cursor/rules/index.mdc` - **MASTER INDEX** - Complete catalog of all 28 rules ⭐ NEW
 
 **🎯 Core Foundation (3):**
 - `.cursor/rules/alignment.mdc` - **THIS FILE** - Design principles (**FOUNDATION**)

@@ -1,21 +1,21 @@
 # 🎯 Alineación Completa de Reglas - Flow Platform
 
 **Fecha**: 2025-10-13  
-**Versión**: 2.3.0  
+**Versión**: 2.4.0  
 **Estado**: ✅ Verificado y Alineado  
-**Configuración**: ✅ **TODOS** los 28 archivos `.mdc` tienen `alwaysApply: true`
+**Configuración**: ✅ **TODOS** los 29 archivos `.mdc` tienen `alwaysApply: true`
 
 ---
 
 ## 📋 Resumen Ejecutivo
 
-Este documento verifica y documenta la **alineación completa** entre todos los archivos de reglas (`.mdc`) del proyecto Flow, con énfasis especial en cómo `data.mdc`, `privacy.mdc`, `multiusers.mdc` y `alignment.mdc` se integran con todo el ecosistema de reglas existente.
+Este documento verifica y documenta la **alineación completa** entre todos los archivos de reglas (`.mdc`) del proyecto Flow, con énfasis especial en cómo `index.mdc`, `data.mdc`, `privacy.mdc`, `multiusers.mdc` y `alignment.mdc` se integran con todo el ecosistema de reglas existente.
 
 **Resultado**: ✅ **Todos los archivos están completamente alineados** y mantienen **backward compatibility** con los sistemas configurados.
 
 ### ⚙️ Configuración Global
 
-**CRÍTICO**: Todos los 28 archivos `.mdc` del proyecto ahora tienen el front matter configurado con:
+**CRÍTICO**: Todos los 29 archivos `.mdc` del proyecto ahora tienen el front matter configurado con:
 
 ```yaml
 ---
@@ -47,7 +47,7 @@ Según `rule-precedence.mdc`, las reglas siguen esta jerarquía:
 
 ## 📊 Inventario Completo de Reglas
 
-### 28 Archivos `.mdc` Activos
+### 29 Archivos `.mdc` Activos
 
 | # | Archivo | Categoría | Relación con data.mdc | Relación con alignment.mdc |
 |---|---------|-----------|----------------------|---------------------------|
@@ -76,9 +76,10 @@ Según `rule-precedence.mdc`, las reglas siguen esta jerarquía:
 | 23 | `salfacorp-local-to-production-rules.mdc` | Legacy | Migrado a data.mdc | Obsoleto - reemplazado |
 | 24 | `worktrees.mdc` | Version Control | Tracks parallel dev with data.mdc | Alineado - Traceability & History |
 | 25 | `privacy.mdc` | **Quality & Safety** | Enforces userId isolation in data | Alineado - Security & Privacy by Default ⭐ |
-| 26 | `multiusers.mdc` | **Quality & Safety** | Multi-user testing & vite config | Alineado - User isolation & React dedup ⭐ NEW |
-| 27 | `oauthclient.mdc` | Configuration | OAuth client for user auth | Alineado - Authentication |
-| 28 | `no-git-pagination.mdc` | Development | Git command formatting | Alineado - DevEx |
+| 26 | `multiusers.mdc` | **Quality & Safety** | Multi-user testing & vite config | Alineado - User isolation & React dedup ⭐ |
+| 27 | `index.mdc` | **Meta & Alignment** | Master index of all 28 rules | Alineado - Catalogs entire rule system ⭐ NEW |
+| 28 | `oauthclient.mdc` | Configuration | OAuth client for user auth | Alineado - Authentication |
+| 29 | `no-git-pagination.mdc` | Development | Git command formatting | Alineado - DevEx |
 
 ---
 

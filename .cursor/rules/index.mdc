@@ -1,0 +1,1044 @@
+---
+alwaysApply: true
+---
+
+# 📚 Cursor Rules Index - Flow Platform
+
+## 🎯 Purpose
+
+This is the **master index** of all cursor rules for the Flow platform. It provides an overview of the complete rule system, how each rule relates to others, and their current alignment status with `alignment.mdc`.
+
+**Total Rules**: 28 cursor rules with `alwaysApply: true`  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ All rules aligned and verified  
+**Backward Compatible**: Yes
+
+---
+
+## 🗺️ Rule Categories Overview
+
+### 🎯 Core Foundation (3 rules)
+The fundamental principles that guide all development decisions.
+
+### 🏗️ Technical Architecture (8 rules)
+Detailed implementation patterns for each layer of the system.
+
+### 🔒 Quality & Safety (6 rules)
+Critical rules that protect code quality, features, and user data.
+
+### ⚙️ Configuration & Infrastructure (7 rules)
+Environment setup, deployment, and project configuration.
+
+### 🚀 Deployment & Operations (2 rules)
+Production deployment and operational procedures.
+
+### 📋 Meta & Alignment (2 rules)
+Rules about rules - how to use and align the entire system.
+
+---
+
+## 📖 Complete Rules Index
+
+### 🎯 CORE FOUNDATION
+
+#### 1. `alignment.mdc` ⭐ **FOUNDATION**
+
+**Version**: 1.6.0  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ Active (Foundation document)
+
+**Purpose**: The **north star** for all development decisions. Defines the 7 core design principles that prevent 95% of bugs, data loss, user frustration, and privacy violations.
+
+**Key Principles**:
+1. Data Persistence First
+2. Progressive Disclosure
+3. Feedback & Visibility
+4. Graceful Degradation
+5. Type Safety Everywhere
+6. Performance as a Feature
+7. Security & Privacy by Default
+
+**Complements**: ALL other rules implement principles defined here
+
+**Alignment**: N/A (Foundation document - others align to this)
+
+**Critical Sections**:
+- Key Lessons Consolidated (all 2025-10-13 fixes)
+- Change Management & Backward Compatibility
+- Complete rules list (25 core + 3 config = 28 total)
+
+---
+
+#### 2. `data.mdc` ⭐ **CORE**
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ Active (Core schema document)
+
+**Purpose**: Single source of truth for ALL data structures across Firestore, BigQuery, frontend, and backend. Documents 12 Firestore collections with complete schemas, CRUD operations, and API endpoints.
+
+**Key Collections**:
+- conversations, messages, user_settings
+- agent_configs, workflow_configs, conversation_context
+- usage_logs, context_sources, users, folders, groups, context_access_rules
+
+**Complements**:
+- Extends `firestore.mdc` with complete schemas
+- Feeds into `backend.mdc` for API patterns
+- Consumed by `frontend.mdc` for TypeScript interfaces
+
+**Alignment**: ✅ Implements "Data Persistence First" from alignment.mdc
+
+**Critical Features**:
+- `source` field on all collections (localhost/production tracking)
+- Backward compatibility checklist
+- TypeScript interfaces for all collections
+
+---
+
+#### 3. `agents.mdc` ⭐ **CORE**
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active (Agentic architecture)
+
+**Purpose**: Documents the agentic architecture where each conversation IS an agent with its own config, context, memory, and behavior.
+
+**Key Concepts**:
+- Agent = Conversation + Configuration + Context + Memory
+- Agent-specific context (activeContextSourceIds)
+- Configuration hierarchy (Agent > User > System)
+
+**Complements**:
+- Uses collections from `data.mdc`
+- Implements patterns from `alignment.mdc`
+- Integrates with `privacy.mdc` for agent isolation
+
+**Alignment**: ✅ Follows "Progressive Disclosure" principle
+
+---
+
+### 🏗️ TECHNICAL ARCHITECTURE
+
+#### 4. `backend.mdc`
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Backend architecture, API patterns, Gemini AI integration, and Firestore operations. Documents all lessons learned from backend development.
+
+**Key Topics**:
+- Astro API Routes patterns
+- Gemini AI correct usage (GoogleGenAI, not GoogleGenerativeAI)
+- Firestore connection handling
+- Error handling best practices
+
+**Complements**:
+- Consumes schemas from `data.mdc`
+- Implements security from `privacy.mdc`
+- Follows patterns from `alignment.mdc`
+
+**Alignment**: ✅ "Graceful Degradation" + "Type Safety"
+
+**Critical Lessons**:
+- Always use correct Gemini API patterns
+- Never use mock mode as automatic fallback
+- Always handle Firestore unavailable gracefully
+
+---
+
+#### 5. `frontend.mdc`
+
+**Version**: 2.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Frontend architecture with React 18.3, Astro 5.1, and Tailwind CSS v3.4.x. Documents component patterns, state management, and API integration.
+
+**Key Topics**:
+- React hooks patterns (useState, useEffect, useCallback, useMemo)
+- API integration with fetch wrapper
+- Error boundaries
+- Performance optimization
+
+**Complements**:
+- Consumes TypeScript interfaces from `data.mdc`
+- Calls API endpoints from `backend.mdc`
+- Implements UI patterns from `ui.mdc`
+
+**Alignment**: ✅ "Feedback & Visibility" + "Performance as a Feature"
+
+**Critical Rules**:
+- ALWAYS persist state to backend
+- ALWAYS use TypeScript interfaces
+- ALWAYS handle loading & error states
+
+---
+
+#### 6. `firestore.mdc` ⭐ **EXTENDED BY data.mdc**
+
+**Version**: 1.2.0  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ Active (Extended by data.mdc)
+
+**Purpose**: Firestore database architecture, collections, security rules, and indexing strategies. Extended by `data.mdc` with complete schemas.
+
+**Key Topics**:
+- Collection schemas (extended by data.mdc)
+- Composite indexes (CRITICAL)
+- Query patterns
+- MessageContent transformation
+- Agent-specific assignment pattern (assignedToAgents)
+
+**Complements**:
+- Extended by `data.mdc` (complete schemas)
+- Enforces `privacy.mdc` (userId filtering)
+- Supports `agents.mdc` (agent context)
+
+**Alignment**: ✅ "Data Persistence First"
+
+**Critical Updates (2025-10-13)**:
+- Composite indexes BEFORE querying
+- MessageContent object → string transformation
+- assignedToAgents for agent isolation
+- Undefined value filtering
+
+---
+
+#### 7. `bigquery.mdc`
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: BigQuery analytics architecture, dataset schemas, query patterns. Used only for analytics, not operational data.
+
+**Key Topics**:
+- Dataset: flow_analytics
+- 8 tables (users, sessions, conversations, messages, analytics_events, context_usage, model_usage, daily_metrics)
+- Firestore → BigQuery sync patterns
+
+**Complements**:
+- Syncs from Firestore collections (`data.mdc`)
+- Non-blocking analytics (per `alignment.mdc`)
+
+**Alignment**: ✅ "Analytics separation" - never query BigQuery for operational data
+
+---
+
+#### 8. `ui.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Complete UI component documentation, design system, and UX patterns.
+
+**Key Topics**:
+- Component library
+- Design tokens (colors, spacing, typography)
+- Interaction patterns
+- Accessibility standards
+
+**Complements**:
+- Uses data types from `data.mdc`
+- Implements visual feedback from `alignment.mdc`
+- Protected by `ui-features-protection.mdc`
+
+**Alignment**: ✅ "Feedback & Visibility" + "Progressive Disclosure"
+
+---
+
+#### 9. `prd.mdc`
+
+**Version**: 2.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Product Requirements Document - Features, user personas, workflows, and product vision.
+
+**Key Features**:
+- Multi-agent conversations
+- Context management (PDF, CSV, Excel, Word, URLs, APIs)
+- Markdown rendering
+- Context logging
+- User configuration
+
+**Complements**:
+- Defines features that `data.mdc` supports
+- User personas from `userpersonas.mdc`
+- UI specs for `ui.mdc`
+
+**Alignment**: ✅ Product vision aligned with all technical rules
+
+---
+
+#### 10. `gemini-api-usage.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-10-11  
+**Status**: ✅ Active
+
+**Purpose**: Correct usage patterns for Google Gemini AI API (@google/genai v1.23.0).
+
+**Critical Patterns**:
+```typescript
+// ✅ CORRECT
+import { GoogleGenAI } from '@google/genai';
+const genAI = new GoogleGenAI({ apiKey });
+const result = await genAI.models.generateContent({...});
+```
+
+**Complements**:
+- Used by `backend.mdc` for AI integration
+- Supports agent responses in `agents.mdc`
+
+**Alignment**: ✅ External service integration
+
+**Critical**: This rule prevents API usage errors that cause complete failures
+
+---
+
+#### 11. `userpersonas.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ✅ Active
+
+**Purpose**: User roles and permissions (admin, expert, user, context_signoff, etc.)
+
+**Roles Documented**:
+- admin - Full access
+- expert - Can validate context
+- user - Standard access
+- context_* roles - Specific permissions
+
+**Complements**:
+- Feeds into `privacy.mdc` for authorization
+- Used by `backend.mdc` for permission checks
+- References `users` collection from `data.mdc`
+
+**Alignment**: ✅ "Security by Default"
+
+---
+
+### 🔒 QUALITY & SAFETY
+
+#### 12. `code-change-protocol.mdc` 🚨 **CRITICAL**
+
+**Version**: Latest  
+**Last Updated**: 2025-01-11  
+**Status**: ✅ Active (Change safety)
+
+**Purpose**: Prevents accidental removal of working features. Must be followed BEFORE making ANY code changes.
+
+**Protocol**:
+1. Read current state (100+ lines context)
+2. Check for protected features
+3. Understand user intent
+4. When in doubt, ASK
+
+**Complements**:
+- Protects features in `ui-features-protection.mdc`
+- Preserves schemas from `data.mdc`
+- Ensures backward compatibility per `alignment.mdc`
+
+**Alignment**: ✅ "Every change must preserve existing functionality"
+
+**Critical**: Follow this to prevent feature loss
+
+---
+
+#### 13. `branch-management.mdc` 🚨 **CRITICAL**
+
+**Version**: Latest  
+**Last Updated**: 2025-01-11  
+**Status**: ✅ Active (Branch safety)
+
+**Purpose**: Never switch branches without validation. Prevents loss of work and feature conflicts.
+
+**Golden Rules**:
+1. NEVER switch branches without permission
+2. NEVER switch with uncommitted changes
+3. ALWAYS validate branch state
+4. ALWAYS inform user of risks
+
+**Complements**:
+- Protects `data.mdc` schema changes
+- Works with `code-change-protocol.mdc`
+
+**Alignment**: ✅ Change safety and version control
+
+---
+
+#### 14. `ui-features-protection.mdc` 🚨 **CRITICAL**
+
+**Version**: Latest  
+**Last Updated**: 2025-01-11  
+**Status**: ✅ Active (Feature protection)
+
+**Purpose**: Protects user-facing features that have been verified. Never remove working UI elements.
+
+**Protected Features**:
+- Model Display Indicator (Sparkles + model name)
+- Disclaimer Text
+- Folders Section
+- Context Window with Full History
+
+**Complements**:
+- Protected features use data from `data.mdc`
+- Enforced by `code-change-protocol.mdc`
+
+**Alignment**: ✅ "Every change must preserve existing functionality"
+
+**Critical**: Check this before modifying ChatInterfaceWorking.tsx
+
+---
+
+#### 15. `privacy.mdc` 🚨 **CRITICAL** ⭐ NEW
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ Active (Privacy framework)
+
+**Purpose**: Establishes privacy and data security standards. User privacy is sacred - every feature must protect user data by default.
+
+**Core Principles**:
+1. User Data Isolation
+2. Agent-Specific Privacy
+3. Data Minimization
+4. Transparency & Control
+5. Secure by Default
+
+**Security Layers**:
+- Layer 1: Firestore queries filter by userId
+- Layer 2: API endpoints verify auth + ownership
+- Layer 3: Firestore Security Rules (documented)
+
+**Complements**:
+- Enforces userId filtering in `data.mdc`
+- Security patterns for `backend.mdc`
+- Testing procedures in `multiusers.mdc`
+
+**Alignment**: ✅ "Security & Privacy by Default" principle
+
+**GDPR/CCPA**: Compliance checklist included
+
+---
+
+#### 16. `multiusers.mdc` 🚨 **CRITICAL** ⭐ NEW
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-13  
+**Status**: ✅ Active (Multi-user support)
+
+**Purpose**: Documents multi-user architecture, testing procedures, and technical requirements to ensure complete data isolation between users.
+
+**Key Content**:
+- User isolation model
+- 5 complete testing procedures
+- Troubleshooting guide (React hooks, cache issues)
+- Best practices (incognito testing, browser separation)
+- vite.config.ts requirement
+
+**Complements**:
+- Tests privacy guarantees from `privacy.mdc`
+- Verifies data isolation from `data.mdc`
+- Documents React deduplication issue
+
+**Alignment**: ✅ "Security & Privacy by Default" verification
+
+**Critical Fix**: vite.config.ts prevents React duplicate issues
+
+---
+
+#### 17. `error-prevention-checklist.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ✅ Active
+
+**Purpose**: Common mistakes and how to avoid them. Learned from actual errors encountered.
+
+**Key Sections**:
+- External API integration rules
+- Development vs production rules
+- React state management rules
+- API endpoint validation rules
+
+**Complements**:
+- Prevents errors in `backend.mdc` integration
+- Validates data operations in `data.mdc`
+
+**Alignment**: ✅ Quality standards
+
+---
+
+### ⚙️ CONFIGURATION & INFRASTRUCTURE
+
+#### 18. `project-identity.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Project identity (Flow, not PAME), correct deployment methods, and project structure.
+
+**Critical**: 
+- Use `gcloud CLI`, NOT pame-core-cli
+- Project: gen-lang-client-0986191192
+- All resources in same GCP project
+
+**Complements**:
+- Defines project for `gcp-project-consistency.mdc`
+- Deployment methods for `deployment.mdc`
+
+**Alignment**: ✅ Project identity clarity
+
+---
+
+#### 19. `rule-precedence.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Defines rule hierarchy - project rules ALWAYS win over user preferences.
+
+**Hierarchy**:
+```
+1. PROJECT RULES (.cursor/rules/*.mdc) ← HIGHEST
+2. PROJECT DOCS (docs/*.md)
+3. USER RULES (user preferences)
+4. GENERAL BEST PRACTICES
+```
+
+**Complements**: ALL other rules - defines their precedence
+
+**Alignment**: ✅ Ensures alignment.mdc principles are followed
+
+---
+
+#### 20. `gcp-project-consistency.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-10-11  
+**Status**: ✅ Active
+
+**Purpose**: Enforce single GCP project (gen-lang-client-0986191192) for ALL services.
+
+**Services**:
+- Firestore, BigQuery, Cloud Run, Cloud Storage, Pub/Sub, Secret Manager
+
+**Complements**:
+- Consistent project for `data.mdc` collections
+- Same project for `deployment.mdc`
+
+**Alignment**: ✅ Infrastructure consistency
+
+---
+
+#### 21. `env.mdc`
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-01-12  
+**Status**: ✅ Active
+
+**Purpose**: Environment variables management and verification. Prevents deployment failures due to missing/misconfigured variables.
+
+**Required Variables**:
+- GOOGLE_CLOUD_PROJECT
+- GOOGLE_AI_API_KEY
+- GOOGLE_CLIENT_ID/SECRET
+- JWT_SECRET
+- PUBLIC_BASE_URL
+
+**Complements**:
+- Variables needed by `backend.mdc`
+- OAuth config for authentication
+- Deployment vars for `deployment.mdc`
+
+**Alignment**: ✅ Configuration management
+
+---
+
+#### 22. `localhost-port.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ✅ Active
+
+**Purpose**: Always use port 3000 for localhost development.
+
+**Configuration**:
+```typescript
+// astro.config.mjs
+server: { port: 3000 }
+```
+
+**Complements**:
+- Development environment consistency
+- OAuth redirect URIs
+
+**Alignment**: ✅ Developer experience
+
+---
+
+#### 23. `production-config-validation.mdc`
+
+**Version**: Latest  
+**Last Updated**: 2025-01-11  
+**Status**: ✅ Active
+
+**Purpose**: Validates that runtime configuration is production-ready. Prevents config errors that break functionality.
+
+**Validations**:
+- useMockData must be false
+- User config must pass through API chain
+- Gemini SDK usage must be correct
+
+**Complements**:
+- Validates `backend.mdc` configuration
+- Checks `gemini-api-usage.mdc` compliance
+
+**Alignment**: ✅ Production readiness
+
+---
+
+#### 24. `oauthclient.mdc`
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: OAuth client URL stability - protect the Cloud Run URL configuration.
+
+**Protected Values**:
+- Service Name: `flow-chat` (NEVER change)
+- Region: `us-central1` (NEVER change)
+- URL: https://flow-chat-cno6l2kfga-uc.a.run.app
+
+**Complements**:
+- OAuth config for authentication
+- Deployment stability for `deployment.mdc`
+
+**Alignment**: ✅ Configuration stability
+
+---
+
+#### 25. `no-git-pagination.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ✅ Active
+
+**Purpose**: Use `--no-pager` in all git commands for better output.
+
+**Pattern**:
+```bash
+git --no-pager log --oneline -10
+```
+
+**Complements**: Development workflow
+
+**Alignment**: ✅ Developer experience
+
+---
+
+### 🚀 DEPLOYMENT & OPERATIONS
+
+#### 26. `deployment.mdc`
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-12  
+**Status**: ✅ Active
+
+**Purpose**: Deployment rules and best practices for Google Cloud Run.
+
+**Critical Rules**:
+- Prioritize process.env over import.meta.env
+- Create Firestore database before deployment
+- Grant service account permissions
+- Update PUBLIC_BASE_URL after deployment
+
+**Complements**:
+- Uses project from `gcp-project-consistency.mdc`
+- Validates env vars from `env.mdc`
+- Deploys data from `data.mdc`
+
+**Alignment**: ✅ "Deployment best practices"
+
+---
+
+#### 27. `salfacorp-local-to-production-rules.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ⚠️ Legacy (migrated to data.mdc)
+
+**Purpose**: Local to production guide for Salfacorp (original project name).
+
+**Status**: Most content migrated to `data.mdc` and `deployment.mdc`
+
+**Complements**: Historical reference
+
+**Alignment**: ✅ Preserved for backward compatibility
+
+---
+
+### 📋 META & ALIGNMENT
+
+#### 28. `worktrees.mdc`
+
+**Version**: Latest  
+**Last Updated**: Earlier  
+**Status**: ✅ Active
+
+**Purpose**: Worktree management for parallel development branches.
+
+**Key Topics**:
+- Worktree creation and tracking
+- Parallel feature development
+- Worktree registry management
+
+**Complements**:
+- Works with `branch-management.mdc`
+- Tracks parallel development
+
+**Alignment**: ✅ Version control and traceability
+
+---
+
+## 🔗 Rule Relationships
+
+### Core Dependencies
+
+```
+alignment.mdc (Foundation)
+    ↓
+    ├─→ data.mdc (Schema)
+    ├─→ privacy.mdc (Security)
+    └─→ multiusers.mdc (Testing)
+            ↓
+    ┌───────┴────────┐
+    ↓                ↓
+firestore.mdc    backend.mdc
+    ↓                ↓
+frontend.mdc ←── agents.mdc
+```
+
+### Privacy Chain
+
+```
+privacy.mdc (Principles)
+    ↓
+    ├─→ data.mdc (userId on all collections)
+    ├─→ backend.mdc (API authentication)
+    ├─→ firestore.mdc (Query filtering)
+    └─→ multiusers.mdc (Testing verification)
+```
+
+### Quality Chain
+
+```
+alignment.mdc (Backward compat principle)
+    ↓
+    ├─→ code-change-protocol.mdc (Before changes)
+    ├─→ branch-management.mdc (Version control)
+    └─→ ui-features-protection.mdc (Feature preservation)
+```
+
+---
+
+## 📊 Alignment Status Matrix
+
+| Rule | Aligns To | Status | Notes |
+|------|-----------|--------|-------|
+| alignment.mdc | - | ✅ Foundation | Base document |
+| data.mdc | alignment.mdc | ✅ Aligned | Implements persistence |
+| agents.mdc | alignment.mdc | ✅ Aligned | Implements architecture |
+| backend.mdc | alignment.mdc | ✅ Aligned | API patterns |
+| frontend.mdc | alignment.mdc | ✅ Aligned | UI patterns |
+| firestore.mdc | data.mdc | ✅ Aligned | Extended by data |
+| bigquery.mdc | data.mdc | ✅ Aligned | Analytics sync |
+| ui.mdc | alignment.mdc | ✅ Aligned | Feedback & visibility |
+| prd.mdc | alignment.mdc | ✅ Aligned | Product vision |
+| gemini-api-usage.mdc | backend.mdc | ✅ Aligned | AI integration |
+| userpersonas.mdc | privacy.mdc | ✅ Aligned | Roles & permissions |
+| code-change-protocol.mdc | alignment.mdc | ✅ Aligned | Change safety |
+| branch-management.mdc | alignment.mdc | ✅ Aligned | Version control |
+| ui-features-protection.mdc | alignment.mdc | ✅ Aligned | Feature preservation |
+| **privacy.mdc** | **alignment.mdc** | ✅ **Aligned** | **Security framework** ⭐ |
+| **multiusers.mdc** | **privacy.mdc** | ✅ **Aligned** | **Multi-user testing** ⭐ |
+| error-prevention-checklist.mdc | alignment.mdc | ✅ Aligned | Error handling |
+| project-identity.mdc | alignment.mdc | ✅ Aligned | Project identity |
+| rule-precedence.mdc | alignment.mdc | ✅ Aligned | Rule hierarchy |
+| gcp-project-consistency.mdc | alignment.mdc | ✅ Aligned | Infrastructure |
+| env.mdc | deployment.mdc | ✅ Aligned | Configuration |
+| localhost-port.mdc | alignment.mdc | ✅ Aligned | Dev environment |
+| production-config-validation.mdc | alignment.mdc | ✅ Aligned | Production readiness |
+| oauthclient.mdc | deployment.mdc | ✅ Aligned | OAuth stability |
+| no-git-pagination.mdc | alignment.mdc | ✅ Aligned | DevEx |
+| deployment.mdc | alignment.mdc | ✅ Aligned | Deployment rules |
+| salfacorp-local-to-production-rules.mdc | data.mdc | ⚠️ Legacy | Historical |
+| worktrees.mdc | branch-management.mdc | ✅ Aligned | Parallel dev |
+
+---
+
+## 🎯 How to Use This Index
+
+### For New Developers
+
+1. **Start with**: `alignment.mdc` - Understand core principles
+2. **Then read**: `data.mdc` - Understand data architecture
+3. **For your area**:
+   - Frontend: `frontend.mdc`, `ui.mdc`
+   - Backend: `backend.mdc`, `firestore.mdc`
+   - Security: `privacy.mdc`, `multiusers.mdc`
+
+### For Specific Tasks
+
+**Adding a feature**:
+1. Check `code-change-protocol.mdc` first
+2. Review `alignment.mdc` for principles
+3. Update `data.mdc` if new collection needed
+4. Follow `backend.mdc` or `frontend.mdc` patterns
+
+**Fixing a bug**:
+1. Check `error-prevention-checklist.mdc`
+2. Review related technical rule
+3. Follow `alignment.mdc` backward compatibility
+
+**Deploying**:
+1. Read `deployment.mdc`
+2. Check `env.mdc` for variables
+3. Verify `gcp-project-consistency.mdc`
+
+### For Code Review
+
+**Checklist**:
+- [ ] Follows `alignment.mdc` principles
+- [ ] No breaking changes (`code-change-protocol.mdc`)
+- [ ] Protected features preserved (`ui-features-protection.mdc`)
+- [ ] Privacy maintained (`privacy.mdc`)
+- [ ] Data schemas respected (`data.mdc`)
+- [ ] Type check passes (0 errors)
+
+---
+
+## 🔄 Rule Update Process
+
+### When to Update a Rule
+
+✅ **Update when**:
+- New pattern discovered
+- Critical lesson learned
+- Technology changes
+- User feedback received
+
+### How to Update
+
+1. **Identify need** (problem/pattern)
+2. **Document change** (what, why, impact)
+3. **Update rule** (preserve backward compat)
+4. **Update this index** (version, date, notes)
+5. **Update RULES_ALIGNMENT.md** (alignment status)
+6. **Commit with clear message**
+
+### Versioning
+
+**Format**: MAJOR.MINOR.PATCH
+
+- **MAJOR**: Breaking changes (rare, needs approval)
+- **MINOR**: New sections, significant additions
+- **PATCH**: Clarifications, small fixes
+
+---
+
+## 📋 Quick Reference
+
+### Most Important Rules (Top 5)
+
+1. **`alignment.mdc`** - Foundation for everything
+2. **`privacy.mdc`** - User data protection ⭐
+3. **`data.mdc`** - All schemas and operations
+4. **`code-change-protocol.mdc`** - Before ANY change
+5. **`firestore.mdc`** - Database operations
+
+### For Common Tasks
+
+**Creating conversation**:
+- `data.mdc` → Conversation interface
+- `backend.mdc` → API endpoint pattern
+- `firestore.mdc` → createConversation function
+
+**Adding context source**:
+- `data.mdc` → ContextSource interface
+- `agents.mdc` → assignedToAgents pattern
+- `firestore.mdc` → createContextSource function
+
+**User authentication**:
+- `privacy.mdc` → Security layers
+- `backend.mdc` → getSession pattern
+- `multiusers.mdc` → Testing procedures
+
+---
+
+## ✅ Verification Checklist
+
+### Before Committing Code
+
+- [ ] Read relevant rule from this index
+- [ ] Follow `alignment.mdc` principles
+- [ ] Check `code-change-protocol.mdc`
+- [ ] Verify `privacy.mdc` if touching user data
+- [ ] Run `npm run type-check` (0 errors)
+- [ ] Test manually
+- [ ] Document changes if new pattern
+
+### Before Deployment
+
+- [ ] Review `deployment.mdc`
+- [ ] Check `env.mdc` for variables
+- [ ] Verify `gcp-project-consistency.mdc`
+- [ ] Test with `multiusers.mdc` procedures
+- [ ] Confirm `privacy.mdc` compliance
+
+---
+
+## 🎓 Critical Lessons Index
+
+**From alignment.mdc** (Consolidated lessons):
+
+**Backend**:
+1. Use correct Gemini API patterns
+2. Never use mock mode as fallback
+3. Handle Firestore unavailable gracefully
+4. Persist to GCP, not local state
+5. Same GCP project always
+
+**Frontend**:
+1. Persist state to backend via API
+2. Use TypeScript interfaces for all data
+3. Handle loading, error, empty, success states
+4. Never mix client state with server state
+5. Proper React hooks patterns
+
+**Database** (2025-10-13):
+1. Create composite indexes BEFORE querying 🚨
+2. Transform MessageContent to strings 🚨
+3. Filter undefined values before writes 🚨
+4. Verify indexes in READY state
+5. Use agent-specific assignment (assignedToAgents)
+
+---
+
+## 📚 External References
+
+### For Each Rule Category
+
+**Core Foundation**:
+- [React Best Practices](https://react.dev/learn)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+
+**Data Layer**:
+- [Firestore Best Practices](https://firebase.google.com/docs/firestore/best-practices)
+- [BigQuery Docs](https://cloud.google.com/bigquery/docs)
+
+**Security**:
+- [GDPR Official](https://gdpr-info.eu/)
+- [CCPA Official](https://oag.ca.gov/privacy/ccpa)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+
+**Deployment**:
+- [Cloud Run Docs](https://cloud.google.com/run/docs)
+- [Astro Docs](https://docs.astro.build/)
+
+---
+
+## 🔮 Rule System Roadmap
+
+### Planned Rules (Future)
+
+- [ ] `testing.mdc` - Automated testing standards
+- [ ] `monitoring.mdc` - Observability and alerting
+- [ ] `performance.mdc` - Performance optimization
+- [ ] `accessibility.mdc` - A11y requirements
+- [ ] `api-design.mdc` - REST API conventions
+
+### Planned Updates (Near-term)
+
+- [ ] `privacy.mdc` - Add data retention policies
+- [ ] `multiusers.mdc` - Add load testing procedures
+- [ ] `data.mdc` - Add new collections as features grow
+- [ ] `firestore.mdc` - Add more indexes as needed
+
+---
+
+## ✅ Success Metrics
+
+A well-aligned rule system should achieve:
+
+**Code Quality**:
+- ✅ 0 TypeScript errors
+- ✅ 0 linter errors
+- ✅ 0 security vulnerabilities
+- ✅ 100% backward compatible
+
+**Developer Experience**:
+- ✅ Clear guidance for every task
+- ✅ No conflicting rules
+- ✅ Fast onboarding (<1 day)
+- ✅ Self-service troubleshooting
+
+**System Quality**:
+- ✅ No data loss
+- ✅ Complete user privacy
+- ✅ Predictable behavior
+- ✅ Production-ready code
+
+---
+
+## 📖 Related Documentation
+
+**In Repository**:
+- `RULES_ALIGNMENT.md` - Detailed alignment verification ⭐
+- `docs/COMPLETE_RULES_DOCUMENTATION.md` - Rules summary
+- All `*_2025-10-13.md` guides - Today's implementations
+
+**For Users**:
+- Privacy Policy (to be created)
+- Terms of Service (to be created)
+- User Guide (to be created)
+
+---
+
+## 🎯 Summary
+
+**This Index**:
+- 📚 Catalogs all 28 cursor rules
+- 🔗 Shows how they connect
+- ✅ Verifies alignment status
+- 📖 Guides developers
+- 🎓 Captures lessons learned
+
+**All Rules**:
+- ✅ Have `alwaysApply: true`
+- ✅ Are aligned with alignment.mdc
+- ✅ Maintain backward compatibility
+- ✅ Are production-ready
+- ✅ Are fully documented
+
+---
+
+**Last Updated**: 2025-10-13  
+**Version**: 1.0.0  
+**Status**: ✅ Complete Index  
+**Rules Indexed**: 28  
+**Alignment**: 100% verified  
+**Backward Compatible**: Yes
+
+---
+
+**Remember**: This index is your starting point. When in doubt, `alignment.mdc` is the north star, `data.mdc` is the schema reference, and `privacy.mdc` is the security guide. **All 28 rules work together to prevent bugs, protect user data, and ensure quality.** 🎯🔒📚
