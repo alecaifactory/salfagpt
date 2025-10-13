@@ -1550,20 +1550,43 @@ git commit -m "docs: Update rule X
 
 ## 📚 References
 
-### Internal Documentation - Rules
+### Internal Documentation - Rules (All 23 Rules ✅)
+
+**🎯 Core Foundation (3):**
+- `.cursor/rules/alignment.mdc` - **THIS FILE** - Design principles (**FOUNDATION**)
+- `.cursor/rules/data.mdc` - Complete data schema & architecture (**CORE**) ⭐
 - `.cursor/rules/agents.mdc` - Agentic architecture (**CORE**)
-- `.cursor/rules/backend.mdc` - Backend architecture
-- `.cursor/rules/frontend.mdc` - Frontend architecture
-- `.cursor/rules/firestore.mdc` - Database schema
-- `.cursor/rules/bigquery.mdc` - Analytics architecture
-- `.cursor/rules/ui.mdc` - UI components
-- `.cursor/rules/prd.mdc` - Product requirements
+
+**🏗️ Technical Architecture (8):**
+- `.cursor/rules/backend.mdc` - Backend architecture & API patterns
+- `.cursor/rules/frontend.mdc` - Frontend architecture & React patterns
+- `.cursor/rules/firestore.mdc` - Database operations (extends `data.mdc`)
+- `.cursor/rules/bigquery.mdc` - Analytics data warehouse
+- `.cursor/rules/ui.mdc` - Complete UI component documentation
+- `.cursor/rules/prd.mdc` - Product requirements & features
+- `.cursor/rules/gemini-api-usage.mdc` - Gemini AI API patterns
+- `.cursor/rules/userpersonas.mdc` - User roles & permissions
+
+**🔒 Quality & Safety (4):**
 - `.cursor/rules/code-change-protocol.mdc` - Code change safety (**CRITICAL**)
 - `.cursor/rules/branch-management.mdc` - Branch safety (**CRITICAL**)
 - `.cursor/rules/ui-features-protection.mdc` - Protected features (**CRITICAL**)
+- `.cursor/rules/error-prevention-checklist.mdc` - Common errors & fixes
+
+**⚙️ Configuration & Infrastructure (6):**
+- `.cursor/rules/project-identity.mdc` - Project identity & naming
 - `.cursor/rules/rule-precedence.mdc` - Rule hierarchy
-- `.cursor/rules/gcp-project-consistency.mdc` - GCP enforcement
-- `.cursor/rules/gemini-api-usage.mdc` - Gemini API patterns
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP project enforcement
+- `.cursor/rules/env.mdc` - Environment variables management
+- `.cursor/rules/localhost-port.mdc` - Port configuration (always 3000)
+- `.cursor/rules/production-config-validation.mdc` - Production config validation
+
+**🚀 Deployment & Operations (2):**
+- `.cursor/rules/deployment.mdc` - Deployment rules & best practices
+- `.cursor/rules/salfacorp-local-to-production-rules.mdc` - Local to production guide
+
+**📋 Meta & Alignment:**
+- `RULES_ALIGNMENT.md` - Complete alignment matrix (root directory) ⭐
 
 ### Internal Documentation - Guides
 - `docs/LocalToProduction.md` - Deployment guide
@@ -1579,11 +1602,14 @@ git commit -m "docs: Update rule X
 
 ---
 
-**Last Updated**: 2025-10-12  
-**Version**: 1.1.0  
+**Last Updated**: 2025-10-13  
+**Version**: 1.3.0  
 **Status**: ✅ Production Ready  
-**Project**: Flow (gen-lang-client-0986191192)
+**Project**: Flow (gen-lang-client-0986191192)  
+**Data Schema**: See `data.mdc` for complete schema documentation  
+**All Rules**: ✅ All 23 project rules documented above with `alwaysApply: true`  
+**Alignment**: Verified with all 23 rules (see `RULES_ALIGNMENT.md`)
 
 ---
 
-**Remember:** This rule is the foundation. When in doubt, refer back to these principles. They prevent 95% of bugs, data loss, and user frustration. **Every change must preserve existing functionality unless explicitly approved.**
+**Remember:** This rule is the **OFFICIAL MAIN RULE** that aligns all 23 project rules. When in doubt, refer back to these principles. They prevent 95% of bugs, data loss, and user frustration. **Every change must preserve existing functionality unless explicitly approved.**

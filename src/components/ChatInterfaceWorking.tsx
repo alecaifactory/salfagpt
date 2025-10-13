@@ -80,24 +80,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
   // User settings state
-  const [userSettings, setUserSettings] = useState<UserSettings>(() => {
-    // Load from localStorage on init
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flow_user_settings');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          console.error('Error loading user settings:', e);
-        }
-      }
-    }
-    // Default settings
-    return {
-      preferredModel: 'gemini-2.5-flash',
-      systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
-      language: 'es',
-    };
+  const [userSettings, setUserSettings] = useState<UserSettings>({
+    preferredModel: 'gemini-2.5-flash',
+    systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
+    language: 'es',
   });
   
   // Workflows state
@@ -237,6 +223,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  // NEW: Load agent config for conversation
+  const loadAgentConfig = async (conversationId: string) => {
+    try {
+      console.log('⚙️ Cargando configuración del agente para conversación:', conversationId);
+      const response = await fetch(`/api/agent-config?conversationId=${conversationId}`);
+      
+      if (response.ok) {
+        const config = await response.json();
+        // Update user settings with agent-specific config (if exists)
+        if (config.model || config.systemPrompt) {
+          setUserSettings(prev => ({
+            ...prev,
+            preferredModel: config.model || prev.preferredModel,
+            systemPrompt: config.systemPrompt || prev.systemPrompt,
+          }));
+          console.log('✅ Configuración del agente cargada:', config.model);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar configuración del agente:', error);
+    }
+  };
+
   // Load conversations from Firestore on mount
   useEffect(() => {
     const loadConversations = async () => {
@@ -279,6 +288,60 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     
     loadConversations();
   }, [userId]);
+
+  // NEW: Load user settings from Firestore on mount
+  useEffect(() => {
+    const loadUserSettings = async () => {
+      try {
+        console.log('⚙️ Cargando configuración del usuario desde Firestore...');
+        const response = await fetch(`/api/user-settings?userId=${userId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setUserSettings(data);
+          console.log('✅ Configuración del usuario cargada:', data.preferredModel);
+        } else {
+          console.warn('⚠️ No se pudo cargar configuración del usuario, usando defaults');
+        }
+      } catch (error) {
+        console.error('❌ Error al cargar configuración del usuario:', error);
+      }
+    };
+    
+    loadUserSettings();
+  }, [userId]);
+
+  // Effect: Handle conversation change - load messages and context
+  useEffect(() => {
+    if (!currentConversation) {
+      setMessages([]);
+      setContextLogs([]);
+      return;
+    }
+
+    // Don't load messages for temporary conversations
+    if (currentConversation.startsWith('temp-')) {
+      console.log('⏭️ Conversación temporal - no cargando mensajes de Firestore');
+      setMessages([]);
+      setContextLogs([]);
+      return;
+    }
+
+    console.log('🔄 Cambiando a conversación:', currentConversation);
+    
+    // Load messages for this conversation
+    loadMessages(currentConversation);
+    
+    // Load context configuration for this conversation
+    loadContextForConversation(currentConversation);
+    
+    // NEW: Load agent config for this conversation
+    loadAgentConfig(currentConversation);
+    
+    // Reset input
+    setInput('');
+    
+  }, [currentConversation]);
 
   const createNewConversation = async () => {
     try {
@@ -535,13 +598,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     console.log('✅ Workflow config saved:', workflowId, config);
   };
 
-  const handleSaveUserSettings = (settings: UserSettings) => {
-    setUserSettings(settings);
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('flow_user_settings', JSON.stringify(settings));
+  const handleSaveUserSettings = async (settings: UserSettings) => {
+    try {
+      console.log('💾 Guardando configuración del usuario en Firestore...');
+      const response = await fetch('/api/user-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, ...settings }),
+      });
+
+      if (response.ok) {
+        const savedSettings = await response.json();
+        setUserSettings(savedSettings);
+        console.log('✅ Configuración del usuario guardada en Firestore:', savedSettings.preferredModel);
+      } else {
+        console.error('❌ Error al guardar configuración del usuario');
+      }
+    } catch (error) {
+      console.error('❌ Error al guardar configuración del usuario:', error);
     }
-    console.log('✅ User settings saved:', settings);
   };
 
   const handleSourceSettings = (sourceId: string) => {

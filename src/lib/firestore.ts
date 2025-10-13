@@ -28,6 +28,26 @@ console.log('✅ Firestore client initialized successfully');
 console.log('💡 Local dev: Ensure you have run "gcloud auth application-default login"');
 console.log('💡 Production: Uses Workload Identity automatically');
 
+// Helper function to determine source environment
+export function getEnvironmentSource(): 'localhost' | 'production' {
+  // Check if running on localhost
+  if (typeof window !== 'undefined') {
+    // Browser context
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? 'localhost' 
+      : 'production';
+  }
+  
+  // Server context - check NODE_ENV and other indicators
+  if (process.env.NODE_ENV === 'development' || 
+      process.env.NODE_ENV === 'dev' ||
+      !process.env.K_SERVICE) {  // K_SERVICE is set in Cloud Run
+    return 'localhost';
+  }
+  
+  return 'production';
+}
+
 // Collections
 export const COLLECTIONS = {
   CONVERSATIONS: 'conversations',
@@ -38,6 +58,11 @@ export const COLLECTIONS = {
   GROUPS: 'groups',
   CONTEXT_ACCESS_RULES: 'context_access_rules',
   CONTEXT_SOURCES: 'context_sources',
+  USER_SETTINGS: 'user_settings',              // NEW: User global settings
+  AGENT_CONFIGS: 'agent_configs',              // NEW: Per-agent configurations
+  WORKFLOW_CONFIGS: 'workflow_configs',        // NEW: Workflow configurations
+  CONVERSATION_CONTEXT: 'conversation_context', // NEW: Context state per conversation
+  USAGE_LOGS: 'usage_logs',                    // NEW: Usage tracking
 } as const;
 
 // Types
@@ -48,6 +73,7 @@ export interface Conversation {
   folderId?: string;
   createdAt: Date;
   updatedAt: Date;
+  source?: 'localhost' | 'production'; // For analytics tracking
   lastMessageAt: Date;
   messageCount: number;
   contextWindowUsage: number; // Percentage 0-100
@@ -64,6 +90,7 @@ export interface Message {
   timestamp: Date;
   tokenCount: number;
   contextSections?: ContextSection[];
+  source?: 'localhost' | 'production'; // For analytics tracking
 }
 
 export interface MessageContent {
@@ -112,6 +139,77 @@ export interface ContextItem {
   addedAt: Date;
 }
 
+// NEW: User Settings - Global preferences for each user
+export interface UserSettings {
+  userId: string;                              // Document ID
+  preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt: string;
+  language: string;
+  createdAt: Date;
+  updatedAt: Date;
+  source?: 'localhost' | 'production';
+}
+
+// NEW: Agent Config - Configuration for each conversation/agent
+export interface AgentConfig {
+  id: string;                                  // Document ID
+  conversationId: string;                      // Which conversation/agent this config belongs to
+  userId: string;                              // Owner
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  source?: 'localhost' | 'production';
+}
+
+// NEW: Workflow Config - Configuration for workflows
+export interface WorkflowConfig {
+  id: string;                                  // Document ID (workflowId)
+  userId: string;                              // Owner
+  workflowType: string;                        // e.g., 'pdf-extraction', 'csv-import', etc.
+  config: {
+    maxFileSize?: number;                      // MB
+    maxOutputLength?: number;                  // tokens
+    language?: string;
+    model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+    [key: string]: any;                        // Additional workflow-specific config
+  };
+  createdAt: Date;
+  updatedAt: Date;
+  source?: 'localhost' | 'production';
+}
+
+// NEW: Conversation Context - Active context sources per conversation
+export interface ConversationContext {
+  id: string;                                  // Document ID (conversationId)
+  conversationId: string;
+  userId: string;
+  activeContextSourceIds: string[];            // IDs of enabled context sources
+  contextWindowUsage: number;                  // Percentage 0-100
+  lastUsedAt: Date;
+  updatedAt: Date;
+  source?: 'localhost' | 'production';
+}
+
+// NEW: Usage Log - Track usage of features
+export interface UsageLog {
+  id: string;                                  // Auto-generated
+  userId: string;
+  conversationId?: string;
+  action: string;                              // e.g., 'message_sent', 'context_added', 'workflow_executed'
+  details: {
+    model?: string;
+    tokensUsed?: number;
+    contextSourcesUsed?: string[];
+    workflowId?: string;
+    [key: string]: any;
+  };
+  timestamp: Date;
+  source?: 'localhost' | 'production';
+}
+
 // Conversation Operations
 export async function createConversation(
   userId: string,
@@ -131,9 +229,11 @@ export async function createConversation(
     messageCount: 0,
     contextWindowUsage: 0,
     agentModel: 'gemini-2.5-pro',
+    source: getEnvironmentSource(), // Track source for analytics
   };
 
   await conversationRef.set(conversation);
+  console.log(`📝 Conversation created from ${conversation.source}:`, conversationRef.id);
   return conversation;
 }
 
@@ -226,10 +326,12 @@ export async function addMessage(
     content,
     timestamp: new Date(),
     tokenCount,
-    ...(contextSections && { contextSections }),
+    ...(contextSections !== undefined && { contextSections }), // Only include if defined
+    source: getEnvironmentSource(), // Track source for analytics
   };
 
   await messageRef.set(message);
+  console.log(`💬 Message created from ${message.source}:`, messageRef.id);
 
   // Update conversation
   const conversation = await getConversation(conversationId);
@@ -704,6 +806,338 @@ export async function loadConversationContext(
     return conversation?.activeContextSourceIds || [];
   } catch (error) {
     console.error('Error loading conversation context:', error);
+    return [];
+  }
+}
+
+// ===== NEW: USER SETTINGS OPERATIONS =====
+
+/**
+ * Get user settings (global preferences)
+ */
+export async function getUserSettings(userId: string): Promise<UserSettings | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.USER_SETTINGS)
+      .doc(userId)
+      .get();
+
+    if (!doc.exists) {
+      console.log('📭 No user settings found for:', userId);
+      return null;
+    }
+
+    const data = doc.data();
+    if (!data) return null;
+
+    return {
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+    } as UserSettings;
+  } catch (error) {
+    console.error('❌ Error getting user settings:', error);
+    return null;
+  }
+}
+
+/**
+ * Save user settings (global preferences)
+ */
+export async function saveUserSettings(
+  userId: string,
+  settings: Omit<UserSettings, 'userId' | 'createdAt' | 'updatedAt' | 'source'>
+): Promise<UserSettings> {
+  const now = new Date();
+  const source = getEnvironmentSource();
+
+  // Check if settings already exist
+  const existing = await getUserSettings(userId);
+
+  const userSettings: UserSettings = {
+    userId,
+    ...settings,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    source,
+  };
+
+  await firestore
+    .collection(COLLECTIONS.USER_SETTINGS)
+    .doc(userId)
+    .set(userSettings);
+
+  console.log(`✅ User settings saved from ${source}:`, userId);
+  return userSettings;
+}
+
+// ===== NEW: AGENT CONFIG OPERATIONS =====
+
+/**
+ * Get agent config for a specific conversation
+ */
+export async function getAgentConfig(conversationId: string): Promise<AgentConfig | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.AGENT_CONFIGS)
+      .doc(conversationId)
+      .get();
+
+    if (!doc.exists) {
+      console.log('📭 No agent config found for conversation:', conversationId);
+      return null;
+    }
+
+    const data = doc.data();
+    if (!data) return null;
+
+    return {
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+    } as AgentConfig;
+  } catch (error) {
+    console.error('❌ Error getting agent config:', error);
+    return null;
+  }
+}
+
+/**
+ * Save agent config for a specific conversation
+ */
+export async function saveAgentConfig(
+  conversationId: string,
+  userId: string,
+  config: Omit<AgentConfig, 'id' | 'conversationId' | 'userId' | 'createdAt' | 'updatedAt' | 'source'>
+): Promise<AgentConfig> {
+  const now = new Date();
+  const source = getEnvironmentSource();
+
+  // Check if config already exists
+  const existing = await getAgentConfig(conversationId);
+
+  const agentConfig: AgentConfig = {
+    id: conversationId,
+    conversationId,
+    userId,
+    ...config,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    source,
+  };
+
+  await firestore
+    .collection(COLLECTIONS.AGENT_CONFIGS)
+    .doc(conversationId)
+    .set(agentConfig);
+
+  console.log(`✅ Agent config saved from ${source}:`, conversationId);
+  return agentConfig;
+}
+
+// ===== NEW: WORKFLOW CONFIG OPERATIONS =====
+
+/**
+ * Get workflow config by ID
+ */
+export async function getWorkflowConfig(workflowId: string, userId: string): Promise<WorkflowConfig | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.WORKFLOW_CONFIGS)
+      .doc(`${userId}_${workflowId}`)
+      .get();
+
+    if (!doc.exists) {
+      console.log('📭 No workflow config found for:', workflowId);
+      return null;
+    }
+
+    const data = doc.data();
+    if (!data) return null;
+
+    return {
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+    } as WorkflowConfig;
+  } catch (error) {
+    console.error('❌ Error getting workflow config:', error);
+    return null;
+  }
+}
+
+/**
+ * Save workflow config
+ */
+export async function saveWorkflowConfig(
+  workflowId: string,
+  userId: string,
+  config: Omit<WorkflowConfig, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'source'>
+): Promise<WorkflowConfig> {
+  const now = new Date();
+  const source = getEnvironmentSource();
+  const docId = `${userId}_${workflowId}`;
+
+  // Check if config already exists
+  const existing = await getWorkflowConfig(workflowId, userId);
+
+  const workflowConfig: WorkflowConfig = {
+    id: workflowId,
+    userId,
+    ...config,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    source,
+  };
+
+  await firestore
+    .collection(COLLECTIONS.WORKFLOW_CONFIGS)
+    .doc(docId)
+    .set(workflowConfig);
+
+  console.log(`✅ Workflow config saved from ${source}:`, workflowId);
+  return workflowConfig;
+}
+
+/**
+ * Get all workflow configs for a user
+ */
+export async function getUserWorkflowConfigs(userId: string): Promise<WorkflowConfig[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.WORKFLOW_CONFIGS)
+      .where('userId', '==', userId)
+      .get();
+
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate(),
+      updatedAt: doc.data().updatedAt.toDate(),
+    })) as WorkflowConfig[];
+  } catch (error) {
+    console.error('❌ Error getting workflow configs:', error);
+    return [];
+  }
+}
+
+// ===== NEW: CONVERSATION CONTEXT OPERATIONS =====
+
+/**
+ * Get conversation context (active sources, usage)
+ */
+export async function getConversationContext(conversationId: string): Promise<ConversationContext | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.CONVERSATION_CONTEXT)
+      .doc(conversationId)
+      .get();
+
+    if (!doc.exists) {
+      console.log('📭 No conversation context found for:', conversationId);
+      return null;
+    }
+
+    const data = doc.data();
+    if (!data) return null;
+
+    return {
+      ...data,
+      lastUsedAt: data.lastUsedAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+    } as ConversationContext;
+  } catch (error) {
+    console.error('❌ Error getting conversation context:', error);
+    return null;
+  }
+}
+
+/**
+ * Save conversation context (active sources, usage)
+ */
+export async function saveConversationContextState(
+  conversationId: string,
+  data: {
+    conversationId: string;
+    userId: string;
+    activeContextSourceIds?: string[];
+    contextWindowUsage?: number;
+  }
+): Promise<ConversationContext> {
+  const now = new Date();
+  const source = getEnvironmentSource();
+
+  const conversationContext: ConversationContext = {
+    id: conversationId,
+    conversationId: data.conversationId,
+    userId: data.userId,
+    ...(data.activeContextSourceIds !== undefined && { activeContextSourceIds: data.activeContextSourceIds }), // Only include if defined
+    ...(data.contextWindowUsage !== undefined && { contextWindowUsage: data.contextWindowUsage }), // Only include if defined
+    lastUsedAt: now,
+    updatedAt: now,
+    source,
+  };
+
+  await firestore
+    .collection(COLLECTIONS.CONVERSATION_CONTEXT)
+    .doc(conversationId)
+    .set(conversationContext);
+
+  console.log(`✅ Conversation context saved from ${source}:`, conversationId);
+  return conversationContext;
+}
+
+// ===== NEW: USAGE LOG OPERATIONS =====
+
+/**
+ * Log usage event
+ */
+export async function logUsage(
+  userId: string,
+  action: string,
+  details: UsageLog['details'],
+  conversationId?: string
+): Promise<void> {
+  const now = new Date();
+  const source = getEnvironmentSource();
+
+  const usageLog: UsageLog = {
+    id: firestore.collection(COLLECTIONS.USAGE_LOGS).doc().id,
+    userId,
+    ...(conversationId !== undefined && { conversationId }), // Only include if defined
+    action,
+    details,
+    timestamp: now,
+    source,
+  };
+
+  await firestore
+    .collection(COLLECTIONS.USAGE_LOGS)
+    .add(usageLog);
+
+  console.log(`📊 Usage logged from ${source}:`, action);
+}
+
+/**
+ * Get usage logs for a user
+ */
+export async function getUserUsageLogs(
+  userId: string,
+  limit: number = 100
+): Promise<UsageLog[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.USAGE_LOGS)
+      .where('userId', '==', userId)
+      .orderBy('timestamp', 'desc')
+      .limit(limit)
+      .get();
+
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      timestamp: doc.data().timestamp.toDate(),
+    })) as UsageLog[];
+  } catch (error) {
+    console.error('❌ Error getting usage logs:', error);
     return [];
   }
 }

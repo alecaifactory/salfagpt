@@ -23,7 +23,12 @@
     "test:firestore": "node scripts/test-firestore-consistency.js",
     "test:consistency": "./scripts/validate-consistency.sh",
     "health:check": "curl -s http://localhost:3000/api/health/firestore | json_pp",
-    "seed:users": "tsx scripts/seed-users.ts"
+    "seed:users": "tsx scripts/seed-users.ts",
+    "seed:firestore": "tsx scripts/seed-firestore-data.ts",
+    "seed:complete": "tsx scripts/seed-complete-test-data.ts localhost",
+    "seed:complete:prod": "tsx scripts/seed-complete-test-data.ts production",
+    "verify:persistence": "tsx scripts/verify-persistence.ts",
+    "verify:users": "tsx scripts/verify-all-users.ts"
   },
   "dependencies": {
     "@astrojs/node": "^9.4.4",

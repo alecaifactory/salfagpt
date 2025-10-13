@@ -1,0 +1,1117 @@
+---
+alwaysApply: true
+---
+
+# Data Schema & Architecture - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the complete data schema across all storage systems (Firestore, BigQuery), ensuring consistency, backward compatibility, and proper data persistence. It serves as the single source of truth for all data structures in the Flow platform.
+
+---
+
+## 📊 Data Architecture Overview
+
+### Storage Systems
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                 DATA ARCHITECTURE                        │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  🔥 FIRESTORE (Operational Database)                   │
+│  ├─ conversations           # Agent conversations      │
+│  ├─ messages                # Chat messages            │
+│  ├─ user_settings           # User global config       │
+│  ├─ agent_configs           # Per-agent config         │
+│  ├─ workflow_configs        # Workflow settings        │
+│  ├─ conversation_context    # Per-conversation state   │
+│  ├─ usage_logs              # Usage tracking           │
+│  ├─ context_sources         # Documents for context    │
+│  ├─ users                   # User profiles            │
+│  ├─ folders                 # Organization             │
+│  ├─ groups                  # Team groups              │
+│  └─ context_access_rules    # Sharing permissions      │
+│                                                         │
+│  📊 BIGQUERY (Analytics Warehouse)                     │
+│  ├─ users                   # User analytics           │
+│  ├─ sessions                # User sessions            │
+│  ├─ conversations           # Conversation analytics   │
+│  ├─ messages                # Message analytics        │
+│  ├─ analytics_events        # Interaction events       │
+│  ├─ context_usage           # Context tracking         │
+│  ├─ model_usage             # AI model usage           │
+│  └─ daily_metrics           # Aggregated stats         │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Data Flow
+
+```
+User Action
+    ↓
+Frontend State Update (Optimistic)
+    ↓
+API Call (Astro Route)
+    ↓
+┌───────────────────────────┐
+│ Firestore Write           │ ← Primary persistence
+│ (Operational Data)        │
+└───────────────────────────┘
+    ↓
+┌───────────────────────────┐
+│ BigQuery Sync (Optional)  │ ← Analytics only
+│ (Non-blocking)            │
+└───────────────────────────┘
+    ↓
+Response to Frontend
+    ↓
+UI Update (Confirmed)
+```
+
+---
+
+## 🔥 Firestore Collections
+
+### Core Principle: All Firestore documents include `source` field
+
+**Purpose:** Track data origin for analytics and debugging
+
+```typescript
+type DataSource = 'localhost' | 'production';
+
+// Helper function (used in all save operations)
+export function getEnvironmentSource(): DataSource {
+  const isDevelopment = import.meta.env?.DEV || process.env.NODE_ENV === 'development';
+  return isDevelopment ? 'localhost' : 'production';
+}
+```
+
+---
+
+### 1. conversations
+
+**Purpose:** Store AI agent conversations (each conversation is an agent)
+
+**Collection Path:** `conversations/{conversationId}`
+
+**TypeScript Interface:**
+```typescript
+interface Conversation {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  title: string;                    // Display name
+  folderId?: string;                // Optional folder (indexed)
+  createdAt: Date;                  // Creation time
+  updatedAt: Date;                  // Last update
+  lastMessageAt: Date;              // Last activity (indexed)
+  messageCount: number;             // Total messages
+  contextWindowUsage: number;       // 0-100 percentage
+  agentModel: string;               // 'gemini-2.5-flash' | 'gemini-2.5-pro'
+  activeContextSourceIds?: string[]; // Active context for this agent
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, lastMessageAt DESC
+- userId ASC, folderId ASC, lastMessageAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fconversations
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/conversations?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/conversations` - List user conversations
+- `POST /api/conversations` - Create conversation
+- `PUT /api/conversations/:id` - Update conversation
+- `DELETE /api/conversations/:id` - Delete conversation
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getConversations(userId: string): Promise<Conversation[]>`
+- `createConversation(userId: string, title: string): Promise<Conversation>`
+- `updateConversation(id: string, updates: Partial<Conversation>): Promise<void>`
+- `deleteConversation(id: string): Promise<void>`
+
+**Backward Compatibility:**
+- ✅ Adding `activeContextSourceIds` (optional field)
+- ✅ Adding `source` field (defaults to current environment)
+- ⚠️ Never remove `userId`, `title`, `agentModel` (breaking)
+
+---
+
+### 2. messages
+
+**Purpose:** Store individual chat messages in conversations
+
+**Collection Path:** `messages/{messageId}`
+
+**TypeScript Interface:**
+```typescript
+interface Message {
+  id: string;                       // Document ID
+  conversationId: string;           // Parent conversation (indexed)
+  userId: string;                   // Owner (indexed)
+  role: 'user' | 'assistant' | 'system';
+  content: MessageContent;          // Structured content
+  timestamp: Date;                  // When sent (indexed)
+  tokenCount: number;               // Token usage
+  contextSections?: ContextSection[]; // Context used (optional)
+  source: 'localhost' | 'production'; // Data origin
+}
+
+interface MessageContent {
+  type: 'text' | 'image' | 'code' | 'mixed';
+  text?: string;
+  code?: {
+    language: string;
+    content: string;
+  };
+  parts?: Array<{
+    type: string;
+    content: string | object;
+  }>;
+}
+
+interface ContextSection {
+  name: string;                     // Section name
+  tokenCount: number;               // Tokens used
+  content: string;                  // Content preview
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC, timestamp ASC
+- userId ASC, timestamp DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fmessages
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/messages?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/conversations/:id/messages` - List conversation messages
+- `POST /api/conversations/:id/messages` - Send message (creates user + AI response)
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getMessages(conversationId: string): Promise<Message[]>`
+- `addMessage(conversationId: string, userId: string, role: string, content: MessageContent, tokenCount: number, contextSections?: ContextSection[]): Promise<Message>`
+
+**Backward Compatibility:**
+- ✅ `contextSections` is optional (only included if defined)
+- ⚠️ Never remove `conversationId`, `role`, `content` (breaking)
+
+---
+
+### 3. user_settings
+
+**Purpose:** Store user global configuration (model preferences, system prompt, language)
+
+**Collection Path:** `user_settings/{userId}`
+
+**TypeScript Interface:**
+```typescript
+interface UserSettings {
+  id: string;                       // Document ID (same as userId)
+  userId: string;                   // User ID
+  preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt: string;             // Default system instruction
+  language: string;                 // User language ('es', 'en', etc.)
+  updatedAt: Date;                  // Last update
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC (implicit - document ID)
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fuser_settings
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/user_settings?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/user-settings?userId={userId}` - Get user settings
+- `POST /api/user-settings` - Save user settings
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getUserSettings(userId: string): Promise<UserSettings | null>`
+- `saveUserSettings(userId: string, settings: Omit<UserSettings, 'id' | 'userId' | 'updatedAt' | 'source'>): Promise<UserSettings>`
+
+**Default Values:**
+```typescript
+{
+  preferredModel: 'gemini-2.5-flash',
+  systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
+  language: 'es'
+}
+```
+
+**Backward Compatibility:**
+- ✅ New users get default values automatically
+- ✅ Existing users without settings use defaults
+- ⚠️ Never remove `preferredModel` (breaking)
+
+---
+
+### 4. agent_configs
+
+**Purpose:** Store per-conversation/agent configuration (overrides user settings)
+
+**Collection Path:** `agent_configs/{conversationId}`
+
+**TypeScript Interface:**
+```typescript
+interface AgentConfig {
+  id: string;                       // Document ID (same as conversationId)
+  conversationId: string;           // Conversation ID
+  userId: string;                   // Owner
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  systemPrompt: string;             // Agent-specific instruction
+  temperature: number;              // 0-1, creativity control
+  maxOutputTokens: number;          // Response length limit
+  updatedAt: Date;                  // Last update
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC (implicit - document ID)
+- userId ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fagent_configs
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/agent_configs?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/agent-config?conversationId={conversationId}` - Get agent config
+- `POST /api/agent-config` - Save agent config
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getAgentConfig(conversationId: string): Promise<AgentConfig | null>`
+- `saveAgentConfig(conversationId: string, config: Omit<AgentConfig, 'id' | 'updatedAt' | 'source'>): Promise<AgentConfig>`
+
+**Configuration Precedence:**
+```
+Agent Config (if exists)
+    ↓
+User Settings (if exists)
+    ↓
+System Defaults
+```
+
+**Backward Compatibility:**
+- ✅ Agent config is optional (falls back to user settings)
+- ✅ All fields have defaults
+- ⚠️ Never remove `conversationId`, `model` (breaking)
+
+---
+
+### 5. workflow_configs
+
+**Purpose:** Store workflow configuration per user (extraction settings, file limits, etc.)
+
+**Collection Path:** `workflow_configs/{userId}_{workflowType}`
+
+**TypeScript Interface:**
+```typescript
+interface WorkflowConfig {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  workflowType: string;             // 'extract-pdf', 'parse-csv', etc.
+  config: WorkflowSettings;         // Workflow-specific settings
+  updatedAt: Date;                  // Last update
+  source: 'localhost' | 'production'; // Data origin
+}
+
+interface WorkflowSettings {
+  maxFileSize?: number;             // In MB
+  maxOutputLength?: number;         // In tokens
+  language?: string;                // Processing language
+  model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
+  [key: string]: any;               // Workflow-specific fields
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC
+- userId ASC, workflowType ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fworkflow_configs
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/workflow_configs?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/workflow-config?userId={userId}&workflowType={type}` - Get workflow config
+- `POST /api/workflow-config` - Save workflow config
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getWorkflowConfig(userId: string, workflowType: string): Promise<WorkflowConfig | null>`
+- `saveWorkflowConfig(userId: string, config: Omit<WorkflowConfig, 'id' | 'updatedAt' | 'source'>): Promise<WorkflowConfig>`
+- `getUserWorkflowConfigs(userId: string): Promise<WorkflowConfig[]>`
+
+**Common Workflow Types:**
+- `extract-pdf` - PDF extraction
+- `parse-csv` - CSV parsing
+- `scrape-url` - Web scraping
+- `read-excel` - Excel processing
+- `extract-word` - Word document processing
+
+**Backward Compatibility:**
+- ✅ Workflow config is optional (uses defaults)
+- ✅ `WorkflowSettings` is flexible (any fields)
+- ⚠️ Never remove `userId`, `workflowType` (breaking)
+
+---
+
+### 6. conversation_context
+
+**Purpose:** Store conversation-specific context state (active sources, usage)
+
+**Collection Path:** `conversation_context/{conversationId}`
+
+**TypeScript Interface:**
+```typescript
+interface ConversationContext {
+  id: string;                       // Document ID (same as conversationId)
+  conversationId: string;           // Conversation ID
+  userId: string;                   // Owner
+  activeContextSourceIds?: string[]; // Active context source IDs (optional)
+  contextWindowUsage?: number;      // Current usage % (optional)
+  lastUsedAt: Date;                 // Last context usage
+  updatedAt: Date;                  // Last update
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC (implicit - document ID)
+- userId ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fconversation_context
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/conversation_context?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/conversation-context?conversationId={conversationId}` - Get conversation context
+- `POST /api/conversation-context` - Save conversation context
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getConversationContext(conversationId: string): Promise<ConversationContext | null>`
+- `saveConversationContextState(conversationId: string, state: Omit<ConversationContext, 'id' | 'lastUsedAt' | 'updatedAt' | 'source'>): Promise<ConversationContext>`
+
+**Backward Compatibility:**
+- ✅ Both `activeContextSourceIds` and `contextWindowUsage` are optional
+- ✅ Missing context = empty state (no active sources)
+- ⚠️ Never remove `conversationId` (breaking)
+
+---
+
+### 7. usage_logs
+
+**Purpose:** Track user actions for analytics and debugging
+
+**Collection Path:** `usage_logs/{logId}`
+
+**TypeScript Interface:**
+```typescript
+interface UsageLog {
+  id: string;                       // Document ID (auto-generated)
+  userId: string;                   // User who performed action (indexed)
+  conversationId?: string;          // Related conversation (optional, indexed)
+  action: string;                   // Action type
+  details: Record<string, any>;     // Action-specific details
+  timestamp: Date;                  // When action occurred (indexed)
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, timestamp DESC
+- conversationId ASC, timestamp DESC (if conversationId exists)
+- action ASC, timestamp DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fusage_logs
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/usage_logs?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/usage-logs?userId={userId}` - Get user usage logs (admin only)
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `logUsage(userId: string, action: string, details?: Record<string, any>, conversationId?: string): Promise<UsageLog>`
+- `getUserUsageLogs(userId: string, limit?: number): Promise<UsageLog[]>`
+
+**Common Action Types:**
+```typescript
+- 'create_conversation'
+- 'send_message'
+- 'add_context_source'
+- 'change_model'
+- 'validate_source'
+- 'delete_conversation'
+- 'update_user_settings'
+- 'configure_workflow'
+```
+
+**Backward Compatibility:**
+- ✅ `conversationId` is optional (not all actions relate to conversations)
+- ✅ `details` is flexible (any fields)
+- ⚠️ Never remove `userId`, `action`, `timestamp` (breaking)
+
+---
+
+### 8. context_sources
+
+**Purpose:** Store uploaded documents and extracted context
+
+**Collection Path:** `context_sources/{sourceId}`
+
+**TypeScript Interface:**
+```typescript
+interface ContextSource {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  name: string;                     // Display name
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
+  enabled: boolean;                 // Active/inactive
+  status: 'active' | 'processing' | 'error' | 'disabled';
+  addedAt: Date;                    // When added (indexed)
+  extractedData?: string;           // Extracted content (text)
+  metadata?: {
+    originalFileName?: string;
+    originalFileSize?: number;
+    workflowId?: string;
+    extractionDate?: Date;
+    extractionTime?: number;        // milliseconds
+    model?: string;                 // Model used for extraction
+    charactersExtracted?: number;
+    tokensEstimate?: number;
+    pageCount?: number;
+    validated?: boolean;            // Expert sign-off
+    validatedBy?: string;
+    validatedAt?: Date;
+    validationNotes?: string;
+  };
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Date;
+    suggestions?: string[];
+  };
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, addedAt DESC
+- userId ASC, status ASC, addedAt DESC
+- userId ASC, validated ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_sources
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/context_sources?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/context-sources?userId={userId}` - List user context sources
+- `POST /api/extract-document` - Upload and extract document
+- `DELETE /api/context-sources/:id` - Delete context source
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getContextSources(userId: string): Promise<ContextSource[]>`
+- `createContextSource(userId: string, data: Partial<ContextSource>): Promise<ContextSource>`
+- `updateContextSource(id: string, updates: Partial<ContextSource>): Promise<void>`
+- `deleteContextSource(id: string): Promise<void>`
+
+**Backward Compatibility:**
+- ✅ All optional fields can be added without breaking
+- ✅ `metadata`, `error`, `progress` are optional
+- ⚠️ Never remove `userId`, `name`, `type` (breaking)
+
+---
+
+### 9. users
+
+**Purpose:** Store user profiles and authentication data
+
+**Collection Path:** `users/{userId}`
+
+**TypeScript Interface:**
+```typescript
+interface User {
+  id: string;                       // Document ID (email sanitized)
+  email: string;                    // Unique email (indexed)
+  name: string;                     // Display name
+  role: UserRole;                   // Permission level
+  permissions: UserPermissions;     // Granular permissions
+  company: string;                  // Organization
+  department?: string;              // Team/department
+  createdAt: Date;                  // Registration date
+  updatedAt: Date;                  // Last profile update
+  lastLoginAt?: Date;               // Last login (indexed)
+  isActive: boolean;                // Account status
+  avatarUrl?: string;               // Profile picture
+  source: 'localhost' | 'production'; // Data origin
+}
+
+type UserRole = 
+  | 'admin'
+  | 'expert' 
+  | 'user'
+  | 'context_signoff'
+  | 'context_reviewer'
+  | 'context_creator'
+  | 'context_feedback'
+  | 'agent_signoff'
+  | 'agent_reviewer'
+  | 'agent_creator'
+  | 'agent_feedback';
+
+interface UserPermissions {
+  canManageUsers?: boolean;
+  canImpersonateUsers?: boolean;
+  canUploadContext?: boolean;
+  canSignOffContext?: boolean;
+  canCreateAgents?: boolean;
+  canAccessAnalytics?: boolean;
+  [key: string]: boolean | undefined;
+}
+```
+
+**Indexes Required:**
+```
+- email ASC (unique)
+- role ASC, lastLoginAt DESC
+- isActive ASC, createdAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fusers
+- Cloud Console: https://console.cloud.google.com/firestore/databases/-default-/data/panel/users?project=gen-lang-client-0986191192
+
+**API Endpoints:**
+- `GET /api/users` - List all users (admin only)
+- `GET /api/users/:id` - Get user profile
+- `POST /api/users` - Create user (admin only)
+- `PUT /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Delete user (admin only)
+
+**CRUD Functions (src/lib/firestore.ts):**
+- `getUser(userId: string): Promise<User | null>`
+- `getAllUsers(): Promise<User[]>` (admin only)
+- `createUser(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): Promise<User>`
+- `updateUser(userId: string, updates: Partial<User>): Promise<void>`
+- `deleteUser(userId: string): Promise<void>`
+
+**Backward Compatibility:**
+- ✅ New roles can be added
+- ✅ Permissions are flexible
+- ⚠️ Never remove `email`, `role` (breaking)
+
+---
+
+### 10. folders
+
+**Purpose:** Organize conversations into folders
+
+**Collection Path:** `folders/{folderId}`
+
+**TypeScript Interface:**
+```typescript
+interface Folder {
+  id: string;                       // Document ID
+  userId: string;                   // Owner (indexed)
+  name: string;                     // Display name
+  createdAt: Date;                  // Creation date
+  conversationCount: number;        // Cached count
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, createdAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Ffolders
+
+**Backward Compatibility:**
+- ✅ Folders are optional
+- ⚠️ Never remove `userId`, `name` (breaking)
+
+---
+
+### 11. groups
+
+**Purpose:** Team/department organization
+
+**Collection Path:** `groups/{groupId}`
+
+**TypeScript Interface:**
+```typescript
+interface Group {
+  id: string;                       // Document ID
+  name: string;                     // Display name
+  type: string;                     // 'department' | 'team' | 'project'
+  members: string[];                // User IDs (indexed)
+  createdAt: Date;                  // Creation date
+  createdBy: string;                // Creator user ID
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- type ASC, createdAt DESC
+- members array-contains
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fgroups
+
+**Backward Compatibility:**
+- ✅ Groups are optional
+- ⚠️ Never remove `name`, `members` (breaking)
+
+---
+
+### 12. context_access_rules
+
+**Purpose:** Context sharing permissions
+
+**Collection Path:** `context_access_rules/{ruleId}`
+
+**TypeScript Interface:**
+```typescript
+interface ContextAccessRule {
+  id: string;                       // Document ID
+  contextSourceId: string;          // Source being shared (indexed)
+  sharedBy: string;                 // Owner user ID
+  sharedWith: string[];             // User IDs or group IDs (indexed)
+  accessLevel: 'read' | 'write' | 'admin';
+  expiresAt?: Date;                 // Optional expiration
+  createdAt: Date;                  // When shared
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- contextSourceId ASC
+- sharedWith array-contains
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_access_rules
+
+**Backward Compatibility:**
+- ✅ Sharing is optional
+- ⚠️ Never remove `contextSourceId`, `sharedBy` (breaking)
+
+---
+
+## 📊 BigQuery Tables
+
+**Note:** BigQuery is used for analytics only. Operational data is in Firestore.
+
+### 1. users (Analytics)
+
+**Dataset:** `flow_analytics`
+**Table:** `users`
+
+**Schema:**
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.users` (
+  user_id STRING NOT NULL,
+  email STRING NOT NULL,
+  name STRING,
+  role STRING,
+  company STRING,
+  department STRING,
+  created_at TIMESTAMP NOT NULL,
+  last_login TIMESTAMP,
+  total_conversations INT64 DEFAULT 0,
+  total_messages INT64 DEFAULT 0,
+  total_context_sources INT64 DEFAULT 0,
+  avg_conversation_length FLOAT64,
+  preferred_model STRING,
+  is_active BOOLEAN DEFAULT TRUE,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(created_at)
+CLUSTER BY user_id, role;
+```
+
+**Where Visible:**
+- BigQuery Console: https://console.cloud.google.com/bigquery?project=gen-lang-client-0986191192&ws=!1m5!1m4!4m3!1sgen-lang-client-0986191192!2sflow_analytics!3susers
+
+---
+
+### 2. sessions (Analytics)
+
+**Dataset:** `flow_analytics`
+**Table:** `sessions`
+
+**Schema:**
+```sql
+CREATE TABLE `gen-lang-client-0986191192.flow_analytics.sessions` (
+  session_id STRING NOT NULL,
+  user_id STRING NOT NULL,
+  started_at TIMESTAMP NOT NULL,
+  ended_at TIMESTAMP,
+  duration_seconds INT64,
+  page_views INT64 DEFAULT 0,
+  conversations_created INT64 DEFAULT 0,
+  messages_sent INT64 DEFAULT 0,
+  context_sources_added INT64 DEFAULT 0,
+  device_type STRING,
+  browser STRING,
+  referrer STRING,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY DATE(started_at)
+CLUSTER BY user_id, DATE(started_at);
+```
+
+**Where Visible:**
+- BigQuery Console: https://console.cloud.google.com/bigquery?project=gen-lang-client-0986191192&ws=!1m5!1m4!4m3!1sgen-lang-client-0986191192!2sflow_analytics!3ssessions
+
+---
+
+## 🔄 Data Synchronization
+
+### Firestore → BigQuery Sync
+
+**Pattern:** Event-driven (real-time) or Batch (daily)
+
+**Sync Function Example:**
+```typescript
+// src/lib/analytics.ts
+export async function syncToBigQuery(
+  collection: string,
+  document: any
+) {
+  const IS_DEVELOPMENT = import.meta.env.DEV;
+  
+  if (IS_DEVELOPMENT) {
+    console.log('📝 [DEV] Would sync to BigQuery:', { collection, document });
+    return; // Skip in development
+  }
+  
+  try {
+    await bigquery
+      .dataset('flow_analytics')
+      .table(collection)
+      .insert([document]);
+  } catch (error) {
+    console.warn('⚠️ BigQuery sync failed (non-critical):', error);
+    // Don't throw - analytics failure shouldn't break app
+  }
+}
+```
+
+---
+
+## 🔐 Security & Access Control
+
+### Firestore Security Rules
+
+**Global Rule:** All collections require authentication and filter by userId
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Conversations
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Messages
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // User Settings
+    match /user_settings/{userId} {
+      allow read: if isAuthenticated() && isOwner(userId);
+      allow write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // Agent Configs
+    match /agent_configs/{conversationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Workflow Configs
+    match /workflow_configs/{configId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Conversation Context
+    match /conversation_context/{conversationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Usage Logs (read-only for users, write by system)
+    match /usage_logs/{logId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable
+    }
+    
+    // Users (admin only for all, users can read own)
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create, delete: if isAdmin();
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+  }
+}
+```
+
+---
+
+## 🔍 Data Querying Best Practices
+
+### 1. Always Filter by User
+
+```typescript
+// ✅ CORRECT: User-specific query
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .get();
+
+// ❌ WRONG: Fetches all data
+const allConversations = await firestore
+  .collection('conversations')
+  .get();
+```
+
+### 2. Use Indexes for Complex Queries
+
+```typescript
+// Requires index: userId ASC, lastMessageAt DESC
+const recentConversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId)
+  .orderBy('lastMessageAt', 'desc')
+  .limit(20)
+  .get();
+```
+
+### 3. Convert Timestamps
+
+```typescript
+// Always convert Firestore Timestamps to Date objects
+const conversation = {
+  ...doc.data(),
+  createdAt: doc.data().createdAt.toDate(),
+  updatedAt: doc.data().updatedAt.toDate(),
+  lastMessageAt: doc.data().lastMessageAt.toDate(),
+} as Conversation;
+```
+
+### 4. Batch Operations
+
+```typescript
+// Use batch for multiple writes
+const batch = firestore.batch();
+
+messages.forEach(msg => {
+  const ref = firestore.collection('messages').doc(msg.id);
+  batch.delete(ref);
+});
+
+await batch.commit(); // Single network call
+```
+
+---
+
+## 🧪 Testing Data
+
+### Demo Users
+
+```typescript
+const DEMO_USERS = [
+  {
+    id: 'admin_demo',
+    email: 'admin@demo.com',
+    name: 'Admin Demo',
+    role: 'admin',
+    company: 'Demo Corp',
+  },
+  {
+    id: 'expert_demo',
+    email: 'expert@demo.com',
+    name: 'Expert Demo',
+    role: 'expert',
+    company: 'Demo Corp',
+  },
+  {
+    id: 'user_standard',
+    email: 'user@demo.com',
+    name: 'User Standard',
+    role: 'user',
+    company: 'Demo Corp',
+  },
+];
+```
+
+### Seeding Scripts
+
+**Create test data:**
+```bash
+# For localhost
+npm run seed:complete localhost
+
+# For production
+npm run seed:complete production
+```
+
+**Verify data:**
+```bash
+npm run verify:users
+```
+
+---
+
+## 📋 Backward Compatibility Checklist
+
+When modifying data structures:
+
+### Before Changes
+- [ ] Read current interface/schema
+- [ ] Identify all usages
+- [ ] Check for breaking changes
+- [ ] Plan migration if needed
+
+### Making Changes
+- [ ] Add new fields as optional (`field?: type`)
+- [ ] Never rename existing fields
+- [ ] Never change field types
+- [ ] Provide default values
+
+### After Changes
+- [ ] Update TypeScript interfaces
+- [ ] Update API documentation
+- [ ] Update Firestore security rules
+- [ ] Test with existing data
+- [ ] Run `npm run type-check`
+
+### Unsafe Changes (Breaking)
+- ❌ Removing required fields
+- ❌ Renaming fields
+- ❌ Changing field types
+- ❌ Changing collection structure
+
+### Safe Changes (Non-breaking)
+- ✅ Adding optional fields
+- ✅ Adding new collections
+- ✅ Adding indexes
+- ✅ Updating security rules (more permissive)
+
+---
+
+## 🔗 Quick Links
+
+### Firestore Console
+- **All Collections**: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data
+- **Indexes**: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/indexes
+- **Rules**: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/rules
+- **Usage**: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/usage
+
+### Cloud Console
+- **Firestore**: https://console.cloud.google.com/firestore/databases/-default-/data/panel?project=gen-lang-client-0986191192
+- **BigQuery**: https://console.cloud.google.com/bigquery?project=gen-lang-client-0986191192
+
+---
+
+## 📚 Related Rules
+
+### Core Rules
+- `alignment.mdc` - Data persistence principles ⭐ **Foundation**
+- `rule-precedence.mdc` - Rule hierarchy
+- `project-identity.mdc` - Project identity
+
+### Technical Rules
+- `firestore.mdc` - Detailed Firestore architecture (extended by this doc)
+- `bigquery.mdc` - Analytics data warehouse (sync patterns)
+- `backend.mdc` - API and service layer (uses these schemas)
+- `frontend.mdc` - Frontend data integration (consumes these types)
+- `agents.mdc` - Business logic (agent architecture support)
+
+### Quality Rules
+- `code-change-protocol.mdc` - Change safety (protects this doc)
+- `branch-management.mdc` - Branch safety (version control)
+- `ui-features-protection.mdc` - Feature protection (data dependencies)
+
+### Infrastructure Rules
+- `gcp-project-consistency.mdc` - GCP configuration (project consistency)
+- `deployment.mdc` - Deployment process (includes data layer)
+
+### Alignment Verification
+📋 **Complete alignment documented in**: `RULES_ALIGNMENT.md` (root directory)
+
+---
+
+**Last Updated**: 2025-10-13  
+**Version**: 1.0.0  
+**Status**: ✅ Production Ready  
+**Project**: Flow (gen-lang-client-0986191192)  
+**Alignment Status**: ✅ Verified with all 23 `.mdc` rules  
+**Backward Compatibility**: ✅ Guaranteed
+
+---
+
+**Remember:** 
+- Every data structure change must maintain backward compatibility unless explicitly approved
+- The `source` field tracks data origin for all collections
+- All changes to this document must follow `code-change-protocol.mdc`
+- See `RULES_ALIGNMENT.md` for complete integration verification
