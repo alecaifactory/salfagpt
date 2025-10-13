@@ -171,7 +171,7 @@ export const POST: APIRoute = async ({ params, request }) => {
       conversationId,
       userId,
       'assistant',
-      aiResponse.content,
+      { type: 'text', text: aiResponse.content.text || String(aiResponse.content) },
       aiResponse.tokenCount,
       aiResponse.contextSections
     );

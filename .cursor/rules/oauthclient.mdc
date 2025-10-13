@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # OAuth Client Configuration - URL Stability Rules
 
 ## 🚨 CRITICAL: Never Change These Values

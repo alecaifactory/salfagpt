@@ -16,10 +16,10 @@ const API_KEY = process.env.GOOGLE_AI_API_KEY ||
     : undefined);
 
 if (!API_KEY) {
-  console.warn('⚠️ No Google AI API key found. Set GOOGLE_AI_API_KEY or GEMINI_API_KEY in .env file');
+  throw new Error('GOOGLE_AI_API_KEY or GEMINI_API_KEY not configured. Please set one in your .env file.');
 }
 
-const genAI = new GoogleGenAI({ apiKey: API_KEY || 'dummy-key-for-dev' });
+const genAI = new GoogleGenAI({ apiKey: API_KEY });
 
 // Model configuration
 const MODEL_NAME = 'gemini-2.5-pro-latest';

@@ -56,21 +56,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [loading, setLoading] = useState(false);
   
   // Context state
-  const [contextSources, setContextSources] = useState<ContextSource[]>([
-    {
-      id: 'demo-1',
-      name: 'Documento Demo.pdf',
-      type: 'pdf',
-      enabled: false,
-      status: 'active',
-      extractedData: 'Contenido de ejemplo del PDF para contexto del AI.',
-      addedAt: new Date(),
-      metadata: {
-        originalFileSize: 1024 * 500, // 500 KB
-        pageCount: 5
-      }
-    }
-  ]);
+  const [contextSources, setContextSources] = useState<ContextSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
@@ -320,6 +306,35 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     loadUserSettings();
   }, [userId]);
 
+  // NEW: Load context sources from Firestore on mount
+  useEffect(() => {
+    const loadContextSources = async () => {
+      try {
+        console.log('📚 Cargando fuentes de contexto desde Firestore...');
+        const response = await fetch(`/api/context-sources?userId=${userId}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.sources && data.sources.length > 0) {
+            setContextSources(data.sources.map((s: any) => ({
+              ...s,
+              addedAt: new Date(s.addedAt)
+            })));
+            console.log(`✅ ${data.sources.length} fuentes de contexto cargadas desde Firestore`);
+          } else {
+            console.log('ℹ️ No hay fuentes de contexto guardadas');
+          }
+        } else {
+          console.warn('⚠️ No se pudieron cargar fuentes de contexto');
+        }
+      } catch (error) {
+        console.error('❌ Error al cargar fuentes de contexto:', error);
+      }
+    };
+    
+    loadContextSources();
+  }, [userId]);
+
   // Effect: Handle conversation change - load messages and context
   useEffect(() => {
     if (!currentConversation) {
@@ -511,19 +526,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
-  const toggleContext = (sourceId: string) => {
+  const toggleContext = async (sourceId: string) => {
+    // Get current enabled state
+    const source = contextSources.find(s => s.id === sourceId);
+    if (!source) return;
+    
+    const newEnabledState = !source.enabled;
+    
+    // Update local state
     setContextSources(prev => 
-      prev.map(source => 
-        source.id === sourceId 
-          ? { ...source, enabled: !source.enabled }
-          : source
+      prev.map(s => 
+        s.id === sourceId 
+          ? { ...s, enabled: newEnabledState }
+          : s
       )
     );
 
-    // Save to backend
+    // Update enabled state in Firestore
+    try {
+      await fetch(`/api/context-sources/${sourceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: newEnabledState })
+      });
+      console.log(`✅ Context source enabled state updated in Firestore: ${sourceId} → ${newEnabledState}`);
+    } catch (error) {
+      console.error('❌ Error updating context source enabled state:', error);
+    }
+
+    // Save active sources for current conversation
     if (currentConversation) {
       const newActiveIds = contextSources
-        .map(s => s.id === sourceId ? { ...s, enabled: !s.enabled } : s)
+        .map(s => s.id === sourceId ? { ...s, enabled: newEnabledState } : s)
         .filter(s => s.enabled)
         .map(s => s.id);
       saveContextForConversation(currentConversation, newActiveIds);
@@ -579,20 +613,40 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
         const data = await response.json();
 
-        // Update source with extracted data
+        // Save to Firestore
+        const savedSource = await fetch('/api/context-sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            name: file.name,
+            type,
+            enabled: true,
+            status: 'active',
+            extractedData: data.extractedText || '',
+            metadata: {
+              originalFileName: file.name,
+              originalFileSize: file.size,
+              pageCount: data.metadata?.pageCount,
+              model: config?.model || 'gemini-2.5-flash',
+              charactersExtracted: data.metadata?.characters,
+              extractionDate: new Date(),
+            }
+          })
+        });
+
+        if (!savedSource.ok) {
+          throw new Error('Failed to save context source to Firestore');
+        }
+
+        const savedData = await savedSource.json();
+
+        // Update local state with Firestore ID
         setContextSources(prev => prev.map(s => 
           s.id === newSource.id
             ? {
-                ...s,
-                status: 'active',
-                extractedData: data.extractedText || '',
-                metadata: {
-                  ...s.metadata,
-                  originalFileSize: file.size,
-                  pageCount: data.metadata?.pageCount, // Use data.metadata.pageCount
-                  modelUsed: config?.model || 'gemini-2.5-flash',
-                  charactersExtracted: data.metadata?.characters
-                },
+                ...savedData.source,
+                addedAt: new Date(savedData.source.addedAt),
                 progress: {
                   stage: 'complete',
                   percentage: 100,
@@ -601,6 +655,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               }
             : s
         ));
+
+        console.log('✅ Fuente de contexto guardada en Firestore:', savedData.source.id);
       }
     } catch (error) {
       console.error('Error adding source:', error);

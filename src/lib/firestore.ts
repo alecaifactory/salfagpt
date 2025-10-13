@@ -186,8 +186,8 @@ export interface ConversationContext {
   id: string;                                  // Document ID (conversationId)
   conversationId: string;
   userId: string;
-  activeContextSourceIds: string[];            // IDs of enabled context sources
-  contextWindowUsage: number;                  // Percentage 0-100
+  activeContextSourceIds?: string[];           // IDs of enabled context sources (optional)
+  contextWindowUsage?: number;                 // Percentage 0-100 (optional)
   lastUsedAt: Date;
   updatedAt: Date;
   source?: 'localhost' | 'production';
@@ -228,7 +228,7 @@ export async function createConversation(
     lastMessageAt: new Date(),
     messageCount: 0,
     contextWindowUsage: 0,
-    agentModel: 'gemini-2.5-pro',
+    agentModel: 'gemini-2.5-flash',
     source: getEnvironmentSource(), // Track source for analytics
   };
 
@@ -1140,6 +1140,124 @@ export async function getUserUsageLogs(
     console.error('❌ Error getting usage logs:', error);
     return [];
   }
+}
+
+// ===== CONTEXT SOURCES OPERATIONS =====
+
+export interface ContextSource {
+  id: string;
+  userId: string;
+  name: string;
+  type: 'pdf' | 'csv' | 'excel' | 'word' | 'web-url' | 'api' | 'folder';
+  enabled: boolean;
+  status: 'active' | 'processing' | 'error' | 'disabled';
+  addedAt: Date;
+  extractedData?: string;
+  metadata?: {
+    originalFileName?: string;
+    originalFileSize?: number;
+    workflowId?: string;
+    extractionDate?: Date;
+    extractionTime?: number;
+    model?: string;
+    charactersExtracted?: number;
+    tokensEstimate?: number;
+    pageCount?: number;
+    validated?: boolean;
+    validatedBy?: string;
+    validatedAt?: Date;
+  };
+  error?: {
+    message: string;
+    details?: string;
+    timestamp: Date;
+  };
+  progress?: {
+    stage: 'uploading' | 'processing' | 'complete' | 'error';
+    percentage: number;
+    message: string;
+  };
+  source?: 'localhost' | 'production';
+}
+
+/**
+ * Create a context source
+ */
+export async function createContextSource(
+  userId: string,
+  data: Partial<ContextSource>
+): Promise<ContextSource> {
+  const sourceRef = firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc();
+  
+  const contextSource: ContextSource = {
+    id: sourceRef.id,
+    userId,
+    name: data.name || 'Unnamed Source',
+    type: data.type || 'pdf',
+    enabled: data.enabled !== undefined ? data.enabled : true,
+    status: data.status || 'active',
+    addedAt: new Date(),
+    extractedData: data.extractedData,
+    metadata: data.metadata,
+    error: data.error,
+    progress: data.progress,
+    source: getEnvironmentSource(),
+  };
+
+  await sourceRef.set(contextSource);
+  console.log(`📄 Context source created from ${contextSource.source}:`, sourceRef.id);
+  return contextSource;
+}
+
+/**
+ * Get all context sources for a user
+ */
+export async function getContextSources(userId: string): Promise<ContextSource[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .where('userId', '==', userId)
+      .orderBy('addedAt', 'desc')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
+      } as ContextSource;
+    });
+  } catch (error) {
+    console.error('❌ Error fetching context sources:', error);
+    return [];
+  }
+}
+
+/**
+ * Update a context source
+ */
+export async function updateContextSource(
+  sourceId: string,
+  updates: Partial<ContextSource>
+): Promise<void> {
+  await firestore
+    .collection(COLLECTIONS.CONTEXT_SOURCES)
+    .doc(sourceId)
+    .update(updates);
+  
+  console.log(`📝 Context source updated:`, sourceId);
+}
+
+/**
+ * Delete a context source
+ */
+export async function deleteContextSource(sourceId: string): Promise<void> {
+  await firestore
+    .collection(COLLECTIONS.CONTEXT_SOURCES)
+    .doc(sourceId)
+    .delete();
+  
+  console.log(`🗑️ Context source deleted:`, sourceId);
 }
 
 

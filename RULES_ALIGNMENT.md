@@ -1,9 +1,9 @@
 # 🎯 Alineación Completa de Reglas - Flow Platform
 
-**Fecha**: 2025-10-13  
-**Versión**: 2.0.0  
+**Fecha**: 2025-01-13  
+**Versión**: 2.1.0  
 **Estado**: ✅ Verificado y Alineado  
-**Configuración**: ✅ **TODOS** los 23 archivos `.mdc` tienen `alwaysApply: true`
+**Configuración**: ✅ **TODOS** los 24 archivos `.mdc` tienen `alwaysApply: true`
 
 ---
 
@@ -15,7 +15,7 @@ Este documento verifica y documenta la **alineación completa** entre todos los 
 
 ### ⚙️ Configuración Global
 
-**CRÍTICO**: Todos los 23 archivos `.mdc` del proyecto ahora tienen el front matter configurado con:
+**CRÍTICO**: Todos los 24 archivos `.mdc` del proyecto ahora tienen el front matter configurado con:
 
 ```yaml
 ---
@@ -47,7 +47,7 @@ Según `rule-precedence.mdc`, las reglas siguen esta jerarquía:
 
 ## 📊 Inventario Completo de Reglas
 
-### 23 Archivos `.mdc` Activos
+### 24 Archivos `.mdc` Activos
 
 | # | Archivo | Categoría | Relación con data.mdc | Relación con alignment.mdc |
 |---|---------|-----------|----------------------|---------------------------|
@@ -74,6 +74,7 @@ Según `rule-precedence.mdc`, las reglas siguen esta jerarquía:
 | 21 | `error-prevention-checklist.mdc` | Quality Control | Incluye data validation | Alineado - Error handling |
 | 22 | `production-config-validation.mdc` | Quality Control | Valida data configs | Alineado - Production readiness |
 | 23 | `salfacorp-local-to-production-rules.mdc` | Legacy | Migrado a data.mdc | Obsoleto - reemplazado |
+| 24 | `worktrees.mdc` | Version Control | Tracks parallel dev with data.mdc | Alineado - Traceability & History |
 
 ---
 
@@ -562,13 +563,14 @@ const conversations = await firestore
 | 21 | `production-config-validation.mdc` | ✅ | Configuration & Infrastructure |
 | 22 | `deployment.mdc` | ✅ | Deployment & Operations |
 | 23 | `salfacorp-local-to-production-rules.mdc` | ✅ | Deployment & Operations |
+| 24 | `worktrees.mdc` | ✅ | Version Control & Operations |
 
-**Resultado**: ✅ **23/23 archivos configurados correctamente**
+**Resultado**: ✅ **24/24 archivos configurados correctamente**
 
 ---
 
-**Última Actualización**: 2025-10-13  
-**Versión**: 2.0.0  
+**Última Actualización**: 2025-01-13  
+**Versión**: 2.1.0  
 **Verificado Por**: AI Assistant  
 **Estado**: ✅ Todos los Sistemas Alineados  
 **Configuración Global**: ✅ `alwaysApply: true` en TODOS los archivos  

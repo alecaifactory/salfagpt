@@ -129,34 +129,25 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       );
     }
 
-    // Build metadata
-    const metadata = `📄 Archivo: ${file.name}
-📊 Tamaño: ${(file.size / 1024 / 1024).toFixed(2)} MB
-📝 Caracteres extraídos: ${extractedText.length}
-🤖 Modelo: ${model}
-🔥 Procesado con: Gemini AI
-⚡ Tiempo de extracción: ${extractionTime}ms
-📅 Fecha de extracción: ${new Date().toLocaleString('es-ES')}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${extractedText}`;
+    // Build metadata object
+    const documentMetadata = {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      characters: extractedText.length,
+      extractionTime,
+      model,
+      service: 'Gemini AI',
+      extractedAt: new Date().toISOString(),
+    };
 
     console.log(`✅ Text extracted: ${extractedText.length} characters in ${extractionTime}ms using ${model}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        text: metadata,
-        metadata: {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          characters: extractedText.length,
-          extractionTime,
-          model,
-          service: 'Gemini AI'
-        }
+        extractedText: extractedText,
+        metadata: documentMetadata,
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
