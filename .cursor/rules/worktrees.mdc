@@ -1,0 +1,1138 @@
+---
+alwaysApply: true
+---
+## 📊 Worktree Tracking System
+
+### Worktree Registry
+
+All worktrees are tracked in a central registry file:
+
+**Location:** `docs/worktrees/WORKTREE_REGISTRY.md`
+
+**Purpose:**
+- Track all active worktrees
+- Document their purpose and progress
+- Monitor alignment with `main`
+- Track merge readiness
+- Maintain historical record
+
+**Template:** See [Worktree Registry Template](#worktree-registry-template) below
+
+---
+
+## 🔄 Worktree Lifecycle
+
+### 1. Creation
+
+#### Pre-Creation Validation
+
+**BEFORE creating a worktree, run this checklist:**
+
+```bash
+#!/bin/bash
+# Pre-Creation Checklist
+
+echo "🔍 Worktree Pre-Creation Validation"
+echo "======================================"
+
+# 1. Check main branch is up to date
+echo "1️⃣  Checking main branch status..."
+git fetch origin main
+BEHIND=$(git rev-list --count HEAD..origin/main)
+if [ "$BEHIND" -gt 0 ]; then
+  echo "⚠️  Main is $BEHIND commits behind origin/main"
+  echo "   Run: git pull origin main"
+  exit 1
+fi
+echo "✅ Main is up to date"
+
+# 2. Check no uncommitted changes in current worktree
+echo "2️⃣  Checking for uncommitted changes..."
+if ! git diff-index --quiet HEAD --; then
+  echo "⚠️  Uncommitted changes detected"
+  echo "   Commit or stash before creating worktree"
+  exit 1
+fi
+echo "✅ No uncommitted changes"
+
+# 3. Check worktree name doesn't conflict
+echo "3️⃣  Checking worktree name availability..."
+WORKTREE_NAME="$1"
+if [ -z "$WORKTREE_NAME" ]; then
+  echo "❌ Error: Worktree name required"
+  echo "   Usage: $0 <worktree-name>"
+  exit 1
+fi
+
+if git worktree list | grep -q "$WORKTREE_NAME"; then
+  echo "⚠️  Worktree '$WORKTREE_NAME' already exists"
+  exit 1
+fi
+echo "✅ Worktree name available"
+
+# 4. Check disk space
+echo "4️⃣  Checking disk space..."
+AVAILABLE=$(df -h . | awk 'NR==2 {print $4}')
+echo "   Available space: $AVAILABLE"
+# Add more sophisticated check if needed
+
+echo ""
+echo "✅ All pre-creation checks passed!"
+echo "   Ready to create worktree: $WORKTREE_NAME"
+```
+
+#### Creating a Worktree
+
+**Format:** `git worktree add [path] [branch-name]`
+
+**Recommended naming convention:**
+```bash
+# Format: /path/to/worktrees/[YYYY-MM-DD]-[feature-name]
+# Example:
+git worktree add /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics feat/user-analytics-2025-01-13
+
+# This creates:
+# - New directory: /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics
+# - New branch: feat/user-analytics-2025-01-13 (if doesn't exist)
+```
+
+**Full Creation Procedure:**
+
+```bash
+# 1. Run pre-creation validation
+./scripts/validate-worktree-creation.sh user-analytics
+
+# 2. Create worktree
+cd /Users/alec/salfagpt  # Main repo directory
+git worktree add \
+  /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics \
+  feat/user-analytics-2025-01-13
+
+# 3. Navigate to worktree
+cd /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics
+
+# 4. Verify setup
+git status
+git branch -vv
+
+# 5. Create initial commit if needed
+git commit --allow-empty -m "feat: Initialize user-analytics worktree
+
+Purpose: Implement user analytics dashboard
+Estimated completion: 2025-01-20
+Dependencies: None"
+
+# 6. Push to remote (establishes tracking)
+git push -u origin feat/user-analytics-2025-01-13
+
+# 7. Register in worktree registry
+# Add entry to docs/worktrees/WORKTREE_REGISTRY.md
+```
+
+#### Initial Registry Entry
+
+Add this to `docs/worktrees/WORKTREE_REGISTRY.md`:
+
+```markdown
+### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+
+**Created:** 2025-01-13  
+**Creator:** Alec  
+**Status:** 🔨 In Progress  
+**Purpose:** Implement user analytics dashboard with metrics, charts, and export functionality  
+**Estimated Completion:** 2025-01-20  
+
+**Dependencies:**
+- None
+
+**Progress:**
+- [ ] Setup analytics data schema
+- [ ] Create analytics API endpoints
+- [ ] Implement dashboard UI
+- [ ] Add export functionality
+- [ ] Write tests
+- [ ] Update documentation
+
+**Alignment with Main:**
+- Commits ahead: 0
+- Commits behind: 0
+- Last sync: 2025-01-13
+- Conflicts: None
+
+**Modified Files:**
+- (to be updated daily)
+
+**Merge Readiness:**
+- [ ] All tests passing
+- [ ] No conflicts with main
+- [ ] Documentation updated
+- [ ] Code reviewed
+- [ ] Backward compatible
+- [ ] User approved
+
+**Notes:**
+- Initial setup complete
+```
+
+---
+
+### 2. Daily Maintenance
+
+**Every day you work in a worktree, update it:**
+
+```bash
+#!/bin/bash
+# Daily Worktree Maintenance
+
+cd /path/to/worktree
+
+echo "📅 Daily Worktree Maintenance"
+echo "=============================="
+
+# 1. Fetch latest from main
+echo "1️⃣  Fetching latest from main..."
+git fetch origin main
+
+# 2. Check divergence
+echo "2️⃣  Checking divergence from main..."
+AHEAD=$(git rev-list --count origin/main..HEAD)
+BEHIND=$(git rev-list --count HEAD..origin/main)
+
+echo "   Commits ahead of main: $AHEAD"
+echo "   Commits behind main: $BEHIND"
+
+if [ "$BEHIND" -gt 5 ]; then
+  echo "⚠️  Warning: Significantly behind main ($BEHIND commits)"
+  echo "   Consider rebasing soon to avoid conflicts"
+fi
+
+# 3. List modified files
+echo "3️⃣  Modified files:"
+git diff --name-only origin/main
+
+# 4. Check for conflicts (dry run)
+echo "4️⃣  Checking for potential conflicts..."
+git merge-tree $(git merge-base HEAD origin/main) HEAD origin/main > /tmp/merge-preview.txt
+if grep -q "^changed in both" /tmp/merge-preview.txt; then
+  echo "⚠️  Potential conflicts detected:"
+  grep "^changed in both" /tmp/merge-preview.txt
+else
+  echo "✅ No conflicts expected"
+fi
+
+# 5. Run tests
+echo "5️⃣  Running tests..."
+npm run type-check && echo "✅ Type check passed" || echo "❌ Type check failed"
+
+# 6. Update registry
+echo "6️⃣  Update docs/worktrees/WORKTREE_REGISTRY.md with:"
+echo "   - Commits ahead: $AHEAD"
+echo "   - Commits behind: $BEHIND"
+echo "   - Modified files: (see above)"
+echo "   - Last sync: $(date +%Y-%m-%d)"
+```
+
+**Update Registry Entry:**
+
+```markdown
+### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+
+**Status:** 🔨 In Progress  
+**Progress:** 40% complete
+
+**Alignment with Main:**
+- Commits ahead: 8
+- Commits behind: 2
+- Last sync: 2025-01-15  ← Updated
+- Conflicts: src/lib/analytics.ts (minor)  ← Updated
+
+**Modified Files:**  ← Updated
+- src/components/AnalyticsDashboard.tsx (new)
+- src/pages/api/analytics/users.ts (new)
+- src/lib/analytics.ts (modified)
+- docs/analytics.md (new)
+
+**Recent Changes:**  ← Added
+- 2025-01-15: Implemented user metrics API
+- 2025-01-14: Created dashboard UI skeleton
+- 2025-01-13: Initial setup
+```
+
+---
+
+### 3. Progress Tracking
+
+**Update your worktree progress daily in the registry:**
+
+```markdown
+**Progress:**
+- [x] Setup analytics data schema
+- [x] Create analytics API endpoints
+- [ ] Implement dashboard UI (50% complete)
+- [ ] Add export functionality
+- [ ] Write tests
+- [ ] Update documentation
+```
+
+**Track completed work:**
+- Commit regularly with descriptive messages
+- Update progress checklist
+- Document any blockers
+- Note any dependencies discovered
+
+---
+
+### 4. Pre-Merge Validation
+
+**BEFORE merging to main, run this comprehensive check:**
+
+```bash
+#!/bin/bash
+# Pre-Merge Validation Script
+
+cd /path/to/worktree
+
+echo "🔍 Pre-Merge Validation"
+echo "======================="
+
+ERRORS=0
+
+# 1. Rebase on latest main
+echo "1️⃣  Rebasing on latest main..."
+git fetch origin main
+if ! git rebase origin/main; then
+  echo "❌ Rebase failed - resolve conflicts first"
+  exit 1
+fi
+echo "✅ Rebase successful"
+
+# 2. Type check
+echo "2️⃣  Type checking..."
+if ! npm run type-check; then
+  echo "❌ Type check failed"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 3. Lint
+echo "3️⃣  Linting..."
+if ! npm run lint; then
+  echo "❌ Lint failed"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 4. Build
+echo "4️⃣  Building..."
+if ! npm run build; then
+  echo "❌ Build failed"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 5. Check protected features (from ui-features-protection.mdc)
+echo "5️⃣  Checking protected features..."
+if ! grep -q "Sparkles" src/components/ChatInterfaceWorking.tsx; then
+  echo "❌ Protected feature missing: Model Display"
+  ERRORS=$((ERRORS + 1))
+fi
+
+if ! grep -q "SalfaGPT puede cometer" src/components/ChatInterfaceWorking.tsx; then
+  echo "❌ Protected feature missing: Disclaimer"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# 6. Check backward compatibility
+echo "6️⃣  Backward compatibility check..."
+# Add your specific checks here
+echo "   Manual verification required:"
+echo "   - [ ] No breaking API changes"
+echo "   - [ ] Database schema is additive only"
+echo "   - [ ] UI features preserved"
+echo "   - [ ] Configuration compatible"
+
+# 7. Check documentation
+echo "7️⃣  Documentation check..."
+if git diff --name-only origin/main | grep -q "^src/" && \
+   ! git diff --name-only origin/main | grep -q "^docs/"; then
+  echo "⚠️  Code changes without documentation updates"
+  echo "   Consider updating docs/"
+fi
+
+# 8. Final summary
+echo ""
+echo "============================================"
+if [ $ERRORS -eq 0 ]; then
+  echo "✅ All automated checks passed!"
+  echo ""
+  echo "Manual verification checklist:"
+  echo "- [ ] Tested in browser"
+  echo "- [ ] No console errors"
+  echo "- [ ] All features work"
+  echo "- [ ] Backward compatible"
+  echo "- [ ] User approved changes"
+  echo ""
+  echo "Ready to merge to main!"
+else
+  echo "❌ $ERRORS errors found - fix before merging"
+  exit 1
+fi
+```
+
+**Update Registry Before Merge:**
+
+```markdown
+### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+
+**Status:** ✅ Ready to Merge  ← Updated
+**Progress:** 100% complete  ← Updated
+
+**Pre-Merge Validation:**  ← Added
+- [x] All tests passing
+- [x] No conflicts with main
+- [x] Documentation updated
+- [x] Code reviewed (self)
+- [x] Backward compatible
+- [x] User approved: Yes (2025-01-20)
+
+**Merge Plan:**  ← Added
+- Scheduled: 2025-01-20 14:00
+- Method: Rebase + merge --no-ff
+- Reviewer: Alec
+- Rollback plan: Revert merge commit if issues
+```
+
+---
+
+### 5. Merging to Main
+
+**Step-by-step merge procedure:**
+
+```bash
+#!/bin/bash
+# Safe Merge to Main Procedure
+
+cd /path/to/worktree
+
+echo "🔀 Merging Worktree to Main"
+echo "==========================="
+
+# Safety check
+read -p "Have you completed pre-merge validation? (yes/no) " -n 3 -r
+echo
+if [[ ! $REPLY =~ ^yes$ ]]; then
+  echo "❌ Complete pre-merge validation first"
+  exit 1
+fi
+
+read -p "Do you have user approval to merge? (yes/no) " -n 3 -r
+echo
+if [[ ! $REPLY =~ ^yes$ ]]; then
+  echo "❌ Obtain user approval first"
+  exit 1
+fi
+
+# 1. Final rebase
+echo "1️⃣  Final rebase on main..."
+git fetch origin main
+git rebase origin/main
+
+# 2. Switch to main worktree
+echo "2️⃣  Switching to main repository..."
+cd /Users/alec/salfagpt
+
+# 3. Checkout main
+git checkout main
+git pull origin main
+
+# 4. Merge with no-ff (preserves history)
+echo "3️⃣  Merging branch..."
+BRANCH_NAME=$(cd /path/to/worktree && git branch --show-current)
+git merge --no-ff $BRANCH_NAME -m "Merge $BRANCH_NAME: User analytics dashboard
+
+Completed:
+- User metrics API
+- Analytics dashboard UI  
+- Export functionality
+- Comprehensive tests
+- Documentation
+
+Reviewed: Self
+Tested: Manual testing in dev + staging
+Backward Compatible: Yes
+Breaking Changes: None"
+
+# 5. Run final checks
+echo "4️⃣  Final checks..."
+npm run type-check && npm run build
+
+# 6. Push to remote
+echo "5️⃣  Pushing to remote..."
+git push origin main
+
+# 7. Update registry
+echo "6️⃣  Update docs/worktrees/WORKTREE_REGISTRY.md:"
+echo "   - Status: ✅ Merged"
+echo "   - Merged at: $(date +%Y-%m-%d\ %H:%M)"
+echo "   - Commit: $(git rev-parse HEAD)"
+echo ""
+echo "✅ Merge complete!"
+echo ""
+echo "Next steps:"
+echo "1. Verify in production"
+echo "2. Monitor for issues"
+echo "3. Clean up worktree (see cleanup procedure)"
+```
+
+**Update Registry After Merge:**
+
+```markdown
+### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+
+**Status:** ✅ Merged  ← Updated
+**Merged:** 2025-01-20 14:30  ← Added
+**Merge Commit:** a1b2c3d4  ← Added
+
+**Summary:**
+- Duration: 7 days
+- Commits: 15
+- Files changed: 8
+- Lines added: 543
+- Lines removed: 12
+
+**Impact:**
+- New feature: User analytics dashboard
+- API endpoints: 5 new
+- UI components: 3 new
+- Documentation: 2 pages
+
+**Post-Merge:**
+- [ ] Verified in production
+- [ ] Monitoring for issues
+- [ ] Cleanup scheduled: 2025-01-21
+```
+
+---
+
+### 6. Cleanup
+
+**After successful merge and verification:**
+
+```bash
+#!/bin/bash
+# Worktree Cleanup Procedure
+
+echo "🧹 Worktree Cleanup"
+echo "==================="
+
+WORKTREE_PATH="/path/to/worktree"
+BRANCH_NAME="feat/user-analytics-2025-01-13"
+
+# Safety checks
+read -p "Has the merge been verified in production? (yes/no) " -n 3 -r
+echo
+if [[ ! $REPLY =~ ^yes$ ]]; then
+  echo "⚠️  Verify merge in production first"
+  echo "   Wait at least 24-48 hours after merge"
+  exit 1
+fi
+
+# 1. Remove worktree
+echo "1️⃣  Removing worktree..."
+cd /Users/alec/salfagpt  # Main repo
+git worktree remove $WORKTREE_PATH
+
+# 2. Delete local branch
+echo "2️⃣  Deleting local branch..."
+git branch -d $BRANCH_NAME
+
+# 3. Delete remote branch (optional)
+read -p "Delete remote branch? (yes/no) " -n 3 -r
+echo
+if [[ $REPLY =~ ^yes$ ]]; then
+  git push origin --delete $BRANCH_NAME
+fi
+
+# 4. Update registry
+echo "3️⃣  Update docs/worktrees/WORKTREE_REGISTRY.md:"
+echo "   - Move entry to 'Archived' section"
+echo "   - Add cleanup date"
+echo ""
+echo "✅ Cleanup complete!"
+```
+
+**Archive in Registry:**
+
+Move the entry to an "Archived Worktrees" section at the bottom:
+
+```markdown
+## Archived Worktrees
+
+### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+
+**Status:** 🗄️ Archived  
+**Created:** 2025-01-13  
+**Merged:** 2025-01-20 14:30  
+**Cleaned Up:** 2025-01-21  
+**Duration:** 8 days  
+**Outcome:** Successfully merged to main  
+
+**Summary:** Implemented user analytics dashboard with comprehensive metrics, charts, and export functionality. No issues post-merge.
+```
+
+---
+
+## 🔒 Backward Compatibility Rules
+
+### Critical Principles
+
+1. **Additive Only**
+   - ✅ Add new fields to interfaces (optional)
+   - ✅ Add new API endpoints
+   - ✅ Add new UI components
+   - ❌ NEVER remove existing fields
+   - ❌ NEVER change field types
+   - ❌ NEVER remove API endpoints
+
+2. **Feature Flags for Risky Changes**
+   ```typescript
+   // Use feature flags for major changes
+   const FEATURE_NEW_ANALYTICS = process.env.FEATURE_NEW_ANALYTICS === 'true';
+   
+   if (FEATURE_NEW_ANALYTICS) {
+     return <NewAnalyticsDashboard />;
+   } else {
+     return <OldAnalyticsDashboard />;  // Fallback
+   }
+   ```
+
+3. **Database Schema**
+   - All new fields must be optional
+   - Never rename columns
+   - Never change data types
+   - Use migrations for transformations
+
+4. **API Contracts**
+   - Version APIs if breaking changes needed
+   - Keep old endpoints during transition
+   - Document deprecation timeline
+
+### Compatibility Checklist
+
+Before merging, verify:
+
+- [ ] All existing tests still pass
+- [ ] No removed functionality
+- [ ] New features are opt-in
+- [ ] Data structures are additive
+- [ ] APIs are backward compatible
+- [ ] UI fallbacks exist
+- [ ] Documentation updated
+- [ ] Migration path documented (if needed)
+
+---
+
+## 🚨 Conflict Prevention & Resolution
+
+### Prevention
+
+1. **Regular Syncing**
+   - Sync with main daily
+   - Rebase frequently
+   - Communicate with team
+
+2. **Small, Focused Changes**
+   - One feature per worktree
+   - Avoid refactoring in feature branches
+   - Merge frequently
+
+3. **Communication**
+   - Update registry daily
+   - Share worktree plans
+   - Coordinate overlapping changes
+
+### Resolution
+
+When conflicts occur:
+
+```bash
+# 1. Identify conflicts
+git rebase origin/main
+# Conflicts appear
+
+# 2. List conflicting files
+git status
+
+# 3. For each file, choose resolution:
+#    a) Accept theirs (main): git checkout --theirs <file>
+#    b) Accept ours (worktree): git checkout --ours <file>
+#    c) Manual merge: Edit file, resolve conflicts
+
+# 4. After resolving each file:
+git add <file>
+
+# 5. Continue rebase
+git rebase --continue
+
+# 6. If too complex, abort and ask for help:
+git rebase --abort
+```
+
+---
+
+## 📋 Worktree Registry Template
+
+**File:** `docs/worktrees/WORKTREE_REGISTRY.md`
+
+```markdown
+# Worktree Registry
+
+Track all Git worktrees for the Flow platform.
+
+**Last Updated:** 2025-01-13
+
+---
+
+## Active Worktrees
+
+### /path/to/worktree - branch-name
+
+**Created:** YYYY-MM-DD  
+**Creator:** Name  
+**Status:** 🔨 In Progress | ✅ Ready to Merge | ⚠️ Blocked  
+**Purpose:** Brief description  
+**Estimated Completion:** YYYY-MM-DD  
+
+**Dependencies:**
+- List any dependencies
+- Other worktrees
+- External factors
+
+**Progress:**
+- [ ] Task 1
+- [ ] Task 2
+- [ ] Task 3
+
+**Alignment with Main:**
+- Commits ahead: N
+- Commits behind: N
+- Last sync: YYYY-MM-DD
+- Conflicts: None | File list
+
+**Modified Files:**
+- path/to/file1.ts (new/modified/deleted)
+- path/to/file2.tsx (modified)
+
+**Merge Readiness:**
+- [ ] All tests passing
+- [ ] No conflicts with main
+- [ ] Documentation updated
+- [ ] Code reviewed
+- [ ] Backward compatible
+- [ ] User approved
+
+**Notes:**
+- Any relevant notes
+- Blockers
+- Decisions
+
+---
+
+## Blocked Worktrees
+
+(Worktrees that are blocked by dependencies or issues)
+
+---
+
+## Archived Worktrees
+
+(Merged and cleaned up worktrees)
+
+### /path/to/old-worktree - old-branch-name
+
+**Created:** YYYY-MM-DD  
+**Merged:** YYYY-MM-DD  
+**Duration:** N days  
+**Outcome:** Successfully merged | Abandoned | Other  
+**Summary:** Brief summary of what was accomplished
+```
+
+---
+
+## 🧹 Daily Worktree Health Check
+
+**Script:** `scripts/check-worktree-health.sh`
+
+```bash
+#!/bin/bash
+# Daily Worktree Health Check
+# Run this every day to ensure all worktrees are healthy
+
+echo "🏥 Worktree Health Check"
+echo "======================="
+echo ""
+
+# List all worktrees
+echo "📋 Active Worktrees:"
+git worktree list
+
+echo ""
+echo "Checking each worktree..."
+echo ""
+
+# For each worktree
+git worktree list --porcelain | grep "worktree " | cut -d' ' -f2 | while read worktree_path; do
+  if [ "$worktree_path" = "." ]; then
+    continue  # Skip main repo
+  fi
+  
+  echo "🔍 Checking: $worktree_path"
+  cd "$worktree_path"
+  
+  # Get branch name
+  BRANCH=$(git branch --show-current)
+  echo "   Branch: $BRANCH"
+  
+  # Check divergence
+  git fetch origin main 2>/dev/null
+  AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "0")
+  BEHIND=$(git rev-list --count HEAD..origin/main 2>/dev/null || echo "0")
+  echo "   Ahead: $AHEAD | Behind: $BEHIND"
+  
+  # Check uncommitted changes
+  if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+    echo "   ⚠️  Uncommitted changes detected"
+  else
+    echo "   ✅ No uncommitted changes"
+  fi
+  
+  # Check last commit date
+  LAST_COMMIT=$(git log -1 --format=%cd --date=short 2>/dev/null || echo "unknown")
+  echo "   Last commit: $LAST_COMMIT"
+  
+  # Warn if stale (>7 days no commits)
+  if [ "$LAST_COMMIT" != "unknown" ]; then
+    DAYS_OLD=$(( ( $(date +%s) - $(date -d "$LAST_COMMIT" +%s) ) / 86400 ))
+    if [ $DAYS_OLD -gt 7 ]; then
+      echo "   ⚠️  Stale: $DAYS_OLD days since last commit"
+    fi
+  fi
+  
+  echo ""
+done
+
+echo "✅ Health check complete!"
+echo ""
+echo "📝 Remember to update docs/worktrees/WORKTREE_REGISTRY.md"
+```
+
+---
+
+## 🔗 Alignment with Other Rules
+
+This rule aligns with:
+
+- **`alignment.mdc`**: Data persistence, type safety, error handling
+- **`branch-management.mdc`**: Branch naming, safety protocols
+- **`code-change-protocol.mdc`**: Change validation, backward compatibility
+- **`data.mdc`**: Schema consistency, data integrity
+- **`deployment.mdc`**: Production readiness, deployment safety
+- **`ui-features-protection.mdc`**: Feature preservation during merges
+
+**Integration Points:**
+
+1. **Branch Management**: Worktree branches follow same naming conventions
+2. **Change Protocol**: All changes validated before merge
+3. **Data Schema**: Backward compatibility enforced
+4. **Protected Features**: Verified in pre-merge checks
+5. **Deployment**: Only merge when ready for production
+
+---
+
+## 📊 Worktree Metrics & KPIs
+
+Track these metrics for each worktree:
+
+- **Duration**: Days from creation to merge
+- **Commit Count**: Number of commits
+- **Files Changed**: Count of modified files
+- **Lines Changed**: Added and removed
+- **Sync Frequency**: How often synced with main
+- **Conflict Count**: Number of conflicts resolved
+- **Time to Merge**: Days from "Ready" to "Merged"
+
+**Target Metrics:**
+- Average duration: < 7 days
+- Commits per day: 2-5
+- Sync frequency: Daily
+- Conflicts: < 3 per merge
+- Time to merge: < 24 hours after "Ready"
+
+---
+
+## 🚫 Worktree Anti-Patterns
+
+**❌ DON'T:**
+
+1. **Create Worktree Without Purpose**
+   - Every worktree needs clear, documented purpose
+   - Update registry at creation
+
+2. **Let Worktrees Go Stale**
+   - Worktree >14 days old = high risk
+   - Merge frequently or abandon
+
+3. **Skip Daily Syncing**
+   - Infrequent syncing leads to conflicts
+   - Sync with main daily
+
+4. **Ignore Registry Updates**
+   - Registry is source of truth
+   - Update daily, minimum
+
+5. **Merge Without Validation**
+   - Always run pre-merge checks
+   - Get user approval
+
+6. **Keep Worktrees After Merge**
+   - Clean up within 48 hours of merge
+   - Keeps workspace organized
+
+7. **Work on Multiple Worktrees Simultaneously**
+   - Focus on one worktree at a time
+   - Finish before starting next
+
+8. **Create Worktrees for Small Changes**
+   - Small fixes don't need worktrees
+   - Use regular branches for quick work
+
+---
+
+## ✅ Pre-Commit Checklist
+
+Before every commit in a worktree:
+
+- [ ] Changes are focused on worktree purpose
+- [ ] No unrelated changes included
+- [ ] Tests pass locally
+- [ ] Type check passes
+- [ ] Commit message is descriptive
+- [ ] Registry will be updated today
+
+---
+
+## 🚨 Emergency Procedures
+
+### Worktree Corrupted
+
+```bash
+# 1. Try to repair
+cd /path/to/worktree
+git fsck
+
+# 2. If repair fails, recreate
+cd /Users/alec/salfagpt
+git worktree remove /path/to/worktree --force
+git worktree add /path/to/worktree existing-branch
+
+# 3. Restore uncommitted changes from backup
+# (if you have them)
+```
+
+### Urgent Fix Needed on Main
+
+```bash
+# Don't merge incomplete worktree!
+# Instead:
+
+# 1. Create separate fix worktree
+git worktree add /path/to/hotfix hotfix/urgent-fix-$(date +%Y%m%d)
+
+# 2. Make fix
+cd /path/to/hotfix
+# Make minimal changes
+git commit -m "hotfix: ..."
+
+# 3. Fast-track merge
+git checkout main
+git merge --no-ff hotfix/urgent-fix-...
+git push origin main
+
+# 4. Clean up immediately
+git worktree remove /path/to/hotfix
+git branch -d hotfix/urgent-fix-...
+```
+
+### Worktree Stuck/Blocked
+
+```bash
+# 1. Document blocker in registry
+# Status: ⚠️ Blocked
+# Blocker: Waiting for X
+
+# 2. Create new worktree for other work
+# Don't let blocked worktree stop progress
+
+# 3. When unblocked, resume work
+
+# 4. If blocked >7 days, consider:
+#    - Abandon worktree
+#    - Merge partial work with feature flag
+#    - Split into smaller worktrees
+```
+
+---
+
+## 📚 References
+
+### Internal Documentation
+- `.cursor/rules/alignment.mdc` - Design principles
+- `.cursor/rules/branch-management.mdc` - Branch safety
+- `.cursor/rules/code-change-protocol.mdc` - Change safety
+- `.cursor/rules/data.mdc` - Data schema
+- `.cursor/rules/ui-features-protection.mdc` - Protected features
+- `docs/worktrees/WORKTREE_REGISTRY.md` - Active worktree tracking
+
+### External Resources
+- [Git Worktree Documentation](https://git-scm.com/docs/git-worktree)
+- [Pro Git - Git Worktree](https://git-scm.com/book/en/v2/Git-Tools-Worktrees)
+
+---
+
+## 🚀 Quick Start Guide
+
+### First Time Setup
+
+```bash
+# 1. Create worktrees directory
+mkdir -p /Users/alec/.cursor/worktrees/salfagpt
+
+# 2. Create registry file
+mkdir -p docs/worktrees
+cp .cursor/rules/worktrees.mdc docs/worktrees/WORKTREE_REGISTRY.md
+# Edit template to match your first worktree
+
+# 3. Create your first worktree
+git worktree add \
+  /Users/alec/.cursor/worktrees/salfagpt/$(date +%Y-%m-%d)-my-feature \
+  feat/my-feature-$(date +%Y-%m-%d)
+
+# 4. Register it in docs/worktrees/WORKTREE_REGISTRY.md
+```
+
+### Daily Routine
+
+```bash
+# 1. Run health check
+./scripts/check-worktree-health.sh
+
+# 2. Sync with main
+cd /path/to/worktree
+git fetch origin main
+git rebase origin/main
+
+# 3. Update registry
+# Edit docs/worktrees/WORKTREE_REGISTRY.md
+
+# 4. Work on features
+# Make commits, push regularly
+
+# 5. Before end of day
+git push origin feature-branch
+# Update registry with progress
+```
+
+### Before Merge
+
+```bash
+# 1. Run pre-merge validation
+./scripts/validate-pre-merge.sh
+
+# 2. Get user approval
+# Document approval in registry
+
+# 3. Merge to main
+./scripts/merge-worktree.sh
+
+# 4. Verify in production
+# Test deployed changes
+
+# 5. Clean up (after 24-48h)
+./scripts/cleanup-worktree.sh
+```
+
+---
+
+## 📝 Summary
+
+### Key Principles
+
+1. **Organization**: All worktrees tracked in central registry
+2. **Safety**: Comprehensive validation before merge
+3. **Traceability**: Complete history of what, when, how
+4. **Backward Compatibility**: All changes preserve existing functionality
+5. **Communication**: Regular updates, clear documentation
+6. **Focus**: One worktree, one purpose, one timeline
+
+### Lifecycle Stages
+
+```
+Creation → Daily Maintenance → Progress Tracking → Pre-Merge Validation → Merge → Cleanup
+   ↓              ↓                  ↓                    ↓               ↓        ↓
+Register      Sync Daily        Update Registry      Run Checks      Merge    Archive
+```
+
+### Success Metrics
+
+- ✅ All worktrees registered
+- ✅ Registry updated daily
+- ✅ No worktrees >14 days old
+- ✅ Zero merge conflicts
+- ✅ 100% backward compatibility
+- ✅ Clean workspace (no orphaned worktrees)
+
+---
+
+## 🔧 Quick Reference Commands
+
+```bash
+# List all worktrees
+git worktree list
+
+# Create worktree
+git worktree add /path/to/worktree branch-name
+
+# Remove worktree
+git worktree remove /path/to/worktree
+
+# Check worktree status
+cd /path/to/worktree
+git status
+
+# Sync with main
+git fetch origin main
+git rebase origin/main
+
+# Check divergence
+git rev-list --count origin/main..HEAD  # Ahead
+git rev-list --count HEAD..origin/main  # Behind
+
+# Merge to main
+cd /main/repo
+git checkout main
+git merge --no-ff branch-name
+
+# Clean up after merge
+git worktree remove /path/to/worktree
+git branch -d branch-name
+```
+
+---
+
+**Last Updated**: 2025-01-13  
+**Version**: 1.0.0  
+**Status**: ✅ Production Ready  
+**Always Apply**: Yes  
+**Project**: Flow (gen-lang-client-0986191192)  
+**Aligned With**: alignment.mdc, branch-management.mdc, code-change-protocol.mdc, data.mdc, deployment.mdc, ui-features-protection.mdc
+
+---
+
+**Remember:** Worktrees are powerful but require discipline. Follow this guide to keep your workspace organized, your changes traceable, and your main branch stable.

@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+Don't use Git Pagination.
+Use --no-pager in all git commands.
