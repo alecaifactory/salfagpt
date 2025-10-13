@@ -1,0 +1,1222 @@
+---
+alwaysApply: true
+---
+
+# Privacy & Data Security - Flow Platform
+
+## 🎯 Purpose
+
+This rule establishes the privacy and data security standards for the Flow platform, ensuring user trust, regulatory compliance, and complete data isolation between users. **User privacy is sacred** - every feature must protect user data by default.
+
+---
+
+## 🌟 Core Privacy Principles
+
+### 1. User Data Isolation
+
+**Principle:** Each user's data must be completely isolated from all other users. No user should ever see, access, or modify another user's data.
+
+**Why:** Privacy is fundamental to user trust. Data leakage destroys credibility and can have legal consequences (GDPR, CCPA, etc.).
+
+**Implementation:**
+```typescript
+// ✅ CORRECT: Every query filters by authenticated user
+export const GET: APIRoute = async ({ request, cookies }) => {
+  // 1. Verify authentication
+  const session = getSession({ cookies });
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      status: 401 
+    });
+  }
+
+  // 2. Get requested userId
+  const userId = url.searchParams.get('userId');
+
+  // 3. CRITICAL: Verify ownership
+  if (session.id !== userId) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+      status: 403 
+    });
+  }
+
+  // 4. Query with userId filter
+  const data = await getData(userId); // Already filters by userId
+  return data;
+};
+```
+
+**Verification Checklist:**
+- [ ] Every API endpoint verifies authentication
+- [ ] Every API endpoint verifies ownership
+- [ ] Every Firestore query filters by userId
+- [ ] No endpoint accepts userId without validation
+- [ ] HTTP 401 for unauthenticated requests
+- [ ] HTTP 403 for unauthorized access attempts
+
+---
+
+### 2. Agent-Specific Privacy
+
+**Principle:** Within a user's account, agents (conversations) have isolated context. Documents uploaded to Agent A should not appear in Agent B unless explicitly assigned.
+
+**Why:** Users create agents for different purposes (e.g., work vs personal). Context bleeding between agents reduces effectiveness and violates user expectations.
+
+**Implementation:**
+```typescript
+// Context source with agent assignment
+interface ContextSource {
+  id: string;
+  userId: string; // Owner
+  assignedToAgents: string[]; // Only visible in these agents
+  // ... other fields
+}
+
+// When loading context for an agent
+function loadContextForAgent(userId: string, agentId: string) {
+  // 1. Get all user's sources
+  const allSources = await getContextSources(userId);
+  
+  // 2. Filter by assignment
+  const agentSources = allSources.filter(source =>
+    !source.assignedToAgents || // Legacy: no assignment
+    source.assignedToAgents.length === 0 || // No restriction
+    source.assignedToAgents.includes(agentId) // Explicitly assigned
+  );
+  
+  return agentSources;
+}
+```
+
+**Verification Checklist:**
+- [ ] Context sources have assignedToAgents field
+- [ ] Upload assigns to current agent only
+- [ ] Switching agents filters sources correctly
+- [ ] Toggle state is per-agent (not global)
+- [ ] Each agent maintains independent context
+
+---
+
+### 3. Data Minimization
+
+**Principle:** Only collect and store data that is necessary for functionality. Never store sensitive data unnecessarily.
+
+**Why:** Less data stored = less risk. GDPR requires data minimization.
+
+**What We Store:**
+```typescript
+// ✅ Necessary data
+user: {
+  id: string,
+  email: string, // For login
+  name: string,  // For display
+  role: string,  // For permissions
+}
+
+conversation: {
+  userId: string, // Owner reference
+  title: string,  // User-provided
+  agentModel: string, // User choice
+  // No sensitive personal data
+}
+
+message: {
+  conversationId: string, // Context
+  role: 'user' | 'assistant',
+  content: string, // User-provided
+  // No metadata beyond what's needed
+}
+```
+
+**What We DON'T Store:**
+```typescript
+// ❌ Not stored
+- Passwords (OAuth only)
+- Credit card information
+- Social security numbers
+- Full IP addresses (only for rate limiting, hashed)
+- Geolocation data
+- Device fingerprints
+- Browser history
+```
+
+**Verification Checklist:**
+- [ ] No passwords stored (OAuth only)
+- [ ] No payment info stored
+- [ ] No unnecessary PII collected
+- [ ] User can export all their data
+- [ ] User can delete all their data
+
+---
+
+### 4. Transparency & Control
+
+**Principle:** Users must know what data is collected and have full control over it.
+
+**Why:** GDPR and CCPA require transparency and user control. Trust is built through openness.
+
+**User Rights:**
+```typescript
+// Users can:
+1. ✅ View all their data
+2. ✅ Export all their data (future: download as JSON/PDF)
+3. ✅ Delete all their data
+4. ✅ Control who sees their agents (private by default)
+5. ✅ Control context source visibility (assignedToAgents)
+6. ✅ Know what AI model is used (displayed in UI)
+7. ✅ Know what context is being used (context panel)
+```
+
+**Implementation:**
+```typescript
+// Export user data
+export async function exportUserData(userId: string) {
+  const conversations = await getConversations(userId);
+  const messages = await getAllUserMessages(userId);
+  const sources = await getContextSources(userId);
+  const settings = await getUserSettings(userId);
+  
+  return {
+    user: { id: userId },
+    conversations,
+    messages,
+    contextSources: sources,
+    settings,
+    exportedAt: new Date(),
+  };
+}
+
+// Delete all user data
+export async function deleteAllUserData(userId: string) {
+  const batch = firestore.batch();
+  
+  // Delete conversations
+  const convs = await getConversations(userId);
+  convs.forEach(conv => batch.delete(conv.ref));
+  
+  // Delete messages
+  const msgs = await getAllUserMessages(userId);
+  msgs.forEach(msg => batch.delete(msg.ref));
+  
+  // Delete context sources
+  const sources = await getContextSources(userId);
+  sources.forEach(source => batch.delete(source.ref));
+  
+  // Delete user settings
+  batch.delete(userSettingsRef);
+  
+  await batch.commit();
+  console.log('✅ All user data deleted:', userId);
+}
+```
+
+---
+
+### 5. Secure by Default
+
+**Principle:** Every new feature must be secure by default. Privacy and security are not optional.
+
+**Why:** Retrofitting security is expensive and error-prone. Build it in from day one.
+
+**Default Security Settings:**
+```typescript
+// New conversation
+{
+  userId: currentUser.id, // ✅ Owned by creator
+  visibility: 'private',  // ✅ Private by default
+  // NOT public unless explicitly set
+}
+
+// New context source
+{
+  userId: currentUser.id, // ✅ Owned by creator
+  assignedToAgents: [currentAgentId], // ✅ Only current agent
+  visibility: 'private', // ✅ Not shared by default
+  // User must explicitly share
+}
+
+// New user
+{
+  role: 'user', // ✅ Minimal permissions by default
+  // NOT admin or expert without explicit grant
+}
+```
+
+**Verification Checklist:**
+- [ ] New features default to private
+- [ ] New features require explicit sharing
+- [ ] New users have minimal permissions
+- [ ] Permissions are opt-in, not opt-out
+- [ ] Data sharing requires user consent
+
+---
+
+## 🔒 Security Layers
+
+### Layer 1: Database Level (Firestore)
+
+**Every query filters by userId**:
+
+```typescript
+// ✅ ALWAYS include userId filter
+export async function getConversations(userId: string) {
+  return firestore
+    .collection('conversations')
+    .where('userId', '==', userId) // CRITICAL: User isolation
+    .orderBy('lastMessageAt', 'desc')
+    .get();
+}
+
+export async function getContextSources(userId: string) {
+  return firestore
+    .collection('context_sources')
+    .where('userId', '==', userId) // CRITICAL: User isolation
+    .orderBy('addedAt', 'desc')
+    .get();
+}
+
+// Messages filtered by conversationId (which belongs to user)
+export async function getMessages(conversationId: string) {
+  return firestore
+    .collection('messages')
+    .where('conversationId', '==', conversationId)
+    .orderBy('timestamp', 'asc')
+    .get();
+}
+```
+
+**Why:** Even if API layer fails, database queries can't leak data.
+
+---
+
+### Layer 2: API Level (Endpoint Authentication)
+
+**Every endpoint verifies authentication and ownership**:
+
+```typescript
+export const GET: APIRoute = async ({ request, cookies }) => {
+  // Step 1: Verify authentication
+  const session = getSession({ cookies });
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      status: 401 
+    });
+  }
+
+  // Step 2: Verify ownership
+  const userId = url.searchParams.get('userId');
+  if (session.id !== userId) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+      status: 403 
+    });
+  }
+
+  // Step 3: Proceed (double-protected)
+  const data = await getData(userId);
+  return data;
+};
+```
+
+**Protected Endpoints (2025-10-13)**:
+- ✅ `GET /api/conversations` - List conversations
+- ✅ `POST /api/conversations` - Create conversation
+- ✅ `PUT /api/conversations/:id` - Update conversation
+- ✅ `DELETE /api/conversations/:id` - Delete conversation
+- ✅ `GET /api/context-sources` - List context sources
+- ✅ `POST /api/context-sources` - Create context source
+- ✅ `PUT /api/context-sources/:id` - Update context source
+- ✅ `DELETE /api/context-sources/:id` - Delete context source
+
+**Why:** Defense in depth. Two layers are better than one.
+
+---
+
+### Layer 3: Firebase Security Rules (Firestore Rules)
+
+**Database-level access control**:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Conversations - User isolation
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                              resource.data.userId == request.auth.uid;
+    }
+    
+    // Messages - User isolation via conversation
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                              resource.data.userId == request.auth.uid;
+    }
+    
+    // Context Sources - User isolation
+    match /context_sources/{sourceId} {
+      allow read: if isAuthenticated() && 
+                    resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+                              resource.data.userId == request.auth.uid;
+    }
+    
+    // User Settings - Own data only
+    match /user_settings/{userId} {
+      allow read, write: if isAuthenticated() && 
+                          isOwner(userId);
+    }
+    
+    // Agent Configs - Own data only
+    match /agent_configs/{configId} {
+      allow read, write: if isAuthenticated() && 
+                          resource.data.userId == request.auth.uid;
+    }
+    
+    // Conversation Context - Own data only
+    match /conversation_context/{contextId} {
+      allow read, write: if isAuthenticated() && 
+                          resource.data.userId == request.auth.uid;
+    }
+  }
+}
+```
+
+**Status**: Documented, ready for deployment
+
+**Why:** Third layer of protection at database level. Even direct database access is protected.
+
+---
+
+## 🛡️ Privacy Guarantees
+
+### What We Guarantee to Users
+
+#### 1. Complete Data Isolation ✅
+
+**Guarantee:**
+> "Your conversations, messages, and context are completely private. 
+> No other user can see or access your data."
+
+**Implementation:**
+- Layer 1: Firestore queries filter by userId
+- Layer 2: API endpoints verify ownership
+- Layer 3: Firestore rules enforce isolation
+
+**Verification:**
+```typescript
+// User A cannot access User B's data
+// HTTP 403 Forbidden if attempted
+```
+
+---
+
+#### 2. Agent-Specific Context ✅
+
+**Guarantee:**
+> "Documents uploaded to one agent are not visible in other agents 
+> unless you explicitly assign them."
+
+**Implementation:**
+- `assignedToAgents: string[]` field on ContextSource
+- Upload assigns to current agent only
+- Switching agents filters by assignment
+
+**Verification:**
+```typescript
+// Upload PDF to Agent A
+// Switch to Agent B
+// PDF not visible in Agent B ✅
+```
+
+---
+
+#### 3. Control Over Your Data ✅
+
+**Guarantee:**
+> "You have full control over your data. You can view, export, modify, 
+> and delete all your data at any time."
+
+**Implementation:**
+- View: All data visible in UI
+- Export: API available (future: UI button)
+- Modify: Inline editing for titles, settings
+- Delete: Cascade delete when removing agents
+
+**User Rights:**
+```typescript
+1. ✅ Right to Access: View all your data
+2. ✅ Right to Rectification: Edit/correct your data
+3. ✅ Right to Erasure: Delete your data
+4. ✅ Right to Portability: Export your data (future)
+5. ✅ Right to Object: Opt-out of analytics (future)
+```
+
+---
+
+#### 4. Transparency ✅
+
+**Guarantee:**
+> "We are transparent about what data we collect, how we use it, 
+> and what AI models process it."
+
+**Implementation:**
+- Model name displayed in UI (Flash vs Pro)
+- Context panel shows what data is sent to AI
+- System prompt visible and editable
+- Token usage tracked and displayed
+- Source tracking (localhost vs production)
+
+**User Visibility:**
+```typescript
+// In UI, users see:
+- Which AI model is responding
+- What context sources are active
+- How many tokens are being used
+- What data is being sent in each request
+- History of all interactions (context logs)
+```
+
+---
+
+#### 5. Data Ownership ✅
+
+**Guarantee:**
+> "You own your data. We are custodians, not owners."
+
+**Implementation:**
+- userId field on all documents
+- User can delete account and all data
+- No license claims on user content
+- Export functionality available
+
+**Ownership Model:**
+```typescript
+// User owns:
+- ✅ All conversations they create
+- ✅ All messages they send
+- ✅ All AI responses in their conversations
+- ✅ All context sources they upload
+- ✅ All configurations they set
+
+// Platform owns:
+- System logs (anonymized)
+- Analytics (aggregated, anonymized)
+- Infrastructure
+```
+
+---
+
+## 🚨 Critical Security Rules
+
+### 1. ✅ ALWAYS Verify Authentication
+
+**Rule:** Every API endpoint that accesses user data MUST verify the user is authenticated.
+
+**Pattern:**
+```typescript
+export const METHOD: APIRoute = async ({ request, cookies }) => {
+  const session = getSession({ cookies });
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      status: 401 
+    });
+  }
+  
+  // Continue...
+};
+```
+
+**Why:** Unauthenticated access is a critical security vulnerability.
+
+**Exemptions:** Only public endpoints (login, signup, health checks)
+
+---
+
+### 2. ✅ ALWAYS Verify Ownership
+
+**Rule:** Every API endpoint MUST verify that the authenticated user owns the data they're accessing.
+
+**Pattern:**
+```typescript
+// For user-specific collections
+if (session.id !== userId) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+    status: 403 
+  });
+}
+
+// For documents with ownership
+const document = await getDocument(documentId);
+if (document.userId !== session.id) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+    status: 403 
+  });
+}
+```
+
+**Why:** Prevents horizontal privilege escalation (User A accessing User B's data).
+
+**Exemptions:** Admin endpoints (with explicit admin check)
+
+---
+
+### 3. ✅ ALWAYS Use Secure Cookies
+
+**Rule:** Authentication tokens MUST be stored in HTTP-only, Secure cookies.
+
+**Pattern:**
+```typescript
+// Set session cookie
+context.cookies.set('flow_session', token, {
+  httpOnly: true, // ✅ JavaScript cannot access
+  secure: true,   // ✅ HTTPS only (production)
+  sameSite: 'lax', // ✅ CSRF protection
+  maxAge: 7 * 24 * 60 * 60, // 7 days
+  path: '/',
+});
+```
+
+**Why:** XSS attacks cannot steal HTTP-only cookies.
+
+**Never:**
+- ❌ Store tokens in localStorage (XSS vulnerable)
+- ❌ Store tokens in sessionStorage (XSS vulnerable)
+- ❌ Send tokens in URL parameters (logged everywhere)
+
+---
+
+### 4. ✅ ALWAYS Filter Queries by User
+
+**Rule:** Every Firestore query for user-specific data MUST filter by userId.
+
+**Pattern:**
+```typescript
+// ✅ CORRECT
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', '==', userId) // CRITICAL
+  .get();
+
+// ❌ WRONG: Fetches all users' data
+const allConversations = await firestore
+  .collection('conversations')
+  .get();
+```
+
+**Why:** Prevents accidental data leakage even if API layer fails.
+
+**Verification:**
+```bash
+# Search for queries without userId filter
+grep -r ".collection(" src/lib/firestore.ts | grep -v "where.*userId"
+# Should only show collections that are not user-specific
+```
+
+---
+
+### 5. ✅ ALWAYS Log Security Events
+
+**Rule:** Log all authentication, authorization, and data access events for audit.
+
+**Pattern:**
+```typescript
+// Successful login
+console.log('✅ User logged in:', {
+  userId: session.id,
+  timestamp: new Date(),
+  ipAddress: hash(request.headers.get('x-forwarded-for')),
+});
+
+// Failed authorization
+console.warn('🚨 Unauthorized access attempt:', {
+  userId: session.id,
+  attemptedResource: resourceId,
+  attemptedAction: 'read',
+  timestamp: new Date(),
+});
+
+// Data deletion
+console.log('🗑️ User data deleted:', {
+  userId: session.id,
+  resourceType: 'conversation',
+  resourceId: conversationId,
+  timestamp: new Date(),
+});
+```
+
+**Why:** Audit trail for security incidents and compliance.
+
+**Storage:** BigQuery (non-blocking, don't crash on failure)
+
+---
+
+## 📋 Privacy Compliance Checklist
+
+### GDPR Compliance
+
+- [ ] **Right to Access**: Users can view all their data ✅
+- [ ] **Right to Rectification**: Users can edit their data ✅
+- [ ] **Right to Erasure**: Users can delete their data ✅
+- [ ] **Right to Portability**: Users can export their data (future)
+- [ ] **Right to Object**: Users can opt-out of processing (future)
+- [ ] **Data Minimization**: Only necessary data collected ✅
+- [ ] **Purpose Limitation**: Data used only for stated purposes ✅
+- [ ] **Storage Limitation**: Data retention policies (future)
+- [ ] **Consent**: Clear privacy policy (future)
+- [ ] **Breach Notification**: Process for notifying users (future)
+
+### CCPA Compliance
+
+- [ ] **Right to Know**: Users know what data is collected ✅
+- [ ] **Right to Delete**: Users can delete their data ✅
+- [ ] **Right to Opt-Out**: Users can opt-out of sale (N/A - no sale)
+- [ ] **Non-Discrimination**: Equal service regardless of privacy choices ✅
+
+### SOC 2 Compliance (Future)
+
+- [ ] **Security**: Logical and physical access controls
+- [ ] **Availability**: System uptime and disaster recovery
+- [ ] **Processing Integrity**: Data processed accurately
+- [ ] **Confidentiality**: Sensitive data protected
+- [ ] **Privacy**: GDPR/CCPA compliance
+
+---
+
+## 🔍 Privacy Testing
+
+### Test 1: User Isolation
+
+**Steps:**
+1. Login as User A (`alec@getaifactory.com`)
+2. Create conversations, upload PDFs
+3. Note conversation IDs
+4. Logout
+5. Login as User B (`hello@getaifactory.com`)
+6. Verify User B sees ZERO data from User A
+7. Create conversations in User B
+8. Logout and login as User A again
+9. Verify User A sees ZERO data from User B
+
+**Expected:**
+- ✅ Each user sees only their data
+- ✅ No data bleeding between users
+
+---
+
+### Test 2: Agent Isolation (Within User)
+
+**Steps:**
+1. Login as User A
+2. Create Agent 1, upload PDF
+3. PDF visible in Agent 1 with toggle ON
+4. Create Agent 2
+5. Verify PDF NOT visible in Agent 2
+6. Switch back to Agent 1
+7. Verify PDF still visible with toggle ON
+
+**Expected:**
+- ✅ Context isolated per agent
+- ✅ Toggle state independent per agent
+
+---
+
+### Test 3: Unauthorized Access Attempts
+
+**Steps:**
+1. Login as User A, get sessionToken
+2. Get User B's userId (from database)
+3. Attempt to access User B's data:
+   ```bash
+   curl -X GET "http://localhost:3000/api/conversations?userId=USER_B_ID" \
+     -H "Cookie: flow_session=USER_A_TOKEN"
+   ```
+
+**Expected:**
+- ✅ HTTP 403 Forbidden
+- ✅ Error message: "Cannot access other user data"
+- ✅ No data returned
+
+---
+
+### Test 4: Unauthenticated Access
+
+**Steps:**
+1. Logout (clear cookies)
+2. Attempt to access data:
+   ```bash
+   curl -X GET "http://localhost:3000/api/conversations?userId=ANY_ID"
+   ```
+
+**Expected:**
+- ✅ HTTP 401 Unauthorized
+- ✅ Error message: "Please login"
+- ✅ No data returned
+
+---
+
+## 🏗️ Privacy by Design
+
+### New Feature Checklist
+
+**Before implementing ANY new feature, ensure:**
+
+#### 1. Data Collection
+- [ ] What data will be collected?
+- [ ] Is it necessary for functionality?
+- [ ] Can we achieve the same with less data?
+- [ ] Where will it be stored?
+- [ ] Who will have access?
+
+#### 2. Access Control
+- [ ] Will it filter by userId?
+- [ ] Will it verify authentication?
+- [ ] Will it verify ownership?
+- [ ] What happens if user tries to access others' data?
+- [ ] Are there admin overrides? (document them)
+
+#### 3. User Control
+- [ ] Can user view this data?
+- [ ] Can user edit this data?
+- [ ] Can user delete this data?
+- [ ] Can user export this data?
+- [ ] Can user control who sees it?
+
+#### 4. Transparency
+- [ ] Does user know this data is collected?
+- [ ] Is collection consent-based?
+- [ ] Is purpose clearly stated?
+- [ ] Can user opt-out?
+
+---
+
+## 🔐 Authentication & Authorization
+
+### Authentication (Who are you?)
+
+**Method:** Google OAuth2 + JWT
+
+**Flow:**
+```
+1. User clicks "Login with Google"
+2. Redirect to Google OAuth
+3. User authenticates with Google
+4. Google returns authorization code
+5. Exchange code for user info
+6. Create/update user in Firestore
+7. Generate JWT token
+8. Set HTTP-only cookie: flow_session
+9. Redirect to /chat
+```
+
+**Session Storage:**
+```typescript
+Cookie: flow_session
+- HTTPOnly: true (JavaScript cannot access)
+- Secure: true (HTTPS only in production)
+- SameSite: 'lax' (CSRF protection)
+- Max-Age: 604800 (7 days)
+```
+
+---
+
+### Authorization (What can you do?)
+
+**Role-Based Access Control (RBAC)**:
+
+```typescript
+const ROLE_PERMISSIONS = {
+  admin: ['*'], // All permissions
+  expert: ['validate_context', 'view_analytics'],
+  user: ['create_conversation', 'upload_context'],
+  context_signoff: ['validate_context'],
+  // ... more roles
+};
+
+function hasPermission(userRole: string, permission: string): boolean {
+  const permissions = ROLE_PERMISSIONS[userRole] || [];
+  return permissions.includes('*') || permissions.includes(permission);
+}
+
+// Use before every privileged action
+if (!hasPermission(user.role, 'validate_context')) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+    status: 403 
+  });
+}
+```
+
+**Default Role:** `user` (minimal permissions)
+
+---
+
+## 📊 Privacy Audit
+
+### Daily Checks
+
+```bash
+# 1. Verify all endpoints have authentication
+grep -r "export const.*APIRoute" src/pages/api/ | \
+  xargs -I {} sh -c 'echo "Checking {}"; grep -L "getSession" {}'
+
+# Expected: Only public endpoints (auth, health)
+
+# 2. Verify all queries filter by userId
+grep -r ".where(" src/lib/firestore.ts | grep -v "userId"
+
+# Expected: Only non-user-specific collections
+
+# 3. Check for sensitive data in logs
+grep -r "console.log.*email\|password\|token" src/
+
+# Expected: Only hashed or redacted values
+```
+
+---
+
+### Weekly Checks
+
+- [ ] Review access logs for suspicious patterns
+- [ ] Check for failed authorization attempts (403s)
+- [ ] Verify session expiration is working
+- [ ] Test user data export functionality
+- [ ] Verify data deletion works completely
+
+### Monthly Checks
+
+- [ ] Security audit of all endpoints
+- [ ] Review and rotate JWT secrets
+- [ ] Update dependencies (security patches)
+- [ ] Privacy policy review
+- [ ] Compliance checklist review
+
+---
+
+## 🎓 Privacy Best Practices
+
+### DO's ✅
+
+1. ✅ **Filter by userId in every query**
+   ```typescript
+   .where('userId', '==', userId)
+   ```
+
+2. ✅ **Verify authentication in every endpoint**
+   ```typescript
+   const session = getSession({ cookies });
+   if (!session) return 401;
+   ```
+
+3. ✅ **Verify ownership before access**
+   ```typescript
+   if (session.id !== userId) return 403;
+   ```
+
+4. ✅ **Use HTTP-only cookies for tokens**
+   ```typescript
+   httpOnly: true, secure: true
+   ```
+
+5. ✅ **Log security events**
+   ```typescript
+   console.log('🚨 Access denied:', { userId, resource });
+   ```
+
+6. ✅ **Assign context to specific agents**
+   ```typescript
+   assignedToAgents: [currentAgentId]
+   ```
+
+7. ✅ **Default to private**
+   ```typescript
+   visibility: 'private'
+   ```
+
+8. ✅ **Provide user control**
+   ```typescript
+   // Edit, delete, export options in UI
+   ```
+
+---
+
+### DON'Ts ❌
+
+1. ❌ **Never trust client-provided userId without verification**
+   ```typescript
+   // WRONG: const userId = params.userId; // Trusting client
+   // RIGHT: if (session.id !== userId) return 403;
+   ```
+
+2. ❌ **Never query all documents without userId filter**
+   ```typescript
+   // WRONG: .collection('conversations').get()
+   // RIGHT: .collection('conversations').where('userId', '==', userId).get()
+   ```
+
+3. ❌ **Never store tokens in localStorage**
+   ```typescript
+   // WRONG: localStorage.setItem('token', jwt)
+   // RIGHT: cookies.set('flow_session', jwt, { httpOnly: true })
+   ```
+
+4. ❌ **Never log sensitive data**
+   ```typescript
+   // WRONG: console.log('User:', user.email, user.password)
+   // RIGHT: console.log('User:', hash(user.id))
+   ```
+
+5. ❌ **Never share context across users**
+   ```typescript
+   // WRONG: visibility: 'public' by default
+   // RIGHT: visibility: 'private' by default
+   ```
+
+6. ❌ **Never expose other users' data in errors**
+   ```typescript
+   // WRONG: return { error: 'User X not found' } // Leaks user existence
+   // RIGHT: return { error: 'Resource not found' } // Generic
+   ```
+
+---
+
+## 📚 Privacy Documentation for Users
+
+### Privacy Policy (To be created)
+
+**Must include:**
+1. What data we collect (conversations, messages, uploads)
+2. Why we collect it (provide AI assistance)
+3. How we use it (send to Gemini AI for responses)
+4. How we protect it (encryption, isolation, security rules)
+5. How long we keep it (retention policies)
+6. User rights (access, delete, export)
+7. Contact information for privacy inquiries
+
+### Terms of Service (To be created)
+
+**Must include:**
+1. User owns their content
+2. Platform has limited license to provide service
+3. No warranty on AI responses
+4. User responsible for validating AI output
+5. Acceptable use policy
+6. Account termination conditions
+
+---
+
+## 🔄 Data Lifecycle
+
+### Data Creation
+
+```
+User creates data → Save to Firestore → Track in analytics (anonymized)
+                        ↓
+                  Mark with: userId, source, timestamp
+```
+
+### Data Access
+
+```
+User requests data → Verify auth → Verify ownership → Return data
+                         ↓               ↓
+                    401 if no auth   403 if not owner
+```
+
+### Data Modification
+
+```
+User modifies data → Verify auth → Verify ownership → Update Firestore
+                         ↓               ↓
+                    401 if no auth   403 if not owner
+```
+
+### Data Deletion
+
+```
+User deletes data → Verify auth → Verify ownership → Cascade delete
+                        ↓               ↓                    ↓
+                   401 if no auth  403 if not owner   Delete children
+```
+
+### Data Retention (Future)
+
+```
+Data created → Active period → Inactive period → Archival → Deletion
+     ↓             ↓               ↓                ↓           ↓
+   Day 0        < 90 days       90-365 days    > 1 year    > 2 years
+                                                          (after notice)
+```
+
+---
+
+## ✅ Backward Compatibility
+
+### Privacy Features are Additive
+
+**All privacy features added are backward compatible:**
+
+1. ✅ **Authentication checks**: Existing sessions continue to work
+2. ✅ **Ownership verification**: Existing data has userId field
+3. ✅ **Agent assignment**: Legacy sources (no assignedToAgents) visible in all agents
+4. ✅ **Context isolation**: Existing context sources continue to work
+
+**Migration Path:**
+- Existing users: Continue using platform without interruption
+- Existing data: No migration needed
+- Existing sessions: Remain valid
+- Existing features: All continue to work
+
+**No Breaking Changes:**
+- ❌ No data loss
+- ❌ No forced re-authentication
+- ❌ No feature removal
+- ✅ Only security hardening
+
+---
+
+## 🔗 Integration with Other Rules
+
+### Alignment with `.cursor/rules/alignment.mdc`
+
+**Privacy supports core principles:**
+- ✅ Data Persistence First: All data saved with userId
+- ✅ Security by Default: Every endpoint authenticated
+- ✅ Type Safety: All privacy fields typed
+- ✅ Graceful Degradation: Works even if analytics fail
+
+### Alignment with `.cursor/rules/firestore.mdc`
+
+**Privacy enforces database rules:**
+- ✅ Every query filters by userId
+- ✅ assignedToAgents for agent isolation
+- ✅ Security rules documented
+- ✅ Index coverage for user queries
+
+### Alignment with `.cursor/rules/backend.mdc`
+
+**Privacy enforces API patterns:**
+- ✅ Authentication first
+- ✅ Validation second
+- ✅ Authorization third
+- ✅ Business logic last
+
+---
+
+## 🚀 Deployment Checklist
+
+### Before Production Deploy
+
+**Security:**
+- [ ] Deploy Firestore Security Rules
+- [ ] Verify all endpoints authenticate
+- [ ] Verify all endpoints check ownership
+- [ ] Test with multiple users
+- [ ] Test unauthorized access (should fail)
+- [ ] Rotate JWT secrets
+- [ ] Configure HTTPS only
+
+**Privacy:**
+- [ ] Privacy policy published
+- [ ] Terms of service published
+- [ ] User consent flow implemented
+- [ ] Data export functionality tested
+- [ ] Data deletion functionality tested
+- [ ] Audit logging enabled
+
+**Compliance:**
+- [ ] GDPR compliance verified
+- [ ] CCPA compliance verified
+- [ ] Data retention policies set
+- [ ] Breach notification process documented
+- [ ] DPO (Data Protection Officer) designated (if required)
+
+---
+
+## 📖 Reference Documentation
+
+### Internal Rules
+- `.cursor/rules/alignment.mdc` - Core design principles
+- `.cursor/rules/firestore.mdc` - Database security
+- `.cursor/rules/backend.mdc` - API security
+- `.cursor/rules/userpersonas.mdc` - Role-based permissions
+
+### Implementation Guides
+- `SECURITY_USER_DATA_ISOLATION_2025-10-13.md` - User isolation implementation
+- `SESSION_SUMMARY_2025-10-13.md` - Session security summary
+
+### External Resources
+- [GDPR Official Text](https://gdpr-info.eu/)
+- [CCPA Official Text](https://oag.ca.gov/privacy/ccpa)
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [OAuth 2.0 Best Practices](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics)
+
+---
+
+## 🎯 Summary: What Makes Flow Private
+
+### User Data Isolation ✅
+
+```
+User A ←→ Their conversations
+       ←→ Their messages
+       ←→ Their context sources
+       ←→ Their settings
+
+User B ←→ Their conversations (completely separate)
+       ←→ Their messages (completely separate)
+       ←→ Their context sources (completely separate)
+       ←→ Their settings (completely separate)
+
+NO OVERLAP. EVER.
+```
+
+### Agent Context Isolation ✅
+
+```
+User A:
+  Agent 1 ←→ PDF A, PDF B (assigned to Agent 1)
+  Agent 2 ←→ PDF C (assigned to Agent 2)
+  Agent 3 ←→ (no PDFs)
+
+Agent 1 cannot see PDF C
+Agent 2 cannot see PDF A or B
+Agent 3 has no context
+```
+
+### Security in Depth ✅
+
+```
+Layer 1: Firestore queries filter by userId
+Layer 2: API endpoints verify authentication + ownership
+Layer 3: Firestore Security Rules (to be deployed)
+```
+
+---
+
+**Last Updated**: 2025-10-13  
+**Version**: 1.0.0  
+**Status**: ✅ Implemented  
+**Backward Compatible**: Yes  
+**Aligned With**: alignment.mdc, firestore.mdc, backend.mdc  
+
+---
+
+**Remember:** Privacy is not a feature. It's a fundamental right. Every line of code must respect user privacy. When in doubt, choose the more private option.

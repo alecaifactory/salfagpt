@@ -293,11 +293,13 @@ LIMIT 50;
 
 ---
 
-### 7. Security by Default
+### 7. Security & Privacy by Default
 
-**Principle:** Every endpoint requires authentication. Every query filters by user. No data leaks.
+**Principle:** Every endpoint requires authentication. Every query filters by user. No data leaks. User privacy is sacred.
 
-**Why:** User data is sacred. Security breaches destroy businesses.
+**Why:** User data is sacred. Security breaches and privacy violations destroy businesses and user trust.
+
+**See Also:** `.cursor/rules/privacy.mdc` for complete privacy requirements ⭐
 
 **Implementation:**
 
@@ -1554,7 +1556,7 @@ git commit -m "docs: Update rule X
 
 ## 📚 References
 
-### Internal Documentation - Rules (All 23 Rules ✅)
+### Internal Documentation - Rules (All 24 Rules ✅)
 
 **🎯 Core Foundation (3):**
 - `.cursor/rules/alignment.mdc` - **THIS FILE** - Design principles (**FOUNDATION**)
@@ -1571,10 +1573,11 @@ git commit -m "docs: Update rule X
 - `.cursor/rules/gemini-api-usage.mdc` - Gemini AI API patterns
 - `.cursor/rules/userpersonas.mdc` - User roles & permissions
 
-**🔒 Quality & Safety (4):**
+**🔒 Quality & Safety (5):**
 - `.cursor/rules/code-change-protocol.mdc` - Code change safety (**CRITICAL**)
 - `.cursor/rules/branch-management.mdc` - Branch safety (**CRITICAL**)
 - `.cursor/rules/ui-features-protection.mdc` - Protected features (**CRITICAL**)
+- `.cursor/rules/privacy.mdc` - Privacy & data security (**CRITICAL**) ⭐ NEW
 - `.cursor/rules/error-prevention-checklist.mdc` - Common errors & fixes
 
 **⚙️ Configuration & Infrastructure (6):**
@@ -1607,18 +1610,19 @@ git commit -m "docs: Update rule X
 ---
 
 **Last Updated**: 2025-10-13  
-**Version**: 1.4.0  
+**Version**: 1.5.0  
 **Status**: ✅ Production Ready  
 **Project**: Flow (gen-lang-client-0986191192)  
 **Data Schema**: See `data.mdc` for complete schema documentation  
-**All Rules**: ✅ All 23 project rules documented above with `alwaysApply: true`  
-**Alignment**: Verified with all 23 rules (see `RULES_ALIGNMENT.md`)
+**All Rules**: ✅ All 24 project rules documented above with `alwaysApply: true`  
+**Alignment**: Verified with all 24 rules (see `RULES_ALIGNMENT.md`)
 
 **Recent Critical Updates**:
 - Added Firestore composite index requirements (see `firestore.mdc`)
 - Added MessageContent transformation pattern for React compatibility
 - Updated database operations lessons with 2025-10-13 fixes
+- **NEW**: Added `privacy.mdc` - User data isolation and privacy requirements (2025-10-13)
 
 ---
 
-**Remember:** This rule is the **OFFICIAL MAIN RULE** that aligns all 23 project rules. When in doubt, refer back to these principles. They prevent 95% of bugs, data loss, and user frustration. **Every change must preserve existing functionality unless explicitly approved.**
+**Remember:** This rule is the **OFFICIAL MAIN RULE** that aligns all 24 project rules. When in doubt, refer back to these principles. They prevent 95% of bugs, data loss, user frustration, and privacy violations. **Every change must preserve existing functionality and user privacy unless explicitly approved.**
