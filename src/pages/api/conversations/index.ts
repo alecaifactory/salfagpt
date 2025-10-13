@@ -4,10 +4,20 @@ import {
   getConversations,
   groupConversationsByTime,
 } from '../../../lib/firestore';
+import { getSession } from '../../../lib/auth';
 
 // GET /api/conversations - List user's conversations
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async ({ request, cookies }) => {
   try {
+    // Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const url = new URL(request.url);
     const userId = url.searchParams.get('userId');
     const folderId = url.searchParams.get('folderId') || undefined;
@@ -16,6 +26,14 @@ export const GET: APIRoute = async ({ request }) => {
       return new Response(
         JSON.stringify({ error: 'userId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Verify user can only access their own conversations
+    if (session.id !== userId) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Cannot access other user data' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -62,8 +80,17 @@ export const GET: APIRoute = async ({ request }) => {
 };
 
 // POST /api/conversations - Create new conversation
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, cookies }) => {
   try {
+    // Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const body = await request.json();
     const { userId, title, folderId } = body;
 
@@ -71,6 +98,14 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response(
         JSON.stringify({ error: 'userId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Verify user can only create conversations for themselves
+    if (session.id !== userId) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Cannot create conversations for other users' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

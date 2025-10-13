@@ -2,11 +2,22 @@ import type { APIRoute } from 'astro';
 import {
   updateConversation,
   deleteConversation,
+  getConversation,
 } from '../../../lib/firestore';
+import { getSession } from '../../../lib/auth';
 
 // PUT /api/conversations/:id - Update conversation
-export const PUT: APIRoute = async ({ params, request }) => {
+export const PUT: APIRoute = async ({ params, request, cookies }) => {
   try {
+    // Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const conversationId = params.id;
     const body = await request.json();
 
@@ -14,6 +25,22 @@ export const PUT: APIRoute = async ({ params, request }) => {
       return new Response(
         JSON.stringify({ error: 'conversationId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Verify user owns this conversation
+    const conversation = await getConversation(conversationId);
+    if (!conversation) {
+      return new Response(
+        JSON.stringify({ error: 'Conversation not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (conversation.userId !== session.id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Cannot modify other user conversations' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -33,14 +60,39 @@ export const PUT: APIRoute = async ({ params, request }) => {
 };
 
 // DELETE /api/conversations/:id - Delete conversation
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, cookies }) => {
   try {
+    // Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const conversationId = params.id;
 
     if (!conversationId) {
       return new Response(
         JSON.stringify({ error: 'conversationId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Verify user owns this conversation
+    const conversation = await getConversation(conversationId);
+    if (!conversation) {
+      return new Response(
+        JSON.stringify({ error: 'Conversation not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (conversation.userId !== session.id) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Cannot delete other user conversations' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
