@@ -956,8 +956,10 @@ Before deploying ANY change, verify:
 1. ✅ Always use consistent project ID in all environments
 2. ✅ Always convert Firestore Timestamps to Date objects
 3. ✅ Always use batch operations for multiple writes
-4. ✅ Always create indexes for all queries
-5. ✅ Always filter by userId for user-specific data
+4. ✅ **CRITICAL**: Always create Firestore composite indexes BEFORE querying (2025-10-13)
+5. ✅ **CRITICAL**: Always transform MessageContent objects to strings when loading (2025-10-13)
+6. ✅ Always filter by userId for user-specific data
+7. ✅ Always verify indexes are in READY state after deployment
 
 ### From Analytics Integration
 1. ✅ Use sample data in development (no BigQuery setup required)
@@ -1603,12 +1605,17 @@ git commit -m "docs: Update rule X
 ---
 
 **Last Updated**: 2025-10-13  
-**Version**: 1.3.0  
+**Version**: 1.4.0  
 **Status**: ✅ Production Ready  
 **Project**: Flow (gen-lang-client-0986191192)  
 **Data Schema**: See `data.mdc` for complete schema documentation  
 **All Rules**: ✅ All 23 project rules documented above with `alwaysApply: true`  
 **Alignment**: Verified with all 23 rules (see `RULES_ALIGNMENT.md`)
+
+**Recent Critical Updates**:
+- Added Firestore composite index requirements (see `firestore.mdc`)
+- Added MessageContent transformation pattern for React compatibility
+- Updated database operations lessons with 2025-10-13 fixes
 
 ---
 

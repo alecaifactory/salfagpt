@@ -577,13 +577,13 @@ await batch.commit();
 
 **❌ WRONG:**
 ```typescript
-// Query without proper index (fails in production)
+// Query without proper index (fails in production AND localhost)
 const snapshot = await firestore
   .collection('conversations')
   .where('userId', '==', userId)
   .orderBy('lastMessageAt', 'desc')
   .get();
-// Error: The query requires an index
+// Error: 9 FAILED_PRECONDITION: The query requires an index
 ```
 
 **✅ CORRECT:**
@@ -598,14 +598,53 @@ const snapshot = await firestore
         { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "conversationId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "ASCENDING" }
+      ]
     }
   ]
 }
 
-// 2. Deploy indexes
-// gcloud firestore indexes create --project=gen-lang-client-0986191192
+// 2. Deploy indexes (choose ONE method)
 
-// 3. Then query works
+// METHOD A: Using Firebase CLI (Recommended)
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+// METHOD B: Using gcloud CLI
+gcloud firestore indexes composite create \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)' \
+  --collection-group=conversations \
+  --field-config field-path=userId,order=ascending \
+  --field-config field-path=lastMessageAt,order=descending
+
+gcloud firestore indexes composite create \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)' \
+  --collection-group=messages \
+  --field-config field-path=conversationId,order=ascending \
+  --field-config field-path=timestamp,order=ascending
+
+// 3. Verify indexes are READY
+gcloud firestore indexes composite list \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+
+// Expected output:
+// NAME: CICAgJiUpoMK
+// COLLECTION_GROUP: conversations
+// STATE: READY
+// 
+// NAME: CICAgOjXh4EK
+// COLLECTION_GROUP: messages
+// STATE: READY
+
+// 4. Then query works
 const snapshot = await firestore
   .collection('conversations')
   .where('userId', '==', userId)
@@ -614,10 +653,12 @@ const snapshot = await firestore
 ```
 
 **Why?**
-- Queries work in production
+- Queries work in both localhost AND production
 - Better performance
 - Predictable behavior
 - No surprise errors
+
+**🚨 CRITICAL**: Without these indexes, the app will show empty conversations even if data exists in Firestore!
 
 ---
 
@@ -1215,7 +1256,334 @@ A properly implemented Firestore database should:
 
 ---
 
-**Last Updated**: 2025-10-12
-**Version**: 1.0.0
+## 🚨 Critical Issue: MessageContent Object vs String
+
+### Problem
+
+Firestore stores `message.content` as a **structured object** (`MessageContent`), but React components expect a **string**.
+
+**Error if not handled:**
+```
+Uncaught Error: Objects are not valid as a React child (found: object with keys {type, text})
+```
+
+### Solution: Transform on Load
+
+**In Frontend (ChatInterfaceWorking.tsx):**
+
+```typescript
+const loadMessages = async (conversationId: string) => {
+  try {
+    const response = await fetch(`/api/conversations/${conversationId}/messages`);
+    if (response.ok) {
+      const data = await response.json();
+      
+      // ✅ CRITICAL: Transform MessageContent object to string
+      const transformedMessages = (data.messages || []).map((msg: any) => ({
+        ...msg,
+        content: typeof msg.content === 'string' 
+          ? msg.content 
+          : msg.content?.text || String(msg.content),
+        timestamp: new Date(msg.timestamp)
+      }));
+      
+      setMessages(transformedMessages);
+    }
+  } catch (error) {
+    console.error('Error loading messages:', error);
+    setMessages([]);
+  }
+};
+```
+
+**Why This Happens:**
+
+1. **Backend saves**: `content: { type: 'text', text: 'Hello' }`
+2. **Firestore stores**: Object as-is
+3. **Frontend loads**: Gets object from API
+4. **React tries to render**: `{message.content}` → **ERROR** (can't render objects)
+5. **Solution**: Extract `.text` property before rendering
+
+**Backward Compatibility:**
+
+The transformation handles both cases:
+- ✅ Old messages (string): `content` is already a string → no change
+- ✅ New messages (object): `content.text` is extracted → converted to string
+
+---
+
+## 🔧 Troubleshooting Guide
+
+### Issue 1: "The query requires an index"
+
+**Symptom:**
+```
+Error: 9 FAILED_PRECONDITION: The query requires an index
+```
+
+**Diagnosis:**
+```bash
+# Check if indexes exist
+gcloud firestore indexes composite list \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+```
+
+**Solution:**
+```bash
+# Deploy indexes from firestore.indexes.json
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+# Or create manually
+gcloud firestore indexes composite create \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)' \
+  --collection-group=conversations \
+  --field-config field-path=userId,order=ascending \
+  --field-config field-path=lastMessageAt,order=descending
+```
+
+**Verify:**
+```bash
+# Wait for index to be READY
+gcloud firestore indexes composite list --project=gen-lang-client-0986191192
+# STATE should be: READY (not CREATING)
+```
+
+---
+
+### Issue 2: "Objects are not valid as a React child"
+
+**Symptom:**
+```
+Uncaught Error: Objects are not valid as a React child (found: object with keys {type, text})
+```
+
+**Diagnosis:**
+The `message.content` field is an object but React expects a string.
+
+**Solution:**
+Transform messages when loading (see "Critical Issue: MessageContent" above).
+
+---
+
+### Issue 3: Conversations show empty on refresh
+
+**Symptom:**
+- Conversations exist in Firestore
+- API returns empty groups
+- Console shows "Firestore not configured"
+
+**Diagnosis:**
+Missing composite index for conversations query.
+
+**Solution:**
+1. Check indexes: `gcloud firestore indexes composite list --project=gen-lang-client-0986191192`
+2. If missing, deploy: `firebase deploy --only firestore:indexes`
+3. Verify: Index STATE = READY
+4. Refresh page
+
+---
+
+### Issue 4: Authentication failed
+
+**Symptom:**
+```
+Error: Could not load the default credentials
+```
+
+**Solution:**
+```bash
+# Authenticate with Google Cloud
+gcloud auth application-default login
+
+# Verify credentials exist
+ls ~/.config/gcloud/application_default_credentials.json
+
+# Set project
+gcloud config set project gen-lang-client-0986191192
+
+# Restart dev server
+npm run dev
+```
+
+---
+
+## 📊 Index Management Commands
+
+### List All Indexes
+
+```bash
+# List composite indexes
+gcloud firestore indexes composite list \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+
+# List field indexes
+gcloud firestore indexes fields list \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+```
+
+### Create Index from firestore.indexes.json
+
+```bash
+# Deploy all indexes defined in firestore.indexes.json
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+# This is the RECOMMENDED method
+```
+
+### Create Index Manually
+
+```bash
+# For conversations
+gcloud firestore indexes composite create \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)' \
+  --collection-group=conversations \
+  --field-config field-path=userId,order=ascending \
+  --field-config field-path=lastMessageAt,order=descending
+
+# For messages
+gcloud firestore indexes composite create \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)' \
+  --collection-group=messages \
+  --field-config field-path=conversationId,order=ascending \
+  --field-config field-path=timestamp,order=ascending
+
+# Wait for indexes to be built (usually 1-2 minutes)
+```
+
+### Delete Unused Index
+
+```bash
+# List indexes to get NAME
+gcloud firestore indexes composite list --project=gen-lang-client-0986191192
+
+# Delete by name
+gcloud firestore indexes composite delete INDEX_NAME \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+```
+
+### Monitor Index Build Progress
+
+```bash
+# Check index state
+gcloud firestore indexes composite describe INDEX_NAME \
+  --project=gen-lang-client-0986191192 \
+  --database='(default)'
+
+# State values:
+# CREATING - Index is being built
+# READY - Index is ready to use
+# ERROR - Index creation failed
+```
+
+---
+
+## 🎯 Quick Setup Checklist (New Project Setup)
+
+### First-Time Firestore Setup
+
+```bash
+# 1. Authenticate
+gcloud auth application-default login
+
+# 2. Set project
+gcloud config set project gen-lang-client-0986191192
+
+# 3. Verify .env has project ID
+cat .env | grep GOOGLE_CLOUD_PROJECT
+# Should show: GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+
+# 4. Create indexes
+firebase deploy --only firestore:indexes --project gen-lang-client-0986191192
+
+# 5. Wait for indexes to be READY
+gcloud firestore indexes composite list --project=gen-lang-client-0986191192
+# All indexes should show STATE: READY
+
+# 6. Start dev server
+npm run dev
+
+# 7. Test in browser
+# Open http://localhost:3000/chat
+# Create a conversation
+# Send a message
+# Refresh page
+# Verify conversation and messages persist ✅
+```
+
+---
+
+## 🔍 Data Verification Commands
+
+### Check Conversations in Firestore
+
+```bash
+npx tsx -e "
+import { firestore } from './src/lib/firestore.js';
+
+const snapshot = await firestore.collection('conversations')
+  .orderBy('createdAt', 'desc')
+  .limit(5)
+  .get();
+
+console.log('Conversaciones:', snapshot.size);
+snapshot.docs.forEach(doc => {
+  const data = doc.data();
+  console.log(\`  - \${data.title} (mensajes: \${data.messageCount}, fuente: \${data.source})\`);
+});
+process.exit(0);
+"
+```
+
+### Check Messages in Firestore
+
+```bash
+npx tsx -e "
+import { firestore } from './src/lib/firestore.js';
+
+const snapshot = await firestore.collection('messages')
+  .orderBy('timestamp', 'desc')
+  .limit(5)
+  .get();
+
+console.log('Mensajes:', snapshot.size);
+snapshot.docs.forEach(doc => {
+  const data = doc.data();
+  const content = typeof data.content === 'string' 
+    ? data.content 
+    : data.content?.text || String(data.content);
+  console.log(\`  - [\${data.role}] \${content.substring(0, 50)}...\`);
+});
+process.exit(0);
+"
+```
+
+### Test API Endpoints
+
+```bash
+# Get conversations
+curl -s "http://localhost:3000/api/conversations?userId=YOUR_USER_ID" | jq '.groups[0] | {label: .label, count: (.conversations | length)}'
+
+# Get messages for a conversation
+curl -s "http://localhost:3000/api/conversations/CONVERSATION_ID/messages" | jq '{messageCount: (.messages | length)}'
+```
+
+---
+
+**Last Updated**: 2025-10-13
+**Version**: 1.1.0
 **Status**: ✅ Production Ready
 **Project**: gen-lang-client-0986191192
+
+**Recent Changes**:
+- Added comprehensive index management commands
+- Added MessageContent transformation guide
+- Added troubleshooting section
+- Added data verification commands
+- Added quick setup checklist

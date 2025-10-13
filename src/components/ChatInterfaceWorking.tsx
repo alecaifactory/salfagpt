@@ -80,11 +80,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
   // User settings state
-  const [userSettings, setUserSettings] = useState<UserSettings>({
+  const [globalUserSettings, setGlobalUserSettings] = useState<UserSettings>({
     preferredModel: 'gemini-2.5-flash',
     systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
     language: 'es',
   });
+
+  // Agent-specific config state (overrides global settings)
+  const [currentAgentConfig, setCurrentAgentConfig] = useState<Partial<UserSettings> | null>(null);
   
   // Workflows state
   const [workflows, setWorkflows] = useState<Workflow[]>(
@@ -173,8 +176,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
-      // Fallback: create temp conversation
-      createNewConversation();
+      // Fallback: do nothing if conversations can't be loaded, let user create one
     }
   };
 
@@ -183,7 +185,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       const response = await fetch(`/api/conversations/${conversationId}/messages`);
       if (response.ok) {
         const data = await response.json();
-        setMessages(data.messages || []);
+        // Transform messages: extract text from MessageContent object
+        const transformedMessages = (data.messages || []).map((msg: any) => ({
+          ...msg,
+          content: typeof msg.content === 'string' 
+            ? msg.content 
+            : msg.content?.text || String(msg.content),
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(transformedMessages);
       }
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -233,11 +243,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         const config = await response.json();
         // Update user settings with agent-specific config (if exists)
         if (config.model || config.systemPrompt) {
-          setUserSettings(prev => ({
-            ...prev,
-            preferredModel: config.model || prev.preferredModel,
-            systemPrompt: config.systemPrompt || prev.systemPrompt,
-          }));
+          setCurrentAgentConfig({
+            preferredModel: config.model || globalUserSettings.preferredModel,
+            systemPrompt: config.systemPrompt || globalUserSettings.systemPrompt,
+          });
           console.log('✅ Configuración del agente cargada:', config.model);
         }
       }
@@ -298,7 +307,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         
         if (response.ok) {
           const data = await response.json();
-          setUserSettings(data);
+          setGlobalUserSettings(data);
           console.log('✅ Configuración del usuario cargada:', data.preferredModel);
         } else {
           console.warn('⚠️ No se pudo cargar configuración del usuario, usando defaults');
@@ -369,6 +378,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         
         console.log('✅ Conversación creada en Firestore:', newConv.id);
         
+        // Save initial agent config for the new conversation
+        await fetch('/api/agent-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: newConv.id,
+            userId,
+            model: globalUserSettings.preferredModel,
+            systemPrompt: globalUserSettings.systemPrompt,
+          }),
+        });
+        console.log('✅ Configuración inicial del agente guardada para:', newConv.id);
+
+        // Also set the current agent config locally
+        setCurrentAgentConfig({
+          preferredModel: globalUserSettings.preferredModel,
+          systemPrompt: globalUserSettings.systemPrompt,
+        });
+
         if (data.warning) {
           console.warn('⚠️', data.warning);
         }
@@ -389,6 +417,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       setConversations(prev => [newConv, ...prev]);
       setCurrentConversation(tempId);
       setMessages([]);
+      setContextLogs([]); // Clear context logs for temporary conversation
       
       console.warn('⚠️ Conversación temporal creada (no persistente)');
       console.warn('💡 Para persistencia, configura Firestore credentials');
@@ -426,8 +455,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         body: JSON.stringify({
           userId,
           message: input,
-          model: userSettings.preferredModel,
-          systemPrompt: userSettings.systemPrompt,
+          model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
+          systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
           contextSources: activeContextSources
         })
       });
@@ -560,9 +589,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 metadata: {
                   ...s.metadata,
                   originalFileSize: file.size,
-                  pageCount: data.pageCount,
+                  pageCount: data.metadata?.pageCount, // Use data.metadata.pageCount
                   modelUsed: config?.model || 'gemini-2.5-flash',
-                  charactersExtracted: data.extractedText?.length
+                  charactersExtracted: data.metadata?.characters
                 },
                 progress: {
                   stage: 'complete',
@@ -609,13 +638,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const savedSettings = await response.json();
-        setUserSettings(savedSettings);
+        setGlobalUserSettings(savedSettings);
         console.log('✅ Configuración del usuario guardada en Firestore:', savedSettings.preferredModel);
       } else {
         console.error('❌ Error al guardar configuración del usuario');
       }
     } catch (error) {
       console.error('❌ Error al guardar configuración del usuario:', error);
+    }
+
+    // Update the local currentAgentConfig state immediately
+    if (currentConversation) {
+      setCurrentAgentConfig(settings);
+    }
+
+    // Save agent-specific config for the current conversation if applicable
+    if (currentConversation && !currentConversation.startsWith('temp-')) {
+      try {
+        console.log('💾 Guardando configuración del agente para conversación en Firestore...', currentConversation);
+        await fetch('/api/agent-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: currentConversation,
+            userId,
+            model: settings.preferredModel,
+            systemPrompt: settings.systemPrompt,
+          }),
+        });
+        console.log('✅ Configuración del agente para conversación guardada en Firestore.');
+      } catch (error) {
+        console.error('❌ Error al guardar configuración del agente para conversación:', error);
+      }
     }
   };
 
@@ -691,13 +745,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         s.id === sourceId
           ? {
               ...s,
-              extractedData: result.text,
+              extractedData: result.extractedText,
               status: 'active' as const,
               metadata: {
                 ...s.metadata,
                 ...result.metadata,
                 model: newConfig.model || 'gemini-2.5-flash',
-                extractedAt: new Date().toISOString(),
+                extractedAt: result.metadata.extractedAt,
               },
               progress: {
                 stage: 'complete' as const,
@@ -737,11 +791,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       'gemini-2.5-pro': 2000000,   // 2M tokens
     };
 
-    const modelWindow = contextWindows[userSettings.preferredModel];
+    const modelWindow = contextWindows[globalUserSettings.preferredModel];
 
     // Calculate total characters from:
     // 1. System prompt
-    const systemChars = userSettings.systemPrompt.length;
+    const systemChars = globalUserSettings.systemPrompt.length;
     
     // 2. Messages (rough estimate: 4 chars = 1 token)
     const messageChars = messages.reduce((sum, msg) => sum + msg.content.length, 0);
@@ -944,7 +998,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 <span className="text-slate-400">•</span>
                 <Sparkles className="w-4 h-4 text-blue-600" />
                 <span className="font-medium text-slate-700">
-                  {userSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                  {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
                 </span>
                 <span className="text-slate-400">•</span>
                 <span className="text-blue-600">{contextSources.filter(s => s.enabled).length} fuentes</span>
@@ -998,12 +1052,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">System Prompt</h5>
                       <span className="text-xs text-slate-500">
-                        ~{Math.ceil(userSettings.systemPrompt.length / 4)} tokens
+                        ~{Math.ceil(globalUserSettings.systemPrompt.length / 4)} tokens
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
-                      {userSettings.systemPrompt.substring(0, 150)}
-                      {userSettings.systemPrompt.length > 150 && '...'}
+                      {globalUserSettings.systemPrompt.substring(0, 150)}
+                      {globalUserSettings.systemPrompt.length > 150 && '...'}
                     </p>
                   </div>
 
@@ -1372,7 +1426,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={showUserSettings}
         onClose={() => setShowUserSettings(false)}
         onSave={handleSaveUserSettings}
-        currentSettings={userSettings}
+        currentSettings={globalUserSettings}
         userName={userName}
         userEmail={userEmail}
       />
