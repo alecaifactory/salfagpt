@@ -1189,7 +1189,7 @@ export async function createContextSource(
 ): Promise<ContextSource> {
   const sourceRef = firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc();
   
-  const contextSource: ContextSource = {
+  const contextSource: any = {
     id: sourceRef.id,
     userId,
     name: data.name || 'Unnamed Source',
@@ -1197,16 +1197,26 @@ export async function createContextSource(
     enabled: data.enabled !== undefined ? data.enabled : true,
     status: data.status || 'active',
     addedAt: new Date(),
-    extractedData: data.extractedData,
-    metadata: data.metadata,
-    error: data.error,
-    progress: data.progress,
     source: getEnvironmentSource(),
   };
 
+  // Only add optional fields if they are defined
+  if (data.extractedData !== undefined) {
+    contextSource.extractedData = data.extractedData;
+  }
+  if (data.metadata !== undefined) {
+    contextSource.metadata = data.metadata;
+  }
+  if (data.error !== undefined) {
+    contextSource.error = data.error;
+  }
+  if (data.progress !== undefined) {
+    contextSource.progress = data.progress;
+  }
+
   await sourceRef.set(contextSource);
   console.log(`📄 Context source created from ${contextSource.source}:`, sourceRef.id);
-  return contextSource;
+  return contextSource as ContextSource;
 }
 
 /**
@@ -1240,10 +1250,19 @@ export async function updateContextSource(
   sourceId: string,
   updates: Partial<ContextSource>
 ): Promise<void> {
+  // Filter out undefined values
+  const filteredUpdates: any = {};
+  Object.keys(updates).forEach(key => {
+    const value = (updates as any)[key];
+    if (value !== undefined) {
+      filteredUpdates[key] = value;
+    }
+  });
+
   await firestore
     .collection(COLLECTIONS.CONTEXT_SOURCES)
     .doc(sourceId)
-    .update(updates);
+    .update(filteredUpdates);
   
   console.log(`📝 Context source updated:`, sourceId);
 }
