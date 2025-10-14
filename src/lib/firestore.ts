@@ -586,23 +586,40 @@ import { getDefaultPermissions } from '../types/users';
 export async function createUser(
   email: string,
   name: string,
-  role: UserRole,
+  roles: UserRole[], // Support multiple roles
   company: string,
+  createdBy?: string, // Email of creator
   department?: string
 ): Promise<User> {
   const now = new Date();
   const userId = email.replace(/[@.]/g, '_');
   
+  // Use getMergedPermissions instead of importing it (to avoid circular dependency)
+  const getMergedPerms = (userRoles: UserRole[]): any => {
+    const merged: any = {};
+    userRoles.forEach(role => {
+      const rolePerms = getDefaultPermissions(role);
+      Object.keys(rolePerms).forEach(key => {
+        merged[key] = merged[key] || rolePerms[key as keyof UserPermissions] || false;
+      });
+    });
+    return merged;
+  };
+  
   const newUser: Omit<User, 'id'> = {
     email,
     name,
-    role,
-    permissions: getDefaultPermissions(role),
+    role: roles[0] || 'user', // Primary role for backward compatibility
+    roles, // NEW: Multiple roles support
+    permissions: getMergedPerms(roles),
     company,
+    createdBy, // NEW: Track who created this user
     department,
     createdAt: now,
     updatedAt: now,
     isActive: true,
+    agentAccessCount: 0, // Will be updated when access granted
+    contextAccessCount: 0, // Will be updated when access granted
   };
 
   await firestore.collection(COLLECTIONS.USERS).doc(userId).set({
@@ -636,14 +653,18 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     email: data.email,
     name: data.name,
     role: data.role,
+    roles: data.roles || [data.role], // Backward compat: default to single role array
     permissions: data.permissions,
     company: data.company,
+    createdBy: data.createdBy,
     department: data.department,
     createdAt: new Date(data.createdAt),
     updatedAt: new Date(data.updatedAt),
     lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
     isActive: data.isActive,
     avatarUrl: data.avatarUrl,
+    agentAccessCount: data.agentAccessCount,
+    contextAccessCount: data.contextAccessCount,
   };
 }
 
@@ -665,14 +686,18 @@ export async function getUserById(userId: string): Promise<User | null> {
     email: data.email,
     name: data.name,
     role: data.role,
+    roles: data.roles || [data.role], // Backward compat: default to single role array
     permissions: data.permissions,
     company: data.company,
+    createdBy: data.createdBy,
     department: data.department,
     createdAt: new Date(data.createdAt),
     updatedAt: new Date(data.updatedAt),
     lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
     isActive: data.isActive,
     avatarUrl: data.avatarUrl,
+    agentAccessCount: data.agentAccessCount,
+    contextAccessCount: data.contextAccessCount,
   };
 }
 
@@ -689,14 +714,18 @@ export async function getAllUsers(): Promise<User[]> {
       email: data.email,
       name: data.name,
       role: data.role,
+      roles: data.roles || [data.role], // Backward compat: default to single role array
       permissions: data.permissions,
       company: data.company,
+      createdBy: data.createdBy,
       department: data.department,
       createdAt: new Date(data.createdAt),
       updatedAt: new Date(data.updatedAt),
       lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
       isActive: data.isActive,
       avatarUrl: data.avatarUrl,
+      agentAccessCount: data.agentAccessCount,
+      contextAccessCount: data.contextAccessCount,
     };
   });
 }
@@ -722,14 +751,77 @@ export async function updateUser(
 }
 
 /**
- * Update user role
+ * Update user role (single role - backward compatible)
  */
 export async function updateUserRole(userId: string, role: UserRole): Promise<void> {
   await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
     role,
+    roles: [role], // Update roles array too
     permissions: getDefaultPermissions(role),
     updatedAt: new Date().toISOString(),
   });
+}
+
+/**
+ * Update user roles (multiple roles - NEW)
+ */
+export async function updateUserRoles(userId: string, roles: UserRole[]): Promise<void> {
+  // Merge permissions from all roles
+  const getMergedPerms = (userRoles: UserRole[]): any => {
+    const merged: any = {};
+    userRoles.forEach(role => {
+      const rolePerms = getDefaultPermissions(role);
+      Object.keys(rolePerms).forEach(key => {
+        merged[key] = merged[key] || rolePerms[key as keyof UserPermissions] || false;
+      });
+    });
+    return merged;
+  };
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
+    role: roles[0] || 'user', // Primary role
+    roles, // All roles
+    permissions: getMergedPerms(roles),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+/**
+ * Create multiple users in bulk
+ */
+export async function createUsersBulk(
+  users: Array<{
+    email: string;
+    name: string;
+    roles: UserRole[];
+    company: string;
+    department?: string;
+  }>,
+  createdBy: string
+): Promise<{ created: User[]; errors: Array<{ email: string; error: string }> }> {
+  const created: User[] = [];
+  const errors: Array<{ email: string; error: string }> = [];
+
+  for (const userData of users) {
+    try {
+      const user = await createUser(
+        userData.email,
+        userData.name,
+        userData.roles,
+        userData.company,
+        createdBy,
+        userData.department
+      );
+      created.push(user);
+    } catch (error) {
+      errors.push({
+        email: userData.email,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  return { created, errors };
 }
 
 /**

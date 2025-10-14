@@ -45,15 +45,20 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: UserRole;
+  role: UserRole; // Primary role (for backward compatibility)
+  roles: UserRole[]; // NEW: Support multiple roles with checkboxes
   permissions: UserPermissions;
   company: string;
   department?: string;
   createdAt: Date;
+  createdBy?: string; // NEW: Email of user who created this user
   updatedAt: Date;
   lastLoginAt?: Date;
   isActive: boolean;
   avatarUrl?: string;
+  // Metadata for tracking
+  agentAccessCount?: number; // Cached count of agents user has access to
+  contextAccessCount?: number; // Cached count of context sources user has access to
 }
 
 // Role-based permission presets
@@ -313,6 +318,43 @@ export const getDefaultPermissions = (role: UserRole): UserPermissions => {
     canShareAgent: rolePerms.canShareAgent ?? false,
     canCollaborate: rolePerms.canCollaborate ?? false,
     canViewAnalytics: rolePerms.canViewAnalytics ?? false,
+  };
+};
+
+/**
+ * Merge permissions from multiple roles
+ * If user has multiple roles, they get union of all permissions
+ */
+export const getMergedPermissions = (roles: UserRole[]): UserPermissions => {
+  const merged: Partial<UserPermissions> = {};
+  
+  // Merge permissions from all roles (OR operation)
+  roles.forEach(role => {
+    const rolePerms = ROLE_PERMISSIONS[role];
+    Object.keys(rolePerms).forEach(key => {
+      const permKey = key as keyof UserPermissions;
+      merged[permKey] = merged[permKey] || rolePerms[permKey] || false;
+    });
+  });
+  
+  // Fill in any missing permissions with false
+  return {
+    canManageUsers: merged.canManageUsers ?? false,
+    canManageSystem: merged.canManageSystem ?? false,
+    canCreateContext: merged.canCreateContext ?? false,
+    canEditContext: merged.canEditContext ?? false,
+    canDeleteContext: merged.canDeleteContext ?? false,
+    canReviewContext: merged.canReviewContext ?? false,
+    canSignOffContext: merged.canSignOffContext ?? false,
+    canShareContext: merged.canShareContext ?? false,
+    canCreateAgent: merged.canCreateAgent ?? false,
+    canEditAgent: merged.canEditAgent ?? false,
+    canDeleteAgent: merged.canDeleteAgent ?? false,
+    canReviewAgent: merged.canReviewAgent ?? false,
+    canSignOffAgent: merged.canSignOffAgent ?? false,
+    canShareAgent: merged.canShareAgent ?? false,
+    canCollaborate: merged.canCollaborate ?? false,
+    canViewAnalytics: merged.canViewAnalytics ?? false,
   };
 };
 

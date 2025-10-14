@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
+import UserManagementPanel from './UserManagementPanel';
 import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
+import type { User as UserType } from '../types/users';
 
 interface Message {
   id: string;
@@ -66,6 +68,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showContextManagement, setShowContextManagement] = useState(false);
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
+  
+  // User Management state (SuperAdmin only)
+  const [showUserManagement, setShowUserManagement] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
+  const [originalUserId, setOriginalUserId] = useState<string | null>(null);
+  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
   
   // Edit conversation state
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
@@ -264,6 +273,54 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       console.error('❌ Error al cargar configuración del agente:', error);
     }
   };
+
+  // Load current user's roles to check for admin access (NEW)
+  useEffect(() => {
+    if (userEmail) {
+      fetch(`/api/users?requesterEmail=${encodeURIComponent(userEmail)}`)
+        .then(res => res.json())
+        .then(data => {
+          const currentUser = data.users?.find((u: UserType) => u.email === userEmail);
+          if (currentUser) {
+            setCurrentUserRoles(currentUser.roles || [currentUser.role]);
+            console.log('👤 Current user roles:', currentUser.roles);
+          }
+        })
+        .catch(err => console.error('Error loading user roles:', err));
+    }
+  }, [userEmail]);
+
+  // Impersonation handlers (NEW)
+  function handleImpersonate(user: UserType) {
+    const confirmed = confirm(
+      `¿Actuar como ${user.name} (${user.roles?.join(', ')})?\n\n` +
+      `Verás la interfaz con los permisos de este usuario.\n` +
+      `Podrás volver a tu sesión de admin en cualquier momento.`
+    );
+
+    if (!confirmed) return;
+
+    // Store original state
+    setOriginalUserId(userId);
+    setIsImpersonating(true);
+    setImpersonatedUser(user);
+    setShowUserManagement(false);
+
+    console.log('🎭 Impersonating user:', user.email);
+    // Reload with impersonation
+    window.location.href = `/chat?impersonate=${encodeURIComponent(user.email)}`;
+  }
+
+  function stopImpersonation() {
+    if (!originalUserId) return;
+
+    setIsImpersonating(false);
+    setImpersonatedUser(null);
+    setOriginalUserId(null);
+
+    console.log('✅ Stopped impersonation');
+    window.location.href = '/chat'; // Reload as original user
+  }
 
   // Load conversations from Firestore on mount
   useEffect(() => {
@@ -1115,6 +1172,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </>
                 )}
                 
+                {/* User Management - SuperAdmin Only */}
+                {currentUserRoles.includes('admin') && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 font-medium"
+                      onClick={() => {
+                        setShowUserManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Users className="w-4 h-4" />
+                      Gestión de Usuarios
+                    </button>
+                    <div className="h-px bg-slate-200 my-1" />
+                  </>
+                )}
+                
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   onClick={() => {
@@ -1693,6 +1767,37 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           loadContextSources();
         }}
       />
+      
+      {/* User Management Panel - SuperAdmin Only */}
+      {showUserManagement && userEmail && (
+        <UserManagementPanel
+          currentUserEmail={userEmail}
+          onClose={() => setShowUserManagement(false)}
+          onImpersonate={handleImpersonate}
+        />
+      )}
+
+      {/* Impersonation Banner */}
+      {isImpersonating && impersonatedUser && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5" />
+            <div>
+              <span className="font-bold">Impersonando: </span>
+              <span className="font-medium">{impersonatedUser.name} ({impersonatedUser.email})</span>
+              <span className="ml-3 text-sm opacity-90">
+                Roles: {impersonatedUser.roles?.join(', ')}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={stopImpersonation}
+            className="px-4 py-1.5 bg-white text-orange-700 rounded-lg hover:bg-orange-50 text-sm font-medium transition-colors"
+          >
+            Detener Impersonación
+          </button>
+        </div>
+      )}
     </div>
   );
 }
