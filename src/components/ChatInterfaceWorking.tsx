@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
+import ContextManagementDashboard from './ContextManagementDashboard';
 import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -63,6 +64,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
+  const [showContextManagement, setShowContextManagement] = useState(false);
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
   // Edit conversation state
@@ -1096,6 +1098,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
             {showUserMenu && (
               <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
+                {/* Context Management - Superadmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      onClick={() => {
+                        setShowContextManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Database className="w-4 h-4" />
+                      Context Management
+                    </button>
+                    <div className="border-t border-slate-200 my-1" />
+                  </>
+                )}
+                
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   onClick={() => {
@@ -1641,6 +1660,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={settingsSource !== null}
         onClose={() => setSettingsSource(null)}
         onReExtract={handleReExtract}
+      />
+
+      {/* Context Management Dashboard - Superadmin Only */}
+      <ContextManagementDashboard
+        isOpen={showContextManagement}
+        onClose={() => setShowContextManagement(false)}
+        userId={userId}
+        userEmail={userEmail}
+        conversations={conversations}
+        onSourcesUpdated={() => {
+          // Reload context sources when changes are made
+          const loadContextSources = async () => {
+            try {
+              const response = await fetch(`/api/context-sources?userId=${userId}`);
+              if (response.ok) {
+                const data = await response.json();
+                setContextSources(data.sources.map((s: any) => ({
+                  ...s,
+                  addedAt: new Date(s.addedAt),
+                  metadata: {
+                    ...s.metadata,
+                    extractionDate: s.metadata?.extractionDate ? new Date(s.metadata.extractionDate) : undefined,
+                    validatedAt: s.metadata?.validatedAt ? new Date(s.metadata.validatedAt) : undefined,
+                  },
+                })));
+              }
+            } catch (error) {
+              console.error('Error reloading context sources:', error);
+            }
+          };
+          loadContextSources();
+        }}
       />
     </div>
   );
