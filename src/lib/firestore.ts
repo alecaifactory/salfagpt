@@ -577,8 +577,22 @@ export function groupConversationsByTime(conversations: Conversation[]): {
 
 // ==================== USER MANAGEMENT ====================
 
-import type { User, UserRole } from '../types/users';
-import { getDefaultPermissions } from '../types/users';
+import type { User, UserRole, UserPermissions } from '../types/users';
+import { ROLE_PERMISSIONS } from '../types/users';
+
+/**
+ * Get merged permissions for multiple roles
+ */
+function getMergedPermissions(roles: UserRole[]): UserPermissions {
+  const merged: Partial<UserPermissions> = {};
+  roles.forEach(role => {
+    const rolePerms = ROLE_PERMISSIONS[role] || {};
+    Object.keys(rolePerms).forEach(key => {
+      merged[key as keyof UserPermissions] = merged[key as keyof UserPermissions] || rolePerms[key as keyof UserPermissions] || false;
+    });
+  });
+  return merged as UserPermissions;
+}
 
 /**
  * Create or update user on login (upsert)
@@ -610,7 +624,7 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
         roles: data!.roles || [data!.role || 'user'],
         company: data!.company || extractCompany(email),
         department: data!.department,
-        permissions: data!.permissions || getDefaultPermissions(['user']),
+        permissions: data!.permissions || getMergedPermissions(['user']),
         createdAt: data!.createdAt?.toDate?.() || now,
         updatedAt: now,
         lastLoginAt: now,
@@ -628,7 +642,7 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
         roles: ['user'] as UserRole[],
         company,
         department: undefined,
-        permissions: getDefaultPermissions(['user']),
+        permissions: getMergedPermissions(['user']),
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
@@ -683,24 +697,12 @@ export async function createUser(
   const now = new Date();
   const userId = email.replace(/[@.]/g, '_');
   
-  // Use getMergedPermissions instead of importing it (to avoid circular dependency)
-  const getMergedPerms = (userRoles: UserRole[]): any => {
-    const merged: any = {};
-    userRoles.forEach(role => {
-      const rolePerms = getDefaultPermissions(role);
-      Object.keys(rolePerms).forEach(key => {
-        merged[key] = merged[key] || rolePerms[key as keyof UserPermissions] || false;
-      });
-    });
-    return merged;
-  };
-  
   const newUser: Omit<User, 'id'> = {
     email,
     name,
     role: roles[0] || 'user', // Primary role for backward compatibility
     roles, // NEW: Multiple roles support
-    permissions: getMergedPerms(roles),
+    permissions: getMergedPermissions(roles),
     company,
     createdBy, // NEW: Track who created this user
     department,
@@ -846,7 +848,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
   await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
     role,
     roles: [role], // Update roles array too
-    permissions: getDefaultPermissions(role),
+    permissions: getMergedPermissions([role]),
     updatedAt: new Date().toISOString(),
   });
 }
@@ -855,22 +857,10 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<vo
  * Update user roles (multiple roles - NEW)
  */
 export async function updateUserRoles(userId: string, roles: UserRole[]): Promise<void> {
-  // Merge permissions from all roles
-  const getMergedPerms = (userRoles: UserRole[]): any => {
-    const merged: any = {};
-    userRoles.forEach(role => {
-      const rolePerms = getDefaultPermissions(role);
-      Object.keys(rolePerms).forEach(key => {
-        merged[key] = merged[key] || rolePerms[key as keyof UserPermissions] || false;
-      });
-    });
-    return merged;
-  };
-
   await firestore.collection(COLLECTIONS.USERS).doc(userId).update({
     role: roles[0] || 'user', // Primary role
     roles, // All roles
-    permissions: getMergedPerms(roles),
+    permissions: getMergedPermissions(roles),
     updatedAt: new Date().toISOString(),
   });
 }
