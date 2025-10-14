@@ -5,7 +5,9 @@ import {
   batchCreateDomains,
 } from '../../../lib/domains';
 import { getSession, verifyJWT } from '../../../lib/auth';
-import { UserRole } from '../../../lib/access-control';
+
+// SuperAdmin emails (hardcoded list)
+const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'admin@getaifactory.com'];
 
 // GET /api/domains - List all domains (SuperAdmin only)
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -19,8 +21,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin role
-    if (session.role !== UserRole.SUPERADMIN) {
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -54,8 +56,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin role
-    if (session.role !== UserRole.SUPERADMIN) {
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
