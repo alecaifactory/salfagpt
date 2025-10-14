@@ -634,15 +634,16 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
     } else {
       // User doesn't exist - create new
       const company = extractCompany(email);
+      const initialRoles = getInitialRoles(email);
       const newUser = {
         id: userId,
         email,
         name,
-        role: 'user' as UserRole,
-        roles: ['user'] as UserRole[],
+        role: initialRoles[0] as UserRole, // Primary role
+        roles: initialRoles,
         company,
         department: undefined,
-        permissions: getMergedPermissions(['user']),
+        permissions: getMergedPermissions(initialRoles),
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
@@ -657,7 +658,7 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
         lastLoginAt: now,
       });
       
-      console.log('✅ New user created:', email);
+      console.log(`✅ New user created: ${email} with roles: ${initialRoles.join(', ')}`);
       
       return newUser;
     }
@@ -681,6 +682,24 @@ function extractCompany(email: string): string {
   };
   
   return domainMap[domain] || domain;
+}
+
+/**
+ * Determine initial roles for new user based on email
+ */
+function getInitialRoles(email: string): UserRole[] {
+  // SuperAdmin users (hardcoded list)
+  const superAdmins = [
+    'alec@getaifactory.com',
+    'admin@getaifactory.com',
+  ];
+  
+  if (superAdmins.includes(email.toLowerCase())) {
+    return ['admin', 'expert', 'context_signoff', 'agent_signoff'];
+  }
+  
+  // Default role for new users
+  return ['user'];
 }
 
 /**
