@@ -2,10 +2,10 @@
 import { getSession } from '../lib/auth';
 import '../styles/global.css';
 
-// Redirect to home if already logged in
+// Redirect to chat if already logged in
 const session = getSession(Astro);
 if (session) {
-  return Astro.redirect('/home');
+  return Astro.redirect('/chat');
 }
 ---
 

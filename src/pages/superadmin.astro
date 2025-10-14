@@ -26,7 +26,7 @@ const userRole = getUserRole(userEmail);
 
 // Verify SuperAdmin role
 if (userRole !== UserRole.SUPERADMIN && !IS_DEVELOPMENT) {
-  return Astro.redirect('/home');
+  return Astro.redirect('/chat');
 }
 ---
 
@@ -70,10 +70,10 @@ if (userRole !== UserRole.SUPERADMIN && !IS_DEVELOPMENT) {
                 👨‍💼 Experts
               </a>
               <a
-                href="/home"
+                href="/chat"
                 class="text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
-                🏠 Home
+                💬 Chat
               </a>
             </div>
           </div>

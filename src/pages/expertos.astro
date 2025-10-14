@@ -27,7 +27,7 @@ const userRole = getUserRole(userEmail);
 // Verify Expert role or higher
 const allowedRoles = [UserRole.EXPERT, UserRole.ADMIN, UserRole.SUPERADMIN];
 if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
-  return Astro.redirect('/home');
+  return Astro.redirect('/chat');
 }
 ---
 
@@ -73,10 +73,10 @@ if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
                 </a>
               )}
               <a
-                href="/home"
+                href="/chat"
                 class="text-gray-600 hover:text-gray-900 text-sm font-medium"
               >
-                🏠 Home
+                💬 Chat
               </a>
             </div>
           </div>
