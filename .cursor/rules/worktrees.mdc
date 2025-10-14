@@ -1,16 +1,94 @@
 ---
 alwaysApply: true
 ---
+## 🌐 Port Management Strategy
+
+### Port Assignment
+
+**Purpose:** Enable parallel development across main branch and 3 worktrees without port conflicts or OAuth issues.
+
+**Port Allocation:**
+```
+Main Branch:  localhost:3000  (OAuth configured ✅)
+Worktree 1:   localhost:3001  (Independent dev environment)
+Worktree 2:   localhost:3002  (Independent dev environment)
+Worktree 3:   localhost:3003  (Independent dev environment)
+```
+
+**OAuth Configuration:**
+- Only port 3000 needs OAuth redirect URIs configured
+- Worktrees 3001-3003 run independently without OAuth
+- Main branch remains stable for OAuth testing
+
+**Astro Server Configuration:**
+
+Each worktree must configure its port in `astro.config.mjs`:
+
+```typescript
+// Main branch: astro.config.mjs
+export default defineConfig({
+  server: {
+    port: 3000,  // Default - OAuth configured
+  },
+  // ... other config
+});
+
+// Worktree 1: astro.config.mjs
+export default defineConfig({
+  server: {
+    port: 3001,  // Worktree 1
+  },
+  // ... other config
+});
+
+// Worktree 2: astro.config.mjs
+export default defineConfig({
+  server: {
+    port: 3002,  // Worktree 2
+  },
+  // ... other config
+});
+
+// Worktree 3: astro.config.mjs
+export default defineConfig({
+  server: {
+    port: 3003,  // Worktree 3
+  },
+  // ... other config
+});
+```
+
+**Running Dev Servers:**
+```bash
+# Terminal 1 (Main branch)
+cd /Users/alec/salfagpt
+npm run dev  # Runs on :3000
+
+# Terminal 2 (Worktree 1)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-1
+npm run dev  # Runs on :3001
+
+# Terminal 3 (Worktree 2)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-2
+npm run dev  # Runs on :3002
+
+# Terminal 4 (Worktree 3)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-3
+npm run dev  # Runs on :3003
+```
+
+---
+
 ## 📊 Worktree Tracking System
 
 ### Worktree Registry
 
 All worktrees are tracked in a central registry file:
 
-**Location:** `docs/worktrees/WORKTREE_REGISTRY.md`
+**Location:** `docs/worktrees/WORKTREE_REGISTRY.md` or `docs/BranchLog.md`
 
 **Purpose:**
-- Track all active worktrees
+- Track all active worktrees with port assignments
 - Document their purpose and progress
 - Monitor alignment with `main`
 - Track merge readiness
@@ -99,48 +177,82 @@ git worktree add /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytic
 **Full Creation Procedure:**
 
 ```bash
-# 1. Run pre-creation validation
+# 1. Determine worktree number (1, 2, or 3)
+WORKTREE_NUM=1  # or 2, or 3
+WORKTREE_PORT=$((3000 + WORKTREE_NUM))
+
+# 2. Run pre-creation validation
 ./scripts/validate-worktree-creation.sh user-analytics
 
-# 2. Create worktree
+# 3. Create worktree
 cd /Users/alec/salfagpt  # Main repo directory
 git worktree add \
-  /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics \
+  /Users/alec/.cursor/worktrees/salfagpt/worktree-${WORKTREE_NUM} \
   feat/user-analytics-2025-01-13
 
-# 3. Navigate to worktree
-cd /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics
+# 4. Navigate to worktree
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-${WORKTREE_NUM}
 
-# 4. Verify setup
+# 5. Configure port in astro.config.mjs
+cat > astro.config.mjs << EOF
+import { defineConfig } from 'astro/config';
+import react from '@astrojs/react';
+import tailwind from '@astrojs/tailwind';
+import node from '@astrojs/node';
+
+export default defineConfig({
+  server: {
+    port: ${WORKTREE_PORT},  // Worktree ${WORKTREE_NUM}
+  },
+  output: 'server',
+  adapter: node({ mode: 'standalone' }),
+  integrations: [
+    react(),
+    tailwind({ applyBaseStyles: true }),
+  ],
+});
+EOF
+
+# 6. Verify setup
 git status
 git branch -vv
+echo "✅ Worktree ${WORKTREE_NUM} configured on port ${WORKTREE_PORT}"
 
-# 5. Create initial commit if needed
-git commit --allow-empty -m "feat: Initialize user-analytics worktree
+# 7. Create initial commit
+git add astro.config.mjs
+git commit -m "feat: Initialize worktree ${WORKTREE_NUM} on port ${WORKTREE_PORT}
 
 Purpose: Implement user analytics dashboard
+Port: ${WORKTREE_PORT}
 Estimated completion: 2025-01-20
 Dependencies: None"
 
-# 6. Push to remote (establishes tracking)
+# 8. Push to remote (establishes tracking)
 git push -u origin feat/user-analytics-2025-01-13
 
-# 7. Register in worktree registry
-# Add entry to docs/worktrees/WORKTREE_REGISTRY.md
+# 9. Register in BranchLog.md with port assignment
+# Add entry to docs/BranchLog.md
 ```
 
 #### Initial Registry Entry
 
-Add this to `docs/worktrees/WORKTREE_REGISTRY.md`:
+Add this to `docs/BranchLog.md`:
 
 ```markdown
-### /Users/alec/.cursor/worktrees/salfagpt/2025-01-13-user-analytics - feat/user-analytics-2025-01-13
+## Worktree 1 - feat/user-analytics-2025-01-13
 
 **Created:** 2025-01-13  
 **Creator:** Alec  
 **Status:** 🔨 In Progress  
+**Port:** localhost:3001  
+**Location:** `/Users/alec/.cursor/worktrees/salfagpt/worktree-1`  
 **Purpose:** Implement user analytics dashboard with metrics, charts, and export functionality  
 **Estimated Completion:** 2025-01-20  
+
+**Development:**
+- Port: 3001 (no OAuth needed)
+- Start: `cd worktree-1 && npm run dev`
+- Access: http://localhost:3001
 
 **Dependencies:**
 - None
@@ -172,6 +284,7 @@ Add this to `docs/worktrees/WORKTREE_REGISTRY.md`:
 
 **Notes:**
 - Initial setup complete
+- Port configured in astro.config.mjs
 ```
 
 ---
@@ -1020,21 +1133,28 @@ git worktree add \
 ### Daily Routine
 
 ```bash
-# 1. Run health check
+# 1. Determine your worktree
+WORKTREE_NUM=1  # or 2 or 3
+WORKTREE_PORT=$((3000 + WORKTREE_NUM))
+
+# 2. Run health check
 ./scripts/check-worktree-health.sh
 
-# 2. Sync with main
-cd /path/to/worktree
+# 3. Start dev server on assigned port
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-${WORKTREE_NUM}
+npm run dev  # Runs on port ${WORKTREE_PORT}
+
+# 4. Sync with main
 git fetch origin main
 git rebase origin/main
 
-# 3. Update registry
-# Edit docs/worktrees/WORKTREE_REGISTRY.md
+# 5. Update registry
+# Edit docs/BranchLog.md
 
-# 4. Work on features
+# 6. Work on features
 # Make commits, push regularly
 
-# 5. Before end of day
+# 7. Before end of day
 git push origin feature-branch
 # Update registry with progress
 ```
@@ -1093,11 +1213,22 @@ Register      Sync Daily        Update Registry      Run Checks      Merge    Ar
 ## 🔧 Quick Reference Commands
 
 ```bash
-# List all worktrees
+# List all worktrees with ports
 git worktree list
+# Main:      /Users/alec/salfagpt (port 3000)
+# Worktree 1: /Users/alec/.cursor/worktrees/salfagpt/worktree-1 (port 3001)
+# Worktree 2: /Users/alec/.cursor/worktrees/salfagpt/worktree-2 (port 3002)
+# Worktree 3: /Users/alec/.cursor/worktrees/salfagpt/worktree-3 (port 3003)
 
-# Create worktree
-git worktree add /path/to/worktree branch-name
+# Create worktree with port configuration
+WORKTREE_NUM=1  # Choose 1, 2, or 3
+git worktree add /Users/alec/.cursor/worktrees/salfagpt/worktree-${WORKTREE_NUM} branch-name
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-${WORKTREE_NUM}
+# Edit astro.config.mjs to set port: 300${WORKTREE_NUM}
+
+# Start dev server on assigned port
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-1
+npm run dev  # Runs on :3001
 
 # Remove worktree
 git worktree remove /path/to/worktree
@@ -1105,6 +1236,7 @@ git worktree remove /path/to/worktree
 # Check worktree status
 cd /path/to/worktree
 git status
+lsof -i :3001  # Check if port is in use
 
 # Sync with main
 git fetch origin main
@@ -1115,7 +1247,7 @@ git rev-list --count origin/main..HEAD  # Ahead
 git rev-list --count HEAD..origin/main  # Behind
 
 # Merge to main
-cd /main/repo
+cd /Users/alec/salfagpt
 git checkout main
 git merge --no-ff branch-name
 
@@ -1126,12 +1258,19 @@ git branch -d branch-name
 
 ---
 
-**Last Updated**: 2025-01-13  
-**Version**: 1.0.0  
+**Last Updated**: 2025-10-14  
+**Version**: 2.0.0  
 **Status**: ✅ Production Ready  
 **Always Apply**: Yes  
 **Project**: Flow (gen-lang-client-0986191192)  
-**Aligned With**: alignment.mdc, branch-management.mdc, code-change-protocol.mdc, data.mdc, deployment.mdc, ui-features-protection.mdc
+**Port Strategy**: Main:3000, Worktrees:3001-3003  
+**Aligned With**: alignment.mdc, branch-management.mdc, code-change-protocol.mdc, data.mdc, deployment.mdc, ui-features-protection.mdc, localhost-port.mdc
+
+**Recent Updates**:
+- Added port management strategy (3000-3003)
+- Updated creation procedure with port configuration
+- Enhanced tracking with port assignments
+- Aligned with OAuth configuration (port 3000 only)
 
 ---
 

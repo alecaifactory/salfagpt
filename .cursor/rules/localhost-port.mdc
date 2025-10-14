@@ -2,4 +2,183 @@
 alwaysApply: true
 ---
 
-use the localhost port 3000 always for this project
+# Localhost Port Configuration - Flow Platform
+
+## 🎯 Purpose
+
+This rule defines the port strategy for local development, enabling parallel development across multiple worktrees without conflicts.
+
+---
+
+## 🌐 Port Assignment Strategy
+
+### Main Branch (Production Testing)
+
+**Port:** `3000` (ALWAYS)  
+**OAuth:** ✅ Configured  
+**Purpose:** Production-ready testing, OAuth flows, stable development
+
+```typescript
+// astro.config.mjs (Main branch)
+export default defineConfig({
+  server: {
+    port: 3000,  // OAuth configured for this port
+  },
+});
+```
+
+**Authorized OAuth URIs:**
+- `http://localhost:3000/auth/callback` ✅
+- `https://flow-chat-cno6l2kfga-uc.a.run.app/auth/callback` ✅
+
+---
+
+### Worktrees (Feature Development)
+
+**Ports:** `3001`, `3002`, `3003`  
+**OAuth:** ❌ Not needed for feature development  
+**Purpose:** Parallel feature development without OAuth complexity
+
+```
+Worktree 1: localhost:3001
+Worktree 2: localhost:3002  
+Worktree 3: localhost:3003
+```
+
+**Configuration per worktree:**
+```typescript
+// astro.config.mjs (Worktree 1)
+export default defineConfig({
+  server: {
+    port: 3001,  // Worktree 1
+  },
+});
+
+// astro.config.mjs (Worktree 2)
+export default defineConfig({
+  server: {
+    port: 3002,  // Worktree 2
+  },
+});
+
+// astro.config.mjs (Worktree 3)
+export default defineConfig({
+  server: {
+    port: 3003,  // Worktree 3
+  },
+});
+```
+
+---
+
+## 🚀 Parallel Development Workflow
+
+### Running 4 Environments Simultaneously
+
+```bash
+# Terminal 1 - Main Branch (OAuth testing)
+cd /Users/alec/salfagpt
+npm run dev
+# → http://localhost:3000
+
+# Terminal 2 - Worktree 1 (Feature A)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-1
+npm run dev
+# → http://localhost:3001
+
+# Terminal 3 - Worktree 2 (Feature B)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-2
+npm run dev
+# → http://localhost:3002
+
+# Terminal 4 - Worktree 3 (Feature C)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-3
+npm run dev
+# → http://localhost:3003
+```
+
+---
+
+## ✅ Benefits
+
+1. **OAuth Stability**: Only port 3000 needs OAuth configuration
+2. **Parallel Development**: Test 4 features simultaneously
+3. **No Port Conflicts**: Each environment independent
+4. **Clear Separation**: Main = stable, Worktrees = experimental
+5. **Easy Tracking**: Port number = worktree number + 3000
+
+---
+
+## 📋 Port Assignment Tracking
+
+Track active port assignments in `docs/BranchLog.md`:
+
+```markdown
+| Branch/Worktree | Port | Status | Feature |
+|---|---|---|---|
+| Main Branch | 3000 | 🟢 Active | Stable development |
+| Worktree 1 | 3001 | 🟢 Active | User analytics |
+| Worktree 2 | 3002 | 🟡 Available | - |
+| Worktree 3 | 3003 | 🟡 Available | - |
+```
+
+**Status Indicators:**
+- 🟢 Active: Currently in use
+- 🟡 Available: Free for new feature
+- 🔴 Reserved: Planned but not started
+
+---
+
+## 🔍 Verification
+
+### Check Port Usage
+
+```bash
+# Check if port is in use
+lsof -i :3000  # Main branch
+lsof -i :3001  # Worktree 1
+lsof -i :3002  # Worktree 2
+lsof -i :3003  # Worktree 3
+
+# Kill process on port (if needed)
+kill -9 $(lsof -t -i:3001)
+```
+
+### Verify Configuration
+
+```bash
+# Check astro.config.mjs port setting
+cd /path/to/worktree
+grep "port:" astro.config.mjs
+```
+
+---
+
+## 🚨 Critical Rules
+
+### Main Branch
+- ✅ ALWAYS use port 3000 (OAuth configured)
+- ❌ NEVER change main branch port
+- ✅ Keep OAuth URIs synchronized
+
+### Worktrees
+- ✅ ALWAYS use ports 3001-3003
+- ✅ Configure port in `astro.config.mjs`
+- ✅ Update `docs/BranchLog.md` with assignment
+- ❌ NEVER configure OAuth for worktree ports
+
+---
+
+## 📚 Related Rules
+
+- `.cursor/rules/worktrees.mdc` - Complete worktree management guide
+- `.cursor/rules/alignment.mdc` - Parallel development workflow
+- `.cursor/rules/oauthclient.mdc` - OAuth URL stability
+
+---
+
+**Last Updated**: 2025-10-14  
+**Version**: 2.0.0  
+**Status**: ✅ Production Ready  
+**Total Ports**: 4 (main + 3 worktrees)  
+**OAuth Port**: 3000 only

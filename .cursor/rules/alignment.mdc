@@ -758,6 +758,47 @@ npm run dev
 curl http://localhost:3000/api/health
 ```
 
+### Parallel Development with Worktrees
+
+**Port Management Strategy:**
+
+For parallel feature development using Git worktrees, use assigned ports to avoid conflicts:
+
+```
+Main Branch:  localhost:3000  (OAuth configured ✅)
+Worktree 1:   localhost:3001  (Independent dev)
+Worktree 2:   localhost:3002  (Independent dev)
+Worktree 3:   localhost:3003  (Independent dev)
+```
+
+**Why This Strategy:**
+- ✅ OAuth only configured for port 3000 (main branch)
+- ✅ 4 parallel development environments
+- ✅ No port conflicts
+- ✅ Each worktree runs independently
+- ✅ Clear tracking in `docs/BranchLog.md`
+
+**Usage:**
+```bash
+# Terminal 1 - Main branch (OAuth testing)
+cd /Users/alec/salfagpt
+npm run dev  # Port 3000
+
+# Terminal 2 - Feature A
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-1
+npm run dev  # Port 3001
+
+# Terminal 3 - Feature B
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-2
+npm run dev  # Port 3002
+
+# Terminal 4 - Feature C
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-3
+npm run dev  # Port 3003
+```
+
+**See:** `.cursor/rules/worktrees.mdc` for complete worktree management guide
+
 **Development Loop:**
 ```
 1. Create feature branch
@@ -1584,12 +1625,13 @@ git commit -m "docs: Update rule X
 - `.cursor/rules/multiusers.mdc` - Multi-user testing & isolation (**CRITICAL**) ⭐ NEW
 - `.cursor/rules/error-prevention-checklist.mdc` - Common errors & fixes
 
-**⚙️ Configuration & Infrastructure (6):**
+**⚙️ Configuration & Infrastructure (7):**
 - `.cursor/rules/project-identity.mdc` - Project identity & naming
 - `.cursor/rules/rule-precedence.mdc` - Rule hierarchy
 - `.cursor/rules/gcp-project-consistency.mdc` - GCP project enforcement
 - `.cursor/rules/env.mdc` - Environment variables management
-- `.cursor/rules/localhost-port.mdc` - Port configuration (always 3000)
+- `.cursor/rules/localhost-port.mdc` - Port configuration (main: 3000, worktrees: 3001-3003)
+- `.cursor/rules/worktrees.mdc` - Worktree management & port assignment ⭐ NEW
 - `.cursor/rules/production-config-validation.mdc` - Production config validation
 
 **🚀 Deployment & Operations (2):**
@@ -1613,14 +1655,15 @@ git commit -m "docs: Update rule X
 
 ---
 
-**Last Updated**: 2025-10-13  
-**Version**: 1.6.0  
+**Last Updated**: 2025-10-14  
+**Version**: 1.7.0  
 **Status**: ✅ Production Ready  
 **Project**: Flow (gen-lang-client-0986191192)  
 **Data Schema**: See `data.mdc` for complete schema documentation  
-**All Rules**: ✅ All 25 core project rules documented above with `alwaysApply: true`  
-**Total Rules**: 27 cursor rules (including config rules)  
-**Alignment**: Verified with all 27 rules (see `RULES_ALIGNMENT.md`)
+**All Rules**: ✅ All 26 core project rules documented above with `alwaysApply: true`  
+**Total Rules**: 29 cursor rules (including config rules + worktrees.mdc)  
+**Alignment**: Verified with all 29 rules (see `RULES_ALIGNMENT.md`)  
+**Port Strategy**: Main:3000, Worktrees:3001-3003 (see `worktrees.mdc`)
 
 **Recent Critical Updates**:
 - Added Firestore composite index requirements (see `firestore.mdc`)

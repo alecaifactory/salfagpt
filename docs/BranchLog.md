@@ -1,5 +1,58 @@
 # Branch Activity Log
 
+## 🌐 Port Assignment Strategy
+
+**Purpose:** Enable parallel development across main branch and 3 worktrees without port conflicts.
+
+### Current Port Allocation
+
+| Branch/Worktree | Port | OAuth | Purpose | Status |
+|---|---|---|---|---|
+| **Main Branch** | 3000 | ✅ Yes | Production-ready testing, OAuth flows | 🟢 Active |
+| **Worktree 1** | 3001 | ❌ No | Feature development slot 1 | 🟡 Available |
+| **Worktree 2** | 3002 | ❌ No | Feature development slot 2 | 🟡 Available |
+| **Worktree 3** | 3003 | ❌ No | Feature development slot 3 | 🟡 Available |
+
+### Running Parallel Environments
+
+```bash
+# Terminal 1 (Main - OAuth testing)
+cd /Users/alec/salfagpt
+npm run dev  # → http://localhost:3000
+
+# Terminal 2 (Worktree 1)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-1
+npm run dev  # → http://localhost:3001
+
+# Terminal 3 (Worktree 2)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-2
+npm run dev  # → http://localhost:3002
+
+# Terminal 4 (Worktree 3)
+cd /Users/alec/.cursor/worktrees/salfagpt/worktree-3
+npm run dev  # → http://localhost:3003
+```
+
+### Port Assignment Rules
+
+1. **Main branch ALWAYS uses port 3000** (OAuth configured)
+2. **Worktrees use 3001-3003** (no OAuth needed)
+3. **Update `astro.config.mjs`** in each worktree to set port
+4. **Track assignments** in the table above
+5. **Mark status**: 🟢 Active, 🟡 Available, 🔴 Reserved
+
+### When Creating a New Worktree
+
+1. Choose an available port (3001, 3002, or 3003)
+2. Update the table above with your feature
+3. Configure port in worktree's `astro.config.mjs`
+4. Mark status as 🟢 Active
+5. When merged, mark as 🟡 Available again
+
+**See:** `.cursor/rules/worktrees.mdc` for complete worktree setup guide
+
+---
+
 ## feat/admin-analytics-sections-2025-10-11
 
 **Created:** October 11, 2025  
