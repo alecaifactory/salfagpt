@@ -1108,9 +1108,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  onClick={() => {
-                    document.cookie = 'flow_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-                    window.location.href = '/';
+                  onClick={async () => {
+                    try {
+                      // Call server-side logout to clear session
+                      await fetch('/auth/logout', { method: 'GET' });
+                      // Redirect to landing page
+                      window.location.href = '/';
+                    } catch (error) {
+                      console.error('Logout error:', error);
+                      // Fallback: clear cookie manually and redirect
+                      document.cookie = 'flow_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+                      window.location.href = '/';
+                    }
                   }}
                 >
                   <LogOut className="w-4 h-4" />
