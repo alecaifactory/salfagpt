@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -7,6 +7,7 @@ import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
 import UserManagementPanel from './UserManagementPanel';
+import DomainManagementModal from './DomainManagementModal';
 import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -71,6 +72,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
@@ -1173,7 +1175,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 )}
                 
                 {/* User Management - SuperAdmin Only */}
-                {currentUserRoles.includes('admin') && (
+                {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 font-medium"
@@ -1184,6 +1186,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     >
                       <Users className="w-4 h-4" />
                       Gestión de Usuarios
+                    </button>
+                    <div className="h-px bg-slate-200 my-1" />
+                  </>
+                )}
+                
+                {/* Domain Management - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 font-medium"
+                      onClick={() => {
+                        setShowDomainManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Globe className="w-4 h-4" />
+                      Gestión de Dominios
                     </button>
                     <div className="h-px bg-slate-200 my-1" />
                   </>
@@ -1774,6 +1793,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           currentUserEmail={userEmail}
           onClose={() => setShowUserManagement(false)}
           onImpersonate={handleImpersonate}
+        />
+      )}
+      
+      {/* Domain Management Modal - SuperAdmin Only */}
+      {showDomainManagement && userEmail && (
+        <DomainManagementModal
+          isOpen={showDomainManagement}
+          onClose={() => setShowDomainManagement(false)}
+          currentUserEmail={userEmail}
         />
       )}
 
