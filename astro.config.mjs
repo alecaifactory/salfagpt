@@ -11,7 +11,7 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    port: 3000,
+    port: 3003, // Worktree 3 - User Management feature
   },
   integrations: [
     react(),
