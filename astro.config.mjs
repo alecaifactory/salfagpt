@@ -11,7 +11,7 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    port: 3002,  // Worktree 2 - Domain Management
+    port: 3000,  // Main branch - OAuth configured
   },
   integrations: [
     react(),
