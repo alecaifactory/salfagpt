@@ -60,20 +60,32 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 // POST /api/users - Create new user (SuperAdmin only)
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const sessionCookie = cookies.get('flow_session');
-    if (!sessionCookie) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
     const body = await request.json();
-    const { email, name, roles, company, department, createdBy } = body;
+    const { email, name, roles, company, department, createdBy, initFirstAdmin } = body;
 
     if (!email || !name || !roles || !company) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Special case: Allow creating first admin without auth if initFirstAdmin flag is set
+    if (initFirstAdmin === true) {
+      console.log('🔧 Init first admin user:', email);
+      const user = await createUser(email, name, roles, company, 'system-init', department);
+      
+      return new Response(JSON.stringify({ user, message: 'First admin created successfully' }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Regular creation requires auth
+    const sessionCookie = cookies.get('flow_session');
+    if (!sessionCookie) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
         headers: { 'Content-Type': 'application/json' },
       });
     }
