@@ -1140,21 +1140,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             </button>
 
             {showUserMenu && (
-              <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-slate-200 py-2">
+              <div className="absolute bottom-full left-0 mb-3 bg-white rounded-xl shadow-2xl border-2 border-slate-300 py-3 min-w-[380px] z-50">
                 {/* Context Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowContextManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Database className="w-4 h-4" />
-                      Context Management
+                      <Database className="w-5 h-5" />
+                      <span className="font-medium">Context Management</span>
                     </button>
-                    <div className="border-t border-slate-200 my-1" />
+                    <div className="border-t border-slate-200 my-2" />
                   </>
                 )}
                 
@@ -1162,16 +1162,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 font-medium"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-purple-700 hover:bg-purple-50 font-medium transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowUserManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Users className="w-4 h-4" />
-                      Gestión de Usuarios
+                      <Users className="w-5 h-5" />
+                      <span className="font-medium">Gestión de Usuarios</span>
                     </button>
-                    <div className="h-px bg-slate-200 my-1" />
+                    <div className="h-px bg-slate-200 my-2" />
                   </>
                 )}
                 
@@ -1179,31 +1179,31 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 font-medium"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-blue-700 hover:bg-blue-50 font-medium transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowDomainManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Globe className="w-4 h-4" />
-                      Gestión de Dominios
+                      <Globe className="w-5 h-5" />
+                      <span className="font-medium">Gestión de Dominios</span>
                     </button>
-                    <div className="h-px bg-slate-200 my-1" />
+                    <div className="h-px bg-slate-200 my-2" />
                   </>
                 )}
                 
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-lg mx-2"
                   onClick={() => {
                     setShowUserSettings(true);
                     setShowUserMenu(false);
                   }}
                 >
-                  <Settings className="w-4 h-4" />
-                  Configuración
+                  <Settings className="w-5 h-5" />
+                  <span className="font-medium">Configuración</span>
                 </button>
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg mx-2"
                   onClick={async () => {
                     try {
                       // Call server-side logout to clear session
