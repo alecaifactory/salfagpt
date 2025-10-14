@@ -1,0 +1,7 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Salfacorp Logo - Red Ring/Circle Design -->
+  <circle cx="100" cy="100" r="90" fill="#C53030" stroke="#C53030" stroke-width="2"/>
+  <circle cx="100" cy="100" r="50" fill="white"/>
+  <path d="M100 10 A90 90 0 0 1 100 190 A90 90 0 0 1 100 10 M100 50 A50 50 0 0 0 100 150 A50 50 0 0 0 100 50" fill="#C53030"/>
+</svg>
+

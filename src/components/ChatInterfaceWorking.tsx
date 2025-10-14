@@ -967,8 +967,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         className="bg-white border-r border-slate-200 flex flex-col relative"
         style={{ width: `${leftPanelWidth}px` }}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+        {/* Header with Salfacorp Logo */}
+        <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 space-y-3">
+          {/* Salfacorp Logo */}
+          <div className="flex justify-center">
+            <img 
+              src="/images/salfacorp-logo.svg" 
+              alt="Salfacorp" 
+              className="w-12 h-12"
+            />
+          </div>
+          
+          {/* New Agent Button */}
           <button
             onClick={createNewConversation}
             className="w-full flex items-center gap-2 px-4 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
