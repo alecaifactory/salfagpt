@@ -53,10 +53,34 @@ npm run dev  # → http://localhost:3003
 
 ---
 
+## feat/domain-management-2025-10-13
+
+**Created:** October 13, 2025  
+**Status:** ✅ Merged to Main (October 14, 2025)  
+**Worktree:** Worktree 2 (Port 3002)  
+**Purpose:** Add domain management infrastructure for handling custom domains
+
+### Achievement Summary
+
+**Merge:** Clean merge with 0 conflicts ✅  
+**Files Added:** 4 new files (+1,417 lines)  
+**Files Modified:** 1 (astro.config.mjs)
+
+**Features:**
+- Complete CRUD API for domains
+- Domain management modal component
+- Domain operations library
+- Validation and verification workflow
+
+**Documentation:** `MERGE_DOMAIN_MANAGEMENT_2025-10-14.md`
+
+---
+
 ## feat/context-management-2025-10-13
 
 **Created:** October 13, 2025  
 **Status:** ✅ Merged to Main (October 14, 2025)  
+**Worktree:** Worktree 1 (Port 3001)  
 **Purpose:** Add Context Management section to user menu for superadmin to manage context sources across all agents
 
 ### Objective
