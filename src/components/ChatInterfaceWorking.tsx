@@ -221,7 +221,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       const contextData = contextResponse.ok ? await contextResponse.json() : { activeContextSourceIds: [] };
       const activeIds = contextData.activeContextSourceIds || [];
       
-      // Filter sources assigned to this agent and set enabled state
+      // Filter sources assigned to this agent BEFORE setting state
+      // This prevents showing all sources momentarily before filtering
       const filteredSources = allSources
         .filter((source: any) => {
           // Show if assigned to this agent, or no assignment (backward compat)
@@ -232,11 +233,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         .map((source: any) => ({
           ...source,
           enabled: activeIds.includes(source.id),
-          addedAt: new Date(source.addedAt)
+          addedAt: new Date(source.addedAt),
+          metadata: source.metadata ? {
+            ...source.metadata,
+            extractionDate: source.metadata.extractionDate ? new Date(source.metadata.extractionDate) : undefined,
+            validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
+          } : undefined
         }));
       
+      // ONLY set state after filtering - prevents flash of wrong content
       setContextSources(filteredSources);
-      console.log(`🎯 ${activeIds.length} fuentes activas de ${filteredSources.length} asignadas para agente ${conversationId}`);
+      console.log(`✅ Mostrando solo fuentes asignadas: ${filteredSources.length} fuentes (${activeIds.length} activas) para agente ${conversationId}`);
     } catch (error) {
       console.error('Error loading context:', error);
     }
@@ -390,34 +397,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   }, [userId]);
 
   // NEW: Load context sources from Firestore on mount
+  // Don't set contextSources here - wait until conversation is selected
+  // This prevents showing all sources before filtering
   useEffect(() => {
-    const loadContextSources = async () => {
-      try {
-        console.log('📚 Cargando fuentes de contexto desde Firestore...');
-        const response = await fetch(`/api/context-sources?userId=${userId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.sources && data.sources.length > 0) {
-            // Store all sources globally (filtering happens per-agent)
-            setContextSources(data.sources.map((s: any) => ({
-              ...s,
-              enabled: false, // Will be set by loadContextForConversation
-              addedAt: new Date(s.addedAt)
-            })));
-            console.log(`✅ ${data.sources.length} fuentes de contexto cargadas desde Firestore`);
-          } else {
-            console.log('ℹ️ No hay fuentes de contexto guardadas');
-          }
-        } else {
-          console.warn('⚠️ No se pudieron cargar fuentes de contexto');
-        }
-      } catch (error) {
-        console.error('❌ Error al cargar fuentes de contexto:', error);
-      }
-    };
-    
-    loadContextSources();
+    // Context sources will be loaded when conversation is selected
+    // This prevents the "flash" of showing all sources before filtering
   }, [userId]);
 
   // Effect: Handle conversation change - load messages and context
