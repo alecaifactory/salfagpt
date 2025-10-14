@@ -22,10 +22,50 @@ export async function extractPdf(file: File, config?: WorkflowConfig): Promise<s
     const result = await response.json();
     
     if (!result.success) {
-      throw new Error(result.error || 'Extraction failed');
+      // ✅ Enhanced error with suggestions
+      const suggestions = result.suggestions || [
+        'Intenta con modelo Pro',
+        'Verifica que el PDF tenga texto seleccionable',
+        'Aumenta el límite de tokens en configuración'
+      ];
+      
+      let errorMessage = result.error || 'Extraction failed';
+      if (result.details) {
+        errorMessage += `\n\n${result.details}`;
+      }
+      if (suggestions.length > 0) {
+        errorMessage += '\n\nSugerencias:\n' + suggestions.map((s: string) => `  • ${s}`).join('\n');
+      }
+      
+      throw new Error(errorMessage);
     }
 
-    let extractedText = result.text;
+    let extractedText = result.extractedText || result.text;
+
+    // ✅ CRITICAL: Validate extracted content is not empty
+    if (!extractedText || extractedText.trim().length === 0) {
+      throw new Error(
+        'No se extrajo contenido del documento.\n\n' +
+        'Posibles causas:\n' +
+        '  • El PDF es una imagen escaneada sin OCR\n' +
+        '  • El documento está protegido/encriptado\n' +
+        '  • El archivo es muy grande para el modelo Flash\n\n' +
+        'Soluciones:\n' +
+        '  • Re-extrae con modelo Pro (mejor para documentos complejos)\n' +
+        '  • Verifica que el PDF tenga texto seleccionable\n' +
+        '  • Aumenta maxOutputTokens en configuración'
+      );
+    }
+
+    // ✅ Warn if extraction is suspiciously short
+    if (extractedText.length < 100) {
+      console.warn(`⚠️ Very short extraction (${extractedText.length} chars) - may indicate incomplete processing`);
+    }
+
+    // ✅ Show model warning if present
+    if (result.metadata?.modelWarning) {
+      console.warn(`💡 ${result.metadata.modelWarning.message}`);
+    }
 
     // Apply maxOutputLength if specified
     if (config?.maxOutputLength && extractedText.length > config.maxOutputLength * 4) {

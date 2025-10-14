@@ -972,9 +972,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           {/* Salfacorp Logo */}
           <div className="flex justify-center">
             <img 
-              src="/images/salfacorp-logo.svg" 
+              src="/images/Logo Salfacorp.png" 
               alt="Salfacorp" 
-              className="w-12 h-12"
+              className="w-12 h-12 object-contain"
             />
           </div>
           

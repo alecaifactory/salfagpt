@@ -79,6 +79,34 @@ export const POST: APIRoute = async ({ request }) => {
     const client = getGeminiClient();
     const startTime = Date.now();
 
+    // ✅ Calculate dynamic maxOutputTokens based on file size
+    const calculateMaxOutputTokens = (fileSizeBytes: number, modelName: string): number => {
+      const fileSizeMB = fileSizeBytes / (1024 * 1024);
+      
+      if (modelName === 'gemini-2.5-pro') {
+        // Pro has 2M context, can handle larger outputs
+        if (fileSizeMB > 5) return 32768;
+        if (fileSizeMB > 2) return 16384;
+        return 8192;
+      } else {
+        // Flash has 1M context
+        if (fileSizeMB > 2) return 16384;
+        if (fileSizeMB > 1) return 12288;
+        return 8192;
+      }
+    };
+
+    const maxOutputTokens = calculateMaxOutputTokens(file.size, model);
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+
+    console.log(`🎯 File: ${file.name} (${fileSizeMB} MB)`);
+    console.log(`🎯 Using maxOutputTokens: ${maxOutputTokens.toLocaleString()}`);
+
+    // ✅ Recommend Pro for large files
+    if (file.size > 1 * 1024 * 1024 && model === 'gemini-2.5-flash') {
+      console.warn(`⚠️ Large file (${fileSizeMB} MB) - Pro model recommended for better results`);
+    }
+
     // Use Gemini's native PDF/image processing
     const result = await client.models.generateContent({
       model: model,
@@ -112,42 +140,82 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       ],
       config: {
         temperature: 0.1, // Low temperature for accurate extraction
-        maxOutputTokens: 8192,
+        maxOutputTokens: maxOutputTokens, // ✅ Dynamic based on file size
       },
     });
 
     const extractionTime = Date.now() - startTime;
     const extractedText = result.text || '';
 
+    // ✅ CRITICAL: Validate extraction success - don't mark empty as successful
     if (!extractedText || extractedText.trim().length === 0) {
+      console.warn(`⚠️ No text extracted from ${file.name} using ${model}`);
+      
       return new Response(
         JSON.stringify({ 
-          error: 'No text found in document',
-          warning: 'The document may be empty or contain only images without text'
+          success: false, // ← Mark as failed
+          error: 'No se pudo extraer texto del documento',
+          details: 'El documento puede estar vacío, ser una imagen escaneada sin OCR, o exceder el límite de tokens',
+          suggestions: [
+            'Intenta re-extraer con modelo Pro (mejor manejo de documentos complejos)',
+            'Verifica que el PDF contenga texto seleccionable (no solo imágenes)',
+            'Si el documento es muy largo, aumenta el límite de tokens en configuración'
+          ],
+          metadata: {
+            fileSize: file.size,
+            fileSizeMB: (file.size / 1024 / 1024).toFixed(2),
+            fileName: file.name,
+            attemptedModel: model,
+            extractionTime
+          }
         }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
+        { status: 400, headers: { 'Content-Type': 'application/json' } } // ✅ Return error status
       );
+    }
+
+    // ✅ Warn if extraction is suspiciously short
+    if (extractedText.length < 100) {
+      console.warn(`⚠️ Very short extraction (${extractedText.length} chars) for ${file.name} (${file.size} bytes)`);
     }
 
     // Build metadata object
     const documentMetadata = {
       fileName: file.name,
       fileSize: file.size,
+      fileSizeMB: (file.size / 1024 / 1024).toFixed(2),
       fileType: file.type,
       characters: extractedText.length,
       extractionTime,
       model,
+      maxOutputTokens, // ✅ Track what limit was used
       service: 'Gemini AI',
       extractedAt: new Date().toISOString(),
     };
 
+    // ✅ Add model recommendation for large files
+    let modelWarning = undefined;
+    if (file.size > 1 * 1024 * 1024 && model === 'gemini-2.5-flash') {
+      modelWarning = {
+        message: 'Archivo grande detectado - Pro recomendado para mejor precisión',
+        currentModel: 'gemini-2.5-flash',
+        recommendedModel: 'gemini-2.5-pro',
+        reason: `Archivo de ${documentMetadata.fileSizeMB} MB puede beneficiarse de Pro`,
+      };
+    }
+
     console.log(`✅ Text extracted: ${extractedText.length} characters in ${extractionTime}ms using ${model}`);
+    if (modelWarning) {
+      console.log(`⚠️ ${modelWarning.message}`);
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
         extractedText: extractedText,
-        metadata: documentMetadata,
+        metadata: {
+          ...documentMetadata,
+          modelWarning, // ✅ Include recommendation
+        },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
