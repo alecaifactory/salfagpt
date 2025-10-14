@@ -581,6 +581,95 @@ import type { User, UserRole } from '../types/users';
 import { getDefaultPermissions } from '../types/users';
 
 /**
+ * Create or update user on login (upsert)
+ * Called automatically when user logs in via OAuth
+ */
+export async function upsertUserOnLogin(email: string, name: string): Promise<User> {
+  const userId = email.replace(/[@.]/g, '_');
+  const now = new Date();
+  
+  try {
+    const userDoc = await firestore.collection('users').doc(userId).get();
+    
+    if (userDoc.exists) {
+      // User exists - update last login
+      await firestore.collection('users').doc(userId).update({
+        name, // Update name in case it changed
+        lastLoginAt: now,
+        updatedAt: now,
+      });
+      
+      console.log('✅ User login updated:', email);
+      
+      const data = userDoc.data();
+      return {
+        id: userId,
+        email: data!.email,
+        name,
+        role: data!.role || 'user',
+        roles: data!.roles || [data!.role || 'user'],
+        company: data!.company || extractCompany(email),
+        department: data!.department,
+        permissions: data!.permissions || getDefaultPermissions(['user']),
+        createdAt: data!.createdAt?.toDate?.() || now,
+        updatedAt: now,
+        lastLoginAt: now,
+        isActive: data!.isActive ?? true,
+        createdBy: data!.createdBy,
+      };
+    } else {
+      // User doesn't exist - create new
+      const company = extractCompany(email);
+      const newUser = {
+        id: userId,
+        email,
+        name,
+        role: 'user' as UserRole,
+        roles: ['user'] as UserRole[],
+        company,
+        department: undefined,
+        permissions: getDefaultPermissions(['user']),
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+        isActive: true,
+        createdBy: 'oauth-system',
+      };
+      
+      await firestore.collection('users').doc(userId).set({
+        ...newUser,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+      });
+      
+      console.log('✅ New user created:', email);
+      
+      return newUser;
+    }
+  } catch (error) {
+    console.error('❌ Error upserting user:', error);
+    throw error;
+  }
+}
+
+/**
+ * Extract company from email domain
+ */
+function extractCompany(email: string): string {
+  const domain = email.split('@')[1];
+  
+  // Map known domains to company names
+  const domainMap: Record<string, string> = {
+    'getaifactory.com': 'GetAI Factory',
+    'salfacorp.com': 'Salfa Corp',
+    'salfagestion.cl': 'Salfa Gestión',
+  };
+  
+  return domainMap[domain] || domain;
+}
+
+/**
  * Create a new user
  */
 export async function createUser(

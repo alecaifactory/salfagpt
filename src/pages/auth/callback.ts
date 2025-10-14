@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { exchangeCodeForTokens, getUserInfo, setSession } from '../../lib/auth';
 import { insertUserSession } from '../../lib/gcp';
+import { upsertUserOnLogin } from '../../lib/firestore';
 
 export const GET: APIRoute = async ({ url, cookies, redirect }) => {
   const code = url.searchParams.get('code');
@@ -38,6 +39,15 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
 
     // Set session cookie
     setSession({ cookies } as any, userData);
+    
+    // Create/update user in Firestore on login
+    try {
+      await upsertUserOnLogin(userData.email, userData.name);
+      console.log('✅ User created/updated in Firestore:', userData.email);
+    } catch (userError) {
+      console.error('Failed to upsert user in Firestore:', userError);
+      // Continue anyway - don't block user login
+    }
 
     // Log session to BigQuery (optional, can be async)
     try {
