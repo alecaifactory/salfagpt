@@ -10,7 +10,9 @@ import {
   removeContextFromDomain,
 } from '../../../lib/domains';
 import { getSession } from '../../../lib/auth';
-import { UserRole } from '../../../lib/access-control';
+
+// SuperAdmin emails (hardcoded list)
+const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'admin@getaifactory.com'];
 
 // GET /api/domains/[id] - Get specific domain (SuperAdmin only)
 export const GET: APIRoute = async ({ params, cookies }) => {
@@ -24,8 +26,8 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin role
-    if (session.role !== UserRole.SUPERADMIN) {
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -74,8 +76,8 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin role
-    if (session.role !== UserRole.SUPERADMIN) {
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -180,8 +182,8 @@ export const DELETE: APIRoute = async ({ params, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin role
-    if (session.role !== UserRole.SUPERADMIN) {
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
