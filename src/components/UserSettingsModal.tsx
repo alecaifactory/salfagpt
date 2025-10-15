@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Sparkles } from 'lucide-react';
+import { X, Save, Sparkles, Moon, Sun } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
 interface UserSettingsModalProps {
@@ -15,6 +15,7 @@ export interface UserSettings {
   preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   systemPrompt: string;
   language: string;
+  theme?: 'light' | 'dark';
 }
 
 export default function UserSettingsModal({
@@ -26,6 +27,7 @@ export default function UserSettingsModal({
   userEmail,
 }: UserSettingsModalProps) {
   const [settings, setSettings] = useState<UserSettings>(currentSettings);
+  const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(isOpen, onClose);
@@ -33,6 +35,9 @@ export default function UserSettingsModal({
   useEffect(() => {
     if (isOpen) {
       setSettings(currentSettings);
+      // Load theme from localStorage
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+      setCurrentTheme(savedTheme || 'light');
     }
   }, [isOpen, currentSettings]);
 
@@ -41,6 +46,18 @@ export default function UserSettingsModal({
   const handleSave = () => {
     onSave(settings);
     onClose();
+  };
+
+  const handleThemeToggle = (theme: 'light' | 'dark') => {
+    setCurrentTheme(theme);
+    localStorage.setItem('theme', theme);
+    
+    // Apply theme to document
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   };
 
   return (
@@ -163,6 +180,40 @@ export default function UserSettingsModal({
               <option value="en">English</option>
               <option value="pt">Português</option>
             </select>
+          </div>
+
+          {/* Theme Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-3">
+              Tema de Interfaz
+            </label>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleThemeToggle('light')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                  currentTheme === 'light'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <Sun className="w-5 h-5" />
+                <span className="font-medium">Claro</span>
+              </button>
+              <button
+                onClick={() => handleThemeToggle('dark')}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                  currentTheme === 'dark'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <Moon className="w-5 h-5" />
+                <span className="font-medium">Oscuro</span>
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              El tema se guarda automáticamente y persiste entre sesiones.
+            </p>
           </div>
 
           {/* Info Box */}

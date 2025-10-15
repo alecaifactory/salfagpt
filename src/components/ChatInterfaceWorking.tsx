@@ -120,7 +120,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }))
   );
   const [configWorkflow, setConfigWorkflow] = useState<Workflow | null>(null);
-  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(false); // Hidden by default
 
   // Panel resizing state
   const [leftPanelWidth, setLeftPanelWidth] = useState(320); // 80 * 4 = 320px (w-80)
@@ -1666,14 +1666,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-lg mx-2"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowContextManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Database className="w-5 h-5" />
-                      <span className="font-medium">Context Management</span>
+                      <Database className="w-5 h-5 text-slate-600" />
+                      <span className="font-medium">Gestión de Contexto</span>
                     </button>
                     <div className="border-t border-slate-200 my-2" />
                   </>
@@ -1683,13 +1683,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-indigo-700 hover:bg-indigo-50 font-medium transition-colors rounded-lg mx-2"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowAgentManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <MessageSquare className="w-5 h-5" />
+                      <MessageSquare className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Agentes</span>
                     </button>
                     <div className="border-t border-slate-200 my-2" />
@@ -1700,13 +1700,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-purple-700 hover:bg-purple-50 font-medium transition-colors rounded-lg mx-2"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowUserManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Users className="w-5 h-5" />
+                      <Users className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Usuarios</span>
                     </button>
                     <div className="h-px bg-slate-200 my-2" />
@@ -1717,13 +1717,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-green-700 hover:bg-green-50 font-medium transition-colors rounded-lg mx-2"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowProviderManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <DollarSign className="w-5 h-5" />
+                      <DollarSign className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Proveedores</span>
                     </button>
                     <div className="h-px bg-slate-200 my-2" />
@@ -1734,13 +1734,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-blue-700 hover:bg-blue-50 font-medium transition-colors rounded-lg mx-2"
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                       onClick={() => {
                         setShowDomainManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Globe className="w-5 h-5" />
+                      <Globe className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Dominios</span>
                     </button>
                     <div className="h-px bg-slate-200 my-2" />
@@ -1748,17 +1748,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 )}
                 
                 <button
-                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors rounded-lg mx-2"
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                   onClick={() => {
                     setShowUserSettings(true);
                     setShowUserMenu(false);
                   }}
                 >
-                  <Settings className="w-5 h-5" />
+                  <Settings className="w-5 h-5 text-slate-600" />
                   <span className="font-medium">Configuración</span>
                 </button>
                 <button
-                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors rounded-lg mx-2"
+                  className="w-full flex items-center gap-3 px-5 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors rounded-lg mx-2"
                   onClick={async () => {
                     try {
                       // Call server-side logout to clear session
@@ -1773,7 +1773,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     }
                   }}
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 text-slate-600" />
                   Cerrar Sesión
                 </button>
               </div>
