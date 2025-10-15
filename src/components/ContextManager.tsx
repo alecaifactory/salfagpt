@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2, Sparkles, FileText } from 'lucide-react';
+import { Plus, Archive, ShieldCheck, Settings, AlertCircle, Loader2, Sparkles, FileText } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -261,10 +261,10 @@ export default function ContextManager({
                       e.stopPropagation();
                       onRemoveSource(source.id);
                     }}
-                    className="flex-shrink-0 p-1 text-slate-400 hover:text-red-500 transition-colors"
-                    title="Eliminar fuente"
+                    className="flex-shrink-0 p-1 text-slate-400 hover:text-amber-600 transition-colors"
+                    title="Archivar fuente"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Archive className="w-4 h-4" />
                   </button>
                 </div>
               );

@@ -1645,7 +1645,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             }
 
             try {
-              console.log(`🗑️ Removing source ${sourceId} from agent ${currentConversation}`);
+              console.log(`📦 Archiving source ${sourceId} from agent ${currentConversation}`);
               
               // Call API to remove agent from source's assignedToAgents
               const response = await fetch(`/api/context-sources/${sourceId}/remove-agent`, {
@@ -1681,8 +1681,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               }
               
             } catch (error) {
-              console.error('❌ Error removing source:', error);
-              alert('Error al eliminar fuente. Por favor, intenta nuevamente.');
+              console.error('❌ Error archiving source:', error);
+              alert('Error al archivar fuente. Por favor, intenta nuevamente.');
             }
           }}
           onSourceClick={handleSourceSettings}
