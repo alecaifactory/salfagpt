@@ -61,6 +61,9 @@ export interface ContextSource {
   // Agent assignment
   assignedToAgents?: string[]; // Conversation IDs this source is assigned to
   
+  // Tags (system-level, e.g., PUBLIC for auto-assignment to new agents)
+  tags?: string[]; // System tags (e.g., "PUBLIC", "PRIVATE", "RESTRICTED")
+  
   // Labels and qualification (for expert review)
   labels?: string[]; // User-defined labels (e.g., "CV", "Contrato", "Manual")
   qualityRating?: number; // 1-5 stars

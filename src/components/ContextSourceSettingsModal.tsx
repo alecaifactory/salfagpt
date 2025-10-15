@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User } from 'lucide-react';
+import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User, Globe, Tag } from 'lucide-react';
 import type { ContextSource, WorkflowConfig } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 
@@ -19,6 +19,8 @@ export default function ContextSourceSettingsModal({
   const [config, setConfig] = useState<WorkflowConfig>({});
   const [isReExtracting, setIsReExtracting] = useState(false);
   const [showModelTooltip, setShowModelTooltip] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [isSavingTags, setIsSavingTags] = useState(false);
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(isOpen, onClose);
@@ -26,6 +28,11 @@ export default function ContextSourceSettingsModal({
   useEffect(() => {
     if (source?.metadata?.extractionConfig) {
       setConfig(source.metadata.extractionConfig);
+    }
+    if (source?.tags) {
+      setTags(source.tags);
+    } else {
+      setTags([]);
     }
   }, [source]);
 
@@ -41,6 +48,39 @@ export default function ContextSourceSettingsModal({
     } finally {
       setIsReExtracting(false);
     }
+  };
+
+  const handleSaveTags = async () => {
+    if (!source) return;
+    
+    setIsSavingTags(true);
+    try {
+      const response = await fetch(`/api/context-sources/${source.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save tags');
+      }
+      
+      console.log('✅ Tags guardados:', tags);
+    } catch (error) {
+      console.error('❌ Error al guardar tags:', error);
+    } finally {
+      setIsSavingTags(false);
+    }
+  };
+
+  const toggleTag = (tag: string) => {
+    setTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      } else {
+        return [...prev, tag];
+      }
+    });
   };
 
   const getSourceTypeLabel = (type: string) => {
@@ -384,6 +424,68 @@ export default function ContextSourceSettingsModal({
                     </button>
                   </div>
                 </div>
+              </div>
+            </section>
+
+            {/* Tags Management Section */}
+            <section className="bg-slate-50 rounded-lg p-3">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                <Tag className="w-4 h-4 text-blue-600" />
+                Tags del Contexto
+              </h3>
+              
+              <div className="space-y-2">
+                {/* PUBLIC Tag Checkbox */}
+                <button
+                  onClick={() => {
+                    toggleTag('PUBLIC');
+                    setTimeout(() => handleSaveTags(), 100);
+                  }}
+                  className={`w-full p-2 rounded-lg border transition-all ${
+                    tags.includes('PUBLIC')
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                      tags.includes('PUBLIC')
+                        ? 'border-blue-600 bg-blue-600'
+                        : 'border-slate-300'
+                    }`}>
+                      {tags.includes('PUBLIC') && (
+                        <CheckCircle className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-blue-600" />
+                        <span className="text-xs font-bold text-blue-700">PUBLIC</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        Se asigna automáticamente a nuevos agentes
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Info about PUBLIC tag */}
+                {tags.includes('PUBLIC') && (
+                  <div className="p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-800">
+                    <p className="font-semibold mb-1">ℹ️ Contexto Público</p>
+                    <p className="leading-tight">
+                      Este contexto se asignará automáticamente a todos los nuevos agentes. 
+                      Ideal para: información general de la empresa, misión, visión, valores, KPIs, datos de industria, políticas, etc.
+                    </p>
+                  </div>
+                )}
+                
+                {isSavingTags && (
+                  <div className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Tags guardados
+                  </div>
+                )}
               </div>
             </section>
 

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight, Sparkles, Info } from 'lucide-react';
+import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight, Sparkles, Info, Globe, CheckCircle } from 'lucide-react';
 import type { SourceType } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 
 interface AddSourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddSource: (type: SourceType, file?: File, url?: string, config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string }) => Promise<void>;
+  onAddSource: (type: SourceType, file?: File, url?: string, config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string, tags?: string[] }) => Promise<void>;
   preSelectedType?: SourceType; // Optional: pre-select source type and skip to configure step
 }
 
@@ -21,6 +21,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-pro');
   const [showModelTooltip, setShowModelTooltip] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(isOpen, onClose);
@@ -98,7 +99,10 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
     setCurrentStep('processing');
 
     try {
-      const config = { model: selectedModel };
+      const config = { 
+        model: selectedModel,
+        tags: isPublic ? ['PUBLIC'] : undefined,
+      };
       
       if (selectedType === 'web-url') {
         await onAddSource(selectedType, undefined, url, config);
@@ -342,6 +346,48 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* PUBLIC Tag Checkbox */}
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <button
+                    onClick={() => setIsPublic(!isPublic)}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      isPublic
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/30'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                        isPublic
+                          ? 'border-blue-600 bg-blue-600'
+                          : 'border-slate-300'
+                      }`}>
+                        {isPublic && (
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Globe className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-bold text-blue-700">Marcar como PUBLIC</span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          Se asignará automáticamente a todos los nuevos agentes
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {isPublic && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                      <p className="font-semibold">✨ Contexto Público</p>
+                      <p className="mt-1 text-[11px] leading-tight">
+                        Ideal para: información corporativa, misión/visión, valores, KPIs, datos de industria, políticas generales.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
