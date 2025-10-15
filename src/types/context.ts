@@ -57,6 +57,7 @@ export interface ContextSource {
   
   // For re-extraction
   originalFile?: File;
+  originalFileUrl?: string; // Cloud Storage URL for viewing/downloading
   
   // Agent assignment
   assignedToAgents?: string[]; // Conversation IDs this source is assigned to
@@ -92,6 +93,20 @@ export interface ContextSource {
     timestamp: Date;
     suggestions?: string[]; // Specific suggestions to fix the error
   };
+  
+  // Citations (for referencing in responses)
+  citations?: Citation[];
+}
+
+export interface Citation {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  excerpt: string; // The specific text passage cited
+  pageNumber?: number;
+  startChar?: number; // Position in extractedData
+  endChar?: number;
+  confidence?: number; // 0-1 score of relevance
 }
 
 export interface WorkflowConfig {

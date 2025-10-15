@@ -261,16 +261,16 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
   const getModelBadge = (model: string) => {
     if (model === 'gemini-2.5-pro') {
       return (
-        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold flex items-center gap-1">
-          <Sparkles className="w-3 h-3" />
-          Pro
+        <span className="px-3 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-purple-200">
+          <Sparkles className="w-4 h-4" />
+          <span>Gemini 2.5 Pro</span>
         </span>
       );
     }
     return (
-      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold flex items-center gap-1">
-        <Sparkles className="w-3 h-3" />
-        Flash
+      <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 border border-green-200">
+        <Sparkles className="w-4 h-4" />
+        <span>Gemini 2.5 Flash</span>
       </span>
     );
   };
@@ -495,8 +495,19 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
 
                             {/* Pricing Info */}
                             <div>
-                              <h4 className="text-sm font-semibold text-slate-700 mb-3">Tarifas del Modelo</h4>
+                              <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold text-slate-700">Tarifas del Modelo</h4>
+                                <span className="text-[10px] text-slate-500 font-mono bg-slate-100 px-2 py-0.5 rounded">
+                                  v2024-10 • Oct 2024
+                                </span>
+                              </div>
                               <div className="space-y-2 bg-white rounded-lg p-3 border border-slate-200">
+                                <div className="mb-2 pb-2 border-b border-slate-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-slate-700">Modelo:</span>
+                                    <span className="text-xs font-mono text-slate-900">{agent.model}</span>
+                                  </div>
+                                </div>
                                 {agent.model === 'gemini-2.5-flash' ? (
                                   <>
                                     <div className="flex justify-between text-xs">
@@ -827,6 +838,86 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
                       })}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Cost Breakdown by Model */}
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-green-600" />
+                  Desglose de Costos por Modelo
+                </h3>
+                <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold text-slate-700">Modelo</th>
+                        <th className="px-4 py-3 text-left font-semibold text-slate-700">Versión Pricing</th>
+                        <th className="px-4 py-3 text-right font-semibold text-slate-700">Tokens Input</th>
+                        <th className="px-4 py-3 text-right font-semibold text-slate-700">Tokens Output</th>
+                        <th className="px-4 py-3 text-right font-semibold text-slate-700">Tarifa Input</th>
+                        <th className="px-4 py-3 text-right font-semibold text-slate-700">Tarifa Output</th>
+                        <th className="px-4 py-3 text-right font-semibold text-slate-700">Costo Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t border-slate-100">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {selectedAgent.model === 'gemini-2.5-pro' ? (
+                              <>
+                                <Sparkles className="w-4 h-4 text-purple-600" />
+                                <span className="font-semibold text-purple-700">Gemini 2.5 Pro</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="w-4 h-4 text-green-600" />
+                                <span className="font-semibold text-green-700">Gemini 2.5 Flash</span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="space-y-0.5">
+                            <span className="font-mono text-slate-800 text-[11px] block">v2024-10-15</span>
+                            <span className="text-slate-500 text-[10px]">Effective Oct 15, 2024</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-800">
+                          {selectedAgent.totalInputTokens.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-800">
+                          {selectedAgent.totalOutputTokens.toLocaleString()}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">
+                          {selectedAgent.model === 'gemini-2.5-flash' ? '$0.30/1M' : '$1.25/1M'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-slate-700">
+                          {selectedAgent.model === 'gemini-2.5-flash' ? '$2.50/1M' : '$10.00/1M'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-green-600">
+                          {formatCurrency(selectedAgent.totalCost)}
+                        </td>
+                      </tr>
+                      {/* Calculation Details Row */}
+                      <tr className="bg-slate-50 border-t border-slate-100">
+                        <td colSpan={7} className="px-4 py-3">
+                          <div className="flex items-center justify-between text-[10px] text-slate-600">
+                            <span className="font-semibold">Cálculo:</span>
+                            <span className="font-mono">
+                              Input: ({selectedAgent.totalInputTokens.toLocaleString()} ÷ 1M × {selectedAgent.model === 'gemini-2.5-flash' ? '$0.30' : '$1.25'}) + 
+                              Output: ({selectedAgent.totalOutputTokens.toLocaleString()} ÷ 1M × {selectedAgent.model === 'gemini-2.5-flash' ? '$2.50' : '$10.00'}) = 
+                              <span className="font-bold text-green-600 ml-1">{formatCurrency(selectedAgent.totalCost)}</span>
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-800">
+                  <p className="font-semibold mb-1">ℹ️ Sobre las tarifas</p>
+                  <p>Las tarifas mostradas son las oficiales de Google Gemini vigentes a la fecha indicada. Los precios pueden variar si Google actualiza su modelo de pricing. Siempre usamos la versión más reciente para cálculos.</p>
                 </div>
               </div>
 
