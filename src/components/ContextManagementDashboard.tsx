@@ -140,6 +140,19 @@ export default function ContextManagementDashboard({
         
         console.log('✅ Loaded', data.sources?.length || 0, 'context sources');
         console.log('✅ Found', tagsSet.size, 'unique tags');
+        
+        // Debug: Log assignment counts
+        const sourcesWithAssignments = data.sources?.filter((s: any) => 
+          (s.assignedToAgents?.length || 0) > 0
+        );
+        console.log('📊 Sources with assignments:', sourcesWithAssignments?.length || 0);
+        if (sourcesWithAssignments?.length > 0) {
+          console.log('📋 Sample assignments:', {
+            source: sourcesWithAssignments[0].name,
+            assignedToAgents: sourcesWithAssignments[0].assignedToAgents,
+            assignedAgents: sourcesWithAssignments[0].assignedAgents,
+          });
+        }
       } else {
         console.error('Failed to load context sources');
       }

@@ -137,6 +137,15 @@ export default function ContextManager({
                           {source.metadata.model === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
                         </span>
                       )}
+                      {/* PUBLIC Tag Badge */}
+                      {source.tags?.includes('PUBLIC') && (
+                        <span 
+                          className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300"
+                          title="Contexto público - Se asigna automáticamente a todos los nuevos agentes"
+                        >
+                          🌐 PUBLIC
+                        </span>
+                      )}
                     </div>
                     
                     {/* Progress Bar */}

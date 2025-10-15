@@ -552,6 +552,48 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         });
         console.log('✅ Configuración inicial del agente guardada para:', newConv.id);
 
+        // Auto-assign PUBLIC tagged context sources to new agent
+        const publicSources = contextSources.filter(s => s.tags?.includes('PUBLIC'));
+        if (publicSources.length > 0) {
+          const publicSourceIds = publicSources.map(s => s.id);
+          
+          // Assign PUBLIC sources to new agent
+          for (const sourceId of publicSourceIds) {
+            try {
+              await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentId: newConv.id }),
+              });
+            } catch (error) {
+              console.warn('⚠️ Failed to auto-assign PUBLIC source:', sourceId, error);
+            }
+          }
+          
+          // Update local context sources to include new agent
+          setContextSources(prev => prev.map(s => {
+            if (s.tags?.includes('PUBLIC')) {
+              return {
+                ...s,
+                assignedToAgents: [...(s.assignedToAgents || []), newConv.id],
+                enabled: true, // Enable by default
+              };
+            }
+            return s;
+          }));
+          
+          // Save active PUBLIC sources to conversation context
+          await fetch(`/api/conversations/${newConv.id}/context-sources`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ activeContextSourceIds: publicSourceIds }),
+          });
+          
+          console.log(`✅ ${publicSources.length} fuentes PUBLIC asignadas automáticamente al nuevo agente`);
+        } else {
+          console.log('ℹ️ No hay fuentes PUBLIC - nuevo agente sin contexto predeterminado');
+        }
+
         // Also set the current agent config locally
         setCurrentAgentConfig({
           preferredModel: globalUserSettings.preferredModel,
@@ -751,7 +793,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     type: SourceType,
     file?: File,
     url?: string,
-    config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string }
+    config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string, tags?: string[] }
   ) => {
     const newSource: ContextSource = {
       id: `source-${Date.now()}`,
@@ -761,6 +803,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       status: 'processing',
       extractedData: '',
       addedAt: new Date(),
+      tags: config?.tags, // Include tags from config
       progress: {
         stage: 'uploading',
         percentage: 10,
@@ -813,7 +856,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           console.log(`💰 Cost: ${data.metadata.costFormatted} (Input: $${data.metadata.inputCost?.toFixed(4)}, Output: $${data.metadata.outputCost?.toFixed(4)})`);
         }
 
-        // Save to Firestore - Assign to current agent only
+        // Save to Firestore - Assign to current agent (or all agents if PUBLIC)
+        const assignedTo = config?.tags?.includes('PUBLIC') 
+          ? conversations.map(c => c.id) // Assign to ALL agents if PUBLIC
+          : currentConversation ? [currentConversation] : []; // Assign to current agent only
+        
         const savedSource = await fetch('/api/context-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -824,7 +871,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             enabled: true,
             status: 'active',
             extractedData: data.extractedText || '',
-            assignedToAgents: currentConversation ? [currentConversation] : [], // Assign to current agent
+            assignedToAgents: assignedTo,
+            tags: config?.tags, // Include tags
             metadata: {
               originalFileName: file.name,
               originalFileSize: file.size,
@@ -1257,9 +1305,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto p-2">
-          {/* DEBUG: Show conversation count */}
-          {console.log(`🎨 Renderizando ${conversations.length} conversaciones, ${conversations.filter(c => c.status !== 'archived').length} activas`)}
-          
           {conversations.length === 0 && (
             <div className="p-4 text-center text-slate-500 text-sm">
               <p>No hay conversaciones</p>
@@ -1521,20 +1566,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-slate-700 truncate">
-                    {userName || userEmail || userId}
-                  </p>
-                  {userName && userEmail && (
-                    <p className="text-xs text-slate-500 truncate">{userEmail}</p>
-                  )}
-                </div>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-sm font-medium text-slate-700 truncate">
+                  {userName || userEmail || userId}
+                </p>
+                {userName && userEmail && (
+                  <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+                )}
               </div>
             </button>
 
