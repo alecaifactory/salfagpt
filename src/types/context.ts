@@ -80,6 +80,9 @@ export interface ContextSource {
     stage: 'uploading' | 'processing' | 'complete' | 'error';
     percentage: number;
     message: string;
+    startTime?: number; // Timestamp when processing started
+    elapsedSeconds?: number; // Elapsed time in seconds
+    estimatedCost?: number; // Estimated cost so far
   };
   
   // Error details

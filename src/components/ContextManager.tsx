@@ -151,16 +151,32 @@ export default function ContextManager({
                     {/* Progress Bar */}
                     {source.status === 'processing' && source.progress && (
                       <div className="mt-1.5">
-                        <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-                          <span>{source.progress.message}</span>
+                        <div className="flex items-center justify-between text-[10px] text-slate-600 mb-1">
+                          <div className="flex items-center gap-2">
+                            <span>{source.progress.message}</span>
+                            {source.progress.elapsedSeconds !== undefined && (
+                              <span className="font-mono font-semibold text-blue-600">
+                                {source.progress.elapsedSeconds < 60 
+                                  ? `${source.progress.elapsedSeconds}s`
+                                  : `${Math.floor(source.progress.elapsedSeconds / 60)}m ${source.progress.elapsedSeconds % 60}s`
+                                }
+                              </span>
+                            )}
+                          </div>
                           <span className="font-medium">{source.progress.percentage}%</span>
                         </div>
-                        <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                        <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                           <div
-                            className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${source.progress.percentage}%` }}
                           />
                         </div>
+                        {/* Show cost estimate while processing */}
+                        {source.progress.estimatedCost !== undefined && source.progress.estimatedCost > 0 && (
+                          <div className="text-[10px] text-slate-500 mt-0.5 text-right font-mono">
+                            Costo estimado: ${source.progress.estimatedCost.toFixed(4)}
+                          </div>
+                        )}
                       </div>
                     )}
                     
