@@ -22,6 +22,9 @@ export interface AgentConfiguration {
   agentPurpose: string;
   targetAudience: string[];
   
+  // Business Case
+  businessCase: BusinessCase;
+  
   // Model & Behavior
   recommendedModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   systemPrompt: string;
@@ -32,14 +35,17 @@ export interface AgentConfiguration {
   expectedInputExamples: InputExample[];
   expectedOutputFormat: string;
   expectedOutputExamples: OutputExample[];
+  responseRequirements: ResponseRequirements;
   
   // Quality Criteria
   qualityCriteria: QualityCriterion[];
   undesirableOutputs: UndesirableOutput[];
+  acceptanceCriteria: AcceptanceCriterion[];
   
   // Context Sources
   requiredContextSources: string[];
   recommendedContextSources: string[];
+  companyContext?: CompanyContext;
   
   // Domain Expert
   domainExpert?: {
@@ -52,6 +58,90 @@ export interface AgentConfiguration {
   // Evaluation
   evaluationCriteria: EvaluationCriterion[];
   successMetrics: SuccessMetric[];
+  
+  // Version Control
+  version?: string;
+  createdAt?: Date;
+  lastUpdatedAt?: Date;
+  lastUpdatedBy?: string;
+  approvedBy?: string;
+  approvedAt?: Date;
+  certificationExpiresAt?: Date;
+}
+
+export interface BusinessCase {
+  painPoint: string; // What problem does this solve?
+  affectedPersonas: string[]; // Who has this pain?
+  businessArea: string; // Department or business unit
+  businessImpact: BusinessImpact;
+  alignment: {
+    companyOKRs: string[];
+    departmentGoals: string[];
+    strategicValue: 'high' | 'medium' | 'low';
+  };
+  roi: {
+    timeSaved?: string; // e.g., "2 hours per day per user"
+    costSaved?: string; // e.g., "$50K annually"
+    qualityImprovement?: string; // e.g., "30% fewer errors"
+    userSatisfactionTarget?: number; // 1-5 stars
+  };
+}
+
+export interface BusinessImpact {
+  quantitative: {
+    usersAffected: number;
+    frequency: string; // e.g., "50 queries per day"
+    timeSavingsPerQuery?: string;
+    estimatedAnnualValue?: string;
+  };
+  qualitative: {
+    description: string;
+    benefitAreas: string[];
+    risksMitigated: string[];
+  };
+}
+
+export interface ResponseRequirements {
+  format: string; // e.g., "Bullet points", "Paragraph", "JSON"
+  length: {
+    min?: number; // words/chars
+    max?: number;
+    target?: number;
+  };
+  precision: 'exact' | 'approximate' | 'qualitative';
+  speed: {
+    target: number; // seconds
+    maximum: number; // seconds
+  };
+  mustInclude: string[]; // Required elements
+  mustAvoid: string[]; // Forbidden elements
+  citations: boolean; // Must cite sources?
+}
+
+export interface AcceptanceCriterion {
+  id: string;
+  criterion: string;
+  description: string;
+  isRequired: boolean;
+  testable: boolean;
+  howToTest: string;
+}
+
+export interface CompanyContext {
+  companyUrl?: string;
+  mission?: string;
+  vision?: string;
+  values?: string[];
+  okrs?: OKR[];
+  brandGuidelines?: string;
+  communicationStyle?: string;
+}
+
+export interface OKR {
+  objective: string;
+  keyResults: string[];
+  quarter?: string;
+  owner?: string;
 }
 
 export interface InputExample {
@@ -114,8 +204,10 @@ export interface ExtractionProgress {
 export interface AgentEvaluation {
   id: string;
   agentId: string;
+  agentVersion: string;
   evaluatorId: string;
   evaluatorEmail: string;
+  evaluatorRole: string; // expert, reviewer, etc.
   evaluatedAt: Date;
   
   // Test Results
@@ -134,12 +226,74 @@ export interface AgentEvaluation {
   strengths: string[];
   weaknesses: string[];
   recommendations: string[];
+  suggestedSystemPromptChanges?: string;
+  priorityLevel: 'critical' | 'high' | 'medium' | 'low';
   
   // Approval
   approved: boolean;
   approvalNotes?: string;
   approvedBy?: string;
   approvedAt?: Date;
+  
+  // Tracking
+  consideredForNextIteration: boolean;
+  implementedInVersion?: string;
+  implementedAt?: Date;
+}
+
+export interface UserFeedback {
+  id: string;
+  agentId: string;
+  agentVersion: string;
+  messageId: string;
+  userId: string;
+  userEmail: string;
+  
+  // CSAT Rating
+  rating: 1 | 2 | 3 | 4 | 5; // 1 = very poor, 5 = excellent
+  comment?: string;
+  feedbackCategory?: string[]; // e.g., ["accuracy", "clarity", "speed"]
+  
+  // Context
+  userQuestion: string;
+  aiResponse: string;
+  contextUsed: string[];
+  
+  // Timestamps
+  createdAt: Date;
+  
+  // Review by Expert
+  reviewedBy?: string;
+  reviewedAt?: Date;
+  reviewNotes?: string;
+  consideredForImprovement: boolean;
+  priority: 'high' | 'medium' | 'low';
+  implementedInVersion?: string;
+}
+
+export interface AgentVersion {
+  version: string; // e.g., "1.0.0", "1.1.0"
+  agentId: string;
+  createdAt: Date;
+  createdBy: string;
+  
+  // Configuration snapshot
+  configuration: AgentConfiguration;
+  
+  // Changes from previous version
+  changeNotes?: string;
+  changedFields?: string[];
+  
+  // Status
+  status: 'draft' | 'testing' | 'approved' | 'active' | 'deprecated';
+  approvedBy?: string;
+  approvedAt?: Date;
+  certificationExpiresAt?: Date;
+  
+  // Metrics during this version
+  totalQueries?: number;
+  averageRating?: number;
+  feedbackCount?: number;
 }
 
 export interface TestResult {
