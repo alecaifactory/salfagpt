@@ -2367,6 +2367,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={settingsSource !== null}
         onClose={() => setSettingsSource(null)}
         onReExtract={handleReExtract}
+        userId={userId}
+        onTagsChanged={() => {
+          // Reload context sources to reflect PUBLIC tag changes
+          if (currentConversation) {
+            loadContextForConversation(currentConversation);
+          }
+        }}
       />
 
       {/* Context Management Dashboard - Superadmin Only */}

@@ -8,6 +8,8 @@ interface ContextSourceSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onReExtract: (sourceId: string, newConfig: WorkflowConfig) => Promise<void>;
+  onTagsChanged?: () => void;
+  userId: string;
 }
 
 export default function ContextSourceSettingsModal({
@@ -15,6 +17,8 @@ export default function ContextSourceSettingsModal({
   isOpen,
   onClose,
   onReExtract,
+  onTagsChanged,
+  userId,
 }: ContextSourceSettingsModalProps) {
   const [config, setConfig] = useState<WorkflowConfig>({});
   const [isReExtracting, setIsReExtracting] = useState(false);
@@ -55,10 +59,14 @@ export default function ContextSourceSettingsModal({
     
     setIsSavingTags(true);
     try {
+      // 1. Save tags to API
       const response = await fetch(`/api/context-sources/${source.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags }),
+        body: JSON.stringify({ 
+          tags,
+          labels: tags, // Also save as labels for compatibility
+        }),
       });
       
       if (!response.ok) {
@@ -66,6 +74,38 @@ export default function ContextSourceSettingsModal({
       }
       
       console.log('✅ Tags guardados:', tags);
+      
+      // 2. If PUBLIC tag added, assign to all agents
+      if (tags.includes('PUBLIC')) {
+        // Get all conversations and assign this source to them
+        const convsResponse = await fetch(`/api/conversations?userId=${userId}`);
+        if (convsResponse.ok) {
+          const convsData = await convsResponse.json();
+          const allConversationIds = convsData.groups.flatMap((g: any) => 
+            g.conversations.map((c: any) => c.id)
+          );
+          
+          // Assign to all agents
+          for (const agentId of allConversationIds) {
+            try {
+              await fetch(`/api/context-sources/${source.id}/assign-agent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentId }),
+              });
+            } catch (error) {
+              console.warn('⚠️ Failed to assign to agent:', agentId, error);
+            }
+          }
+          
+          console.log(`✅ Source PUBLIC: asignada a ${allConversationIds.length} agentes`);
+        }
+      }
+      
+      // 3. Notify parent to reload
+      if (onTagsChanged) {
+        onTagsChanged();
+      }
     } catch (error) {
       console.error('❌ Error al guardar tags:', error);
     } finally {
@@ -472,10 +512,7 @@ export default function ContextSourceSettingsModal({
               <div className="space-y-2">
                 {/* PUBLIC Tag Checkbox */}
                 <button
-                  onClick={() => {
-                    toggleTag('PUBLIC');
-                    setTimeout(() => handleSaveTags(), 100);
-                  }}
+                  onClick={() => toggleTag('PUBLIC')}
                   className={`w-full p-2 rounded-lg border transition-all ${
                     tags.includes('PUBLIC')
                       ? 'border-blue-500 bg-blue-50'
@@ -550,33 +587,56 @@ export default function ContextSourceSettingsModal({
         </div>
 
         {/* Footer - Compact */}
-        <div className="border-t border-slate-200 p-2.5 bg-slate-50 flex items-center justify-between">
+        <div className="border-t border-slate-200 p-2.5 bg-slate-50 flex items-center justify-between gap-2">
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-200 rounded transition-colors font-medium"
           >
-            Cerrar
+            Cancelar
           </button>
 
-          {source.originalFile && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleReExtract}
-              disabled={isReExtracting}
-              className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 font-medium"
+              onClick={async () => {
+                await handleSaveTags();
+                onClose();
+              }}
+              disabled={isSavingTags}
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5 font-medium"
             >
-              {isReExtracting ? (
+              {isSavingTags ? (
                 <>
                   <Clock className="w-4 h-4 animate-spin" />
-                  Procesando...
+                  Guardando...
                 </>
               ) : (
                 <>
-                  <RefreshCw className="w-4 h-4" />
-                  Re-extraer
+                  <CheckCircle className="w-4 h-4" />
+                  Guardar
                 </>
               )}
             </button>
-          )}
+
+            {source.originalFile && (
+              <button
+                onClick={handleReExtract}
+                disabled={isReExtracting}
+                className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 font-medium"
+              >
+                {isReExtracting ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    Re-extraer
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
