@@ -62,16 +62,38 @@ export async function getUserInfo(accessToken: string) {
 
 // JWT token generation
 export function generateJWT(payload: any): string {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET not configured');
+  }
+  
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: '24h',
+    expiresIn: '7d', // 7 days (as per privacy.mdc)
+    issuer: 'flow-platform',
+    audience: 'flow-users',
   });
 }
 
 // JWT token verification
 export function verifyJWT(token: string): any {
+  if (!JWT_SECRET) {
+    console.error('❌ JWT_SECRET not configured');
+    return null;
+  }
+  
   try {
-    return jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: 'flow-platform',
+      audience: 'flow-users',
+    });
+    return decoded;
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      console.warn('⚠️ JWT token expired:', error.expiredAt);
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      console.warn('⚠️ Invalid JWT token:', error.message);
+    } else {
+      console.error('❌ JWT verification error:', error);
+    }
     return null;
   }
 }
@@ -96,14 +118,19 @@ export function setSession(context: APIContext, userData: any) {
   const isProduction = process.env.NODE_ENV === 'production' || !import.meta.env.DEV;
   
   context.cookies.set('flow_session', token, {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'lax',
-    maxAge: 86400, // 24 hours
+    httpOnly: true, // ✅ JavaScript cannot access (XSS protection)
+    secure: isProduction, // ✅ HTTPS only in production
+    sameSite: 'lax', // ✅ CSRF protection
+    maxAge: 604800, // 7 days (as per privacy.mdc)
     path: '/',
   });
   
-  console.log(`Session cookie set (secure: ${isProduction})`);
+  console.log('🔐 Session cookie set:', {
+    secure: isProduction,
+    httpOnly: true,
+    maxAge: '7 days',
+    timestamp: new Date().toISOString(),
+  });
 }
 
 // Clear session
@@ -111,6 +138,13 @@ export function clearSession(context: APIContext) {
   context.cookies.delete('flow_session', {
     path: '/',
   });
+  
+  // Also clear any auth redirect cookie
+  context.cookies.delete('auth_redirect', {
+    path: '/',
+  });
+  
+  console.log('🔐 Session cookies cleared');
 }
 
 // Middleware to protect routes

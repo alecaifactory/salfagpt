@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Sparkles } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -25,6 +26,9 @@ export default function UserSettingsModal({
   userEmail,
 }: UserSettingsModalProps) {
   const [settings, setSettings] = useState<UserSettings>(currentSettings);
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   useEffect(() => {
     if (isOpen) {

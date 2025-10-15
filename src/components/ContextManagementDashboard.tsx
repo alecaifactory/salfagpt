@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface ContextManagementDashboardProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface ContextManagementDashboardProps {
 }
 
 interface EnrichedContextSource extends ContextSource {
+  userId?: string; // Add userId field
   uploaderEmail?: string;
   assignedAgents?: Array<{ id: string; title: string }>;
 }
@@ -48,6 +50,9 @@ export default function ContextManagementDashboard({
   conversations,
   onSourcesUpdated
 }: ContextManagementDashboardProps) {
+  
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
   const [sources, setSources] = useState<EnrichedContextSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSource, setSelectedSource] = useState<EnrichedContextSource | null>(null);
@@ -114,7 +119,7 @@ export default function ContextManagementDashboard({
         formData.append('file', item.file);
         formData.append('userId', userId);
         formData.append('name', item.file.name);
-        formData.append('model', 'gemini-2.5-flash'); // Default model
+        formData.append('model', 'gemini-2.5-pro'); // Default to Pro for quality
         // No assignedToAgents - will be assigned later
 
         // Upload
@@ -129,13 +134,42 @@ export default function ContextManagementDashboard({
 
         const uploadData = await uploadResponse.json();
         
+        if (!uploadData.success) {
+          throw new Error(uploadData.error || 'Extraction failed');
+        }
+        
         // Update to processing
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'processing', progress: 50 } : i
+          i.id === item.id ? { ...i, status: 'processing', progress: 70 } : i
         ));
 
-        // Poll for completion (extraction happens async)
-        await pollForCompletion(item.id, uploadData.sourceId);
+        // Create source in Firestore with extracted data
+        const createResponse = await fetch('/api/context-sources', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            name: item.file.name,
+            type: 'pdf', // Determine from file extension
+            enabled: true,
+            status: 'active',
+            extractedData: uploadData.extractedText || '',
+            assignedToAgents: [], // Not assigned to any agent initially (admin upload)
+            metadata: uploadData.metadata || {}
+          })
+        });
+
+        if (!createResponse.ok) {
+          throw new Error('Failed to save context source');
+        }
+
+        const savedData = await createResponse.json();
+        const sourceId = savedData.source?.id;
+
+        // Mark as complete
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, status: 'complete', progress: 100, sourceId } : i
+        ));
 
       } catch (error) {
         console.error('Upload failed:', item.file.name, error);
@@ -153,6 +187,9 @@ export default function ContextManagementDashboard({
     await loadAllSources(); // Reload sources
   };
 
+  // DEPRECATED: No longer needed - extraction now happens synchronously
+  // Kept for reference but not used anymore
+  /*
   const pollForCompletion = async (queueId: string, sourceId: string, attempts = 0): Promise<void> => {
     if (attempts > 30) { // Max 30 attempts (30 seconds)
       setUploadQueue(prev => prev.map(i => 
@@ -194,6 +231,7 @@ export default function ContextManagementDashboard({
       setTimeout(() => pollForCompletion(queueId, sourceId, attempts + 1), 1000);
     }
   };
+  */
 
   const handleBulkAssign = async (sourceId: string, agentIds: string[]) => {
     try {

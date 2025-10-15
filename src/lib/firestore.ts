@@ -79,6 +79,7 @@ export interface Conversation {
   contextWindowUsage: number; // Percentage 0-100
   agentModel: string; // e.g., "gemini-2.5-pro"
   activeContextSourceIds?: string[]; // IDs of active context sources for this conversation
+  status?: 'active' | 'archived'; // Archive status (optional, defaults to 'active')
 }
 
 export interface Message {
@@ -305,6 +306,22 @@ export async function deleteConversation(conversationId: string): Promise<void> 
   batch.delete(firestore.collection(COLLECTIONS.CONVERSATIONS).doc(conversationId));
   
   await batch.commit();
+}
+
+// Archive conversation (soft delete - keeps data but hides from main view)
+export async function archiveConversation(conversationId: string): Promise<void> {
+  await updateConversation(conversationId, {
+    status: 'archived',
+  });
+  console.log(`📦 Conversation archived: ${conversationId}`);
+}
+
+// Unarchive conversation (restore to active)
+export async function unarchiveConversation(conversationId: string): Promise<void> {
+  await updateConversation(conversationId, {
+    status: 'active',
+  });
+  console.log(`📂 Conversation unarchived: ${conversationId}`);
 }
 
 // Message Operations
@@ -732,11 +749,30 @@ export async function createUser(
     contextAccessCount: 0, // Will be updated when access granted
   };
 
-  await firestore.collection(COLLECTIONS.USERS).doc(userId).set({
-    ...newUser,
+  // 🔧 Filter out undefined values for Firestore compatibility
+  const firestoreData: any = {
+    email: newUser.email,
+    name: newUser.name,
+    role: newUser.role,
+    roles: newUser.roles,
+    permissions: newUser.permissions,
+    company: newUser.company,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
-  });
+    isActive: newUser.isActive,
+    agentAccessCount: newUser.agentAccessCount,
+    contextAccessCount: newUser.contextAccessCount,
+  };
+
+  // Only add optional fields if they have values
+  if (createdBy) {
+    firestoreData.createdBy = createdBy;
+  }
+  if (department) {
+    firestoreData.department = department;
+  }
+
+  await firestore.collection(COLLECTIONS.USERS).doc(userId).set(firestoreData);
 
   return {
     id: userId,
@@ -1344,6 +1380,18 @@ export interface ContextSource {
   addedAt: Date;
   extractedData?: string;
   assignedToAgents?: string[]; // NEW: List of conversation IDs that can access this source
+  
+  // Labels and qualification (for expert review)
+  labels?: string[]; // User-defined labels (e.g., "CV", "Contrato", "Manual")
+  qualityRating?: number; // 1-5 stars
+  qualityNotes?: string; // Expert notes on quality
+  
+  // Expert certification
+  certified?: boolean; // Expert has certified this extraction
+  certifiedBy?: string; // Email or userId of certifier
+  certifiedAt?: Date; // When it was certified
+  certificationNotes?: string; // Notes from certifier
+  
   metadata?: {
     originalFileName?: string;
     originalFileSize?: number;
@@ -1357,11 +1405,23 @@ export interface ContextSource {
     validated?: boolean;
     validatedBy?: string;
     validatedAt?: Date;
+    
+    // Token usage (actual from API)
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+    
+    // Cost breakdown (from official pricing)
+    inputCost?: number;
+    outputCost?: number;
+    totalCost?: number;
+    costFormatted?: string;
   };
   error?: {
     message: string;
     details?: string;
     timestamp: Date;
+    suggestions?: string[];
   };
   progress?: {
     stage: 'uploading' | 'processing' | 'complete' | 'error';
@@ -1406,6 +1466,31 @@ export async function createContextSource(
   }
   if (data.assignedToAgents !== undefined) {
     contextSource.assignedToAgents = data.assignedToAgents;
+  }
+  
+  // Labels and qualification
+  if (data.labels !== undefined) {
+    contextSource.labels = data.labels;
+  }
+  if (data.qualityRating !== undefined) {
+    contextSource.qualityRating = data.qualityRating;
+  }
+  if (data.qualityNotes !== undefined) {
+    contextSource.qualityNotes = data.qualityNotes;
+  }
+  
+  // Expert certification
+  if (data.certified !== undefined) {
+    contextSource.certified = data.certified;
+  }
+  if (data.certifiedBy !== undefined) {
+    contextSource.certifiedBy = data.certifiedBy;
+  }
+  if (data.certifiedAt !== undefined) {
+    contextSource.certifiedAt = data.certifiedAt;
+  }
+  if (data.certificationNotes !== undefined) {
+    contextSource.certificationNotes = data.certificationNotes;
   }
 
   await sourceRef.set(contextSource);
@@ -1462,7 +1547,59 @@ export async function updateContextSource(
 }
 
 /**
- * Delete a context source
+ * Remove an agent from a context source's assignedToAgents array
+ * If no agents remain, delete the source entirely
+ */
+export async function removeAgentFromContextSource(
+  sourceId: string,
+  agentId: string
+): Promise<{ deleted: boolean; remainingAgents: number }> {
+  try {
+    const sourceRef = firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .doc(sourceId);
+    
+    const sourceDoc = await sourceRef.get();
+    
+    if (!sourceDoc.exists) {
+      console.warn(`⚠️ Context source not found: ${sourceId}`);
+      return { deleted: false, remainingAgents: 0 };
+    }
+    
+    const sourceData = sourceDoc.data() as ContextSource;
+    const currentAgents = sourceData.assignedToAgents || [];
+    
+    // Remove this agent from the array
+    const updatedAgents = currentAgents.filter(id => id !== agentId);
+    
+    console.log(`📝 Removing agent ${agentId} from source ${sourceId}:`, {
+      before: currentAgents.length,
+      after: updatedAgents.length,
+    });
+    
+    // If no agents remain, delete the source entirely
+    if (updatedAgents.length === 0 && currentAgents.length > 0) {
+      await sourceRef.delete();
+      console.log(`🗑️ Context source deleted (no agents remain): ${sourceId}`);
+      return { deleted: true, remainingAgents: 0 };
+    }
+    
+    // Otherwise, update the assignedToAgents array
+    await sourceRef.update({
+      assignedToAgents: updatedAgents,
+    });
+    
+    console.log(`✅ Agent removed from context source: ${sourceId}, ${updatedAgents.length} agents remain`);
+    return { deleted: false, remainingAgents: updatedAgents.length };
+    
+  } catch (error) {
+    console.error('❌ Error removing agent from context source:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete a context source completely (admin/owner only)
  */
 export async function deleteContextSource(sourceId: string): Promise<void> {
   await firestore

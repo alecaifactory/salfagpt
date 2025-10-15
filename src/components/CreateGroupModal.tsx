@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Users, Save } from 'lucide-react';
 import type { GroupType } from '../types/contextAccess';
 import { GROUP_LABELS, GROUP_COLORS } from '../types/contextAccess';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -17,6 +18,9 @@ export default function CreateGroupModal({
   const [groupName, setGroupName] = useState('');
   const [groupType, setGroupType] = useState<GroupType>('compras');
   const [description, setDescription] = useState('');
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -41,8 +45,14 @@ export default function CreateGroupModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">
           <div className="flex items-center gap-3">

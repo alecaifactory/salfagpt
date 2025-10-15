@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { GoogleGenAI } from '@google/genai';
+import { estimateTokens, calculateGeminiCost, formatCost } from '../../lib/pricing';
 
 // Initialize Gemini AI client
 const IS_DEVELOPMENT = import.meta.env.DEV;
@@ -85,11 +86,13 @@ export const POST: APIRoute = async ({ request }) => {
       
       if (modelName === 'gemini-2.5-pro') {
         // Pro has 2M context, can handle larger outputs
+        if (fileSizeMB > 10) return 65536; // Max for Pro
         if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
         return 8192;
       } else {
         // Flash has 1M context
+        if (fileSizeMB > 5) return 32768; // Max for Flash
         if (fileSizeMB > 2) return 16384;
         if (fileSizeMB > 1) return 12288;
         return 8192;
@@ -146,6 +149,18 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
 
     const extractionTime = Date.now() - startTime;
     const extractedText = result.text || '';
+    
+    // Calculate token usage
+    const outputTokens = estimateTokens(extractedText);
+    const inputTokens = estimateTokens(base64Data); // Approximate
+    const totalTokens = inputTokens + outputTokens;
+    
+    // Calculate costs
+    const costBreakdown = calculateGeminiCost(
+      inputTokens, 
+      outputTokens, 
+      model as 'gemini-2.5-pro' | 'gemini-2.5-flash'
+    );
 
     // ✅ CRITICAL: Validate extraction success - don't mark empty as successful
     if (!extractedText || extractedText.trim().length === 0) {
@@ -190,6 +205,17 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       maxOutputTokens, // ✅ Track what limit was used
       service: 'Gemini AI',
       extractedAt: new Date().toISOString(),
+      
+      // Token usage
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      
+      // Cost breakdown
+      inputCost: costBreakdown.inputCost,
+      outputCost: costBreakdown.outputCost,
+      totalCost: costBreakdown.totalCost,
+      costFormatted: formatCost(costBreakdown.totalCost),
     };
 
     // ✅ Add model recommendation for large files
@@ -204,6 +230,8 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
     }
 
     console.log(`✅ Text extracted: ${extractedText.length} characters in ${extractionTime}ms using ${model}`);
+    console.log(`📊 Token usage: ${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output = ${totalTokens.toLocaleString()} total`);
+    console.log(`💰 Cost: ${formatCost(costBreakdown.totalCost)} (Input: ${formatCost(costBreakdown.inputCost)}, Output: ${formatCost(costBreakdown.outputCost)})`);
     if (modelWarning) {
       console.log(`⚠️ ${modelWarning.message}`);
     }

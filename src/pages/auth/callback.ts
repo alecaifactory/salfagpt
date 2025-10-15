@@ -3,17 +3,30 @@ import { exchangeCodeForTokens, getUserInfo, setSession } from '../../lib/auth';
 import { insertUserSession } from '../../lib/gcp';
 import { upsertUserOnLogin } from '../../lib/firestore';
 
-export const GET: APIRoute = async ({ url, cookies, redirect }) => {
+export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
   const code = url.searchParams.get('code');
   const error = url.searchParams.get('error');
 
+  // 🔒 Security logging: OAuth callback received
+  console.log('🔐 OAuth callback received:', {
+    hasCode: !!code,
+    hasError: !!error,
+    timestamp: new Date().toISOString(),
+    origin: request.headers.get('origin'),
+  });
+
   // Handle OAuth errors
   if (error) {
-    console.error('OAuth error:', error);
+    console.error('❌ OAuth error from Google:', error);
+    console.warn('🚨 Failed login attempt:', {
+      error,
+      timestamp: new Date().toISOString(),
+    });
     return redirect('/?error=auth_failed');
   }
 
   if (!code) {
+    console.error('❌ No authorization code received');
     return redirect('/?error=no_code');
   }
 
@@ -28,6 +41,12 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     // Get user information
     const userInfo = await getUserInfo(tokens.access_token);
 
+    // 🔒 Security: Validate user info
+    if (!userInfo.email || !userInfo.verified_email) {
+      console.error('❌ Unverified email or missing email:', userInfo.email);
+      throw new Error('Email verification required');
+    }
+
     // Prepare user data for session
     const userData = {
       id: userInfo.id,
@@ -37,6 +56,14 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
       verified_email: userInfo.verified_email,
     };
 
+    // 🔒 Security logging: Successful authentication
+    console.log('✅ User authenticated:', {
+      userId: userData.id.substring(0, 8) + '...',
+      email: userData.email,
+      verified: userData.verified_email,
+      timestamp: new Date().toISOString(),
+    });
+
     // Set session cookie
     setSession({ cookies } as any, userData);
     
@@ -45,7 +72,7 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
       await upsertUserOnLogin(userData.email, userData.name);
       console.log('✅ User created/updated in Firestore:', userData.email);
     } catch (userError) {
-      console.error('Failed to upsert user in Firestore:', userError);
+      console.error('⚠️ Failed to upsert user in Firestore:', userError);
       // Continue anyway - don't block user login
     }
 
@@ -56,7 +83,7 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
         login_time: new Date().toISOString(),
       });
     } catch (dbError) {
-      console.error('Failed to log session to BigQuery:', dbError);
+      console.error('⚠️ Failed to log session to BigQuery:', dbError);
       // Continue anyway - don't block user login
     }
 
@@ -66,10 +93,16 @@ export const GET: APIRoute = async ({ url, cookies, redirect }) => {
     // Clear the redirect cookie
     cookies.delete('auth_redirect', { path: '/' });
     
+    console.log('🔐 Redirecting authenticated user to:', redirectTo);
+    
     // Redirect to the original destination
     return redirect(redirectTo);
   } catch (error) {
-    console.error('Authentication error:', error);
+    console.error('❌ Authentication processing error:', error);
+    console.error('🚨 Failed to complete authentication:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+    });
     return redirect('/?error=auth_processing_failed');
   }
 };
