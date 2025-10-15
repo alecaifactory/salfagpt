@@ -72,7 +72,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
-  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
@@ -1686,7 +1685,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               alert('Error al eliminar fuente. Por favor, intenta nuevamente.');
             }
           }}
-          onSourceClick={setSelectedSourceId}
+          onSourceClick={handleSourceSettings}
           onSourceSettings={handleSourceSettings}
         />
 
