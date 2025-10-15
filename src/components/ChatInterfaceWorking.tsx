@@ -60,7 +60,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [messages, setMessages] = useState<Message[]>([]);
   const [contextLogs, setContextLogs] = useState<ContextLog[]>([]);
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   
   // Per-agent processing state
   const [agentProcessing, setAgentProcessing] = useState<Record<string, {
@@ -658,7 +657,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setMessages(prev => [...prev, userMessage]);
     const messageToSend = input;
     setInput('');
-    setLoading(true);
     
     // Track processing for this agent
     const agentId = currentConversation;
@@ -764,9 +762,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setLoading(false);
     }
+    // Note: agentProcessing state is updated in try/catch blocks above
+    // No need for finally block with setLoading
   };
 
   const toggleContext = async (sourceId: string) => {
@@ -2126,17 +2124,22 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
+                onKeyPress={(e) => {
+                  const currentAgentLoading = currentConversation && agentProcessing[currentConversation]?.isProcessing;
+                  if (e.key === 'Enter' && !currentAgentLoading && input.trim()) {
+                    sendMessage();
+                  }
+                }}
                 placeholder="Escribe un mensaje..."
                 className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={loading}
+                disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               <button
                 onClick={sendMessage}
-                disabled={loading || !input.trim()}
+                disabled={(currentConversation ? agentProcessing[currentConversation]?.isProcessing : false) || !input.trim()}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                {loading ? (
+                {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <Send className="w-5 h-5" />
