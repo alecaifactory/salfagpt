@@ -1885,24 +1885,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="inline-block max-w-3xl p-5 rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
-                    <MessageRenderer 
-                      content={msg.content}
-                      contextSources={contextSources
-                        .filter(s => s.enabled)
-                        .map(s => ({
-                          id: s.id,
-                          name: s.name,
-                          validated: s.metadata?.validated || false,
-                        }))
-                      }
-                      onSourceClick={(sourceId) => {
-                        const source = contextSources.find(s => s.id === sourceId);
-                        if (source) {
-                          setSettingsSource(source);
+                  <div className="inline-block max-w-3xl rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
+                    <div className="px-5 pt-3 pb-2 border-b border-slate-100">
+                      <span className="text-sm font-bold text-blue-600">SalfaGPT:</span>
+                    </div>
+                    <div className="p-5">
+                      <MessageRenderer 
+                        content={msg.content}
+                        contextSources={contextSources
+                          .filter(s => s.enabled)
+                          .map(s => ({
+                            id: s.id,
+                            name: s.name,
+                            validated: s.metadata?.validated || false,
+                          }))
                         }
-                      }}
-                    />
+                        onSourceClick={(sourceId) => {
+                          const source = contextSources.find(s => s.id === sourceId);
+                          if (source) {
+                            setSettingsSource(source);
+                          }
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
