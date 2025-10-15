@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -765,6 +765,30 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
     // Note: agentProcessing state is updated in try/catch blocks above
     // No need for finally block with setLoading
+  };
+
+  const stopProcessing = () => {
+    if (!currentConversation) return;
+    
+    // Cancel processing for current agent
+    setAgentProcessing(prev => ({
+      ...prev,
+      [currentConversation]: {
+        isProcessing: false,
+        needsFeedback: false,
+      }
+    }));
+    
+    // Add cancelled message
+    const cancelledMessage: Message = {
+      id: `cancelled-${Date.now()}`,
+      role: 'assistant',
+      content: '_Procesamiento detenido por el usuario._',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, cancelledMessage]);
+    
+    console.log('⏹️ Procesamiento detenido para agente:', currentConversation);
   };
 
   const toggleContext = async (sourceId: string) => {
@@ -2135,17 +2159,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
-              <button
-                onClick={sendMessage}
-                disabled={(currentConversation ? agentProcessing[currentConversation]?.isProcessing : false) || !input.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
+              {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
+                <button
+                  onClick={stopProcessing}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 font-medium"
+                >
+                  <StopCircle className="w-5 h-5" />
+                  Detener
+                </button>
+              ) : (
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim()}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
                   <Send className="w-5 h-5" />
-                )}
-              </button>
+                </button>
+              )}
             </div>
             <p className="text-xs text-slate-500 text-center mt-2">
               Flow puede cometer errores. Verifica la información importante.
