@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2, Sparkles, FileText } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -97,8 +97,10 @@ export default function ContextManager({
                   </button>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-slate-800 truncate">
+                    {/* File Name - Prominent */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      <p className="text-sm font-bold text-slate-900 truncate">
                         {source.name}
                       </p>
                       {source.status === 'processing' && (
@@ -107,43 +109,53 @@ export default function ContextManager({
                       {source.status === 'error' && (
                         <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                       )}
-                      {source.certified && source.status === 'active' && (
-                        <span title={`Certificado por ${source.certifiedBy}`} className="px-2 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded-full flex items-center gap-0.5">
-                          <ShieldCheck className="w-3 h-3" />
-                          Certificado
-                        </span>
-                      )}
-                      {!source.certified && isValidated && source.status === 'active' && (
-                        <span title="Documento Validado">
-                          <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded">
+                    </div>
+                    
+                    {/* Badges Row */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                      <span className="text-[10px] text-slate-600 px-1.5 py-0.5 bg-slate-100 rounded font-medium">
                         {getSourceTypeLabel(source.type)}
                       </span>
-                      {/* Model Badge - Visual indicator of extraction model */}
+                      
+                      {/* Model Badge */}
                       {source.metadata?.model && source.status === 'active' && (
                         <span 
-                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 ${
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 ${
                             source.metadata.model === 'gemini-2.5-pro'
                               ? 'bg-purple-100 text-purple-700'
                               : 'bg-green-100 text-green-700'
                           }`}
                           title={source.metadata.model === 'gemini-2.5-pro' 
                             ? 'Extraído con Pro (mejor calidad)' 
-                            : 'Extraído con Flash (más económico - considera re-extraer con Pro para documentos críticos)'}
+                            : 'Extraído con Flash (más económico)'}
                         >
                           <Sparkles className="w-3 h-3" />
                           {source.metadata.model === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
                         </span>
                       )}
+                      
                       {/* PUBLIC Tag Badge */}
                       {source.tags?.includes('PUBLIC') && (
                         <span 
-                          className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300"
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-300"
                           title="Contexto público - Se asigna automáticamente a todos los nuevos agentes"
                         >
                           🌐 PUBLIC
+                        </span>
+                      )}
+                      
+                      {/* Certified Badge */}
+                      {source.certified && source.status === 'active' && (
+                        <span title={`Certificado por ${source.certifiedBy}`} className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded-full flex items-center gap-0.5">
+                          <ShieldCheck className="w-3 h-3" />
+                          Certificado
+                        </span>
+                      )}
+                      
+                      {/* Validated Badge */}
+                      {!source.certified && isValidated && source.status === 'active' && (
+                        <span title="Documento Validado">
+                          <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
                         </span>
                       )}
                     </div>
@@ -209,10 +221,10 @@ export default function ContextManager({
                       </div>
                     )}
                     
-                    {/* Extracted Content Preview (only for active sources) */}
+                    {/* Extracted Content Preview (only for active sources) - Shortened */}
                     {source.status === 'active' && source.extractedData && (
-                      <p className="text-[11px] text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
-                        {source.extractedData.substring(0, 120)}...
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-1 leading-tight">
+                        {source.extractedData.substring(0, 60)}...
                       </p>
                     )}
                     
