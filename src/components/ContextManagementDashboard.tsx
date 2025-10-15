@@ -14,7 +14,8 @@ import {
   Trash2,
   Download,
   AlertCircle,
-  Tag
+  Tag,
+  Globe
 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
@@ -1058,10 +1059,85 @@ export default function ContextManagementDashboard({
                   )}
                 </div>
 
+                {/* PUBLIC Tag Management */}
+                <div className="p-6 border-b border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Configuración de Visibilidad</h4>
+                  
+                  <button
+                    onClick={async () => {
+                      const newLabels = selectedSource.labels?.includes('PUBLIC')
+                        ? selectedSource.labels.filter(l => l !== 'PUBLIC')
+                        : [...(selectedSource.labels || []), 'PUBLIC'];
+                      
+                      // Update in API
+                      await fetch(`/api/context-sources/${selectedSource.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          labels: newLabels,
+                          tags: newLabels,
+                        }),
+                      });
+                      
+                      // If marking as PUBLIC, assign to all agents
+                      if (newLabels.includes('PUBLIC')) {
+                        const allConversationIds = conversations.map(c => c.id);
+                        for (const agentId of allConversationIds) {
+                          try {
+                            await fetch(`/api/context-sources/${selectedSource.id}/assign-agent`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ agentId }),
+                            });
+                          } catch (error) {
+                            console.warn('Failed to assign to agent:', agentId);
+                          }
+                        }
+                        console.log(`✅ PUBLIC: asignado a ${allConversationIds.length} agentes`);
+                      }
+                      
+                      // Reload
+                      await loadAllSources();
+                    }}
+                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                      selectedSource.labels?.includes('PUBLIC')
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                        selectedSource.labels?.includes('PUBLIC')
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-slate-300'
+                      }`}>
+                        {selectedSource.labels?.includes('PUBLIC') && (
+                          <CheckCircle className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="flex items-center gap-2">
+                          <Globe className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-semibold text-gray-900">PUBLIC</span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Se asigna automáticamente a todos los nuevos agentes
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {selectedSource.labels?.includes('PUBLIC') && (
+                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                      ℹ️ Este contexto está disponible para todos los agentes (nuevos y existentes)
+                    </div>
+                  )}
+                </div>
+
                 {/* Agent Assignment */}
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Assign to Agents</h4>
+                    <h4 className="text-sm font-semibold text-gray-900">Asignar a Agentes Específicos</h4>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-500">
                         {pendingAgentIds.length} agent{pendingAgentIds.length !== 1 ? 's' : ''} selected
