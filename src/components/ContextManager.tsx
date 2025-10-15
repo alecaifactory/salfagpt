@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ShieldCheck, Settings, AlertCircle, Loader2, Sparkles } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import type { SourceValidation } from '../types/sharing';
 
@@ -107,7 +107,13 @@ export default function ContextManager({
                       {source.status === 'error' && (
                         <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                       )}
-                      {isValidated && source.status === 'active' && (
+                      {source.certified && source.status === 'active' && (
+                        <span title={`Certificado por ${source.certifiedBy}`} className="px-2 py-0.5 bg-green-600 text-white text-[9px] font-bold rounded-full flex items-center gap-0.5">
+                          <ShieldCheck className="w-3 h-3" />
+                          Certificado
+                        </span>
+                      )}
+                      {!source.certified && isValidated && source.status === 'active' && (
                         <span title="Documento Validado">
                           <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
                         </span>
@@ -115,6 +121,22 @@ export default function ContextManager({
                       <span className="text-xs text-slate-500 px-2 py-0.5 bg-slate-100 rounded">
                         {getSourceTypeLabel(source.type)}
                       </span>
+                      {/* Model Badge - Visual indicator of extraction model */}
+                      {source.metadata?.model && source.status === 'active' && (
+                        <span 
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5 ${
+                            source.metadata.model === 'gemini-2.5-pro'
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-green-100 text-green-700'
+                          }`}
+                          title={source.metadata.model === 'gemini-2.5-pro' 
+                            ? 'Extraído con Pro (mejor calidad)' 
+                            : 'Extraído con Flash (más económico - considera re-extraer con Pro para documentos críticos)'}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          {source.metadata.model === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
+                        </span>
+                      )}
                     </div>
                     
                     {/* Progress Bar */}
@@ -162,12 +184,27 @@ export default function ContextManager({
                       </div>
                     )}
                     
+                    {/* Extracted Content Preview (only for active sources) */}
+                    {source.status === 'active' && source.extractedData && (
+                      <p className="text-[11px] text-slate-600 mt-1.5 line-clamp-2 leading-relaxed">
+                        {source.extractedData.substring(0, 120)}...
+                      </p>
+                    )}
+                    
                     {/* Metadata (only for active sources) */}
                     {source.status === 'active' && source.metadata && (
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {source.metadata.originalFileSize && `${(source.metadata.originalFileSize / 1024 / 1024).toFixed(1)} MB`}
-                        {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
-                      </p>
+                      <div className="text-xs text-slate-500 mt-0.5 space-y-0.5">
+                        <p>
+                          {source.metadata.originalFileSize && `${(source.metadata.originalFileSize / 1024 / 1024).toFixed(1)} MB`}
+                          {source.metadata.pageCount && ` • ${source.metadata.pageCount} páginas`}
+                          {source.metadata.charactersExtracted && ` • ${source.metadata.charactersExtracted.toLocaleString()} chars`}
+                        </p>
+                        {(source.metadata as any).totalTokens && (
+                          <p className="font-mono">
+                            💰 {(source.metadata as any).costFormatted || '$0.000'} • {((source.metadata as any).totalTokens || 0).toLocaleString()} tokens
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
 

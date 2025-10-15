@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, FileText, Link as LinkIcon, Code, Upload, ChevronRight, Sparkles, Info } from 'lucide-react';
 import type { SourceType } from '../types/context';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface AddSourceModalProps {
   isOpen: boolean;
@@ -18,8 +19,11 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
   const [url, setUrl] = useState('');
   const [apiEndpoint, setApiEndpoint] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-pro');
   const [showModelTooltip, setShowModelTooltip] = useState(false);
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   // Reset state when modal opens or preSelectedType changes
   useEffect(() => {
@@ -35,7 +39,7 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
       setUrl('');
       setApiEndpoint('');
       setIsProcessing(false);
-      setSelectedModel('gemini-2.5-flash');
+      setSelectedModel('gemini-2.5-pro');
     }
   }, [isOpen, preSelectedType]);
 
@@ -261,20 +265,22 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                     </button>
                     {showModelTooltip && (
                       <div className="absolute left-6 top-0 w-80 bg-slate-900 text-white text-xs rounded-lg p-3 z-50 shadow-xl">
-                        <p className="font-semibold mb-2">💡 Recomendación</p>
-                        <p className="mb-2">Comienza con <strong>Flash</strong> para validar tu caso de uso:</p>
+                        <p className="font-semibold mb-2">💡 Selección de Modelo</p>
+                        <p className="mb-2"><strong>Pro (Recomendado)</strong> para mejor calidad:</p>
                         <ul className="space-y-1 ml-4 list-disc">
-                          <li><strong>94% más económico</strong> ($0.001875 vs $0.03125 por 1M tokens)</li>
-                          <li>Ideal para documentos simples</li>
+                          <li><strong>Mayor precisión</strong> en documentos complejos</li>
+                          <li>Mejor interpretación de tablas y gráficos</li>
+                          <li>Extracción más completa y fiel</li>
+                        </ul>
+                        <p className="mt-2 text-green-300">Usa <strong>Flash</strong> para:</p>
+                        <ul className="space-y-1 ml-4 list-disc">
+                          <li>Documentos simples y directos</li>
+                          <li>94% más económico</li>
                           <li>Respuesta 2x más rápida</li>
                         </ul>
-                        <p className="mt-2 text-blue-300">Usa <strong>Pro</strong> cuando necesites:</p>
-                        <ul className="space-y-1 ml-4 list-disc">
-                          <li>Mayor precisión en documentos complejos</li>
-                          <li>Análisis de contexto profundo</li>
-                        </ul>
                         <div className="mt-2 pt-2 border-t border-slate-700">
-                          <p className="text-slate-300">💸 Ahorro típico: <span className="text-green-400 font-semibold">$28 USD</span> por cada millón de tokens con Flash</p>
+                          <p className="text-slate-300">💸 Costo Pro: <span className="text-purple-400 font-semibold">$0.03125</span> por 1M tokens</p>
+                          <p className="text-slate-300">💸 Costo Flash: <span className="text-green-400 font-semibold">$0.001875</span> por 1M tokens</p>
                         </div>
                       </div>
                     )}
@@ -282,27 +288,6 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                 </div>
                 
                 <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setSelectedModel('gemini-2.5-flash')}
-                    className={`p-4 border-2 rounded-lg transition-all ${
-                      selectedModel === 'gemini-2.5-flash'
-                        ? 'border-green-500 bg-green-50'
-                        : 'border-slate-200 hover:border-green-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <Sparkles className={`w-5 h-5 ${selectedModel === 'gemini-2.5-flash' ? 'text-green-600' : 'text-slate-400'}`} />
-                      <span className="font-semibold text-slate-800">Flash</span>
-                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                        Recomendado
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600">Rápido y económico</p>
-                    <p className="text-xs text-green-600 font-medium mt-1">
-                      Ahorra 94% 💰
-                    </p>
-                  </button>
-
                   <button
                     onClick={() => setSelectedModel('gemini-2.5-pro')}
                     className={`p-4 border-2 rounded-lg transition-all ${
@@ -315,12 +300,33 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                       <Sparkles className={`w-5 h-5 ${selectedModel === 'gemini-2.5-pro' ? 'text-purple-600' : 'text-slate-400'}`} />
                       <span className="font-semibold text-slate-800">Pro</span>
                       <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                        Avanzado
+                        Recomendado
                       </span>
                     </div>
                     <p className="text-xs text-slate-600">Mayor precisión</p>
                     <p className="text-xs text-purple-600 font-medium mt-1">
-                      Documentos complejos
+                      Mejor extracción
+                    </p>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedModel('gemini-2.5-flash')}
+                    className={`p-4 border-2 rounded-lg transition-all ${
+                      selectedModel === 'gemini-2.5-flash'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-slate-200 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className={`w-5 h-5 ${selectedModel === 'gemini-2.5-flash' ? 'text-green-600' : 'text-slate-400'}`} />
+                      <span className="font-semibold text-slate-800">Flash</span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                        Económico
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">Rápido y económico</p>
+                    <p className="text-xs text-green-600 font-medium mt-1">
+                      Ahorra 94% 💰
                     </p>
                   </button>
                 </div>

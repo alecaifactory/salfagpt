@@ -13,6 +13,7 @@ import {
   FileText,
   MessageSquare,
 } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 export interface Domain {
   id: string;
@@ -56,6 +57,9 @@ export default function DomainManagementModal({
   
   // Selected domain for details
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   // Load domains
   useEffect(() => {

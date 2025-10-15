@@ -3,6 +3,7 @@ import { X, Copy, Check, Mail, Users, User as UserIcon, Sparkles } from 'lucide-
 import type { ContextSource } from '../types/context';
 import type { JobRole, EmailTemplate } from '../types/sharing';
 import { DEFAULT_JOB_ROLES } from '../types/sharing';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface ShareSourceModalProps {
   source: ContextSource;
@@ -24,6 +25,9 @@ export default function ShareSourceModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedField, setCopiedField] = useState<'subject' | 'body' | null>(null);
   const [shareTarget, setShareTarget] = useState<'user' | 'group'>('user');
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -62,8 +66,14 @@ export default function ShareSourceModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-green-600 to-emerald-600">
           <div>

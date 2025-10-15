@@ -3,36 +3,50 @@ import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
 import { verifyJWT } from '../lib/auth';
 import '../styles/global.css';
 
-// Check authentication
+// 🔒 SECURITY: Always require authentication
 const cookies = Astro.cookies;
 const token = cookies.get('flow_session')?.value;
 
-// For development: allow test user without authentication
-const isDevelopment = import.meta.env.DEV;
+// Log authentication attempt
+console.log('🔐 Authentication check:', {
+  hasToken: !!token,
+  timestamp: new Date().toISOString(),
+  path: '/chat'
+});
+
+// No token = redirect to login
+if (!token) {
+  console.warn('⚠️ Unauthorized access attempt to /chat - no token');
+  return Astro.redirect('/auth/login?error=unauthorized&redirect=/chat');
+}
+
+// Verify token
 let userId: string;
 let userEmail: string;
 let userName: string;
 
-if (isDevelopment && !token) {
-  // Development mode: use test user
-  userId = 'test-user-dev-123';
-  userEmail = 'test@dev.local';
-  userName = 'Usuario de Prueba';
-  console.log('🔧 Development mode: Using test user ID:', userId);
-} else if (!token) {
-  // Production: require authentication, preserve current URL
-  return Astro.redirect('/auth/login?redirect=/chat');
-} else {
-  // Verify token
-  try {
-    const decoded = verifyJWT(token);
-    userId = decoded.sub || decoded.id;
-    userEmail = decoded.email || 'usuario@flow.ai';
-    userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
-  } catch (error) {
-    // Token invalid, redirect to login with current URL
-    return Astro.redirect('/auth/login?redirect=/chat');
+try {
+  const decoded = verifyJWT(token);
+  
+  if (!decoded) {
+    console.warn('⚠️ Invalid JWT token');
+    return Astro.redirect('/auth/login?error=session_expired&redirect=/chat');
   }
+  
+  userId = decoded.sub || decoded.id;
+  userEmail = decoded.email || 'usuario@flow.ai';
+  userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
+  
+  // Log successful authentication
+  console.log('✅ User authenticated:', {
+    userId: userId.substring(0, 8) + '...',
+    email: userEmail,
+    timestamp: new Date().toISOString()
+  });
+} catch (error) {
+  // Token invalid or expired
+  console.error('❌ JWT verification failed:', error instanceof Error ? error.message : 'Unknown error');
+  return Astro.redirect('/auth/login?error=session_expired&redirect=/chat');
 }
 ---
 

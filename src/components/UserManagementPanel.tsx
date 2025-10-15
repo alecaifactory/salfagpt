@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, X, Pencil, Check, Trash2, UserCog, Upload, Download, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import type { User, UserRole } from '../types/users';
 import { ROLE_LABELS } from '../types/users';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface UserManagementPanelProps {
   currentUserEmail: string;
@@ -16,6 +17,9 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  // 🔑 Hook para cerrar con ESC (solo cierra el panel principal, no los sub-modales)
+  useModalClose(!showCreateModal && !showBulkModal, onClose);
 
   // Load all users
   useEffect(() => {
@@ -585,6 +589,9 @@ function CreateUserModal({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(true, onClose);
+
   const allRoles: UserRole[] = [
     'admin',
     'expert',
@@ -652,8 +659,14 @@ function CreateUserModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl my-8">
+    <div 
+      className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-xl shadow-2xl w-full max-w-3xl my-8"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Crear Nuevo Usuario</h3>
@@ -789,6 +802,9 @@ function BulkCreateUsersModal({
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<{ created: number; errors: Array<{ email: string; error: string }> } | null>(null);
 
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(true, onClose);
+
   async function handleBulkCreate() {
     if (!csvText.trim()) {
       alert('Por favor ingresa los datos en formato CSV');
@@ -829,8 +845,14 @@ function BulkCreateUsersModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <div 
+      className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
             <h3 className="text-xl font-bold text-slate-800">Crear Usuarios en Masa (CSV)</h3>

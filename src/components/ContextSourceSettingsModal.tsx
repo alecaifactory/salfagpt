@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User } from 'lucide-react';
 import type { ContextSource, WorkflowConfig } from '../types/context';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface ContextSourceSettingsModalProps {
   source: ContextSource | null;
@@ -18,6 +19,9 @@ export default function ContextSourceSettingsModal({
   const [config, setConfig] = useState<WorkflowConfig>({});
   const [isReExtracting, setIsReExtracting] = useState(false);
   const [showModelTooltip, setShowModelTooltip] = useState(false);
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   useEffect(() => {
     if (source?.metadata?.extractionConfig) {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -42,6 +42,7 @@ interface Conversation {
   id: string;
   title: string;
   lastMessageAt: Date;
+  status?: 'active' | 'archived';
 }
 
 interface ChatInterfaceWorkingProps {
@@ -58,6 +59,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [contextLogs, setContextLogs] = useState<ContextLog[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // Per-agent processing state
+  const [agentProcessing, setAgentProcessing] = useState<Record<string, {
+    isProcessing: boolean;
+    startTime?: number;
+    needsFeedback?: boolean;
+  }>>({});
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
@@ -81,6 +89,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // Edit conversation state
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  
+  // Archive state
+  const [showArchivedConversations, setShowArchivedConversations] = useState(false);
+  const [showArchivedSection, setShowArchivedSection] = useState(false);
+  
+  // Timer state
+  const [currentTime, setCurrentTime] = useState(Date.now());
   
   // User settings state
   const [globalUserSettings, setGlobalUserSettings] = useState<UserSettings>({
@@ -128,6 +143,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Update timer every second for active processing agents
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle panel resizing
   useEffect(() => {
@@ -349,13 +373,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 allConversations.push({
                   id: conv.id,
                   title: conv.title,
-                  lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt)
+                  lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+                  status: conv.status || 'active' // Default to active if not set
                 });
               });
             });
             
             setConversations(allConversations);
             console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
+            console.log(`📋 Conversaciones activas: ${allConversations.filter(c => c.status !== 'archived').length}`);
+            console.log(`🔍 Primera conversación:`, allConversations[0]);
+            console.log(`🔍 Estado conversations después de setear:`, allConversations.length);
           } else {
             console.log('ℹ️ No hay conversaciones guardadas');
           }
@@ -435,6 +463,55 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setInput('');
     
   }, [currentConversation]);
+
+  // Helper: Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYHGGS57OihUBELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsI');
+      audio.volume = 0.3;
+      audio.play().catch(e => console.log('Could not play sound:', e));
+    } catch (e) {
+      console.log('Sound notification not available:', e);
+    }
+  };
+
+  // Helper: Detect if AI response needs feedback
+  const detectFeedbackNeeded = (content: string): boolean => {
+    const feedbackKeywords = [
+      'necesito más información',
+      'podrías proporcionar',
+      'por favor proporciona',
+      'necesito que',
+      'could you provide',
+      'please provide',
+      'i need',
+      'more information',
+      'clarify',
+      'aclarar',
+      'especificar',
+      'detallar',
+    ];
+    
+    const lowerContent = content.toLowerCase();
+    return feedbackKeywords.some(keyword => lowerContent.includes(keyword));
+  };
+
+  // Helper: Format elapsed time
+  const formatElapsedTime = (startTime: number): string => {
+    const elapsed = Math.floor((currentTime - startTime) / 1000);
+    
+    if (elapsed < 60) {
+      return `${elapsed}s`;
+    } else if (elapsed < 3600) {
+      const minutes = Math.floor(elapsed / 60);
+      const seconds = elapsed % 60;
+      return `${minutes}m ${seconds}s`;
+    } else {
+      const hours = Math.floor(elapsed / 3600);
+      const minutes = Math.floor((elapsed % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
 
   const createNewConversation = async () => {
     try {
@@ -519,8 +596,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const messageToSend = input;
     setInput('');
     setLoading(true);
+    
+    // Track processing for this agent
+    const agentId = currentConversation;
+    setAgentProcessing(prev => ({
+      ...prev,
+      [agentId]: {
+        isProcessing: true,
+        startTime: Date.now(),
+        needsFeedback: false,
+      }
+    }));
 
     try {
       // Get active context sources
@@ -555,12 +644,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         };
         setMessages(prev => [...prev, aiMessage]);
 
+        // Check if response needs feedback
+        const needsFeedback = detectFeedbackNeeded(aiMessage.content);
+
+        // Update agent processing state
+        setAgentProcessing(prev => ({
+          ...prev,
+          [agentId]: {
+            isProcessing: false,
+            needsFeedback,
+          }
+        }));
+
+        // Play sound notification
+        playNotificationSound();
+
         // Create context log if tokenStats are available
         if (data.tokenStats) {
           const log: ContextLog = {
             id: `log-${Date.now()}`,
             timestamp: new Date(),
-            userMessage: input,
+            userMessage: messageToSend,
             model: data.tokenStats.model,
             systemPrompt: data.tokenStats.systemPrompt,
             contextSources: activeContextSources.map(s => ({
@@ -582,6 +686,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // Update agent processing state on error
+      setAgentProcessing(prev => ({
+        ...prev,
+        [agentId]: {
+          isProcessing: false,
+          needsFeedback: false,
+        }
+      }));
+      
       // Add error message
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
@@ -669,7 +783,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       if (file) {
         formData.append('file', file);
         formData.append('type', type);
-        formData.append('model', config?.model || 'gemini-2.5-flash');
+        formData.append('model', config?.model || 'gemini-2.5-pro'); // Default to Pro for best quality
+
+        console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with model: ${config?.model || 'gemini-2.5-pro'}`);
 
         const response = await fetch('/api/extract-document', {
           method: 'POST',
@@ -677,10 +793,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         });
 
         if (!response.ok) {
-          throw new Error('Failed to extract document');
+          const errorData = await response.json();
+          console.error('❌ Extract API error:', errorData);
+          throw new Error(errorData.error || 'Failed to extract document');
         }
 
         const data = await response.json();
+        
+        if (!data.success) {
+          console.error('❌ Extraction failed:', data);
+          throw new Error(data.error || 'Extraction failed');
+        }
+
+        console.log(`✅ Extraction successful: ${data.extractedText?.length || 0} characters extracted`);
+        
+        // Log token usage and cost
+        if (data.metadata?.totalTokens) {
+          console.log(`📊 Tokens: ${data.metadata.inputTokens?.toLocaleString()} input + ${data.metadata.outputTokens?.toLocaleString()} output = ${data.metadata.totalTokens.toLocaleString()} total`);
+          console.log(`💰 Cost: ${data.metadata.costFormatted} (Input: $${data.metadata.inputCost?.toFixed(4)}, Output: $${data.metadata.outputCost?.toFixed(4)})`);
+        }
 
         // Save to Firestore - Assign to current agent only
         const savedSource = await fetch('/api/context-sources', {
@@ -698,9 +829,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               originalFileName: file.name,
               originalFileSize: file.size,
               pageCount: data.metadata?.pageCount,
-              model: config?.model || 'gemini-2.5-flash',
+              model: config?.model || 'gemini-2.5-pro',
               charactersExtracted: data.metadata?.characters,
               extractionDate: new Date(),
+              extractionTime: data.metadata?.extractionTime,
+              
+              // Token usage
+              inputTokens: data.metadata?.inputTokens,
+              outputTokens: data.metadata?.outputTokens,
+              totalTokens: data.metadata?.totalTokens,
+              
+              // Cost breakdown
+              inputCost: data.metadata?.inputCost,
+              outputCost: data.metadata?.outputCost,
+              totalCost: data.metadata?.totalCost,
+              costFormatted: data.metadata?.costFormatted,
             }
           })
         });
@@ -742,20 +885,45 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }
       }
     } catch (error) {
-      console.error('Error adding source:', error);
+      console.error('❌ Error adding source:', error);
+      
+      let errorMessage = 'Error al procesar el documento';
+      let errorDetails = error instanceof Error ? error.message : 'Error desconocido';
+      let suggestions: string[] = [];
+      
+      // Parse error for better user feedback
+      if (errorDetails.includes('API key') || errorDetails.includes('GEMINI')) {
+        errorMessage = 'Error de configuración de Gemini AI';
+        suggestions = [
+          'Verifica que GOOGLE_AI_API_KEY esté configurada',
+          'Reinicia el servidor después de agregar la key'
+        ];
+      } else if (errorDetails.includes('network') || errorDetails.includes('fetch')) {
+        errorMessage = 'Error de conexión';
+        suggestions = ['Verifica tu conexión a internet', 'Intenta de nuevo'];
+      } else if (errorDetails.includes('quota') || errorDetails.includes('rate limit')) {
+        errorMessage = 'Límite de API alcanzado';
+        suggestions = ['Espera unos minutos', 'Intenta con modelo Flash'];
+      }
+      
       setContextSources(prev => prev.map(s => 
         s.id === newSource.id
           ? {
               ...s,
               status: 'error',
+              progress: undefined,
               error: {
-                message: 'Error al procesar el documento',
-                details: error instanceof Error ? error.message : 'Error desconocido',
-                timestamp: new Date()
+                message: errorMessage,
+                details: errorDetails,
+                timestamp: new Date(),
+                suggestions
               }
             }
           : s
       ));
+      
+      // Show alert to user
+      alert(`❌ ${errorMessage}\n\n${errorDetails}\n\n${suggestions.length > 0 ? '\n' + suggestions.join('\n') : ''}`);
     }
   };
 
@@ -859,6 +1027,60 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  const archiveConversation = async (conversationId: string) => {
+    try {
+      // Update in Firestore
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'archived' })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to archive conversation');
+      }
+
+      // Update local state
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId ? { ...c, status: 'archived' as const } : c
+      ));
+
+      // If we archived the current conversation, clear selection
+      if (currentConversation === conversationId) {
+        setCurrentConversation(null);
+        setMessages([]);
+      }
+
+      console.log('📦 Agente archivado:', conversationId);
+    } catch (error) {
+      console.error('❌ Error al archivar agente:', error);
+    }
+  };
+
+  const unarchiveConversation = async (conversationId: string) => {
+    try {
+      // Update in Firestore
+      const response = await fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to unarchive conversation');
+      }
+
+      // Update local state
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId ? { ...c, status: 'active' as const } : c
+      ));
+
+      console.log('📂 Agente restaurado:', conversationId);
+    } catch (error) {
+      console.error('❌ Error al restaurar agente:', error);
+    }
+  };
+
   const handleReExtract = async (sourceId: string, newConfig: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro' }) => {
     console.log('Re-extracting source:', sourceId, 'with config:', newConfig);
     
@@ -892,7 +1114,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       // Re-extract using the same logic as handleAddSource
       const formData = new FormData();
       formData.append('file', source.originalFile);
-      formData.append('model', newConfig.model || 'gemini-2.5-flash');
+      formData.append('model', newConfig.model || 'gemini-2.5-pro'); // Default to Pro for quality
 
       // Update progress
       setContextSources(prev => prev.map(s =>
@@ -1035,12 +1257,31 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto p-2">
-          {conversations.map(conv => (
+          {/* DEBUG: Show conversation count */}
+          {console.log(`🎨 Renderizando ${conversations.length} conversaciones, ${conversations.filter(c => c.status !== 'archived').length} activas`)}
+          
+          {conversations.length === 0 && (
+            <div className="p-4 text-center text-slate-500 text-sm">
+              <p>No hay conversaciones</p>
+              <p className="text-xs mt-1">Haz click en "Nuevo Agente" para empezar</p>
+            </div>
+          )}
+          {conversations.length > 0 && conversations.filter(conv => conv.status !== 'archived').length === 0 && (
+            <div className="p-4 text-center text-slate-500 text-sm">
+              <p>Todas las conversaciones están archivadas</p>
+              <p className="text-xs mt-1">Haz click en "Nuevo Agente" para crear una nueva</p>
+            </div>
+          )}
+          {conversations
+            .filter(conv => conv.status !== 'archived')
+            .map(conv => (
             <div
               key={conv.id}
-              className={`w-full p-3 rounded-lg mb-1 transition-colors ${
+              className={`w-full p-3 rounded-lg mb-1 transition-colors relative ${
                 currentConversation === conv.id
                   ? 'bg-blue-50 border border-blue-200'
+                  : conv.status === 'archived'
+                  ? 'bg-amber-50/50 hover:bg-amber-50 border border-amber-200/50'
                   : 'hover:bg-slate-50'
               }`}
             >
@@ -1080,29 +1321,143 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 </div>
               ) : (
                 // View mode
-                <div className="flex items-center gap-2 group">
-                  <button
-                    onClick={() => setCurrentConversation(conv.id)}
-                    className="flex-1 flex items-center gap-2 text-left"
-                  >
-                    <MessageSquare className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-700">{conv.title}</span>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditingConversation(conv);
-                    }}
-                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Editar nombre"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
+                <div>
+                  <div className="flex items-center gap-2 group">
+                    <button
+                      onClick={() => setCurrentConversation(conv.id)}
+                      className="flex-1 flex items-center gap-2 text-left min-w-0"
+                    >
+                      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${conv.status === 'archived' ? 'text-amber-400' : 'text-slate-400'}`} />
+                      <span className={`text-sm font-medium truncate ${conv.status === 'archived' ? 'text-amber-700 italic' : 'text-slate-700'}`}>
+                        {conv.title}
+                      </span>
+                      {agentProcessing[conv.id]?.needsFeedback && (
+                        <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[9px] font-semibold rounded-full flex-shrink-0">
+                          ⚠️ Feedback
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingConversation(conv);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      title="Editar nombre"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (conv.status === 'archived') {
+                          unarchiveConversation(conv.id);
+                        } else {
+                          archiveConversation(conv.id);
+                        }
+                      }}
+                      className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ${
+                        conv.status === 'archived'
+                          ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                          : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                      }`}
+                      title={conv.status === 'archived' ? 'Restaurar' : 'Archivar'}
+                    >
+                      {conv.status === 'archived' ? (
+                        <ArchiveRestore className="w-3.5 h-3.5" />
+                      ) : (
+                        <Archive className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  
+                  {/* Processing indicator with timer */}
+                  {agentProcessing[conv.id]?.isProcessing && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Procesando...</span>
+                      {agentProcessing[conv.id]?.startTime && (
+                        <span className="font-mono font-semibold">
+                          {formatElapsedTime(agentProcessing[conv.id].startTime!)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           ))}
         </div>
+
+        {/* Archived Section - Collapsible */}
+        {conversations.filter(c => c.status === 'archived').length > 0 && (
+          <div className="border-t border-slate-200 bg-slate-50">
+            <button
+              onClick={() => setShowArchivedSection(!showArchivedSection)}
+              className="w-full px-4 py-3 flex items-center justify-between text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Archive className="w-4 h-4" />
+                <span className="font-medium">Archivados</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                  {conversations.filter(c => c.status === 'archived').length}
+                </span>
+              </div>
+              <span className={`transform transition-transform ${showArchivedSection ? 'rotate-180' : ''}`}>
+                ▼
+              </span>
+            </button>
+            
+            {/* Expanded archived list - shows last 3 */}
+            {showArchivedSection && (
+              <div className="px-2 pb-2 space-y-1">
+                {conversations
+                  .filter(c => c.status === 'archived')
+                  .slice(0, 3)
+                  .map(conv => (
+                    <div
+                      key={conv.id}
+                      className={`w-full p-3 rounded-lg transition-colors bg-amber-50/50 hover:bg-amber-50 border border-amber-200/50 ${
+                        currentConversation === conv.id ? 'ring-2 ring-amber-400' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 group">
+                        <button
+                          onClick={() => setCurrentConversation(conv.id)}
+                          className="flex-1 flex items-center gap-2 text-left min-w-0"
+                        >
+                          <MessageSquare className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                          <span className="text-sm font-medium truncate text-amber-700 italic">
+                            {conv.title}
+                          </span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unarchiveConversation(conv.id);
+                          }}
+                          className="p-1 rounded text-green-600 hover:text-green-700 hover:bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          title="Restaurar"
+                        >
+                          <ArchiveRestore className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                
+                {/* Show all archived link if more than 3 */}
+                {conversations.filter(c => c.status === 'archived').length > 3 && (
+                  <button
+                    onClick={() => setShowArchivedConversations(true)}
+                    className="w-full px-3 py-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded"
+                  >
+                    Ver todos los archivados ({conversations.filter(c => c.status === 'archived').length})
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Context Sources */}
         <ContextManager
@@ -1110,8 +1465,52 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           validations={new Map()}
           onAddSource={() => setShowAddSourceModal(true)}
           onToggleSource={toggleContext}
-          onRemoveSource={(id) => {
-            setContextSources(prev => prev.filter(s => s.id !== id));
+          onRemoveSource={async (sourceId) => {
+            if (!currentConversation) {
+              console.warn('⚠️ No current conversation for removing source');
+              return;
+            }
+
+            try {
+              console.log(`🗑️ Removing source ${sourceId} from agent ${currentConversation}`);
+              
+              // Call API to remove agent from source's assignedToAgents
+              const response = await fetch(`/api/context-sources/${sourceId}/remove-agent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ agentId: currentConversation }),
+              });
+
+              if (!response.ok) {
+                throw new Error('Failed to remove source from agent');
+              }
+
+              const result = await response.json();
+              console.log(`✅ ${result.message}`);
+
+              // Update local state immediately
+              setContextSources(prev => prev.filter(s => s.id !== sourceId));
+              
+              // Also update active context sources for this conversation
+              const activeSourceIds = contextSources
+                .filter(s => s.enabled && s.id !== sourceId)
+                .map(s => s.id);
+              
+              // Save updated active sources to conversation_context
+              try {
+                await fetch(`/api/conversations/${currentConversation}/context-sources`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ activeContextSourceIds: activeSourceIds }),
+                });
+              } catch (contextError) {
+                console.warn('⚠️ Failed to update conversation context:', contextError);
+              }
+              
+            } catch (error) {
+              console.error('❌ Error removing source:', error);
+              alert('Error al eliminar fuente. Por favor, intenta nuevamente.');
+            }
           }}
           onSourceClick={setSelectedSourceId}
           onSourceSettings={handleSourceSettings}
@@ -1703,6 +2102,76 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       )}
 
       {/* Add Source Modal */}
+      {/* View All Archived Modal */}
+      {showArchivedConversations && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <Archive className="w-6 h-6 text-amber-600" />
+                <h2 className="text-xl font-bold text-slate-800">Agentes Archivados</h2>
+                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold">
+                  {conversations.filter(c => c.status === 'archived').length}
+                </span>
+              </div>
+              <button
+                onClick={() => setShowArchivedConversations(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Archived list */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-2">
+                {conversations
+                  .filter(c => c.status === 'archived')
+                  .map(conv => (
+                    <div
+                      key={conv.id}
+                      className={`p-4 rounded-lg border-2 transition-colors ${
+                        currentConversation === conv.id
+                          ? 'bg-amber-50 border-amber-400'
+                          : 'bg-amber-50/50 border-amber-200 hover:border-amber-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <button
+                          onClick={() => {
+                            setCurrentConversation(conv.id);
+                            setShowArchivedConversations(false);
+                          }}
+                          className="flex-1 flex items-center gap-3 text-left"
+                        >
+                          <MessageSquare className="w-5 h-5 text-amber-500" />
+                          <div>
+                            <p className="font-semibold text-amber-900">{conv.title}</p>
+                            <p className="text-xs text-amber-600">
+                              Última actividad: {new Date(conv.lastMessageAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unarchiveConversation(conv.id);
+                          }}
+                          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium"
+                        >
+                          <ArchiveRestore className="w-4 h-4" />
+                          Restaurar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AddSourceModal
         isOpen={showAddSourceModal}
         onClose={() => {

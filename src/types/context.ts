@@ -22,6 +22,17 @@ export interface ExtractionMetadata {
   tokensEstimate?: number;
   modelUsed?: string;
   
+  // Token usage (actual, from API response)
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  
+  // Cost breakdown (calculated from official pricing)
+  inputCost?: number;      // USD
+  outputCost?: number;     // USD
+  totalCost?: number;      // USD
+  costFormatted?: string;  // Formatted as $0.0123
+  
   // Quality metadata
   pageCount?: number;
   url?: string;
@@ -46,6 +57,20 @@ export interface ContextSource {
   
   // For re-extraction
   originalFile?: File;
+  
+  // Agent assignment
+  assignedToAgents?: string[]; // Conversation IDs this source is assigned to
+  
+  // Labels and qualification (for expert review)
+  labels?: string[]; // User-defined labels (e.g., "CV", "Contrato", "Manual")
+  qualityRating?: number; // 1-5 stars
+  qualityNotes?: string; // Expert notes on quality
+  
+  // Expert certification
+  certified?: boolean; // Expert has certified this extraction
+  certifiedBy?: string; // Email or userId of certifier
+  certifiedAt?: Date; // When it was certified
+  certificationNotes?: string; // Notes from certifier
   
   // Progress tracking
   progress?: {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Sparkles, Info } from 'lucide-react';
 import type { Workflow, WorkflowConfig } from '../types/context';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface WorkflowConfigModalProps {
   workflow: Workflow | null;
@@ -22,6 +23,9 @@ export default function WorkflowConfigModal({
     model: 'gemini-2.5-flash',
   });
   const [showModelTooltip, setShowModelTooltip] = useState(false);
+
+  // 🔑 Hook para cerrar con ESC
+  useModalClose(isOpen, onClose);
 
   // Reset config when workflow changes
   useEffect(() => {
