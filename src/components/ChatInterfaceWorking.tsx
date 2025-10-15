@@ -2346,8 +2346,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
       )}
 
-      {/* Show Panel Button (when hidden) */}
-      {!showRightPanel && (
+      {/* Show Panel Button (when hidden) - HIDDEN FOR NOW */}
+      {false && !showRightPanel && (
         <button
           onClick={() => setShowRightPanel(true)}
           className="fixed right-0 top-1/2 transform -translate-y-1/2 px-2 py-4 bg-blue-600 text-white rounded-l-lg shadow-lg hover:bg-blue-700 transition-colors"
