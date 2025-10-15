@@ -84,20 +84,24 @@ export const GET: APIRoute = async (context) => {
       // Find uploader email
       const uploaderEmail = usersMap.get(source.userId) || source.userId;
       
-      // Find assigned agents
-      const assignedAgents = (source.assignedToAgents || [])
+      // Find assigned agents and enrich with details
+      const assignedToAgents = source.assignedToAgents || [];
+      const assignedAgents = assignedToAgents
         .map((agentId: string) => conversationsMap.get(agentId))
         .filter(Boolean);
 
       return {
         id: sourceId,
         ...source,
+        addedAt: source.addedAt?.toDate?.() || source.addedAt,
         uploaderEmail,
-        assignedAgents,
+        assignedToAgents: assignedToAgents, // Keep original IDs
+        assignedAgents, // Enriched with agent details
       };
     });
 
     console.log('✅ Returning', enrichedSources.length, 'context sources');
+    console.log('📊 Sample source assignments:', enrichedSources[0]?.assignedToAgents);
 
     return new Response(
       JSON.stringify({
