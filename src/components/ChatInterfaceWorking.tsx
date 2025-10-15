@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
+import AgentManagementDashboard from './AgentManagementDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
+import ProviderManagementDashboard from './ProviderManagementDashboard';
 import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -80,7 +82,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
+  const [showAgentManagement, setShowAgentManagement] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
+  const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
@@ -249,10 +253,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       // This prevents showing all sources momentarily before filtering
       const filteredSources = allSources
         .filter((source: any) => {
-          // Show if assigned to this agent, or no assignment (backward compat)
-          return !source.assignedToAgents || 
-                 source.assignedToAgents.length === 0 ||
-                 source.assignedToAgents.includes(conversationId);
+          // Show if:
+          // 1. Source has PUBLIC tag/label (visible to all agents)
+          // 2. Assigned to this agent specifically
+          // 3. No assignment (backward compat - legacy sources)
+          const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
+          const isAssignedToThisAgent = source.assignedToAgents?.includes(conversationId);
+          const hasNoAssignment = !source.assignedToAgents || source.assignedToAgents.length === 0;
+          
+          return hasPublicTag || isAssignedToThisAgent || hasNoAssignment;
         })
         .map((source: any) => ({
           ...source,
@@ -267,7 +276,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       
       // ONLY set state after filtering - prevents flash of wrong content
       setContextSources(filteredSources);
-      console.log(`✅ Mostrando solo fuentes asignadas: ${filteredSources.length} fuentes (${activeIds.length} activas) para agente ${conversationId}`);
+      
+      // Log filtering details
+      const publicSources = filteredSources.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
+      const assignedSources = filteredSources.filter((s: any) => s.assignedToAgents?.includes(conversationId));
+      const legacySources = filteredSources.filter((s: any) => !s.assignedToAgents || s.assignedToAgents.length === 0);
+      
+      console.log(`✅ Context sources for agent ${conversationId}:`, {
+        total: filteredSources.length,
+        public: publicSources.length,
+        assigned: assignedSources.length,
+        legacy: legacySources.length,
+        active: activeIds.length,
+      });
     } catch (error) {
       console.error('Error loading context:', error);
     }
@@ -910,10 +931,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 ...savedData.source,
                 addedAt: new Date(savedData.source.addedAt),
                 enabled: true, // Activate toggle by default
+                originalFile: file, // Keep original file for viewer
                 progress: {
                   stage: 'complete',
                   percentage: 100,
-                  message: 'Completado'
+                  message: `✓ Completado en ${timeDisplay} - ${data.metadata?.costFormatted || '$0.00'}`,
+                  startTime,
+                  elapsedSeconds: totalElapsed,
+                  estimatedCost: totalCost
                 }
               }
             : s
@@ -1600,6 +1625,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </>
                 )}
                 
+                {/* Agent Management - Superadmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-indigo-700 hover:bg-indigo-50 font-medium transition-colors rounded-lg mx-2"
+                      onClick={() => {
+                        setShowAgentManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      <span className="font-medium">Gestión de Agentes</span>
+                    </button>
+                    <div className="border-t border-slate-200 my-2" />
+                  </>
+                )}
+                
                 {/* User Management - SuperAdmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
@@ -1612,6 +1654,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     >
                       <Users className="w-5 h-5" />
                       <span className="font-medium">Gestión de Usuarios</span>
+                    </button>
+                    <div className="h-px bg-slate-200 my-2" />
+                  </>
+                )}
+                
+                {/* Provider Management - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-5 py-3 text-sm text-green-700 hover:bg-green-50 font-medium transition-colors rounded-lg mx-2"
+                      onClick={() => {
+                        setShowProviderManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      <span className="font-medium">Gestión de Proveedores</span>
                     </button>
                     <div className="h-px bg-slate-200 my-2" />
                   </>
@@ -1857,9 +1916,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                             className="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 transition-colors text-left cursor-pointer"
                           >
                             <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <FileText className="w-3.5 h-3.5 text-green-600" />
                                 <p className="text-xs font-semibold text-slate-800">{source.name}</p>
+                                {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
+                                  <span className="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded-full font-semibold">
+                                    🌐 PUBLIC
+                                  </span>
+                                )}
                                 {source.metadata?.validated && (
                                   <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold">
                                     ✓ Validado
@@ -2283,6 +2347,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }}
       />
       
+      {/* Agent Management Dashboard - Superadmin Only */}
+      {showAgentManagement && (
+        <AgentManagementDashboard
+          userId={userId}
+          onClose={() => setShowAgentManagement(false)}
+        />
+      )}
+      
       {/* User Management Panel - SuperAdmin Only */}
       {showUserManagement && userEmail && (
         <UserManagementPanel
@@ -2298,6 +2370,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           isOpen={showDomainManagement}
           onClose={() => setShowDomainManagement(false)}
           currentUserEmail={userEmail}
+        />
+      )}
+
+      {/* Provider Management Dashboard - SuperAdmin Only */}
+      {showProviderManagement && (
+        <ProviderManagementDashboard
+          onClose={() => setShowProviderManagement(false)}
+          currentUser={{ id: userId, email: userEmail, name: userName }}
         />
       )}
 
