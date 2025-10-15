@@ -69,7 +69,7 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
     
     // Create/update user in Firestore on login
     try {
-      await upsertUserOnLogin(userData.email, userData.name);
+      await upsertUserOnLogin(userData.email, userData.name, userData.id);
       console.log('✅ User created/updated in Firestore:', userData.email);
     } catch (userError) {
       console.error('⚠️ Failed to upsert user in Firestore:', userError);
