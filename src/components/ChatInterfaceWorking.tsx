@@ -256,12 +256,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           // Show if:
           // 1. Source has PUBLIC tag/label (visible to all agents)
           // 2. Assigned to this agent specifically
-          // 3. No assignment (backward compat - legacy sources)
+          // Note: Removed backward compat to prevent private docs from appearing in new agents
           const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
           const isAssignedToThisAgent = source.assignedToAgents?.includes(conversationId);
-          const hasNoAssignment = !source.assignedToAgents || source.assignedToAgents.length === 0;
           
-          return hasPublicTag || isAssignedToThisAgent || hasNoAssignment;
+          return hasPublicTag || isAssignedToThisAgent;
         })
         .map((source: any) => ({
           ...source,
@@ -280,13 +279,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       // Log filtering details
       const publicSources = filteredSources.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
       const assignedSources = filteredSources.filter((s: any) => s.assignedToAgents?.includes(conversationId));
-      const legacySources = filteredSources.filter((s: any) => !s.assignedToAgents || s.assignedToAgents.length === 0);
       
       console.log(`✅ Context sources for agent ${conversationId}:`, {
         total: filteredSources.length,
         public: publicSources.length,
         assigned: assignedSources.length,
-        legacy: legacySources.length,
         active: activeIds.length,
       });
     } catch (error) {
@@ -816,6 +813,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     url?: string,
     config?: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro', apiEndpoint?: string, tags?: string[] }
   ) => {
+    const startTime = Date.now(); // Track start time
+    
     const newSource: ContextSource = {
       id: `source-${Date.now()}`,
       name: file?.name || url || config?.apiEndpoint || 'Nueva Fuente',
@@ -827,18 +826,57 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       tags: config?.tags, // Include tags from config
       progress: {
         stage: 'uploading',
-        percentage: 10,
-        message: 'Subiendo archivo...'
+        percentage: 0,
+        message: 'Iniciando...',
+        startTime,
+        elapsedSeconds: 0
       }
     };
 
     setContextSources(prev => [...prev, newSource]);
+    
+    // Close the modal immediately - show progress in context panel
+    setShowAddSourceModal(false);
+    setPreSelectedSourceType(undefined);
+
+    // Calculate estimated cost based on file size
+    const fileSizeMB = file ? file.size / (1024 * 1024) : 1;
+    const estimatedPages = Math.max(1, Math.ceil(fileSizeMB / 0.1));
+    const model = config?.model || 'gemini-2.5-pro';
+    const costPerPage = model === 'gemini-2.5-pro' ? 0.0015 : 0.00002;
+    const estimatedCost = estimatedPages * costPerPage;
+
+    // Start progress timer
+    const progressInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setContextSources(prev => prev.map(s => 
+        s.id === newSource.id && s.progress
+          ? { 
+              ...s, 
+              progress: { 
+                ...s.progress, 
+                elapsedSeconds: elapsed
+              } 
+            }
+          : s
+      ));
+    }, 1000);
 
     try {
-      // Update progress: processing
+      // Update progress: processing (50%)
       setContextSources(prev => prev.map(s => 
         s.id === newSource.id
-          ? { ...s, progress: { stage: 'processing', percentage: 50, message: 'Extrayendo contenido...' } }
+          ? { 
+              ...s, 
+              progress: { 
+                stage: 'processing', 
+                percentage: 50, 
+                message: 'Extrayendo contenido...',
+                startTime,
+                elapsedSeconds: Math.floor((Date.now() - startTime) / 1000),
+                estimatedCost
+              } 
+            }
           : s
       ));
 
@@ -924,6 +962,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         const savedData = await savedSource.json();
         const sourceId = savedData.source.id;
 
+        // Clear progress interval
+        clearInterval(progressInterval);
+
+        // Calculate final metrics
+        const totalElapsed = Math.floor((Date.now() - startTime) / 1000);
+        const totalCost = data.metadata?.totalCost || 0;
+        const timeDisplay = totalElapsed < 60 
+          ? `${totalElapsed}s` 
+          : `${Math.floor(totalElapsed / 60)}m ${totalElapsed % 60}s`;
+
         // Update local state with Firestore ID and enabled=true
         setContextSources(prev => prev.map(s => 
           s.id === newSource.id
@@ -958,6 +1006,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }
       }
     } catch (error) {
+      // Clear progress interval on error
+      clearInterval(progressInterval);
+      
       console.error('❌ Error adding source:', error);
       
       let errorMessage = 'Error al procesar el documento';
@@ -979,6 +1030,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         suggestions = ['Espera unos minutos', 'Intenta con modelo Flash'];
       }
       
+      const failedElapsed = Math.floor((Date.now() - startTime) / 1000);
+      const failedTimeDisplay = failedElapsed < 60 ? `${failedElapsed}s` : `${Math.floor(failedElapsed / 60)}m ${failedElapsed % 60}s`;
+      
       setContextSources(prev => prev.map(s => 
         s.id === newSource.id
           ? {
@@ -987,7 +1041,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               progress: undefined,
               error: {
                 message: errorMessage,
-                details: errorDetails,
+                details: `${errorDetails} (falló después de ${failedTimeDisplay})`,
                 timestamp: new Date(),
                 suggestions
               }

@@ -215,6 +215,41 @@ export default function ContextSourceSettingsModal({
                   <span className="text-slate-500">Tamaño:</span>
                   <span className="font-medium text-slate-800">{formatFileSize(source.metadata?.originalFileSize)}</span>
                 </div>
+                
+                {/* File Preview/Download */}
+                {source.originalFile && (
+                  <div className="pt-2 border-t border-slate-200 mt-2">
+                    {source.type === 'pdf' ? (
+                      <div className="space-y-2">
+                        <p className="text-slate-600 font-medium">Vista Previa:</p>
+                        <div className="border border-slate-300 rounded-lg overflow-hidden bg-white">
+                          <iframe
+                            src={URL.createObjectURL(source.originalFile)}
+                            className="w-full h-64"
+                            title="PDF Preview"
+                          />
+                        </div>
+                        <a
+                          href={URL.createObjectURL(source.originalFile)}
+                          download={source.metadata?.originalFileName || source.name}
+                          className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          Descargar PDF Original
+                        </a>
+                      </div>
+                    ) : (
+                      <a
+                        href={URL.createObjectURL(source.originalFile)}
+                        download={source.metadata?.originalFileName || source.name}
+                        className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium w-full"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Descargar Archivo Original
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </section>
 
