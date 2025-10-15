@@ -915,6 +915,11 @@ export default function ContextManagementDashboard({
                             <span className="text-sm font-semibold text-gray-900 truncate">
                               {source.name}
                             </span>
+                            {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
+                              <span className="px-2 py-0.5 bg-gray-900 text-white text-xs rounded-full flex-shrink-0">
+                                🌐 PUBLIC
+                              </span>
+                            )}
                             {source.metadata?.validated && (
                               <span className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded-full flex-shrink-0">
                                 ✓ Validado
