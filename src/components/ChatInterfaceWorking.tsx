@@ -1403,17 +1403,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   };
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       {/* Left Sidebar - Conversations */}
       <div 
-        className="bg-white border-r border-slate-200 flex flex-col relative"
+        className="bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col relative"
         style={{ width: `${leftPanelWidth}px` }}
       >
         {/* Header with Salfacorp Logo */}
-        <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-3">
           {/* Salfacorp Logo and Brand */}
           <div className="flex items-center justify-center gap-3">
-            <h1 className="text-xl font-bold text-slate-800">SALFAGPT</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">SALFAGPT</h1>
             <img 
               src="/images/Logo Salfacorp.png" 
               alt="Salfacorp" 
@@ -1424,7 +1424,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           {/* New Agent Button */}
           <button
             onClick={createNewConversation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5" />
             Nuevo Agente
@@ -1432,7 +1432,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-2 dark:bg-slate-800">
           {conversations.length === 0 && (
             <div className="p-4 text-center text-slate-500 text-sm">
               <p>No hay conversaciones</p>
@@ -1452,10 +1452,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               key={conv.id}
               className={`w-full p-3 rounded-lg mb-1 transition-colors relative ${
                 currentConversation === conv.id
-                  ? 'bg-blue-50 border border-blue-200'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
                   : conv.status === 'archived'
-                  ? 'bg-amber-50/50 hover:bg-amber-50 border border-amber-200/50'
-                  : 'hover:bg-slate-50'
+                  ? 'bg-amber-50/50 dark:bg-amber-900/20 hover:bg-amber-50 dark:hover:bg-amber-900/30 border border-amber-200/50 dark:border-amber-700/50'
+                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}
             >
               {editingConversationId === conv.id ? (
@@ -1500,8 +1500,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                       onClick={() => setCurrentConversation(conv.id)}
                       className="flex-1 flex items-center gap-2 text-left min-w-0"
                     >
-                      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${conv.status === 'archived' ? 'text-amber-400' : 'text-slate-400'}`} />
-                      <span className={`text-sm font-medium truncate ${conv.status === 'archived' ? 'text-amber-700 italic' : 'text-slate-700'}`}>
+                      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${conv.status === 'archived' ? 'text-amber-400 dark:text-amber-500' : 'text-slate-400 dark:text-slate-500'}`} />
+                      <span className={`text-sm font-medium truncate ${conv.status === 'archived' ? 'text-amber-700 dark:text-amber-400 italic' : 'text-slate-700 dark:text-slate-200'}`}>
                         {conv.title}
                       </span>
                       {agentProcessing[conv.id]?.needsFeedback && (
@@ -1841,10 +1841,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       <div className="flex-1 flex flex-col">
         {/* Agent Header */}
         {currentConversation && (
-          <div className="border-b border-slate-200 px-6 py-3 bg-white flex items-center justify-between">
+          <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-3 bg-white dark:bg-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-blue-600" />
-              <h2 className="text-lg font-semibold text-slate-800">
+              <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                 {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
               </h2>
               {currentAgentConfig?.preferredModel && (
@@ -1859,7 +1859,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             </div>
             <button
               onClick={() => setShowAgentConfiguration(true)}
-              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+              className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
             >
               <SettingsIcon className="w-4 h-4" />
               Configurar Agente
@@ -1884,9 +1884,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     {msg.content}
                   </div>
                 ) : (
-                  <div className="inline-block max-w-3xl rounded-lg bg-white text-slate-800 border border-slate-200 shadow-sm">
-                    <div className="px-5 pt-3 pb-2 border-b border-slate-100">
-                      <span className="text-sm font-bold text-blue-600">SalfaGPT:</span>
+                  <div className="inline-block max-w-3xl rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
                     </div>
                     <div className="p-5">
                       <MessageRenderer 
@@ -1916,7 +1916,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-slate-200 bg-white p-4">
+        <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
           <div className="max-w-4xl mx-auto">
             {/* Context Button */}
             <div className="mb-3 flex justify-center">
@@ -2215,7 +2215,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   }
                 }}
                 placeholder="Escribe un mensaje..."
-                className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
@@ -2236,7 +2236,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 </button>
               )}
             </div>
-            <p className="text-xs text-slate-500 text-center mt-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2">
               Flow puede cometer errores. Verifica la información importante.
             </p>
           </div>
