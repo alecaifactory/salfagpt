@@ -1360,20 +1360,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         style={{ width: `${leftPanelWidth}px` }}
       >
         {/* Header with Salfacorp Logo */}
-        <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600 space-y-3">
-          {/* Salfacorp Logo */}
-          <div className="flex justify-center">
+        <div className="p-4 border-b border-slate-200 bg-white space-y-3">
+          {/* Salfacorp Logo and Brand */}
+          <div className="flex items-center justify-center gap-3">
+            <h1 className="text-xl font-bold text-slate-800">SALFAGPT</h1>
             <img 
               src="/images/Logo Salfacorp.png" 
               alt="Salfacorp" 
-              className="w-12 h-12 object-contain"
+              className="w-10 h-10 object-contain"
             />
           </div>
           
           {/* New Agent Button */}
           <button
             onClick={createNewConversation}
-            className="w-full flex items-center gap-2 px-4 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-lg font-semibold hover:bg-slate-800 transition-colors shadow-sm"
           >
             <Plus className="w-5 h-5" />
             Nuevo Agente
