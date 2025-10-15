@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -7,6 +7,7 @@ import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
 import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
 import AgentManagementDashboard from './AgentManagementDashboard';
+import AgentConfigurationModal from './AgentConfigurationModal';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
@@ -14,6 +15,7 @@ import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
+import type { AgentConfiguration } from '../types/agent-config';
 
 interface Message {
   id: string;
@@ -82,6 +84,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showAgentManagement, setShowAgentManagement] = useState(false);
+  const [showAgentConfiguration, setShowAgentConfiguration] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -1129,6 +1132,30 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  const handleAgentConfigSaved = async (config: AgentConfiguration) => {
+    console.log('💾 Guardando configuración extraída del agente:', config);
+    
+    // Update agent config
+    setCurrentAgentConfig({
+      preferredModel: config.recommendedModel,
+      systemPrompt: config.systemPrompt,
+    });
+    
+    // Save to global settings too if desired
+    setGlobalUserSettings(prev => ({
+      ...prev,
+      preferredModel: config.recommendedModel,
+      systemPrompt: config.systemPrompt,
+    }));
+    
+    // Rename current conversation to match agent name
+    if (currentConversation && config.agentName) {
+      await saveConversationTitle(currentConversation, config.agentName);
+    }
+    
+    console.log('✅ Configuración del agente aplicada');
+  };
+
   const handleSourceSettings = (sourceId: string) => {
     const source = contextSources.find(s => s.id === sourceId);
     if (source) {
@@ -1813,6 +1840,34 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
+        {/* Agent Header */}
+        {currentConversation && (
+          <div className="border-b border-slate-200 px-6 py-3 bg-white flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg font-semibold text-slate-800">
+                {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
+              </h2>
+              {currentAgentConfig?.preferredModel && (
+                <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                  currentAgentConfig.preferredModel === 'gemini-2.5-pro'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {currentAgentConfig.preferredModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setShowAgentConfiguration(true)}
+              className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <SettingsIcon className="w-4 h-4" />
+              Configurar Agente
+            </button>
+          </div>
+        )}
+        
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
           {messages.length === 0 ? (
@@ -2449,6 +2504,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           onClose={() => setShowAgentManagement(false)}
         />
       )}
+      
+      {/* Agent Configuration Modal */}
+      <AgentConfigurationModal
+        isOpen={showAgentConfiguration}
+        onClose={() => setShowAgentConfiguration(false)}
+        agentId={currentConversation || undefined}
+        agentName={conversations.find(c => c.id === currentConversation)?.title}
+        onConfigSaved={handleAgentConfigSaved}
+      />
       
       {/* User Management Panel - SuperAdmin Only */}
       {showUserManagement && userEmail && (
