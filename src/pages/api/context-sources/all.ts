@@ -11,10 +11,10 @@ import { firestore, COLLECTIONS } from '../../../lib/firestore';
  * 
  * Security: Only accessible by alec@getaifactory.com
  */
-export const GET: APIRoute = async ({ request, cookies }) => {
+export const GET: APIRoute = async (context) => {
   try {
     // 1. Verify authentication
-    const session = getSession({ cookies });
+    const session = getSession(context);
     if (!session) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Please login' }),
@@ -59,11 +59,22 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       .collection(COLLECTIONS.USERS)
       .get();
 
-    const usersMap = new Map();
+    // Create map of userId → email
+    const usersMap = new Map<string, string>();
     usersSnapshot.docs.forEach(doc => {
       const data = doc.data();
+      // Store by document ID (sanitized email)
       usersMap.set(doc.id, data.email || doc.id);
+      // Also store by numeric userId if present (for Google OAuth IDs)
+      if (data.userId) {
+        usersMap.set(data.userId, data.email || doc.id);
+      }
     });
+
+    // TEMP: Also get session user to ensure current user is mapped
+    if (session.id && session.email) {
+      usersMap.set(session.id, session.email);
+    }
 
     // 6. Enrich sources with uploader and agent info
     const enrichedSources = sourcesSnapshot.docs.map(doc => {
@@ -71,7 +82,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       const sourceId = doc.id;
       
       // Find uploader email
-      const uploaderEmail = usersMap.get(source.userId);
+      const uploaderEmail = usersMap.get(source.userId) || source.userId;
       
       // Find assigned agents
       const assignedAgents = (source.assignedToAgents || [])

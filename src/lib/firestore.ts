@@ -615,7 +615,7 @@ function getMergedPermissions(roles: UserRole[]): UserPermissions {
  * Create or update user on login (upsert)
  * Called automatically when user logs in via OAuth
  */
-export async function upsertUserOnLogin(email: string, name: string): Promise<User> {
+export async function upsertUserOnLogin(email: string, name: string, googleUserId?: string): Promise<User> {
   const userId = email.replace(/[@.]/g, '_');
   const now = new Date();
   
@@ -623,12 +623,19 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
     const userDoc = await firestore.collection('users').doc(userId).get();
     
     if (userDoc.exists) {
-      // User exists - update last login
-      await firestore.collection('users').doc(userId).update({
+      // User exists - update last login and userId if provided
+      const updateData: any = {
         name, // Update name in case it changed
         lastLoginAt: now,
         updatedAt: now,
-      });
+      };
+      
+      // Store numeric userId for mapping context sources
+      if (googleUserId) {
+        updateData.userId = googleUserId;
+      }
+      
+      await firestore.collection('users').doc(userId).update(updateData);
       
       console.log('✅ User login updated:', email);
       
@@ -656,6 +663,7 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
         id: userId,
         email,
         name,
+        userId: googleUserId, // Store Google OAuth numeric ID for mapping
         role: initialRoles[0] as UserRole, // Primary role
         roles: initialRoles,
         company,
@@ -670,6 +678,7 @@ export async function upsertUserOnLogin(email: string, name: string): Promise<Us
       
       await firestore.collection('users').doc(userId).set({
         ...newUser,
+        userId: googleUserId, // Store numeric ID
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
