@@ -350,9 +350,24 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
           fileName: file.name,
           uploadedAt: new Date(),
           uploadedBy: 'system', // TODO: Get from session
+          
+          // Core fields from extraction
+          agentName: extractedConfig.agentName || file.name,
           agentPurpose: extractedConfig.agentPurpose || '',
           setupInstructions: extractedConfig.systemPrompt || '',
+          
+          // NEW: User fields
+          targetAudience: extractedConfig.targetAudience || [],
+          pilotUsers: extractedConfig.pilotUsers || [],
+          
+          // NEW: Behavior fields
+          tone: extractedConfig.tone || '',
+          recommendedModel: extractedConfig.recommendedModel || 'gemini-2.5-flash',
+          expectedOutputFormat: extractedConfig.expectedOutputFormat || '',
+          
+          // Input/Output examples
           inputExamples,
+          expectedInputTypes: extractedConfig.expectedInputTypes || [],
           correctOutputs: extractedConfig.expectedOutputExamples?.map((ex: any) => ({
             example: ex.example || '',
             criteria: ex.successCriteria || 'Apropiada según configuración'
@@ -361,11 +376,25 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
             example: ex.example || '',
             reason: ex.reason || ''
           })) || [],
-          domainExpert: {
+          
+          // Response requirements
+          responseRequirements: extractedConfig.responseRequirements || {},
+          
+          // Context sources
+          requiredContextSources: extractedConfig.requiredContextSources || [],
+          
+          // Domain expert
+          domainExpert: extractedConfig.domainExpert || {
             name: 'Unknown',
             email: 'Unknown',
             department: 'Unknown'
-          }
+          },
+          
+          // Optional/legacy fields (preserve if exist)
+          businessCase: extractedConfig.businessCase,
+          qualityCriteria: extractedConfig.qualityCriteria,
+          undesirableOutputs: extractedConfig.undesirableOutputs,
+          acceptanceCriteria: extractedConfig.acceptanceCriteria
         };
         
         console.log('💾 [SAVE] Final setupDocData.inputExamples:', setupDocData.inputExamples);
@@ -374,8 +403,19 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
         console.log('💾 [SAVE] Data prepared, counts:', {
           inputExamples: setupDocData.inputExamples.length,
           correctOutputs: setupDocData.correctOutputs.length,
-          purpose: setupDocData.agentPurpose.substring(0, 50)
+          purpose: setupDocData.agentPurpose.substring(0, 50),
+          targetAudience: setupDocData.targetAudience.length,
+          pilotUsers: setupDocData.pilotUsers.length,
+          tone: setupDocData.tone || 'N/A',
+          model: setupDocData.recommendedModel
         });
+        
+        console.log('💾 [SAVE] NEW FIELDS:');
+        console.log('  - targetAudience:', setupDocData.targetAudience);
+        console.log('  - pilotUsers:', setupDocData.pilotUsers);
+        console.log('  - tone:', setupDocData.tone);
+        console.log('  - recommendedModel:', setupDocData.recommendedModel);
+        console.log('  - domainExpert.name:', setupDocData.domainExpert?.name);
         
         console.log('💾 [SAVE] Calling Firestore set() for collection agent_setup_docs, doc:', agentId);
         
