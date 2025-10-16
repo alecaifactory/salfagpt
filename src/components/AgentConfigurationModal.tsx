@@ -605,35 +605,35 @@ export default function AgentConfigurationModal({
               </div>
               
               {/* Executive Summary - Key Mappings */}
-              <div className="bg-gradient-to-r from-slate-100 to-slate-200 border-2 border-slate-400 rounded-xl p-5">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
                 <h3 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
                   📋 Resumen Ejecutivo - Mapeo Completo
                 </h3>
-                <p className="text-sm text-slate-700 mb-4">
+                <p className="text-sm text-slate-600 mb-4">
                   Información extraída del documento para configurar el agente con enfoque en negocio
                 </p>
                 
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-white rounded-lg p-3 border-2 border-red-300">
-                    <p className="font-bold text-red-700 mb-1">1️⃣ Usuario con el Dolor:</p>
-                    <p className="text-slate-800">{extractedConfig.businessCase.affectedPersonas[0]}</p>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="font-bold text-slate-800 mb-1">1️⃣ Usuario con el Dolor:</p>
+                    <p className="text-slate-700">{extractedConfig.businessCase.affectedPersonas[0]}</p>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-3 border-2 border-orange-300">
-                    <p className="font-bold text-orange-700 mb-1">2️⃣ El Dolor:</p>
-                    <p className="text-slate-800">{extractedConfig.businessCase.painPoint.substring(0, 80)}...</p>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="font-bold text-slate-800 mb-1">2️⃣ El Dolor:</p>
+                    <p className="text-slate-700">{extractedConfig.businessCase.painPoint.substring(0, 80)}...</p>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-3 border-2 border-green-300">
-                    <p className="font-bold text-green-700 mb-1">3️⃣ Cómo Evalúa Calidad:</p>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="font-bold text-slate-800 mb-1">3️⃣ Cómo Evalúa Calidad:</p>
                     <ul className="space-y-0.5">
                       {extractedConfig.qualityCriteria.map((c, i) => (
-                        <li key={i} className="text-slate-800">• {c.criterion} ({(c.weight * 100).toFixed(0)}%)</li>
+                        <li key={i} className="text-slate-700">• {c.criterion} ({(c.weight * 100).toFixed(0)}%)</li>
                       ))}
                     </ul>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-3 border-2 border-blue-300">
+                  <div className="bg-blue-50 rounded-lg p-3 border-2 border-blue-300">
                     <p className="font-bold text-blue-700 mb-1">4️⃣ Criterio de Aceptación:</p>
                     <ul className="space-y-0.5">
                       {extractedConfig.acceptanceCriteria.map((ac, i) => (
@@ -642,18 +642,18 @@ export default function AgentConfigurationModal({
                     </ul>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-3 border-2 border-purple-300">
-                    <p className="font-bold text-purple-700 mb-1">5️⃣ Criterio de Rechazo:</p>
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="font-bold text-slate-800 mb-1">5️⃣ Criterio de Rechazo:</p>
                     <ul className="space-y-0.5">
                       {extractedConfig.undesirableOutputs.map((uo, i) => (
-                        <li key={i} className="text-slate-800">✗ {uo.example}</li>
+                        <li key={i} className="text-slate-700">✗ {uo.example}</li>
                       ))}
                     </ul>
                   </div>
                   
-                  <div className="bg-white rounded-lg p-3 border-2 border-indigo-300">
-                    <p className="font-bold text-indigo-700 mb-1">6️⃣ Expectativas de Respuesta:</p>
-                    <p className="text-slate-800">
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="font-bold text-slate-800 mb-1">6️⃣ Expectativas de Respuesta:</p>
+                    <p className="text-slate-700">
                       {extractedConfig.responseRequirements.format} • 
                       {extractedConfig.responseRequirements.length.target}w • 
                       {extractedConfig.responseRequirements.speed.target}s
@@ -663,16 +663,16 @@ export default function AgentConfigurationModal({
               </div>
               
               {/* Business Case Section - Full Width */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-5">
-                <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
-                  <Target className="w-6 h-6" />
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <Target className="w-6 h-6 text-blue-600" />
                   Caso de Uso Identificado
                 </h3>
                 
                 <div className="grid grid-cols-3 gap-4">
                   {/* Column 1: Pain Point */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-bold text-red-700 mb-2 flex items-center gap-1.5">
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                       ⚠️ Dolor Identificado
                     </h4>
                     <p className="text-xs text-slate-700 leading-relaxed">
@@ -681,8 +681,8 @@ export default function AgentConfigurationModal({
                   </div>
                   
                   {/* Column 2: Who Has It */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                       <UsersIcon className="w-4 h-4" />
                       Quiénes lo Tienen
                     </h4>
@@ -705,8 +705,8 @@ export default function AgentConfigurationModal({
                   </div>
                   
                   {/* Column 3: Solution Expectation */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-bold text-green-700 mb-2 flex items-center gap-1.5">
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                       ✨ Solución Esperada
                     </h4>
                     <p className="text-xs text-slate-700 mb-2">
@@ -721,8 +721,8 @@ export default function AgentConfigurationModal({
                 {/* Impact Row */}
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   {/* Quantitative Impact */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-bold text-green-700 mb-3 flex items-center gap-1.5">
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
                       📊 Impacto Cuantitativo
                     </h4>
                     <div className="grid grid-cols-2 gap-2 text-xs">
@@ -742,8 +742,8 @@ export default function AgentConfigurationModal({
                   </div>
                   
                   {/* Qualitative Impact */}
-                  <div className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-bold text-purple-700 mb-2 flex items-center gap-1.5">
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                       💎 Impacto Cualitativo
                     </h4>
                     <p className="text-xs text-slate-700 mb-2">{extractedConfig.businessCase.businessImpact.qualitative.description}</p>
@@ -761,15 +761,15 @@ export default function AgentConfigurationModal({
               </div>
               
               {/* Success Criteria */}
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5">
-                <h3 className="text-lg font-bold text-yellow-900 mb-4 flex items-center gap-2">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
                   🎯 Evaluación del Éxito
                 </h3>
                 
                 <div className="grid grid-cols-2 gap-4">
                   {/* What Makes Success */}
-                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
-                    <h4 className="text-sm font-bold text-green-700 mb-3">✅ Qué Define Éxito</h4>
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-blue-700 mb-3">✅ Qué Define Éxito</h4>
                     <div className="space-y-2">
                       {extractedConfig.qualityCriteria.map((criterion, idx) => (
                         <div key={idx} className="flex items-start gap-2">
@@ -800,18 +800,18 @@ export default function AgentConfigurationModal({
                   </div>
                   
                   {/* What Degrades Experience */}
-                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
-                    <h4 className="text-sm font-bold text-red-700 mb-3">❌ Qué Degrada la Experiencia</h4>
+                  <div className="bg-white rounded-lg p-4 border border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-3">❌ Qué Degrada la Experiencia</h4>
                     <div className="space-y-2">
                       {extractedConfig.undesirableOutputs.map((output, idx) => (
-                        <div key={idx} className="bg-red-50 border border-red-200 rounded p-2">
-                          <p className="text-xs font-semibold text-red-800 mb-1">
+                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded p-2">
+                          <p className="text-xs font-semibold text-slate-800 mb-1">
                             Ejemplo: "{output.example}"
                           </p>
                           <p className="text-[11px] text-slate-700">
                             <strong>Por qué:</strong> {output.reason}
                           </p>
-                          <p className="text-[11px] text-green-700 mt-1">
+                          <p className="text-[11px] text-slate-700 mt-1">
                             <strong>Cómo evitar:</strong> {output.howToAvoid}
                           </p>
                         </div>
@@ -821,7 +821,7 @@ export default function AgentConfigurationModal({
                         <h5 className="text-xs font-bold text-slate-700 mb-1">Debe Evitar:</h5>
                         <div className="space-y-0.5">
                           {extractedConfig.responseRequirements.mustAvoid.map((avoid, idx) => (
-                            <p key={idx} className="text-xs text-red-700 flex items-start gap-1">
+                            <p key={idx} className="text-xs text-slate-700 flex items-start gap-1">
                               <span>✗</span>
                               {avoid}
                             </p>
@@ -833,7 +833,7 @@ export default function AgentConfigurationModal({
                 </div>
                 
                 {/* Response Requirements */}
-                <div className="mt-4 bg-white rounded-lg p-4 border border-yellow-200">
+                <div className="mt-4 bg-white rounded-lg p-4 border border-slate-200">
                   <h4 className="text-sm font-bold text-slate-800 mb-3">📏 Requerimientos de Respuesta</h4>
                   <div className="grid grid-cols-4 gap-3 text-xs">
                     <div>
@@ -888,9 +888,9 @@ export default function AgentConfigurationModal({
               </div>
               
               {/* Add Missing Context Section */}
-              <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-5">
-                <h3 className="text-lg font-bold text-orange-900 mb-3 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5" />
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-blue-600" />
                   Añadir Contexto Adicional (Opcional)
                 </h3>
                 <p className="text-sm text-slate-700 mb-4">
