@@ -229,25 +229,88 @@ export default function AgentConfigurationModal({
     setProgress({
       stage: 'uploading',
       percentage: 0,
-      message: 'Iniciando subida...',
+      message: 'Subiendo documento...',
       currentStep: 0,
       totalSteps: 8,
       startTime: Date.now(),
       elapsedSeconds: 0
     });
     
-    // Simulate extraction (replace with real API call)
-    simulateExtractionProgress();
-    
-    // TODO: Real implementation
-    // const formData = new FormData();
-    // formData.append('file', file);
-    // formData.append('agentId', agentId || 'new');
-    // 
-    // const response = await fetch('/api/agents/extract-config', {
-    //   method: 'POST',
-    //   body: formData
-    // });
+    try {
+      // Real API call
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('agentId', agentId || 'new');
+      
+      // Start progress simulation while API processes
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (!prev || prev.percentage >= 90) return prev;
+          
+          const stages: ExtractionProgress['stage'][] = [
+            'uploading', 'analyzing', 'extracting-purpose', 'mapping-inputs',
+            'mapping-outputs', 'extracting-criteria', 'generating-config'
+          ];
+          
+          const currentStageIndex = Math.floor(prev.percentage / (100 / stages.length));
+          const nextStage = stages[Math.min(currentStageIndex, stages.length - 1)];
+          
+          return {
+            ...prev,
+            stage: nextStage,
+            percentage: Math.min(prev.percentage + 2, 90),
+            currentStep: Math.min(currentStageIndex + 1, stages.length),
+            elapsedSeconds: Math.floor((Date.now() - prev.startTime!) / 1000)
+          };
+        });
+      }, 500);
+      
+      const response = await fetch('/api/agents/extract-config', {
+        method: 'POST',
+        body: formData
+      });
+      
+      clearInterval(progressInterval);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to extract configuration');
+      }
+      
+      const data = await response.json();
+      
+      // Complete progress
+      setProgress({
+        stage: 'complete',
+        percentage: 100,
+        message: '✅ Caso de uso y configuración generados',
+        currentStep: 8,
+        totalSteps: 8,
+        startTime: progress?.startTime || Date.now(),
+        elapsedSeconds: Math.floor((Date.now() - (progress?.startTime || Date.now())) / 1000)
+      });
+      
+      // Show extracted config
+      setTimeout(() => {
+        setExtractedConfig(data.config);
+        setRequirementsDoc({
+          fileName: data.metadata.fileName,
+          uploadedAt: new Date(data.metadata.extractedAt),
+          uploadedBy: 'current-user', // TODO: Get from session
+          fileUrl: undefined, // TODO: Upload to Cloud Storage
+          extractedConfig: data.config,
+          extractedAt: new Date(data.metadata.extractedAt),
+          extractionModel: data.metadata.extractionModel
+        });
+        setUploading(false);
+      }, 500);
+      
+    } catch (error: any) {
+      console.error('Error extracting config:', error);
+      setError(error.message || 'Error al procesar el documento');
+      setUploading(false);
+      setProgress(null);
+    }
   };
   
   const handleSaveConfig = () => {
