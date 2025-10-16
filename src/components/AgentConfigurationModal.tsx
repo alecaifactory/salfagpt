@@ -265,19 +265,23 @@ export default function AgentConfigurationModal({
         });
       }, 500);
       
+      console.log('📤 Calling extraction API...');
       const response = await fetch('/api/agents/extract-config', {
         method: 'POST',
         body: formData
       });
       
+      console.log('📥 API response status:', response.status);
       clearInterval(progressInterval);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to extract configuration');
+        const errorData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        console.error('❌ API error:', errorData);
+        throw new Error(errorData.error || `Failed with status ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('✅ Extraction successful:', data);
       
       // Complete progress
       setProgress({
