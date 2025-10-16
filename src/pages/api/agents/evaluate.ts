@@ -111,8 +111,19 @@ Return ONLY the user query, no explanation.`;
         
         // Get agent's response to test query
         const agentPrompt = agentConfig.systemPrompt || '';
+        
+        // Validate and correct model name (fix gemini-1.5-pro -> gemini-2.5-pro)
+        let modelToUse = agentConfig.recommendedModel || 'gemini-2.5-flash';
+        if (modelToUse === 'gemini-1.5-pro' || modelToUse === 'gemini-pro') {
+          console.log(`  🔧 Correcting invalid model name: ${modelToUse} -> gemini-2.5-pro`);
+          modelToUse = 'gemini-2.5-pro';
+        } else if (modelToUse === 'gemini-1.5-flash' || modelToUse === 'gemini-flash') {
+          console.log(`  🔧 Correcting invalid model name: ${modelToUse} -> gemini-2.5-flash`);
+          modelToUse = 'gemini-2.5-flash';
+        }
+        
         const agentResponseResult = await genAI.models.generateContent({
-          model: agentConfig.recommendedModel || 'gemini-2.5-flash',
+          model: modelToUse,
           contents: testQuery,
           config: {
             systemInstruction: agentPrompt,
