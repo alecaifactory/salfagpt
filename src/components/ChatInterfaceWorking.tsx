@@ -1154,6 +1154,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
     
     console.log('💾 Guardando configuración extraída del agente:', currentConversation, config);
+    console.log('🔍 [SAVE FULL] ALL CONFIG KEYS:', Object.keys(config));
+    console.log('🔍 [SAVE FULL] FULL CONFIG:', JSON.stringify(config, null, 2));
+    console.log('🔍 [SAVE FULL] expectedInputExamples:', config.expectedInputExamples);
+    console.log('🔍 [SAVE FULL] expectedInputExamples count:', config.expectedInputExamples?.length);
     
     // Update ONLY current agent config (not global)
     setCurrentAgentConfig({
@@ -1176,6 +1180,93 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }),
       });
       console.log('✅ Configuración guardada en Firestore para agente:', currentConversation);
+      
+      // Also save to agent_setup_docs for evaluation system
+      console.log('💾 [SAVE SETUP] Guardando en agent_setup_docs...');
+      console.log('💾 [SAVE SETUP] expectedInputExamples:', config.expectedInputExamples);
+      
+      // Generate test examples - try expectedInputExamples first, fallback to criteria
+      let inputExamples: any[] = [];
+      let correctOutputs: any[] = [];
+      
+      // Method 1: Use expectedInputExamples if exists
+      if (config.expectedInputExamples && Array.isArray(config.expectedInputExamples) && config.expectedInputExamples.length > 0) {
+        console.log('💾 [SAVE SETUP] Using expectedInputExamples from config');
+        inputExamples = config.expectedInputExamples.map((ex: any) => ({
+          question: ex.question || ex.example || '',
+          category: ex.category || 'General'
+        }));
+        
+        if (config.expectedOutputExamples && Array.isArray(config.expectedOutputExamples)) {
+          correctOutputs = config.expectedOutputExamples.map((ex: any) => ({
+            example: ex.example || '',
+            criteria: ex.successCriteria || 'Apropiada'
+          }));
+        }
+      } 
+      // Method 2: Generate from acceptanceCriteria and qualityCriteria
+      else {
+        console.log('💾 [SAVE SETUP] No expectedInputExamples, generating from criteria');
+        
+        // Use acceptanceCriteria as test cases
+        if (config.acceptanceCriteria && Array.isArray(config.acceptanceCriteria)) {
+          config.acceptanceCriteria.forEach((criteria: any) => {
+            inputExamples.push({
+              question: criteria.howToTest || criteria.description || '',
+              category: criteria.criterion || 'General'
+            });
+            correctOutputs.push({
+              example: `Respuesta apropiada según: ${criteria.description}`,
+              criteria: criteria.description || ''
+            });
+          });
+        }
+        
+        // Also use qualityCriteria
+        if (config.qualityCriteria && Array.isArray(config.qualityCriteria)) {
+          config.qualityCriteria.forEach((criteria: any) => {
+            if (!inputExamples.some((ex: any) => ex.category === criteria.criterion)) {
+              inputExamples.push({
+                question: `Test para: ${criteria.description}`,
+                category: criteria.criterion || 'General'
+              });
+              correctOutputs.push({
+                example: `Respuesta que demuestre: ${criteria.description}`,
+                criteria: criteria.description || ''
+              });
+            }
+          });
+        }
+      }
+      
+      console.log('💾 [SAVE SETUP] Final inputExamples:', inputExamples);
+      console.log('💾 [SAVE SETUP] inputExamples count:', inputExamples.length);
+      
+      const setupDocData = {
+        agentId: currentConversation,
+        fileName: 'Configuración extraída',
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: userId,
+        agentPurpose: config.agentPurpose || '',
+        setupInstructions: config.systemPrompt || '',
+        inputExamples,
+        correctOutputs,
+        incorrectOutputs: (config.undesirableOutputs || []).map((ex: any) => ({
+          example: ex.example || '',
+          reason: ex.reason || ''
+        }))
+      };
+      
+      console.log('💾 [SAVE SETUP] inputExamples mapeados:', setupDocData.inputExamples);
+      console.log('💾 [SAVE SETUP] inputExamples count:', setupDocData.inputExamples.length);
+      
+      await fetch('/api/agent-setup/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(setupDocData)
+      });
+      
+      console.log('✅ [SAVE SETUP] Configuración guardada en agent_setup_docs');
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
     }
@@ -2625,6 +2716,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         userEmail={userEmail || ''}
         userRole="admin" // TODO: Get from user profile
         conversations={conversations}
+        onNavigateToAgent={(agentId: string) => {
+          setCurrentConversation(agentId);
+          setShowAgentEvaluation(false);
+          setShowAgentConfiguration(true);
+        }}
       />
       
       {/* Analytics Dashboard */}

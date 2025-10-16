@@ -59,14 +59,17 @@ export default function AgentConfigurationModal({
   
   useModalClose(isOpen, onClose);
   
-  // Reset state when modal closes or agentId changes
+  // Load existing configuration when modal opens
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen && agentId) {
+      loadExistingConfiguration();
+    } else if (!isOpen) {
       // Clear all state when modal closes
       setFile(null);
       setUploading(false);
       setProgress(null);
       setExtractedConfig(null);
+      setRequirementsDoc(null);
       setError(null);
       setUploadMode('file');
       setPromptInputs({
@@ -79,6 +82,58 @@ export default function AgentConfigurationModal({
       });
     }
   }, [isOpen, agentId]);
+  
+  const loadExistingConfiguration = async () => {
+    if (!agentId) return;
+    
+    try {
+      console.log('📥 [CONFIG LOAD] Starting load for agent:', agentId);
+      console.log('📥 [CONFIG LOAD] Calling: /api/agent-setup/get?agentId=' + agentId);
+      
+      const setupResponse = await fetch(`/api/agent-setup/get?agentId=${agentId}`);
+      console.log('📥 [CONFIG LOAD] Response status:', setupResponse.status);
+      console.log('📥 [CONFIG LOAD] Response OK:', setupResponse.ok);
+      
+      if (setupResponse.ok) {
+        const data = await setupResponse.json();
+        console.log('📥 [CONFIG LOAD] Data received:', JSON.stringify(data, null, 2).substring(0, 500));
+        console.log('📥 [CONFIG LOAD] data.exists:', data.exists);
+        console.log('📥 [CONFIG LOAD] data.inputExamples:', data.inputExamples);
+        console.log('📥 [CONFIG LOAD] data.inputExamples?.length:', data.inputExamples?.length);
+        
+        if (data.exists && data.inputExamples && data.inputExamples.length > 0) {
+          console.log('✅ [CONFIG LOAD] FOUND EXISTING CONFIG!');
+          console.log('✅ [CONFIG LOAD] Examples count:', data.inputExamples.length);
+          console.log('✅ [CONFIG LOAD] File name:', data.fileName);
+          console.log('✅ [CONFIG LOAD] Purpose:', data.agentPurpose?.substring(0, 100));
+          
+          // Set extracted config to display
+          setExtractedConfig({
+            exists: true,
+            summary: `Configuración cargada desde: ${data.fileName}`,
+            examplesCount: data.inputExamples.length,
+            rawData: data,
+            agentName: agentName || data.fileName,
+            agentPurpose: data.agentPurpose || '',
+            systemPrompt: data.setupInstructions || ''
+          } as any);
+          
+          console.log('✅ [CONFIG LOAD] setExtractedConfig() called with existing data');
+          console.log('✅ [CONFIG LOAD] Modal should now show configuration');
+        } else {
+          console.log('ℹ️ [CONFIG LOAD] No existing configuration found');
+          console.log('ℹ️ [CONFIG LOAD] Reason: exists=' + data.exists + ', examples=' + (data.inputExamples?.length || 0));
+        }
+      } else {
+        console.log('⚠️ [CONFIG LOAD] Response not OK, status:', setupResponse.status);
+        const errorText = await setupResponse.text();
+        console.log('⚠️ [CONFIG LOAD] Error response:', errorText);
+      }
+    } catch (error) {
+      console.error('❌ [CONFIG LOAD] Exception:', error);
+      console.error('❌ [CONFIG LOAD] Error details:', error instanceof Error ? error.message : 'Unknown');
+    }
+  };
   
   if (!isOpen) return null;
   

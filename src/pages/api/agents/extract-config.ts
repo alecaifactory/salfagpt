@@ -82,7 +82,20 @@ Formato requerido:
   "systemPrompt": "System prompt generado basado en el propósito",
   "tone": "Tono de las respuestas",
   "expectedInputTypes": ["Tipos de preguntas esperadas"],
+  "expectedInputExamples": [
+    {
+      "question": "Pregunta ejemplo que el agente recibirá",
+      "example": "Ejemplo de pregunta",
+      "category": "Categoría del ejemplo"
+    }
+  ],
   "expectedOutputFormat": "Formato de respuesta esperado",
+  "expectedOutputExamples": [
+    {
+      "example": "Ejemplo de respuesta correcta",
+      "successCriteria": "Por qué esta respuesta es buena"
+    }
+  ],
   "responseRequirements": {
     "format": "Formato preferido",
     "length": { "min": número, "max": número, "target": número },
@@ -251,6 +264,79 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
     
     console.log('✅ Configuration extracted successfully');
     console.log('Agent name:', extractedConfig.agentName);
+    console.log('🔍 [DEBUG] extractedConfig keys:', Object.keys(extractedConfig));
+    console.log('🔍 [DEBUG] expectedInputExamples:', extractedConfig.expectedInputExamples);
+    console.log('🔍 [DEBUG] expectedInputExamples length:', extractedConfig.expectedInputExamples?.length);
+    console.log('🔍 [DEBUG] expectedOutputExamples:', extractedConfig.expectedOutputExamples);
+    console.log('🔍 [DEBUG] Full config:', JSON.stringify(extractedConfig, null, 2).substring(0, 1000));
+    
+    // Save to Firestore agent_setup_docs for evaluation system
+    if (agentId) {
+      try {
+        console.log('💾 [SAVE] Starting Firestore save for agent:', agentId);
+        
+        const { firestore } = await import('../../../lib/firestore');
+        
+        // Map input examples - handle different possible structures
+        const inputExamples = extractedConfig.expectedInputExamples?.map((ex: any) => ({
+          question: ex.question || ex.example || ex.input || '',
+          category: ex.category || 'General'
+        })) || [];
+        
+        console.log('💾 [SAVE] Mapped inputExamples:', inputExamples);
+        console.log('💾 [SAVE] inputExamples count:', inputExamples.length);
+        
+        const setupDocData = {
+          agentId,
+          fileName: file.name,
+          uploadedAt: new Date(),
+          uploadedBy: 'system', // TODO: Get from session
+          agentPurpose: extractedConfig.agentPurpose || '',
+          setupInstructions: extractedConfig.systemPrompt || '',
+          inputExamples,
+          correctOutputs: extractedConfig.expectedOutputExamples?.map((ex: any) => ({
+            example: ex.example || '',
+            criteria: ex.successCriteria || 'Apropiada según configuración'
+          })) || [],
+          incorrectOutputs: extractedConfig.undesirableOutputs?.map((ex: any) => ({
+            example: ex.example || '',
+            reason: ex.reason || ''
+          })) || [],
+          domainExpert: {
+            name: 'Unknown',
+            email: 'Unknown',
+            department: 'Unknown'
+          }
+        };
+        
+        console.log('💾 [SAVE] Final setupDocData.inputExamples:', setupDocData.inputExamples);
+        console.log('💾 [SAVE] Final setupDocData.inputExamples.length:', setupDocData.inputExamples.length);
+        
+        console.log('💾 [SAVE] Data prepared, counts:', {
+          inputExamples: setupDocData.inputExamples.length,
+          correctOutputs: setupDocData.correctOutputs.length,
+          purpose: setupDocData.agentPurpose.substring(0, 50)
+        });
+        
+        console.log('💾 [SAVE] Calling Firestore set() for collection agent_setup_docs, doc:', agentId);
+        
+        await firestore
+          .collection('agent_setup_docs')
+          .doc(agentId)
+          .set(setupDocData);
+        
+        console.log('✅ [SAVE] Firestore set() completed successfully');
+        console.log('✅ [SAVE] Setup document saved for agent:', agentId);
+        console.log('✅ [SAVE] Document path: agent_setup_docs/' + agentId);
+      } catch (firestoreError) {
+        console.error('❌ [SAVE] Failed to save setup doc:', firestoreError);
+        console.error('❌ [SAVE] Error details:', firestoreError instanceof Error ? firestoreError.message : 'Unknown');
+        console.error('❌ [SAVE] Error stack:', firestoreError instanceof Error ? firestoreError.stack : 'N/A');
+        // Continue - extraction succeeded even if save failed
+      }
+    } else {
+      console.log('⚠️ [SAVE] No agentId provided, skipping Firestore save');
+    }
     
     // Return extracted configuration
     return new Response(
