@@ -48,7 +48,11 @@ export const POST: APIRoute = async ({ request }) => {
     // Prepare extraction prompt
     const extractionPrompt = `Analiza este documento de requerimientos para un agente AI y extrae la siguiente información.
 
-IMPORTANTE: Devuelve SOLO un objeto JSON válido, sin texto adicional antes o después. No uses markdown. Solo JSON puro.
+INSTRUCCIÓN CRÍTICA: Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido. 
+- NO incluyas explicaciones antes o después del JSON
+- NO uses bloques de código markdown (\`\`\`json)
+- NO incluyas texto narrativo
+- SOLO el objeto JSON comenzando con { y terminando con }
 
 Formato requerido:
 
@@ -136,31 +140,43 @@ Extrae TODA la información disponible del documento. Si algo no está explícit
       ],
       config: {
         temperature: 0.2, // Low temperature for consistent extraction
-        maxOutputTokens: 4096
+        maxOutputTokens: 8192 // Increased to handle large documents
       }
     });
 
     const responseText = result.text || '';
     
     console.log('✅ Gemini response received, length:', responseText.length);
-    console.log('📝 Response preview:', responseText.substring(0, 200));
+    console.log('📝 Response preview (first 300 chars):', responseText.substring(0, 300));
+    console.log('📝 Response preview (last 300 chars):', responseText.substring(Math.max(0, responseText.length - 300)));
     
-    // Clean response - remove markdown code blocks if present
+    // Clean response - remove markdown code blocks and any explanatory text
     let cleanedResponse = responseText.trim();
+    
+    // Remove markdown code blocks
     if (cleanedResponse.startsWith('```json')) {
       cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/```\s*$/, '');
     } else if (cleanedResponse.startsWith('```')) {
       cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\s*$/, '');
     }
     
-    console.log('🧹 Cleaned response preview:', cleanedResponse.substring(0, 200));
+    // Remove any text before first { and after last }
+    const firstBrace = cleanedResponse.indexOf('{');
+    const lastBrace = cleanedResponse.lastIndexOf('}');
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);
+    }
+    
+    console.log('🧹 Cleaned response preview (first 300):', cleanedResponse.substring(0, 300));
+    console.log('🧹 Cleaned response preview (last 300):', cleanedResponse.substring(Math.max(0, cleanedResponse.length - 300)));
     
     // Extract JSON from response
     const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('❌ No JSON found in Gemini response');
-      console.error('Full response:', cleanedResponse.substring(0, 1000));
-      throw new Error('No JSON found in Gemini response');
+      console.error('Full cleaned response:', cleanedResponse);
+      throw new Error('No JSON found in Gemini response - check if model returned explanatory text instead of JSON');
     }
 
     console.log('🔍 JSON extracted, parsing...');
