@@ -1270,6 +1270,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         agentName: config.agentName || '',
         agentPurpose: config.agentPurpose || '',
         setupInstructions: config.systemPrompt || '',
+        // User fields
+        targetAudience: config.targetAudience || [],
+        pilotUsers: config.pilotUsers || [], // ✅ ADDED - was missing
         // Input/Output examples
         inputExamples,
         correctOutputs,
@@ -1277,9 +1280,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           example: ex.example || '',
           reason: ex.reason || ''
         })),
-        // Full configuration for complete reconstruction
-        targetAudience: config.targetAudience || [],
-        businessCase: config.businessCase || {},
+        // Behavior configuration
         recommendedModel: validatedModel, // Use validated model
         systemPrompt: config.systemPrompt || '',
         tone: config.tone || '',
@@ -1287,18 +1288,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         expectedOutputFormat: config.expectedOutputFormat || '',
         expectedOutputExamples: config.expectedOutputExamples || [],
         responseRequirements: config.responseRequirements || {},
+        // Context sources
+        requiredContextSources: config.requiredContextSources || [],
+        recommendedContextSources: config.recommendedContextSources || [],
+        // Domain expert
+        domainExpert: config.domainExpert || { name: 'Unknown' },
+        // Optional/legacy fields
+        businessCase: config.businessCase || {},
         qualityCriteria: config.qualityCriteria || [],
         undesirableOutputs: config.undesirableOutputs || [],
         acceptanceCriteria: config.acceptanceCriteria || [],
-        // Optional fields
-        requiredContextSources: config.requiredContextSources || [],
-        recommendedContextSources: config.recommendedContextSources || [],
         evaluationCriteria: config.evaluationCriteria || [],
         successMetrics: config.successMetrics || []
       };
       
       console.log('💾 [SAVE SETUP] inputExamples mapeados:', setupDocData.inputExamples);
       console.log('💾 [SAVE SETUP] inputExamples count:', setupDocData.inputExamples.length);
+      console.log('💾 [SAVE SETUP] pilotUsers count:', setupDocData.pilotUsers?.length || 0);
+      console.log('💾 [SAVE SETUP] targetAudience count:', setupDocData.targetAudience?.length || 0);
+      console.log('💾 [SAVE SETUP] tone:', setupDocData.tone || 'N/A');
+      console.log('💾 [SAVE SETUP] recommendedModel:', setupDocData.recommendedModel || 'N/A');
+      console.log('💾 [SAVE SETUP] domainExpert:', setupDocData.domainExpert);
       
       await fetch('/api/agent-setup/save', {
         method: 'POST',
