@@ -708,18 +708,18 @@ export default function AgentConfigurationModal({
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="bg-white rounded-lg p-3 border border-slate-200">
                     <p className="font-bold text-slate-800 mb-1">1️⃣ Usuario con el Dolor:</p>
-                    <p className="text-slate-700">{extractedConfig.businessCase.affectedPersonas[0]}</p>
+                    <p className="text-slate-700">{extractedConfig.businessCase?.affectedPersonas?.[0] || 'No especificado'}</p>
                   </div>
                   
                   <div className="bg-white rounded-lg p-3 border border-slate-200">
                     <p className="font-bold text-slate-800 mb-1">2️⃣ El Dolor:</p>
-                    <p className="text-slate-700">{extractedConfig.businessCase.painPoint.substring(0, 80)}...</p>
+                    <p className="text-slate-700">{extractedConfig.businessCase?.painPoint?.substring(0, 80) || 'No especificado'}...</p>
                   </div>
                   
                   <div className="bg-white rounded-lg p-3 border border-slate-200">
                     <p className="font-bold text-slate-800 mb-1">3️⃣ Cómo Evalúa Calidad:</p>
                     <ul className="space-y-0.5">
-                      {extractedConfig.qualityCriteria.map((c, i) => (
+                      {(extractedConfig.qualityCriteria || []).map((c, i) => (
                         <li key={i} className="text-slate-700">• {c.criterion} ({(c.weight * 100).toFixed(0)}%)</li>
                       ))}
                     </ul>
@@ -728,7 +728,7 @@ export default function AgentConfigurationModal({
                   <div className="bg-blue-50 rounded-lg p-3 border-2 border-blue-300">
                     <p className="font-bold text-blue-700 mb-1">4️⃣ Criterio de Aceptación:</p>
                     <ul className="space-y-0.5">
-                      {extractedConfig.acceptanceCriteria.map((ac, i) => (
+                      {(extractedConfig.acceptanceCriteria || []).map((ac, i) => (
                         <li key={i} className="text-slate-800">✓ {ac.criterion}</li>
                       ))}
                     </ul>
@@ -737,7 +737,7 @@ export default function AgentConfigurationModal({
                   <div className="bg-white rounded-lg p-3 border border-slate-200">
                     <p className="font-bold text-slate-800 mb-1">5️⃣ Criterio de Rechazo:</p>
                     <ul className="space-y-0.5">
-                      {extractedConfig.undesirableOutputs.map((uo, i) => (
+                      {(extractedConfig.undesirableOutputs || []).map((uo, i) => (
                         <li key={i} className="text-slate-700">✗ {uo.example}</li>
                       ))}
                     </ul>
@@ -746,9 +746,9 @@ export default function AgentConfigurationModal({
                   <div className="bg-white rounded-lg p-3 border border-slate-200">
                     <p className="font-bold text-slate-800 mb-1">6️⃣ Expectativas de Respuesta:</p>
                     <p className="text-slate-700">
-                      {extractedConfig.responseRequirements.format} • 
-                      {extractedConfig.responseRequirements.length.target}w • 
-                      {extractedConfig.responseRequirements.speed.target}s
+                      {extractedConfig.responseRequirements?.format || 'No especificado'} • 
+                      {extractedConfig.responseRequirements?.length?.target || 0}w • 
+                      {extractedConfig.responseRequirements?.speed?.target || 0}s
                     </p>
                   </div>
                 </div>
@@ -768,7 +768,7 @@ export default function AgentConfigurationModal({
                       ⚠️ Dolor Identificado
                     </h4>
                     <p className="text-xs text-slate-700 leading-relaxed">
-                      {extractedConfig.businessCase.painPoint}
+                      {extractedConfig.businessCase?.painPoint || 'No especificado'}
                     </p>
                   </div>
                   
@@ -779,7 +779,7 @@ export default function AgentConfigurationModal({
                       Quiénes lo Tienen
                     </h4>
                     <ul className="space-y-1 text-xs">
-                      {extractedConfig.businessCase.affectedPersonas.map((persona, idx) => (
+                      {(extractedConfig.businessCase?.affectedPersonas || []).map((persona, idx) => (
                         <li key={idx} className="text-slate-700 flex items-start gap-1.5">
                           <span className="text-blue-600">•</span>
                           {persona}
@@ -788,10 +788,10 @@ export default function AgentConfigurationModal({
                     </ul>
                     <div className="mt-2 pt-2 border-t border-slate-200">
                       <p className="text-[10px] text-slate-600">
-                        <strong>Área:</strong> {extractedConfig.businessCase.businessArea}
+                        <strong>Área:</strong> {extractedConfig.businessCase?.businessArea || 'No especificado'}
                       </p>
                       <p className="text-[10px] text-slate-600 mt-0.5">
-                        <strong>Total:</strong> {extractedConfig.businessCase.businessImpact.quantitative.usersAffected} usuarios
+                        <strong>Total:</strong> {extractedConfig.businessCase?.businessImpact?.quantitative?.usersAffected || 0} usuarios
                       </p>
                     </div>
                   </div>
@@ -820,15 +820,15 @@ export default function AgentConfigurationModal({
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-slate-600">Frecuencia:</span>
-                        <p className="font-semibold text-slate-900">{extractedConfig.businessCase.businessImpact.quantitative.frequency}</p>
+                        <p className="font-semibold text-slate-900">{extractedConfig.businessCase?.businessImpact?.quantitative?.frequency || 'No especificado'}</p>
                       </div>
                       <div>
                         <span className="text-slate-600">Ahorro/query:</span>
-                        <p className="font-semibold text-green-600">{extractedConfig.businessCase.businessImpact.quantitative.timeSavingsPerQuery}</p>
+                        <p className="font-semibold text-green-600">{extractedConfig.businessCase?.businessImpact?.quantitative?.timeSavingsPerQuery || 'No especificado'}</p>
                       </div>
                       <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
                         <span className="text-slate-600">Valor Anual Estimado:</span>
-                        <p className="font-bold text-green-600 text-base mt-1">{extractedConfig.businessCase.businessImpact.quantitative.estimatedAnnualValue}</p>
+                        <p className="font-bold text-green-600 text-base mt-1">{extractedConfig.businessCase?.businessImpact?.quantitative?.estimatedAnnualValue || 'No especificado'}</p>
                       </div>
                     </div>
                   </div>
@@ -838,10 +838,10 @@ export default function AgentConfigurationModal({
                     <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                       💎 Impacto Cualitativo
                     </h4>
-                    <p className="text-xs text-slate-700 mb-2">{extractedConfig.businessCase.businessImpact.qualitative.description}</p>
+                    <p className="text-xs text-slate-700 mb-2">{extractedConfig.businessCase?.businessImpact?.qualitative?.description || 'No especificado'}</p>
                     <div className="space-y-1 text-[11px]">
                       <p className="font-semibold text-slate-700">Riesgos Mitigados:</p>
-                      {extractedConfig.businessCase.businessImpact.qualitative.risksMitigated.map((risk, idx) => (
+                      {(extractedConfig.businessCase?.businessImpact?.qualitative?.risksMitigated || []).map((risk, idx) => (
                         <p key={idx} className="text-slate-600 flex items-start gap-1">
                           <span className="text-green-600">✓</span>
                           {risk}
@@ -863,7 +863,7 @@ export default function AgentConfigurationModal({
                   <div className="bg-white rounded-lg p-4 border border-slate-200">
                     <h4 className="text-sm font-bold text-blue-700 mb-3">✅ Qué Define Éxito</h4>
                     <div className="space-y-2">
-                      {extractedConfig.qualityCriteria.map((criterion, idx) => (
+                      {(extractedConfig.qualityCriteria || []).map((criterion, idx) => (
                         <div key={idx} className="flex items-start gap-2">
                           <div className="flex-1">
                             <p className="text-xs font-semibold text-slate-800">{criterion.criterion}</p>
@@ -881,7 +881,7 @@ export default function AgentConfigurationModal({
                       
                       <div className="mt-3 pt-3 border-t border-slate-200">
                         <h5 className="text-xs font-bold text-slate-700 mb-1">Criterios de Aceptación:</h5>
-                        {extractedConfig.acceptanceCriteria.map((ac, idx) => (
+                        {(extractedConfig.acceptanceCriteria || []).map((ac, idx) => (
                           <div key={idx} className="mt-1.5 bg-green-50 border border-green-200 rounded p-2">
                             <p className="text-xs font-semibold text-green-800">{ac.criterion}</p>
                             <p className="text-[10px] text-slate-600 mt-0.5">{ac.description}</p>
@@ -895,7 +895,7 @@ export default function AgentConfigurationModal({
                   <div className="bg-white rounded-lg p-4 border border-slate-200">
                     <h4 className="text-sm font-bold text-slate-800 mb-3">❌ Qué Degrada la Experiencia</h4>
                     <div className="space-y-2">
-                      {extractedConfig.undesirableOutputs.map((output, idx) => (
+                      {(extractedConfig.undesirableOutputs || []).map((output, idx) => (
                         <div key={idx} className="bg-slate-50 border border-slate-200 rounded p-2">
                           <p className="text-xs font-semibold text-slate-800 mb-1">
                             Ejemplo: "{output.example}"
@@ -912,7 +912,7 @@ export default function AgentConfigurationModal({
                       <div className="mt-3 pt-3 border-t border-slate-200">
                         <h5 className="text-xs font-bold text-slate-700 mb-1">Debe Evitar:</h5>
                         <div className="space-y-0.5">
-                          {extractedConfig.responseRequirements.mustAvoid.map((avoid, idx) => (
+                          {(extractedConfig.responseRequirements?.mustAvoid || []).map((avoid, idx) => (
                             <p key={idx} className="text-xs text-slate-700 flex items-start gap-1">
                               <span>✗</span>
                               {avoid}
@@ -930,29 +930,29 @@ export default function AgentConfigurationModal({
                   <div className="grid grid-cols-4 gap-3 text-xs">
                     <div>
                       <span className="text-slate-600">Formato:</span>
-                      <p className="font-semibold text-slate-800">{extractedConfig.responseRequirements.format}</p>
+                      <p className="font-semibold text-slate-800">{extractedConfig.responseRequirements?.format || 'No especificado'}</p>
                     </div>
                     <div>
                       <span className="text-slate-600">Longitud:</span>
                       <p className="font-semibold text-slate-800">
-                        {extractedConfig.responseRequirements.length.target} palabras
+                        {extractedConfig.responseRequirements?.length?.target || 0} palabras
                       </p>
                       <p className="text-[10px] text-slate-500">
-                        (max: {extractedConfig.responseRequirements.length.max})
+                        (max: {extractedConfig.responseRequirements?.length?.max || 0})
                       </p>
                     </div>
                     <div>
                       <span className="text-slate-600">Velocidad:</span>
                       <p className="font-semibold text-green-600">
-                        ⚡ {extractedConfig.responseRequirements.speed.target}s
+                        ⚡ {extractedConfig.responseRequirements?.speed?.target || 0}s
                       </p>
                       <p className="text-[10px] text-slate-500">
-                        (max: {extractedConfig.responseRequirements.speed.maximum}s)
+                        (max: {extractedConfig.responseRequirements?.speed?.maximum || 0}s)
                       </p>
                     </div>
                     <div>
                       <span className="text-slate-600">Precisión:</span>
-                      <p className="font-semibold text-slate-800 capitalize">{extractedConfig.responseRequirements.precision}</p>
+                      <p className="font-semibold text-slate-800 capitalize">{extractedConfig.responseRequirements?.precision || 'No especificado'}</p>
                     </div>
                   </div>
                   <div className="mt-3 pt-3 border-t border-slate-200">
@@ -960,7 +960,7 @@ export default function AgentConfigurationModal({
                       <div>
                         <p className="text-xs font-semibold text-green-700 mb-1">Debe Incluir:</p>
                         <ul className="space-y-0.5">
-                          {extractedConfig.responseRequirements.mustInclude.map((item, idx) => (
+                          {(extractedConfig.responseRequirements?.mustInclude || []).map((item, idx) => (
                             <li key={idx} className="text-[11px] text-slate-700 flex items-start gap-1">
                               <span className="text-green-600">✓</span>
                               {item}
@@ -971,7 +971,7 @@ export default function AgentConfigurationModal({
                       <div>
                         <p className="text-xs font-semibold text-slate-700 mb-1">Citaciones:</p>
                         <p className="text-xs text-slate-700">
-                          {extractedConfig.responseRequirements.citations ? '✅ Requeridas' : '❌ No requeridas'}
+                          {extractedConfig.responseRequirements?.citations ? '✅ Requeridas' : '❌ No requeridas'}
                         </p>
                       </div>
                     </div>
@@ -1063,7 +1063,7 @@ export default function AgentConfigurationModal({
                       <div>
                         <span className="text-slate-600">Audiencia:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {extractedConfig.targetAudience.map((aud, idx) => (
+                          {(extractedConfig.targetAudience || []).map((aud, idx) => (
                             <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
                               {aud}
                             </span>
@@ -1102,7 +1102,7 @@ export default function AgentConfigurationModal({
                   <div className="bg-white border border-slate-200 rounded-lg p-4">
                     <h4 className="text-sm font-semibold text-slate-800 mb-3">Tipos de Input</h4>
                     <ul className="space-y-1 text-xs">
-                      {extractedConfig.expectedInputTypes.map((type, idx) => (
+                      {(extractedConfig.expectedInputTypes || []).map((type, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
                           <span className="text-slate-700">{type}</span>
