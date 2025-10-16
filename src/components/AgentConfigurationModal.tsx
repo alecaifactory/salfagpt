@@ -48,6 +48,7 @@ export default function AgentConfigurationModal({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<ExtractionProgress | null>(null);
   const [extractedConfig, setExtractedConfig] = useState<AgentConfiguration | null>(null);
+  const [requirementsDoc, setRequirementsDoc] = useState<AgentRequirementsDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaluationResults, setEvaluationResults] = useState<any>(null);
   const [evaluating, setEvaluating] = useState(false);
