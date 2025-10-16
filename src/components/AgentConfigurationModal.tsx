@@ -130,66 +130,69 @@ export default function AgentConfigurationModal({
         // Show extracted config (mock for now)
         setTimeout(() => {
           setExtractedConfig({
-            agentName: agentName || 'Asistente de Ventas',
-            agentPurpose: 'Proporcionar información rápida y precisa sobre productos, precios y disponibilidad al equipo de ventas',
-            targetAudience: ['Ejecutivos de Ventas', 'Gerentes de Cuenta', 'Soporte Pre-Venta'],
+            agentName: agentName || 'Asistente Legal Territorial RDI',
+            agentPurpose: 'Proveer información actualizada sobre normativas y leyes que afectan proyectos inmobiliarios en territorios específicos de Chile',
+            targetAudience: ['Arquitectos', 'Constructores', 'Equipo Legal', 'Gerentes de Proyecto', 'Usuarios IACO'],
             businessCase: {
-              painPoint: 'El equipo de ventas dedica 2 horas diarias buscando información en múltiples documentos PDF, reduciendo tiempo disponible para ventas directas',
-              affectedPersonas: ['Ejecutivos de Ventas (25 personas)', 'Gerentes de Cuenta (8 personas)', 'Soporte Pre-Venta (12 personas)'],
-              businessArea: 'Ventas y Marketing',
+              painPoint: 'Los profesionales dedican horas navegando miles de páginas de LGUC, OGUC y DDU para encontrar normativas específicas, retrasando decisiones críticas en proyectos',
+              affectedPersonas: ['Arquitectos (15 usuarios)', 'Constructores (8 usuarios)', 'Equipo Legal (5 usuarios)', 'Gerentes de Proyecto (6 usuarios)'],
+              businessArea: 'Legal y Desarrollo Territorial',
               businessImpact: {
                 quantitative: {
-                  usersAffected: 45,
-                  frequency: '50 consultas por día',
-                  timeSavingsPerQuery: '2-3 minutos',
-                  estimatedAnnualValue: '$500,000 USD'
+                  usersAffected: 34,
+                  frequency: '30-40 consultas legales por día',
+                  timeSavingsPerQuery: '15-30 minutos',
+                  estimatedAnnualValue: '$800,000 USD en tiempo profesional'
                 },
                 qualitative: {
-                  description: 'Decisiones más rápidas, mayor satisfacción del equipo, menos errores en cotizaciones',
-                  benefitAreas: ['Velocidad de respuesta', 'Precisión de información', 'Satisfacción del equipo'],
-                  risksMitigated: ['Pérdida de ventas por info incorrecta', 'Frustración del equipo', 'Inconsistencia en información']
+                  description: 'Decisiones legales más rápidas e informadas, reducción de riesgos normativos, mayor confianza en cumplimiento',
+                  benefitAreas: ['Velocidad en decisiones legales', 'Precisión normativa', 'Reducción de riesgos', 'Mejor cumplimiento'],
+                  risksMitigated: ['Errores normativos costosos', 'Retrasos en proyectos por consultas legales', 'Multas por incumplimiento', 'Pérdida de tiempo en búsqueda manual']
                 }
               },
               alignment: {
-                companyOKRs: ['Aumentar eficiencia operacional 20%', 'Incrementar revenue 15%'],
-                departmentGoals: ['Reducir tiempo ciclo venta 30%', 'Aumentar tasa cierre 15%'],
+                companyOKRs: ['Aumentar eficiencia operacional en proyectos 25%', 'Reducir riesgos legales en desarrollo territorial'],
+                departmentGoals: ['Reducir tiempo respuesta legal 50%', 'Zero multas por incumplimiento normativo'],
                 strategicValue: 'high'
               },
               roi: {
-                timeSaved: '2 horas/día por usuario',
-                costSaved: '$500K anuales',
-                qualityImprovement: '30% menos errores',
+                timeSaved: '3 horas/día por profesional',
+                costSaved: '$800K anuales en tiempo profesional',
+                qualityImprovement: 'Reducción 70% errores normativos',
                 userSatisfactionTarget: 4.5
               }
             },
-            recommendedModel: 'gemini-2.5-flash',
-            systemPrompt: 'Eres un asistente especializado en ventas. Proporciona información precisa sobre productos y precios. Cita siempre la fuente. Sé conciso y profesional.',
-            tone: 'Profesional pero amigable',
-            expectedInputTypes: ['Consultas de precios', 'Disponibilidad de productos', 'Comparaciones de productos'],
+            recommendedModel: 'gemini-2.5-pro',
+            systemPrompt: 'Eres un asistente legal especializado en normativas urbanas y construcción de Chile (LGUC, OGUC, DDU). Proporciona información actualizada, precisa y con referencias a artículos específicos. Usa terminología técnica apropiada. Cita siempre la fuente (ley, artículo, DDU). Sé adaptativo según la complejidad de la pregunta.',
+            tone: 'Técnico y especializado',
+            expectedInputTypes: ['Consultas sobre permisos de edificación', 'Requisitos de loteo/subdivisión', 'Diferencias normativas', 'Jurisprudencia MINVU', 'Análisis de casos complejos'],
             expectedInputExamples: [],
-            expectedOutputFormat: 'Bullet points con datos clave, máximo 150 palabras',
+            expectedOutputFormat: 'Adaptativo según complejidad, siempre con referencias a artículos y DDU',
             expectedOutputExamples: [],
             responseRequirements: {
-              format: 'Bullet points',
-              length: { min: 50, max: 200, target: 150 },
+              format: 'Adaptativo (breve para preguntas simples, detallado para casos complejos)',
+              length: { min: 100, max: 500, target: 250 },
               precision: 'exact',
-              speed: { target: 2, maximum: 5 },
-              mustInclude: ['Precio con moneda', 'Fuente del dato', 'Disponibilidad actual'],
-              mustAvoid: ['Respuestas vagas', 'Inventar datos', 'Jerga técnica excesiva'],
+              speed: { target: 3, maximum: 8 },
+              mustInclude: ['Referencia a artículo específico (LGUC/OGUC)', 'DDU aplicable si existe', 'Número de artículo'],
+              mustAvoid: ['Respuestas sin citar fuente', 'Información desactualizada', 'Simplificación excesiva que omita detalles legales importantes'],
               citations: true
             },
             qualityCriteria: [
-              { id: '1', criterion: 'Precisión', weight: 0.3, description: '100% de datos verificables', examples: [] },
-              { id: '2', criterion: 'Claridad', weight: 0.25, description: 'Lenguaje simple y directo', examples: [] },
-              { id: '3', criterion: 'Velocidad', weight: 0.2, description: 'Respuesta en < 3 segundos', examples: [] }
+              { id: '1', criterion: 'Precisión Legal', weight: 0.4, description: 'Información 100% correcta según normativa vigente', examples: [] },
+              { id: '2', criterion: 'Referencias Completas', weight: 0.3, description: 'Cita artículos, DDU y jurisprudencia', examples: [] },
+              { id: '3', criterion: 'Adaptabilidad', weight: 0.2, description: 'Respuesta ajustada a complejidad de pregunta', examples: [] },
+              { id: '4', criterion: 'Actualización', weight: 0.1, description: 'Usa normativa más reciente', examples: [] }
             ],
             undesirableOutputs: [
-              { id: '1', example: '"No sé"', reason: 'Debe buscar en contexto', howToAvoid: 'Siempre consultar documentos antes de responder' },
-              { id: '2', example: '"Depende..."', reason: 'Muy vago', howToAvoid: 'Proporcionar rangos o condiciones específicas' }
+              { id: '1', example: '"Consulta con un abogado"', reason: 'Debe proporcionar la información legal disponible', howToAvoid: 'Buscar en LGUC, OGUC y DDU antes de derivar' },
+              { id: '2', example: 'Respuesta sin citar artículo', reason: 'Falta trazabilidad legal', howToAvoid: 'Siempre incluir "Artículo X.X.X de OGUC" o "DDU N°..."' },
+              { id: '3', example: 'Información desactualizada', reason: 'Normativas cambian', howToAvoid: 'Verificar versión más reciente de documentos' }
             ],
             acceptanceCriteria: [
-              { id: '1', criterion: '90% precisión en precios', description: 'Precios correctos en 9 de 10 consultas', isRequired: true, testable: true, howToTest: 'Comparar con catálogo oficial' },
-              { id: '2', criterion: 'Cita fuentes siempre', description: 'Toda respuesta debe indicar fuente', isRequired: true, testable: true, howToTest: 'Verificar presencia de cita' }
+              { id: '1', criterion: '95% de respuestas con referencias completas', description: 'Toda respuesta debe citar artículo LGUC/OGUC o DDU', isRequired: true, testable: true, howToTest: 'Verificar presencia de citación en respuesta' },
+              { id: '2', criterion: '100% precisión en artículos citados', description: 'Artículos citados deben existir y ser correctos', isRequired: true, testable: true, howToTest: 'Validar contra documentos fuente' },
+              { id: '3', criterion: 'Adaptativo según complejidad', description: 'Respuestas simples para preguntas simples, detalladas para complejas', isRequired: true, testable: true, howToTest: 'Evaluar longitud y profundidad vs pregunta' }
             ],
             requiredContextSources: [],
             recommendedContextSources: [],
