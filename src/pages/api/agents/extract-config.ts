@@ -147,36 +147,49 @@ Extrae TODA la información disponible del documento. Si algo no está explícit
     const responseText = result.text || '';
     
     console.log('✅ Gemini response received, length:', responseText.length);
-    console.log('📝 Response preview (first 300 chars):', responseText.substring(0, 300));
-    console.log('📝 Response preview (last 300 chars):', responseText.substring(Math.max(0, responseText.length - 300)));
+    console.log('📝 Full response:', responseText); // Log full response for debugging
+    
+    if (!responseText || responseText.length === 0) {
+      throw new Error('Gemini returned empty response');
+    }
     
     // Clean response - remove markdown code blocks and any explanatory text
     let cleanedResponse = responseText.trim();
     
     // Remove markdown code blocks
-    if (cleanedResponse.startsWith('```json')) {
-      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/```\s*$/, '');
-    } else if (cleanedResponse.startsWith('```')) {
-      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\s*$/, '');
-    }
+    cleanedResponse = cleanedResponse
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .replace(/^\s*json\s*/i, ''); // Remove "json" prefix
     
     // Remove any text before first { and after last }
     const firstBrace = cleanedResponse.indexOf('{');
     const lastBrace = cleanedResponse.lastIndexOf('}');
     
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);
+    console.log('🔍 First brace at position:', firstBrace);
+    console.log('🔍 Last brace at position:', lastBrace);
+    
+    if (firstBrace === -1 || lastBrace === -1) {
+      console.error('❌ No JSON object found in response');
+      console.error('Response does not contain { or }');
+      throw new Error('No JSON object found - Gemini may have returned explanatory text instead of JSON');
     }
     
-    console.log('🧹 Cleaned response preview (first 300):', cleanedResponse.substring(0, 300));
-    console.log('🧹 Cleaned response preview (last 300):', cleanedResponse.substring(Math.max(0, cleanedResponse.length - 300)));
+    if (lastBrace <= firstBrace) {
+      console.error('❌ Invalid JSON structure - closing brace before opening brace');
+      throw new Error('Invalid JSON structure in Gemini response');
+    }
     
-    // Extract JSON from response
+    cleanedResponse = cleanedResponse.substring(firstBrace, lastBrace + 1);
+    
+    console.log('🧹 Extracted JSON length:', cleanedResponse.length);
+    console.log('🧹 JSON preview (first 500):', cleanedResponse.substring(0, 500));
+    
+    // Validate we have something that looks like JSON
     const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      console.error('❌ No JSON found in Gemini response');
-      console.error('Full cleaned response:', cleanedResponse);
-      throw new Error('No JSON found in Gemini response - check if model returned explanatory text instead of JSON');
+      console.error('❌ Regex match failed after cleaning');
+      throw new Error('Failed to extract JSON after cleaning');
     }
 
     console.log('🔍 JSON extracted, parsing...');
