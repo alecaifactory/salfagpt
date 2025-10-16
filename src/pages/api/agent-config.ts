@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getAgentConfig, saveAgentConfig } from '../../lib/firestore';
+import { getAgentConfig, saveAgentConfig, firestore } from '../../lib/firestore';
 
 // GET /api/agent-config?conversationId=xxx - Get agent config for conversation
 export const GET: APIRoute = async ({ request }) => {
@@ -15,6 +15,21 @@ export const GET: APIRoute = async ({ request }) => {
     }
 
     const config = await getAgentConfig(conversationId);
+    
+    // Also load agent setup doc if exists
+    let setupDoc = null;
+    try {
+      const setupDocSnap = await firestore
+        .collection('agent_setup_docs')
+        .doc(conversationId)
+        .get();
+      
+      if (setupDocSnap.exists) {
+        setupDoc = setupDocSnap.data();
+      }
+    } catch (error) {
+      console.warn('Could not load setup doc:', error);
+    }
 
     if (!config) {
       // Return default config if none exists
@@ -25,12 +40,29 @@ export const GET: APIRoute = async ({ request }) => {
           systemPrompt: 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
           temperature: 0.7,
           maxOutputTokens: 8192,
+          testExamples: setupDoc?.inputExamples ? setupDoc.inputExamples.map((ex: any, idx: number) => ({
+            input: ex.question,
+            expectedOutput: setupDoc.correctOutputs?.[idx]?.example || 'Respuesta apropiada según configuración',
+            category: ex.category || 'General'
+          })) : []
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    
+    // Merge config with setup doc examples
+    const mergedConfig = {
+      ...config,
+      businessCase: setupDoc?.agentPurpose,
+      acceptanceCriteria: setupDoc?.setupInstructions,
+      testExamples: setupDoc?.inputExamples ? setupDoc.inputExamples.map((ex: any, idx: number) => ({
+        input: ex.question,
+        expectedOutput: setupDoc.correctOutputs?.[idx]?.example || 'Respuesta apropiada según configuración',
+        category: ex.category || 'General'
+      })) : []
+    };
 
-    return new Response(JSON.stringify(config), {
+    return new Response(JSON.stringify(mergedConfig), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
