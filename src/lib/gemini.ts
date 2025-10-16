@@ -34,10 +34,26 @@ export interface GenerateOptions {
   maxTokens?: number;
 }
 
+export interface SourceReference {
+  id: number;
+  sourceId: string;
+  sourceName: string;
+  snippet: string;
+  context?: {
+    before?: string;
+    after?: string;
+  };
+  location?: {
+    page?: number;
+    section?: string;
+  };
+}
+
 export interface GenerateResponse {
   content: MessageContent;
   tokenCount: number;
   contextSections: ContextSection[];
+  references?: SourceReference[];
 }
 
 // Token counting helper (approximate)
@@ -74,8 +90,56 @@ export async function generateAIResponse(
 
     // Add user context if provided
     let fullUserMessage = userMessage;
+    let enhancedSystemInstruction = systemInstruction;
+    
     if (userContext) {
       fullUserMessage = `Context:\n${userContext}\n\nUser Message:\n${userMessage}`;
+      
+      // Enhance system instruction to include references
+      enhancedSystemInstruction = `${systemInstruction}
+
+IMPORTANTE: Cuando uses información de los documentos de contexto:
+1. Incluye referencias numeradas inline usando el formato [1], [2], etc.
+2. Al final de tu respuesta, incluye una sección "REFERENCIAS:" con el formato JSON:
+
+REFERENCIAS:
+\`\`\`json
+{
+  "references": [
+    {
+      "id": 1,
+      "snippet": "texto exacto usado del documento",
+      "context": {
+        "before": "texto anterior para dar contexto (opcional)",
+        "after": "texto posterior para dar contexto (opcional)"
+      }
+    }
+  ]
+}
+\`\`\`
+
+Ejemplo de respuesta con referencias:
+"Las construcciones en subterráneo deben cumplir con distanciamientos[1]. La DDU 189 establece zonas inexcavables[2]."
+
+REFERENCIAS:
+\`\`\`json
+{
+  "references": [
+    {
+      "id": 1,
+      "snippet": "las construcciones en subterráneo deben cumplir con las disposiciones sobre distanciamientos",
+      "context": {
+        "before": "establece que",
+        "after": "o zonas inexcavables que hayan sido establecidas"
+      }
+    },
+    {
+      "id": 2,
+      "snippet": "las zonas inexcavables están clarificadas en el artículo 2.6.3 de la OGUC"
+    }
+  ]
+}
+\`\`\``;
     }
 
     // Add current user message
@@ -89,7 +153,7 @@ export async function generateAIResponse(
       model: model, // Use user-selected model
       contents: contents,
       config: {
-        systemInstruction: systemInstruction,
+        systemInstruction: enhancedSystemInstruction,
         temperature: temperature,
         maxOutputTokens: maxTokens,
       }
@@ -97,8 +161,11 @@ export async function generateAIResponse(
 
     const responseText = result.text || '';
 
+    // Parse references from response
+    const { cleanText, references } = parseReferencesFromResponse(responseText);
+
     // Parse response for different content types
-    const content = parseResponseContent(responseText);
+    const content = parseResponseContent(cleanText);
     
     // Calculate token counts
     const systemTokens = estimateTokenCount(systemInstruction);
@@ -148,11 +215,50 @@ export async function generateAIResponse(
       content,
       tokenCount: responseTokens,
       contextSections,
+      references: references.length > 0 ? references : undefined,
     };
   } catch (error) {
     console.error('Error generating AI response:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to generate AI response: ${errorMessage}`);
+  }
+}
+
+// Parse references from AI response
+function parseReferencesFromResponse(responseText: string): { 
+  cleanText: string; 
+  references: SourceReference[] 
+} {
+  // Look for REFERENCIAS: section
+  const referencesMatch = responseText.match(/REFERENCIAS:\s*```json\s*([\s\S]*?)```/i);
+  
+  if (!referencesMatch) {
+    // No references found, return original text
+    return { cleanText: responseText, references: [] };
+  }
+
+  try {
+    const referencesJson = referencesMatch[1];
+    const parsed = JSON.parse(referencesJson);
+    
+    // Remove REFERENCIAS section from text
+    const cleanText = responseText.replace(/REFERENCIAS:\s*```json\s*[\s\S]*?```/i, '').trim();
+    
+    // Map references to include source metadata (will be enhanced later)
+    const references: SourceReference[] = (parsed.references || []).map((ref: any) => ({
+      id: ref.id,
+      sourceId: '', // Will be filled from context sources
+      sourceName: '', // Will be filled from context sources
+      snippet: ref.snippet,
+      context: ref.context,
+      location: ref.location,
+    }));
+    
+    return { cleanText, references };
+  } catch (error) {
+    console.error('Failed to parse references:', error);
+    // On parse error, return original text without references
+    return { cleanText: responseText, references: [] };
   }
 }
 

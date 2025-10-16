@@ -166,6 +166,20 @@ export const POST: APIRoute = async ({ params, request }) => {
       temperature: 0.7,
     });
 
+    // Enhance references with source metadata
+    const enhancedReferences = aiResponse.references?.map(ref => {
+      // Try to find the source this reference came from
+      const matchingSource = contextSources?.find((source: any) => 
+        ref.snippet && source.content && source.content.includes(ref.snippet)
+      );
+      
+      return {
+        ...ref,
+        sourceId: matchingSource?.id || '',
+        sourceName: matchingSource?.name || 'Documento de contexto',
+      };
+    });
+
     // Save assistant message
     const assistantMessage = await addMessage(
       conversationId,
@@ -204,6 +218,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         message: assistantMessage,
         contextUsage: usage,
         contextSections: sections,
+        references: enhancedReferences, // Include references in response
         tokenStats: {
           totalInputTokens,
           totalOutputTokens,

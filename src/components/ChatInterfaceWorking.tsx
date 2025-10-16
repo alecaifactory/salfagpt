@@ -26,6 +26,20 @@ interface Message {
   timestamp: Date;
   thinkingSteps?: ThinkingStep[];
   responseTime?: number; // Time in milliseconds to generate response
+  references?: Array<{
+    id: number;
+    sourceId: string;
+    sourceName: string;
+    snippet: string;
+    context?: {
+      before?: string;
+      after?: string;
+    };
+    location?: {
+      page?: number;
+      section?: string;
+    };
+  }>;
 }
 
 interface ThinkingStep {
@@ -804,7 +818,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           role: 'assistant',
           content: data.message.content.text || data.message.content,
           timestamp: new Date(data.message.timestamp),
-          responseTime: responseTime // Add response time to message
+          responseTime: responseTime, // Add response time to message
+          references: data.references // Include references from API
         };
         setMessages(prev => [...prev, aiMessage]);
 
@@ -2256,6 +2271,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                               validated: s.metadata?.validated || false,
                             }))
                           }
+                          references={msg.references} // Pass references for this message
                           onSourceClick={(sourceId) => {
                             const source = contextSources.find(s => s.id === sourceId);
                             if (source) {
