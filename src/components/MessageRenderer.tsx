@@ -27,12 +27,33 @@ export default function MessageRenderer({
 }: MessageRendererProps) {
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
 
+  // Log when references are received
+  React.useEffect(() => {
+    console.log('📥 MessageRenderer recibió:', {
+      contentLength: content.length,
+      referencesCount: references?.length || 0,
+      hasReferences: !!(references && references.length > 0)
+    });
+    if (references && references.length > 0) {
+      console.log('  Referencias:', references);
+    }
+  }, [content, references]);
+
   // Create a wrapper component that processes the entire content after ReactMarkdown
   const ContentWithReferences = () => {
     const contentRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
-      if (!contentRef.current || !references || references.length === 0) return;
+      console.log('🔧 MessageRenderer useEffect triggered');
+      console.log('  → contentRef.current:', !!contentRef.current);
+      console.log('  → references:', references?.length || 0);
+      
+      if (!contentRef.current || !references || references.length === 0) {
+        console.log('⚠️ Saltando procesamiento: no hay referencias o ref no disponible');
+        return;
+      }
+
+      console.log('✅ Iniciando procesamiento de referencias con TreeWalker...');
 
       // Find all text nodes with [1], [2], etc. and make them clickable
       const walker = document.createTreeWalker(
@@ -53,9 +74,12 @@ export default function MessageRenderer({
           const reference = references.find(r => r.id === refId);
           if (reference) {
             nodesToReplace.push({ node: currentNode, refId, reference });
+            console.log(`  → Encontrado [${refId}] en:`, text.substring(0, 50) + '...');
           }
         }
       }
+
+      console.log(`🔍 Total nodos para reemplazar: ${nodesToReplace.length}`);
 
       // Replace text nodes with elements containing buttons
       nodesToReplace.forEach(({ node, refId, reference }) => {
@@ -72,10 +96,12 @@ export default function MessageRenderer({
             button.title = `Ver referencia ${refId}`;
             button.onclick = (e) => {
               e.preventDefault();
+              console.log('🔍 Referencia clicada:', refId);
               setSelectedReference(reference);
             };
             sup.appendChild(button);
             span.appendChild(sup);
+            console.log(`  ✅ Botón creado para [${refId}]`);
           } else {
             span.appendChild(document.createTextNode(part));
           }
@@ -83,6 +109,8 @@ export default function MessageRenderer({
         
         node.parentNode?.replaceChild(span, node);
       });
+      
+      console.log('✨ Procesamiento de referencias completado');
     }, [references]);
 
     return (
