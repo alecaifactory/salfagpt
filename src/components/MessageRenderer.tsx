@@ -27,42 +27,71 @@ export default function MessageRenderer({
 }: MessageRendererProps) {
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
 
-  // Process content to make reference numbers clickable
-  const processReferences = (text: string) => {
-    // Replace [1], [2], etc. with clickable elements
-    const parts = text.split(/(\[\d+\])/g);
-    
-    return parts.map((part, index) => {
-      const match = part.match(/\[(\d+)\]/);
-      if (match && references) {
-        const refId = parseInt(match[1]);
-        const reference = references.find(r => r.id === refId);
+  // Create a wrapper component that processes the entire content after ReactMarkdown
+  const ContentWithReferences = () => {
+    const contentRef = React.useRef<HTMLDivElement>(null);
+
+    React.useEffect(() => {
+      if (!contentRef.current || !references || references.length === 0) return;
+
+      // Find all text nodes with [1], [2], etc. and make them clickable
+      const walker = document.createTreeWalker(
+        contentRef.current,
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+
+      const nodesToReplace: { node: Text; refId: number; reference: SourceReference }[] = [];
+      let currentNode: Text | null;
+
+      while ((currentNode = walker.nextNode() as Text | null)) {
+        const text = currentNode.textContent || '';
+        const matches = text.matchAll(/\[(\d+)\]/g);
         
-        if (reference) {
-          return (
-            <sup key={index}>
-              <button
-                onClick={() => setSelectedReference(reference)}
-                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold px-0.5 hover:underline transition-colors"
-                title={`Ver referencia ${refId}`}
-              >
-                [{refId}]
-              </button>
-            </sup>
-          );
+        for (const match of matches) {
+          const refId = parseInt(match[1]);
+          const reference = references.find(r => r.id === refId);
+          if (reference) {
+            nodesToReplace.push({ node: currentNode, refId, reference });
+          }
         }
       }
-      return <span key={index}>{part}</span>;
-    });
-  };
 
-  return (
-    <>
-      <div className="prose prose-slate max-w-none">
+      // Replace text nodes with elements containing buttons
+      nodesToReplace.forEach(({ node, refId, reference }) => {
+        const text = node.textContent || '';
+        const parts = text.split(new RegExp(`(\\[${refId}\\])`));
+        
+        const span = document.createElement('span');
+        parts.forEach(part => {
+          if (part === `[${refId}]`) {
+            const sup = document.createElement('sup');
+            const button = document.createElement('button');
+            button.textContent = `[${refId}]`;
+            button.className = 'inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold px-0.5 hover:underline transition-colors cursor-pointer';
+            button.title = `Ver referencia ${refId}`;
+            button.onclick = (e) => {
+              e.preventDefault();
+              setSelectedReference(reference);
+            };
+            sup.appendChild(button);
+            span.appendChild(sup);
+          } else {
+            span.appendChild(document.createTextNode(part));
+          }
+        });
+        
+        node.parentNode?.replaceChild(span, node);
+      });
+    }, [references]);
+
+    return (
+      <div ref={contentRef}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}
           components={{
+          
           // Código con syntax highlighting
           code(props: any) {
             const { node, inline, className, children, ...rest } = props;
@@ -238,22 +267,8 @@ export default function MessageRenderer({
             );
           },
           
-          // Párrafos con mejor espaciado - procesar referencias
+          // Párrafos con mejor espaciado
           p({ node, children, ...props }) {
-            // Convert children to string if it's simple text
-            const textContent = typeof children === 'string' ? children : 
-                               Array.isArray(children) ? children.join('') : 
-                               String(children);
-            
-            // Check if contains reference markers [1], [2], etc.
-            if (typeof textContent === 'string' && /\[\d+\]/.test(textContent)) {
-              return (
-                <p className="text-slate-800 leading-relaxed my-2" {...props}>
-                  {processReferences(textContent)}
-                </p>
-              );
-            }
-            
             return (
               <p className="text-slate-800 leading-relaxed my-2" {...props}>
                 {children}
@@ -264,17 +279,25 @@ export default function MessageRenderer({
       >
         {content}
       </ReactMarkdown>
-    </div>
-    
-    {/* Reference Panel */}
-    {selectedReference && (
-      <ReferencePanel
-        reference={selectedReference}
-        onClose={() => setSelectedReference(null)}
-        onViewFullDocument={onSourceClick}
-      />
-    )}
-  </>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="prose prose-slate max-w-none">
+        <ContentWithReferences />
+      </div>
+      
+      {/* Reference Panel */}
+      {selectedReference && (
+        <ReferencePanel
+          reference={selectedReference}
+          onClose={() => setSelectedReference(null)}
+          onViewFullDocument={onSourceClick}
+        />
+      )}
+    </>
   );
 }
 
