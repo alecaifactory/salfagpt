@@ -1146,27 +1146,44 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   };
 
   const handleAgentConfigSaved = async (config: AgentConfiguration) => {
-    console.log('💾 Guardando configuración extraída del agente:', config);
+    if (!currentConversation) {
+      console.warn('⚠️ No current conversation to save config');
+      return;
+    }
     
-    // Update agent config
+    console.log('💾 Guardando configuración extraída del agente:', currentConversation, config);
+    
+    // Update ONLY current agent config (not global)
     setCurrentAgentConfig({
       preferredModel: config.recommendedModel,
       systemPrompt: config.systemPrompt,
     });
     
-    // Save to global settings too if desired
-    setGlobalUserSettings(prev => ({
-      ...prev,
-      preferredModel: config.recommendedModel,
-      systemPrompt: config.systemPrompt,
-    }));
+    // Save to Firestore for THIS agent only
+    try {
+      await fetch('/api/agent-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: currentConversation,
+          userId,
+          model: config.recommendedModel,
+          systemPrompt: config.systemPrompt,
+          // Store full config for future use
+          fullConfig: config,
+        }),
+      });
+      console.log('✅ Configuración guardada en Firestore para agente:', currentConversation);
+    } catch (error) {
+      console.error('❌ Error guardando configuración:', error);
+    }
     
-    // Rename current conversation to match agent name
-    if (currentConversation && config.agentName) {
+    // Rename conversation to match agent name
+    if (config.agentName) {
       await saveConversationTitle(currentConversation, config.agentName);
     }
     
-    console.log('✅ Configuración del agente aplicada');
+    console.log('✅ Configuración del agente aplicada solo a este agente');
   };
 
   const handleSourceSettings = (sourceId: string) => {
