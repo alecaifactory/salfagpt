@@ -107,19 +107,43 @@ export default function AgentConfigurationModal({
           console.log('✅ [CONFIG LOAD] File name:', data.fileName);
           console.log('✅ [CONFIG LOAD] Purpose:', data.agentPurpose?.substring(0, 100));
           
-          // Set extracted config to display
-          setExtractedConfig({
-            exists: true,
-            summary: `Configuración cargada desde: ${data.fileName}`,
-            examplesCount: data.inputExamples.length,
-            rawData: data,
-            agentName: agentName || data.fileName,
+          // Reconstruct full AgentConfiguration from saved data
+          const fullConfig: AgentConfiguration = {
+            agentName: agentName || data.agentName || data.fileName,
             agentPurpose: data.agentPurpose || '',
-            systemPrompt: data.setupInstructions || ''
-          } as any);
+            targetAudience: data.targetAudience || [],
+            businessCase: data.businessCase || {
+              painPoint: '',
+              affectedPersonas: [],
+              businessArea: '',
+              businessImpact: {
+                quantitative: {},
+                qualitative: { description: '', benefitAreas: [], risksMitigated: [] }
+              }
+            },
+            recommendedModel: data.recommendedModel || 'gemini-2.5-flash',
+            systemPrompt: data.systemPrompt || data.setupInstructions || '',
+            tone: data.tone || '',
+            expectedInputTypes: data.expectedInputTypes || [],
+            expectedInputExamples: data.inputExamples || [],
+            expectedOutputFormat: data.expectedOutputFormat || '',
+            expectedOutputExamples: data.correctOutputs || data.expectedOutputExamples || [],
+            responseRequirements: data.responseRequirements || {},
+            qualityCriteria: data.qualityCriteria || [],
+            undesirableOutputs: data.undesirableOutputs || [],
+            acceptanceCriteria: data.acceptanceCriteria || [],
+            // Optional fields
+            requiredContextSources: data.requiredContextSources || [],
+            recommendedContextSources: data.recommendedContextSources || [],
+            evaluationCriteria: data.evaluationCriteria || [],
+            successMetrics: data.successMetrics || []
+          };
           
-          console.log('✅ [CONFIG LOAD] setExtractedConfig() called with existing data');
-          console.log('✅ [CONFIG LOAD] Modal should now show configuration');
+          setExtractedConfig(fullConfig);
+          
+          console.log('✅ [CONFIG LOAD] Full config reconstructed:', Object.keys(fullConfig));
+          console.log('✅ [CONFIG LOAD] Business case:', fullConfig.businessCase);
+          console.log('✅ [CONFIG LOAD] Quality criteria:', fullConfig.qualityCriteria?.length);
         } else {
           console.log('ℹ️ [CONFIG LOAD] No existing configuration found');
           console.log('ℹ️ [CONFIG LOAD] Reason: exists=' + data.exists + ', examples=' + (data.inputExamples?.length || 0));
