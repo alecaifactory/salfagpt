@@ -43,6 +43,7 @@ interface UploadQueueItem {
   error?: string;
   sourceId?: string;
   tags?: string[]; // Tags for this upload
+  model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // Model to use for extraction
 }
 
 export default function ContextManagementDashboard({
@@ -76,6 +77,7 @@ export default function ContextManagementDashboard({
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedTags, setStagedTags] = useState<string[]>([]);
   const [showUploadStaging, setShowUploadStaging] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash'); // Default to Flash
   
   // Multi-select state for sources
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
@@ -172,6 +174,7 @@ export default function ContextManagementDashboard({
     setShowUploadStaging(true);
     setStagedTags([]);
     setUploadTags(''); // Clear input for fresh tags
+    setSelectedModel('gemini-2.5-flash'); // Reset to default
   };
 
   const checkForDuplicates = (fileName: string): ContextSource | null => {
@@ -225,13 +228,14 @@ export default function ContextManagementDashboard({
       }
     }
 
-    // Create upload queue items
+    // Create upload queue items with selected model
     const newItems: UploadQueueItem[] = newFiles.map(file => ({
       id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       file,
       status: 'queued',
       progress: 0,
       tags: tags.length > 0 ? tags : undefined,
+      model: selectedModel, // Include selected model
     }));
 
     setUploadQueue(prev => [...prev, ...newItems]);
@@ -242,6 +246,7 @@ export default function ContextManagementDashboard({
     setStagedFiles([]);
     setStagedTags([]);
     setUploadTags('');
+    setSelectedModel('gemini-2.5-flash'); // Reset to default
   };
 
   const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'cancel'> => {
@@ -302,9 +307,15 @@ export default function ContextManagementDashboard({
 
     for (const item of items) {
       try {
-        // Update status to uploading
+        // Start with queued status
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'uploading', progress: 10 } : i
+          i.id === item.id ? { ...i, status: 'uploading', progress: 5 } : i
+        ));
+
+        // Progressive update: Preparing upload
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 10 } : i
         ));
 
         // Create FormData
@@ -312,14 +323,24 @@ export default function ContextManagementDashboard({
         formData.append('file', item.file);
         formData.append('userId', userId);
         formData.append('name', item.file.name);
-        formData.append('model', 'gemini-2.5-pro'); // Default to Pro for quality
+        formData.append('model', item.model || 'gemini-2.5-flash'); // Use selected model
         // No assignedToAgents - will be assigned later
+
+        // Progressive update: Uploading file
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 20 } : i
+        ));
 
         // Upload
         const uploadResponse = await fetch('/api/extract-document', {
           method: 'POST',
           body: formData,
         });
+
+        // Progressive update: Upload complete
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 35 } : i
+        ));
 
         if (!uploadResponse.ok) {
           throw new Error('Upload failed');
@@ -331,9 +352,25 @@ export default function ContextManagementDashboard({
           throw new Error(uploadData.error || 'Extraction failed');
         }
         
-        // Update to processing
+        // Progressive update: Starting extraction
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'processing', progress: 70 } : i
+          i.id === item.id ? { ...i, status: 'processing', progress: 50 } : i
+        ));
+
+        // Simulate progressive extraction (AI processing)
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 65 } : i
+        ));
+
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 80 } : i
+        ));
+
+        // Progressive update: Saving to database
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 90 } : i
         ));
 
         // Create source in Firestore with extracted data
@@ -349,7 +386,10 @@ export default function ContextManagementDashboard({
             extractedData: uploadData.extractedText || '',
             assignedToAgents: [], // Not assigned to any agent initially (admin upload)
             labels: item.tags || [], // Add tags
-            metadata: uploadData.metadata || {}
+            metadata: {
+              ...uploadData.metadata,
+              model: item.model || 'gemini-2.5-flash', // Save model used
+            }
           })
         });
 
@@ -541,6 +581,8 @@ export default function ContextManagementDashboard({
         file: item.file,
         status: 'queued',
         progress: 0,
+        model: item.model, // Preserve model selection
+        tags: item.tags, // Preserve tags
       };
       setUploadQueue(prev => [...prev.filter(i => i.id !== queueItemId), newItem]);
       processQueue([newItem]);
@@ -697,6 +739,62 @@ export default function ContextManagementDashboard({
                     />
                   </div>
 
+                  {/* Model Selection */}
+                  <div>
+                    <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-2">
+                      AI Model for Extraction
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setSelectedModel('gemini-2.5-flash')}
+                        className={`p-3 rounded-lg border-2 transition-all text-left ${
+                          selectedModel === 'gemini-2.5-flash'
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-green-300 hover:bg-green-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            selectedModel === 'gemini-2.5-flash'
+                              ? 'border-green-500 bg-green-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedModel === 'gemini-2.5-flash' && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">Flash</span>
+                        </div>
+                        <p className="text-xs text-gray-600">Rápido y económico</p>
+                        <p className="text-xs text-green-600 font-medium mt-1">94% más barato</p>
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedModel('gemini-2.5-pro')}
+                        className={`p-3 rounded-lg border-2 transition-all text-left ${
+                          selectedModel === 'gemini-2.5-pro'
+                            ? 'border-purple-500 bg-purple-50'
+                            : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            selectedModel === 'gemini-2.5-pro'
+                              ? 'border-purple-500 bg-purple-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedModel === 'gemini-2.5-pro' && (
+                              <div className="w-2 h-2 bg-white rounded-full" />
+                            )}
+                          </div>
+                          <span className="text-sm font-semibold text-gray-900">Pro</span>
+                        </div>
+                        <p className="text-xs text-gray-600">Máxima precisión</p>
+                        <p className="text-xs text-purple-600 font-medium mt-1">Mayor calidad</p>
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Submit buttons */}
                   <div className="flex gap-2">
                     <button
@@ -710,6 +808,7 @@ export default function ContextManagementDashboard({
                         setShowUploadStaging(false);
                         setStagedFiles([]);
                         setUploadTags('');
+                        setSelectedModel('gemini-2.5-flash');
                       }}
                       className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                     >
@@ -762,19 +861,29 @@ export default function ContextManagementDashboard({
                         <p className="text-xs text-red-600 mt-1">{item.error}</p>
                       )}
 
-                      {/* Show tags on upload item */}
-                      {item.tags && item.tags.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {item.tags.map(tag => (
-                            <span
-                              key={tag}
-                              className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium border border-gray-300"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {/* Show model and tags on upload item */}
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        {/* Model indicator */}
+                        {item.model && (
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            item.model === 'gemini-2.5-pro'
+                              ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                              : 'bg-green-100 text-green-700 border border-green-300'
+                          }`}>
+                            {item.model === 'gemini-2.5-pro' ? '✨ Pro' : '⚡ Flash'}
+                          </span>
+                        )}
+                        
+                        {/* Tags */}
+                        {item.tags && item.tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium border border-gray-300"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
