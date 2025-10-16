@@ -306,10 +306,32 @@ export default function AgentConfigurationModal({
       }, 500);
       
     } catch (error: any) {
-      console.error('Error extracting config:', error);
-      setError(error.message || 'Error al procesar el documento');
+      console.error('❌ Error extracting config:', error);
+      
+      // More detailed error message
+      let errorMessage = 'Error al procesar el documento';
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      if (error.message?.includes('API key')) {
+        errorMessage = 'API key de Gemini no configurada. Verifica GOOGLE_AI_API_KEY en el servidor.';
+      }
+      if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Error de conexión. Verifica que el servidor esté corriendo.';
+      }
+      
+      setError(errorMessage);
       setUploading(false);
       setProgress(null);
+      
+      // Log to console for debugging
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        file: file?.name,
+        fileType: file?.type,
+        fileSize: file?.size
+      });
     }
   };
   
