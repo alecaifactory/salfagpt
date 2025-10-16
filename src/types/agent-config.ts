@@ -17,49 +17,47 @@ export interface AgentRequirementsDoc {
 }
 
 export interface AgentConfiguration {
-  // Basic Info
+  // ===== CORE FIELDS (Always from ARD) =====
   agentName: string;
   agentPurpose: string;
-  targetAudience: string[];
+  targetAudience: string[]; // End users
+  pilotUsers?: string[]; // NEW - Pilot/testing users from ARD
   
-  // Business Case
-  businessCase: BusinessCase;
-  
-  // Model & Behavior
+  // ===== MODEL & BEHAVIOR (Auto-generated from ARD) =====
   recommendedModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   systemPrompt: string;
-  tone: string; // e.g., "professional", "friendly", "technical"
+  tone: string; // Extracted from "Respuestas Tipo"
   
-  // Input/Output Specs
-  expectedInputTypes: string[];
-  expectedInputExamples: InputExample[];
-  expectedOutputFormat: string;
-  expectedOutputExamples: OutputExample[];
+  // ===== INPUT/OUTPUT SPECS (From ARD) =====
+  expectedInputTypes?: string[]; // Optional - auto-categorized
+  expectedInputExamples: InputExample[]; // From "Preguntas Tipo"
+  expectedOutputFormat: string; // From "Respuestas Tipo"
+  expectedOutputExamples?: OutputExample[]; // Optional - can be generated
   responseRequirements: ResponseRequirements;
   
-  // Quality Criteria
-  qualityCriteria: QualityCriterion[];
-  undesirableOutputs: UndesirableOutput[];
-  acceptanceCriteria: AcceptanceCriterion[];
+  // ===== CONTEXT SOURCES (From ARD or inferred) =====
+  requiredContextSources: string[]; // From document table or inferred
+  detectedSources?: DetectedSource[]; // NEW - Auto-detected from questions
   
-  // Context Sources
-  requiredContextSources: string[];
-  recommendedContextSources: string[];
-  companyContext?: CompanyContext;
-  
-  // Domain Expert
+  // ===== DOMAIN EXPERT (From ARD) =====
   domainExpert?: {
     name: string;
-    email: string;
-    department: string;
-    role: string;
+    email?: string; // Optional
+    department?: string; // Optional
+    role?: string; // Optional
   };
   
-  // Evaluation
-  evaluationCriteria: EvaluationCriterion[];
-  successMetrics: SuccessMetric[];
+  // ===== OPTIONAL/LEGACY FIELDS (Backward compatibility) =====
+  businessCase?: BusinessCase; // Optional - rarely filled from ARD
+  qualityCriteria?: QualityCriterion[]; // Optional - can be auto-generated
+  undesirableOutputs?: UndesirableOutput[]; // Optional - can be auto-generated
+  acceptanceCriteria?: AcceptanceCriterion[]; // Optional - can be auto-generated
+  recommendedContextSources?: string[]; // Optional - legacy field
+  companyContext?: CompanyContext; // Optional - rarely in ARD
+  evaluationCriteria?: EvaluationCriterion[]; // Optional - separate feature
+  successMetrics?: SuccessMetric[]; // Optional - separate feature
   
-  // Version Control
+  // ===== VERSION CONTROL =====
   version?: string;
   createdAt?: Date;
   lastUpdatedAt?: Date;
@@ -67,6 +65,14 @@ export interface AgentConfiguration {
   approvedBy?: string;
   approvedAt?: Date;
   certificationExpiresAt?: Date;
+}
+
+// NEW - Detected source from question analysis
+export interface DetectedSource {
+  name: string; // e.g., "LGUC", "OGUC", "DDU"
+  mentions: number; // How many times mentioned in questions
+  isLoaded: boolean; // Whether user has uploaded this source
+  priority: 'critical' | 'recommended' | 'optional';
 }
 
 export interface BusinessCase {

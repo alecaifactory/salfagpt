@@ -19,6 +19,14 @@ import {
 } from 'lucide-react';
 import type { AgentConfiguration, ExtractionProgress, AgentRequirementsDoc } from '../types/agent-config';
 import { useModalClose } from '../hooks/useModalClose';
+import { 
+  detectRequiredSources,
+  inferDomain,
+  extractCategories,
+  analyzeComplexityDistribution,
+  identifyDepartments,
+  migrateConfigToSimplified
+} from '../lib/agent-config-helpers';
 
 interface AgentConfigurationModalProps {
   isOpen: boolean;
@@ -40,7 +48,6 @@ export default function AgentConfigurationModal({
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<ExtractionProgress | null>(null);
   const [extractedConfig, setExtractedConfig] = useState<AgentConfiguration | null>(null);
-  const [requirementsDoc, setRequirementsDoc] = useState<AgentRequirementsDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [evaluationResults, setEvaluationResults] = useState<any>(null);
   const [evaluating, setEvaluating] = useState(false);
@@ -110,20 +117,12 @@ export default function AgentConfigurationModal({
           console.log('✅ [CONFIG LOAD] File name:', data.fileName);
           console.log('✅ [CONFIG LOAD] Purpose:', data.agentPurpose?.substring(0, 100));
           
-          // Reconstruct full AgentConfiguration from saved data
-          const fullConfig: AgentConfiguration = {
+          // BACKWARD COMPATIBILITY: Migrate old format to new simplified format
+          const rawConfig = {
             agentName: agentName || data.agentName || data.fileName,
             agentPurpose: data.agentPurpose || '',
             targetAudience: data.targetAudience || [],
-            businessCase: data.businessCase || {
-              painPoint: '',
-              affectedPersonas: [],
-              businessArea: '',
-              businessImpact: {
-                quantitative: {},
-                qualitative: { description: '', benefitAreas: [], risksMitigated: [] }
-              }
-            },
+            pilotUsers: data.pilotUsers || [], // NEW field
             recommendedModel: data.recommendedModel || 'gemini-2.5-flash',
             systemPrompt: data.systemPrompt || data.setupInstructions || '',
             tone: data.tone || '',
@@ -132,21 +131,25 @@ export default function AgentConfigurationModal({
             expectedOutputFormat: data.expectedOutputFormat || '',
             expectedOutputExamples: data.correctOutputs || data.expectedOutputExamples || [],
             responseRequirements: data.responseRequirements || {},
-            qualityCriteria: data.qualityCriteria || [],
-            undesirableOutputs: data.undesirableOutputs || [],
-            acceptanceCriteria: data.acceptanceCriteria || [],
-            // Optional fields
             requiredContextSources: data.requiredContextSources || [],
-            recommendedContextSources: data.recommendedContextSources || [],
-            evaluationCriteria: data.evaluationCriteria || [],
-            successMetrics: data.successMetrics || []
+            domainExpert: data.domainExpert,
+            // Optional/legacy fields (preserve if exist)
+            businessCase: data.businessCase,
+            qualityCriteria: data.qualityCriteria,
+            undesirableOutputs: data.undesirableOutputs,
+            acceptanceCriteria: data.acceptanceCriteria,
+            recommendedContextSources: data.recommendedContextSources,
+            evaluationCriteria: data.evaluationCriteria,
+            successMetrics: data.successMetrics
           };
+          
+          // Use migration helper to ensure compatibility
+          const fullConfig = migrateConfigToSimplified(rawConfig) as AgentConfiguration;
           
           setExtractedConfig(fullConfig);
           
-          console.log('✅ [CONFIG LOAD] Full config reconstructed:', Object.keys(fullConfig));
-          console.log('✅ [CONFIG LOAD] Business case:', fullConfig.businessCase);
-          console.log('✅ [CONFIG LOAD] Quality criteria:', fullConfig.qualityCriteria?.length);
+          console.log('✅ [CONFIG LOAD] Config migrated to new format');
+          console.log('✅ [CONFIG LOAD] Core fields:', Object.keys(fullConfig).filter(k => !k.startsWith('business') && !k.startsWith('quality')));
         } else {
           console.log('ℹ️ [CONFIG LOAD] No existing configuration found');
           console.log('ℹ️ [CONFIG LOAD] Reason: exists=' + data.exists + ', examples=' + (data.inputExamples?.length || 0));
@@ -824,285 +827,263 @@ export default function AgentConfigurationModal({
                 )}
               </div>
               
-              {/* Executive Summary - Key Mappings */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                <h3 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  📋 Resumen Ejecutivo - Mapeo Completo
+              {/* SECTION 1: Use Case & Intent */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-blue-900 mb-2 flex items-center gap-2">
+                  🎯 Caso de Uso e Intención
                 </h3>
-                <p className="text-sm text-slate-600 mb-4">
-                  Información extraída del documento para configurar el agente con enfoque en negocio
+                <p className="text-sm text-slate-700 mb-4 leading-relaxed">
+                  {extractedConfig.agentPurpose}
                 </p>
-                
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="bg-white rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-800 mb-1">1️⃣ Usuario con el Dolor:</p>
-                    <p className="text-slate-700">{extractedConfig.businessCase?.affectedPersonas?.[0] || 'No especificado'}</p>
+                <div className="grid grid-cols-3 gap-3 text-xs mt-3 pt-3 border-t border-blue-200">
+                  <div>
+                    <p className="text-blue-700 font-semibold mb-1">📍 Responsable</p>
+                    <p className="text-slate-800">{extractedConfig.domainExpert?.name || 'No especificado'}</p>
                   </div>
-                  
-                  <div className="bg-white rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-800 mb-1">2️⃣ El Dolor:</p>
-                    <p className="text-slate-700">{extractedConfig.businessCase?.painPoint?.substring(0, 80) || 'No especificado'}...</p>
+                  <div>
+                    <p className="text-blue-700 font-semibold mb-1">🏢 Dominio</p>
+                    <p className="text-slate-800">{inferDomain(extractedConfig.agentPurpose)}</p>
                   </div>
-                  
-                  <div className="bg-white rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-800 mb-1">3️⃣ Cómo Evalúa Calidad:</p>
-                    <ul className="space-y-0.5">
-                      {(extractedConfig.qualityCriteria || []).map((c, i) => (
-                        <li key={i} className="text-slate-700">• {c.criterion} ({(c.weight * 100).toFixed(0)}%)</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-blue-50 rounded-lg p-3 border-2 border-blue-300">
-                    <p className="font-bold text-blue-700 mb-1">4️⃣ Criterio de Aceptación:</p>
-                    <ul className="space-y-0.5">
-                      {(extractedConfig.acceptanceCriteria || []).map((ac, i) => (
-                        <li key={i} className="text-slate-800">✓ {ac.criterion}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-800 mb-1">5️⃣ Criterio de Rechazo:</p>
-                    <ul className="space-y-0.5">
-                      {(extractedConfig.undesirableOutputs || []).map((uo, i) => (
-                        <li key={i} className="text-slate-700">✗ {uo.example}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-white rounded-lg p-3 border border-slate-200">
-                    <p className="font-bold text-slate-800 mb-1">6️⃣ Expectativas de Respuesta:</p>
-                    <p className="text-slate-700">
-                      {extractedConfig.responseRequirements?.format || 'No especificado'} • 
-                      {extractedConfig.responseRequirements?.length?.target || 0}w • 
-                      {extractedConfig.responseRequirements?.speed?.target || 0}s
-                    </p>
+                  <div>
+                    <p className="text-blue-700 font-semibold mb-1">⚙️ Modelo</p>
+                    {extractedConfig.recommendedModel === 'gemini-2.5-pro' ? (
+                      <span className="px-2 py-1 bg-purple-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Gemini 2.5 Pro
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-green-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Gemini 2.5 Flash
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
               
-              {/* Business Case Section - Full Width */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+              {/* SECTION 2: Users Who Find Value */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5">
                 <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <Target className="w-6 h-6 text-blue-600" />
-                  Caso de Uso Identificado
-                </h3>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  {/* Column 1: Pain Point */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                      ⚠️ Dolor Identificado
-                    </h4>
-                    <p className="text-xs text-slate-700 leading-relaxed">
-                      {extractedConfig.businessCase?.painPoint || 'No especificado'}
-                    </p>
-                  </div>
-                  
-                  {/* Column 2: Who Has It */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                      <UsersIcon className="w-4 h-4" />
-                      Quiénes lo Tienen
-                    </h4>
-                    <ul className="space-y-1 text-xs">
-                      {(extractedConfig.businessCase?.affectedPersonas || []).map((persona, idx) => (
-                        <li key={idx} className="text-slate-700 flex items-start gap-1.5">
-                          <span className="text-blue-600">•</span>
-                          {persona}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-2 pt-2 border-t border-slate-200">
-                      <p className="text-[10px] text-slate-600">
-                        <strong>Área:</strong> {extractedConfig.businessCase?.businessArea || 'No especificado'}
-                      </p>
-                      <p className="text-[10px] text-slate-600 mt-0.5">
-                        <strong>Total:</strong> {extractedConfig.businessCase?.businessImpact?.quantitative?.usersAffected || 0} usuarios
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Column 3: Solution Expectation */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                      ✨ Solución Esperada
-                    </h4>
-                    <p className="text-xs text-slate-700 mb-2">
-                      <strong>Propósito:</strong> {extractedConfig.agentPurpose}
-                    </p>
-                    <p className="text-xs text-slate-700">
-                      <strong>Tono:</strong> {extractedConfig.tone}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Impact Row */}
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  {/* Quantitative Impact */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-1.5">
-                      📊 Impacto Cuantitativo
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-slate-600">Frecuencia:</span>
-                        <p className="font-semibold text-slate-900">{extractedConfig.businessCase?.businessImpact?.quantitative?.frequency || 'No especificado'}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Ahorro/query:</span>
-                        <p className="font-semibold text-green-600">{extractedConfig.businessCase?.businessImpact?.quantitative?.timeSavingsPerQuery || 'No especificado'}</p>
-                      </div>
-                      <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
-                        <span className="text-slate-600">Valor Anual Estimado:</span>
-                        <p className="font-bold text-green-600 text-base mt-1">{extractedConfig.businessCase?.businessImpact?.quantitative?.estimatedAnnualValue || 'No especificado'}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Qualitative Impact */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                      💎 Impacto Cualitativo
-                    </h4>
-                    <p className="text-xs text-slate-700 mb-2">{extractedConfig.businessCase?.businessImpact?.qualitative?.description || 'No especificado'}</p>
-                    <div className="space-y-1 text-[11px]">
-                      <p className="font-semibold text-slate-700">Riesgos Mitigados:</p>
-                      {(extractedConfig.businessCase?.businessImpact?.qualitative?.risksMitigated || []).map((risk, idx) => (
-                        <p key={idx} className="text-slate-600 flex items-start gap-1">
-                          <span className="text-green-600">✓</span>
-                          {risk}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Success Criteria */}
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                <h3 className="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
-                  🎯 Evaluación del Éxito
+                  <UsersIcon className="w-6 h-6 text-green-600" />
+                  Usuarios que Encontrarán Valor
                 </h3>
                 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* What Makes Success */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-blue-700 mb-3">✅ Qué Define Éxito</h4>
-                    <div className="space-y-2">
-                      {(extractedConfig.qualityCriteria || []).map((criterion, idx) => (
-                        <div key={idx} className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <p className="text-xs font-semibold text-slate-800">{criterion.criterion}</p>
-                            <p className="text-[11px] text-slate-600">{criterion.description}</p>
-                            <div className="mt-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                              <div 
-                                className="bg-green-500 h-full"
-                                style={{ width: `${criterion.weight * 100}%` }}
-                              />
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-0.5">Peso: {(criterion.weight * 100).toFixed(0)}%</p>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <h5 className="text-xs font-bold text-slate-700 mb-1">Criterios de Aceptación:</h5>
-                        {(extractedConfig.acceptanceCriteria || []).map((ac, idx) => (
-                          <div key={idx} className="mt-1.5 bg-green-50 border border-green-200 rounded p-2">
-                            <p className="text-xs font-semibold text-green-800">{ac.criterion}</p>
-                            <p className="text-[10px] text-slate-600 mt-0.5">{ac.description}</p>
+                  {/* Pilot Users */}
+                  {extractedConfig.pilotUsers && extractedConfig.pilotUsers.length > 0 && (
+                    <div className="bg-yellow-50 rounded-lg p-4 border-2 border-yellow-300">
+                      <h4 className="text-sm font-bold text-yellow-800 mb-3 flex items-center gap-1.5">
+                        🧪 Fase de Prueba
+                      </h4>
+                      <div className="space-y-1.5 text-xs max-h-40 overflow-y-auto">
+                        {extractedConfig.pilotUsers.map((user, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-slate-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-yellow-600"></span>
+                            {user}
                           </div>
                         ))}
                       </div>
+                      <p className="text-[10px] text-yellow-700 mt-3 pt-3 border-t border-yellow-200 font-bold">
+                        {extractedConfig.pilotUsers.length} usuarios de prueba
+                      </p>
                     </div>
-                  </div>
+                  )}
                   
-                  {/* What Degrades Experience */}
-                  <div className="bg-white rounded-lg p-4 border border-slate-200">
-                    <h4 className="text-sm font-bold text-slate-800 mb-3">❌ Qué Degrada la Experiencia</h4>
-                    <div className="space-y-2">
-                      {(extractedConfig.undesirableOutputs || []).map((output, idx) => (
-                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded p-2">
-                          <p className="text-xs font-semibold text-slate-800 mb-1">
-                            Ejemplo: "{output.example}"
-                          </p>
-                          <p className="text-[11px] text-slate-700">
-                            <strong>Por qué:</strong> {output.reason}
-                          </p>
-                          <p className="text-[11px] text-slate-700 mt-1">
-                            <strong>Cómo evitar:</strong> {output.howToAvoid}
-                          </p>
+                  {/* End Users */}
+                  <div className={`bg-green-50 rounded-lg p-4 border-2 border-green-300 ${!extractedConfig.pilotUsers || extractedConfig.pilotUsers.length === 0 ? 'col-span-2' : ''}`}>
+                    <h4 className="text-sm font-bold text-green-800 mb-3 flex items-center gap-1.5">
+                      ✅ Usuarios Finales
+                    </h4>
+                    <div className="space-y-1.5 text-xs max-h-40 overflow-y-auto">
+                      {(extractedConfig.targetAudience || []).map((user, idx) => (
+                        <div key={idx} className="flex items-center gap-2 text-slate-700">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-600"></span>
+                          {user}
                         </div>
                       ))}
-                      
-                      <div className="mt-3 pt-3 border-t border-slate-200">
-                        <h5 className="text-xs font-bold text-slate-700 mb-1">Debe Evitar:</h5>
-                        <div className="space-y-0.5">
-                          {(extractedConfig.responseRequirements?.mustAvoid || []).map((avoid, idx) => (
-                            <p key={idx} className="text-xs text-slate-700 flex items-start gap-1">
-                              <span>✗</span>
-                              {avoid}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
                     </div>
+                    <p className="text-[10px] text-green-700 mt-3 pt-3 border-t border-green-200 font-bold">
+                      {extractedConfig.targetAudience?.length || 0} usuarios finales
+                    </p>
                   </div>
                 </div>
                 
-                {/* Response Requirements */}
-                <div className="mt-4 bg-white rounded-lg p-4 border border-slate-200">
-                  <h4 className="text-sm font-bold text-slate-800 mb-3">📏 Requerimientos de Respuesta</h4>
-                  <div className="grid grid-cols-4 gap-3 text-xs">
-                    <div>
-                      <span className="text-slate-600">Formato:</span>
-                      <p className="font-semibold text-slate-800">{extractedConfig.responseRequirements?.format || 'No especificado'}</p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Longitud:</span>
-                      <p className="font-semibold text-slate-800">
-                        {extractedConfig.responseRequirements?.length?.target || 0} palabras
-                      </p>
-                      <p className="text-[10px] text-slate-500">
-                        (max: {extractedConfig.responseRequirements?.length?.max || 0})
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Velocidad:</span>
-                      <p className="font-semibold text-green-600">
-                        ⚡ {extractedConfig.responseRequirements?.speed?.target || 0}s
-                      </p>
-                      <p className="text-[10px] text-slate-500">
-                        (max: {extractedConfig.responseRequirements?.speed?.maximum || 0}s)
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-slate-600">Precisión:</span>
-                      <p className="font-semibold text-slate-800 capitalize">{extractedConfig.responseRequirements?.precision || 'No especificado'}</p>
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <div className="grid grid-cols-2 gap-3">
+                {/* Derived Insights */}
+                {extractedConfig.targetAudience && extractedConfig.targetAudience.length > 0 && (
+                  <div className="mt-4 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <div className="grid grid-cols-2 gap-3 text-xs">
                       <div>
-                        <p className="text-xs font-semibold text-green-700 mb-1">Debe Incluir:</p>
-                        <ul className="space-y-0.5">
-                          {(extractedConfig.responseRequirements?.mustInclude || []).map((item, idx) => (
-                            <li key={idx} className="text-[11px] text-slate-700 flex items-start gap-1">
-                              <span className="text-green-600">✓</span>
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-slate-600 font-semibold mb-1">📊 Alcance</p>
+                        <p className="text-slate-800">
+                          ~{extractedConfig.targetAudience.length + (extractedConfig.pilotUsers?.length || 0)} profesionales total
+                        </p>
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-slate-700 mb-1">Citaciones:</p>
-                        <p className="text-xs text-slate-700">
-                          {extractedConfig.responseRequirements?.citations ? '✅ Requeridas' : '❌ No requeridas'}
+                        <p className="text-slate-600 font-semibold mb-1">🏢 Departamentos Identificados</p>
+                        <div className="flex flex-wrap gap-1">
+                          {identifyDepartments([...(extractedConfig.targetAudience || []), ...(extractedConfig.pilotUsers || [])]).map((dept, idx) => (
+                            <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium text-[10px]">
+                              {dept}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* SECTION 3: Input & Output Examples */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <MessageSquare className="w-6 h-6 text-purple-600" />
+                  Ejemplos de Consultas y Respuestas
+                </h3>
+                
+                {/* Input Examples */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-bold text-slate-800">💬 Preguntas que el Agente Recibirá</h4>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                      {extractedConfig.expectedInputExamples?.length || 0} ejemplos
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {(extractedConfig.expectedInputExamples || []).slice(0, 5).map((example, idx) => (
+                      <div key={idx} className="bg-slate-50 rounded-lg p-3 border border-slate-200 hover:border-blue-300 transition-colors">
+                        <div className="flex items-start gap-2">
+                          <span className="text-blue-600 font-bold text-sm mt-0.5 flex-shrink-0">
+                            {idx + 1}.
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-sm text-slate-800">
+                              {example.question}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-semibold">
+                                {example.category}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                example.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                                example.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-green-100 text-green-700'
+                              }`}>
+                                {example.difficulty === 'hard' ? '🔴 Difícil' :
+                                 example.difficulty === 'medium' ? '🟡 Media' :
+                                 '🟢 Fácil'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {(extractedConfig.expectedInputExamples?.length || 0) > 5 && (
+                      <details className="text-xs text-blue-600 cursor-pointer hover:text-blue-700">
+                        <summary className="font-medium">
+                          Ver las {(extractedConfig.expectedInputExamples?.length || 0) - 5} preguntas restantes...
+                        </summary>
+                        <div className="mt-2 space-y-2">
+                          {extractedConfig.expectedInputExamples.slice(5).map((example, idx) => (
+                            <div key={idx + 5} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                              <div className="flex items-start gap-2">
+                                <span className="text-blue-600 font-bold text-sm">
+                                  {idx + 6}.
+                                </span>
+                                <div className="flex-1">
+                                  <p className="text-sm text-slate-800">{example.question}</p>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-semibold">
+                                      {example.category}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                      example.difficulty === 'hard' ? 'bg-red-100 text-red-700' :
+                                      example.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-green-100 text-green-700'
+                                    }`}>
+                                      {example.difficulty === 'hard' ? '🔴 Difícil' :
+                                       example.difficulty === 'medium' ? '🟡 Media' :
+                                       '🟢 Fácil'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                  
+                  {/* Category & Complexity Distribution */}
+                  {extractedConfig.expectedInputExamples && extractedConfig.expectedInputExamples.length > 0 && (
+                    <div className="mt-3 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-slate-600 font-semibold mb-2">📊 Categorías Identificadas</p>
+                          <div className="flex flex-wrap gap-1">
+                            {extractCategories(extractedConfig.expectedInputExamples).map((cat, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium text-[10px]">
+                                {cat} ({extractedConfig.expectedInputExamples.filter(e => e.category === cat).length})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-slate-600 font-semibold mb-2">📈 Distribución por Complejidad</p>
+                          <div className="flex items-center gap-2">
+                            {(() => {
+                              const dist = analyzeComplexityDistribution(extractedConfig.expectedInputExamples);
+                              return (
+                                <>
+                                  <span className="text-green-700 font-bold">🟢 {dist.easy}</span>
+                                  <span className="text-yellow-700 font-bold">🟡 {dist.medium}</span>
+                                  <span className="text-red-700 font-bold">🔴 {dist.hard}</span>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Output Style */}
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-800 mb-3">📝 Estilo de Respuestas Esperado</h4>
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-4 border border-purple-200">
+                    <p className="text-sm text-slate-800 font-medium mb-3">
+                      {extractedConfig.expectedOutputFormat}
+                    </p>
+                    
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="bg-white rounded p-2">
+                        <p className="text-slate-600 mb-1">Tono:</p>
+                        <p className="font-semibold text-slate-900">{extractedConfig.tone}</p>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <p className="text-slate-600 mb-1">Precisión:</p>
+                        <p className="font-semibold text-slate-900 capitalize">
+                          {extractedConfig.responseRequirements?.precision || 'Approximate'}
+                        </p>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <p className="text-slate-600 mb-1">Citaciones:</p>
+                        <p className={`font-semibold ${extractedConfig.responseRequirements?.citations ? 'text-green-700' : 'text-slate-700'}`}>
+                          {extractedConfig.responseRequirements?.citations ? '✅ Obligatorias' : 'Opcionales'}
                         </p>
                       </div>
                     </div>
+                    
+                    {extractedConfig.responseRequirements?.citations && (
+                      <div className="mt-3 pt-3 border-t border-purple-200">
+                        <p className="text-xs text-purple-800 font-medium">
+                          💡 Formato de respuesta esperado: Respuesta directa → Fundamento normativo → Consideraciones → Fuentes citadas
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1241,149 +1222,112 @@ export default function AgentConfigurationModal({
                 </div>
               )}
               
-              {/* Add Missing Context Section */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
-                <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-blue-600" />
-                  Añadir Contexto Adicional (Opcional)
+              {/* SECTION 4: Knowledge Sources Required */}
+              <div className="bg-white border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                  <FileText className="w-6 h-6 text-orange-600" />
+                  Fuentes de Conocimiento Requeridas
                 </h3>
-                <p className="text-sm text-slate-700 mb-4">
-                  Mejora la calidad de las respuestas proporcionando información adicional de tu empresa
-                </p>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">
-                      🌐 URL de la Empresa
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://www.empresa.com"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-[10px] text-slate-600 mt-1">
-                      Extraeremos información de misión, visión, productos y servicios
-                    </p>
+                {/* Detected Sources */}
+                {extractedConfig.expectedInputExamples && extractedConfig.expectedInputExamples.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-blue-600" />
+                      🤖 Auto-detectadas en las Preguntas
+                    </h4>
+                    <div className="space-y-2">
+                      {detectRequiredSources(extractedConfig.expectedInputExamples).map((source, idx) => (
+                        <div key={idx} className={`rounded-lg p-3 border-2 ${
+                          source.priority === 'critical' ? 'bg-red-50 border-red-300' :
+                          source.priority === 'recommended' ? 'bg-yellow-50 border-yellow-300' :
+                          'bg-slate-50 border-slate-300'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FileText className={`w-4 h-4 ${
+                                source.priority === 'critical' ? 'text-red-600' :
+                                source.priority === 'recommended' ? 'text-yellow-600' :
+                                'text-slate-600'
+                              }`} />
+                              <div>
+                                <p className="text-sm font-bold text-slate-900">{source.name}</p>
+                                <p className="text-xs text-slate-600">
+                                  Mencionado {source.mentions} {source.mentions === 1 ? 'vez' : 'veces'} en las preguntas
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                                source.priority === 'critical' ? 'bg-red-600 text-white' :
+                                source.priority === 'recommended' ? 'bg-yellow-600 text-white' :
+                                'bg-slate-600 text-white'
+                              }`}>
+                                {source.priority === 'critical' ? '🔴 CRÍTICO' :
+                                 source.priority === 'recommended' ? '🟡 RECOMENDADO' :
+                                 '⚪ OPCIONAL'}
+                              </span>
+                              <p className="text-xs text-slate-600 mt-1">
+                                {source.isLoaded ? '✅ Cargado' : '❌ No cargado'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Upload Reminder */}
+                    {detectRequiredSources(extractedConfig.expectedInputExamples).some(s => s.priority === 'critical') && (
+                      <div className="mt-4 bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-orange-900 mb-1">
+                              ⚠️ Documentos Críticos Requeridos
+                            </p>
+                            <p className="text-xs text-orange-800">
+                              Este agente necesita las fuentes marcadas como CRÍTICO para poder responder con precisión. 
+                              Súbelas después de guardar la configuración.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">
-                      🎯 OKRs del Departamento
-                    </label>
-                    <textarea
-                      placeholder="Objetivo: Incrementar ventas 20%&#10;KR1: 100 nuevos clientes&#10;KR2: $2M revenue"
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={3}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">
-                      💼 Misión
-                    </label>
-                    <textarea
-                      placeholder="Proporcionar soluciones de valor..."
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-2">
-                      🌟 Valores Clave
-                    </label>
-                    <div className="space-y-1 text-xs">
-                      {['Integridad', 'Excelencia', 'Innovación', 'Colaboración'].map((valor, idx) => (
-                        <label key={idx} className="flex items-center gap-2">
-                          <input type="checkbox" className="rounded border-slate-300" />
-                          <span className="text-slate-700">{valor}</span>
-                        </label>
+                )}
+                
+                {/* From ARD Document Table */}
+                {extractedConfig.requiredContextSources && extractedConfig.requiredContextSources.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <h4 className="text-sm font-bold text-slate-800 mb-3">📄 Documentos Listados en ARD</h4>
+                    <div className="space-y-2">
+                      {extractedConfig.requiredContextSources.map((source, idx) => (
+                        <div key={idx} className="bg-green-50 rounded-lg p-3 border border-green-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-slate-900">{source}</span>
+                          </div>
+                          <span className="text-xs text-green-700 font-semibold">Especificado en ARD</span>
+                        </div>
                       ))}
                     </div>
                   </div>
-                </div>
+                )}
               </div>
               
-              {/* Configuration Preview - 2 Columns */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Left Column */}
-                <div className="space-y-4">
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-blue-600" />
-                      Información Básica
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-slate-600">Nombre:</span>
-                        <p className="font-medium text-slate-800 mt-1">{extractedConfig.agentName}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Propósito:</span>
-                        <p className="font-medium text-slate-800 mt-1">{extractedConfig.agentPurpose}</p>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Audiencia:</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {(extractedConfig.targetAudience || []).map((aud, idx) => (
-                            <span key={idx} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
-                              {aud}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-slate-600">Modelo Recomendado:</span>
-                        <div className="mt-1">
-                          {extractedConfig.recommendedModel === 'gemini-2.5-pro' ? (
-                            <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1 inline-flex">
-                              <Sparkles className="w-3 h-3" />
-                              Gemini 2.5 Pro
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex items-center gap-1 inline-flex">
-                              <Sparkles className="w-3 h-3" />
-                              Gemini 2.5 Flash
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-3">System Prompt</h4>
-                    <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs font-mono text-slate-700 max-h-32 overflow-y-auto">
-                      {extractedConfig.systemPrompt}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Right Column */}
-                <div className="space-y-4">
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-3">Tipos de Input</h4>
-                    <ul className="space-y-1 text-xs">
-                      {(extractedConfig.expectedInputTypes || []).map((type, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
-                          <span className="text-slate-700">{type}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-3">Formato de Output</h4>
-                    <p className="text-xs text-slate-700">{extractedConfig.expectedOutputFormat}</p>
-                  </div>
-                  
-                  <div className="bg-white border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-800 mb-3">Tono</h4>
-                    <span className="px-2 py-1 bg-slate-100 text-slate-700 rounded text-xs font-medium">
-                      {extractedConfig.tone}
-                    </span>
-                  </div>
+              {/* SECTION 5: System Prompt (Auto-generated) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  <Brain className="w-5 h-5 text-indigo-600" />
+                  System Prompt (Auto-generado)
+                </h3>
+                <p className="text-xs text-slate-600 mb-3">
+                  Generado automáticamente desde el propósito, tono, y requisitos del agente. Puedes editarlo si necesario.
+                </p>
+                <div className="bg-white border border-slate-200 rounded-lg p-4">
+                  <pre className="text-xs font-mono text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    {extractedConfig.systemPrompt}
+                  </pre>
                 </div>
               </div>
               

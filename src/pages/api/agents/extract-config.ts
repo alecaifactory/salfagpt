@@ -45,92 +45,151 @@ export const POST: APIRoute = async ({ request }) => {
     
     console.log('🔄 File converted to base64, calling Gemini...');
 
-    // Prepare extraction prompt
-    const extractionPrompt = `Analiza este documento de requerimientos para un agente AI y extrae la siguiente información.
+    // Prepare extraction prompt - IMPROVED with explicit ARD field mapping
+    const extractionPrompt = `Analiza este documento ARD (Agent Requirements Document) y extrae la configuración del agente.
 
-INSTRUCCIÓN CRÍTICA: Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido. 
-- NO incluyas explicaciones antes o después del JSON
-- NO uses bloques de código markdown (\`\`\`json)
-- NO incluyas texto narrativo
-- SOLO el objeto JSON comenzando con { y terminando con }
+═══════════════════════════════════════════════════════════
+MAPEO EXPLÍCITO: CAMPOS DEL ARD → JSON
+═══════════════════════════════════════════════════════════
 
-Formato requerido:
+DEL DOCUMENTO ARD, BUSCA Y EXTRAE:
 
+1. "Nombre Sugerido del Asistente Virtual:" → agentName
+2. "Objetivo y Descripción Breve del Asistente Virtual:" → agentPurpose
+3. "Encargado del Proyecto:" → domainExpert.name
+4. "Usuarios que participarán en el Piloto o Validación:" → pilotUsers[] (cada nombre en la lista)
+5. "Usuarios Finales:" → targetAudience[] (cada nombre en la lista)
+6. "Preguntas Tipo:" → expectedInputExamples[] (cada pregunta numerada)
+7. "Respuestas Tipo:" → expectedOutputFormat + tone + citations
+8. Tabla "Nombre del documento:" → requiredContextSources[] (si tiene filas)
+
+═══════════════════════════════════════════════════════════
+PROCESAMIENTO DE PREGUNTAS TIPO
+═══════════════════════════════════════════════════════════
+
+Cada pregunta en la lista "Preguntas Tipo:" debe convertirse así:
+
+Input: "1. ¿Qué requisitos se necesitan para aprobar un permiso de edificios?"
+Output JSON:
 {
-  "agentName": "Nombre del agente",
-  "agentPurpose": "Propósito y objetivo principal",
-  "targetAudience": ["Usuario 1", "Usuario 2"],
-  "businessCase": {
-    "painPoint": "Problema que resuelve",
-    "affectedPersonas": ["Personas afectadas con cantidad si se menciona"],
-    "businessArea": "Área de negocio",
-    "businessImpact": {
-      "quantitative": {
-        "usersAffected": número,
-        "frequency": "Frecuencia de uso",
-        "timeSavingsPerQuery": "Tiempo ahorrado por consulta",
-        "estimatedAnnualValue": "Valor anual estimado"
-      },
-      "qualitative": {
-        "description": "Descripción de beneficios",
-        "benefitAreas": ["Áreas de beneficio"],
-        "risksMitigated": ["Riesgos mitigados"]
-      }
-    }
-  },
-  "recommendedModel": "gemini-2.5-flash" o "gemini-2.5-pro" (EXACTAMENTE estos nombres, NO usar gemini-1.5-*),
-  "systemPrompt": "System prompt generado basado en el propósito",
-  "tone": "Tono de las respuestas",
-  "expectedInputTypes": ["Tipos de preguntas esperadas"],
-  "expectedInputExamples": [
-    {
-      "question": "Pregunta ejemplo que el agente recibirá",
-      "example": "Ejemplo de pregunta",
-      "category": "Categoría del ejemplo"
-    }
-  ],
-  "expectedOutputFormat": "Formato de respuesta esperado",
-  "expectedOutputExamples": [
-    {
-      "example": "Ejemplo de respuesta correcta",
-      "successCriteria": "Por qué esta respuesta es buena"
-    }
-  ],
-  "responseRequirements": {
-    "format": "Formato preferido",
-    "length": { "min": número, "max": número, "target": número },
-    "precision": "exact" o "approximate",
-    "speed": { "target": segundos, "maximum": segundos },
-    "mustInclude": ["Elementos que debe incluir"],
-    "mustAvoid": ["Elementos que debe evitar"],
-    "citations": true/false
-  },
-  "qualityCriteria": [
-    {
-      "criterion": "Nombre del criterio",
-      "weight": 0.0-1.0,
-      "description": "Descripción"
-    }
-  ],
-  "undesirableOutputs": [
-    {
-      "example": "Ejemplo de respuesta mala",
-      "reason": "Por qué es mala",
-      "howToAvoid": "Cómo evitarla"
-    }
-  ],
-  "acceptanceCriteria": [
-    {
-      "criterion": "Criterio",
-      "description": "Descripción",
-      "isRequired": true/false,
-      "testable": true/false,
-      "howToTest": "Cómo probarlo"
-    }
-  ]
+  "question": "¿Qué requisitos se necesitan para aprobar un permiso de edificios?",
+  "category": "Permisos y Autorizaciones",
+  "difficulty": "easy"
 }
 
-Extrae TODA la información disponible del documento. Si algo no está explícito, infiere basado en el contexto del dominio.`;
+Categorización automática:
+- Si menciona "permiso|autorización|aprobar" → "Permisos y Autorizaciones"
+- Si menciona "loteo|subdivisión" → "Loteos y Subdivisiones"
+- Si menciona "condominio" → "Condominios"
+- Si menciona "conflicto|prevalece|contradice" → "Conflictos Normativos"
+- Si menciona "procedimiento|trámite|documentos" → "Procedimientos"
+- Si menciona "cálculo|densidad|altura|rasante" → "Cálculos Técnicos"
+- Resto → "General"
+
+Dificultad:
+- "easy": Preguntas directas tipo "¿Qué es X?" o "¿Cuál es la diferencia entre X y Y?"
+- "hard": Preguntas con múltiples condiciones o "¿Qué pasa si X pero Y?"
+- "medium": Todo lo demás
+
+═══════════════════════════════════════════════════════════
+PROCESAMIENTO DE RESPUESTAS TIPO
+═══════════════════════════════════════════════════════════
+
+Del campo "Respuestas Tipo:", extrae:
+
+Input: "Adaptativo, con referencias y fuentes. Técnico y especializado"
+Output JSON:
+{
+  "expectedOutputFormat": "Adaptativo con referencias y fuentes",
+  "tone": "Técnico y especializado",
+  "responseRequirements": {
+    "citations": true,
+    "format": "Estructura con referencias",
+    "precision": "exact"
+  }
+}
+
+Si menciona "con referencias" o "con fuentes" → citations: true
+Si menciona "técnico" → precision: "exact"
+Si menciona "adaptativo" → format incluye "Adaptativo"
+
+═══════════════════════════════════════════════════════════
+AUTO-GENERACIÓN DE CAMPOS NO EXPLÍCITOS
+═══════════════════════════════════════════════════════════
+
+recommendedModel:
+- Si dominio legal/médico/financiero O requiere citaciones → "gemini-2.5-pro"
+- Si dominio general/simple → "gemini-2.5-flash"
+
+systemPrompt (genera un prompt detallado):
+Estructura: "Eres [rol basado en agentPurpose]. 
+
+Cuando respondas:
+- [Instrucciones según tone]
+- [Requisito de citaciones si citations=true]
+- [Formato estructurado si expectedOutputFormat lo indica]
+
+Si no tienes información, indícalo claramente."
+
+Ejemplo:
+Si agentPurpose menciona "normativas de construcción" y tone es "técnico":
+"Eres un asistente experto en normativas de construcción chilenas (LGUC, OGUC, DDU). 
+
+Cuando respondas:
+- Usa lenguaje técnico pero comprensible
+- SIEMPRE cita artículos específicos (formato: LGUC Art. X, OGUC Art. Y)
+- Estructura: respuesta directa → fundamento normativo → consideraciones → fuentes
+- Si no encuentras información específica, indícalo claramente
+
+Tu objetivo es proporcionar respuestas precisas con referencias verificables."
+
+expectedInputTypes:
+Auto-genera lista de categorías únicas de expectedInputExamples
+
+═══════════════════════════════════════════════════════════
+FORMATO DE SALIDA JSON
+═══════════════════════════════════════════════════════════
+
+Tu respuesta debe ser ÚNICAMENTE un objeto JSON válido:
+- NO markdown (\`\`\`json)
+- NO explicaciones
+- SOLO { ... }
+
+{
+  "agentName": "Extraído del ARD",
+  "agentPurpose": "Extraído del ARD - texto completo del objetivo",
+  "targetAudience": ["Lista completa de usuarios finales del ARD"],
+  "pilotUsers": ["Lista de usuarios del piloto/validación del ARD"],
+  "recommendedModel": "gemini-2.5-flash" o "gemini-2.5-pro",
+  "systemPrompt": "System prompt auto-generado según instrucciones arriba",
+  "tone": "Extraído de Respuestas Tipo",
+  "expectedInputTypes": ["Lista de categorías únicas"],
+  "expectedInputExamples": [
+    {
+      "question": "Texto exacto de cada pregunta del ARD",
+      "category": "Categoría auto-asignada",
+      "difficulty": "easy|medium|hard"
+    }
+  ],
+  "expectedOutputFormat": "Extraído de Respuestas Tipo",
+  "responseRequirements": {
+    "citations": true si menciona referencias/fuentes,
+    "format": "Formato extraído",
+    "precision": "exact" para técnico/legal, "approximate" para general
+  },
+  "requiredContextSources": ["Nombres de documentos si tabla tiene filas"],
+  "domainExpert": {
+    "name": "Encargado del Proyecto"
+  }
+}
+
+VALIDACIÓN FINAL:
+- agentName debe tener valor (no vacío)
+- agentPurpose debe tener al menos 50 caracteres
+- expectedInputExamples debe tener al menos 1 pregunta
+- Si ARD tiene sección "Preguntas Tipo" con 10+ preguntas, TODAS deben aparecer en expectedInputExamples
+
+Extrae y mapea cuidadosamente.`;
 
     // Call Gemini for extraction
     const result = await genAI.models.generateContent({
