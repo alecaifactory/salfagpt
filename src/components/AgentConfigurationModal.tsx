@@ -14,7 +14,8 @@ import {
   Target,
   MessageSquare,
   Users as UsersIcon,
-  XCircle
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
 import type { AgentConfiguration, ExtractionProgress, AgentRequirementsDoc } from '../types/agent-config';
 import { useModalClose } from '../hooks/useModalClose';
@@ -41,6 +42,8 @@ export default function AgentConfigurationModal({
   const [extractedConfig, setExtractedConfig] = useState<AgentConfiguration | null>(null);
   const [requirementsDoc, setRequirementsDoc] = useState<AgentRequirementsDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [evaluationResults, setEvaluationResults] = useState<any>(null);
+  const [evaluating, setEvaluating] = useState(false);
   
   // Prompt mode state
   const [promptInputs, setPromptInputs] = useState({
@@ -84,6 +87,39 @@ export default function AgentConfigurationModal({
     if (selectedFile) {
       setFile(selectedFile);
       setError(null);
+    }
+  };
+  
+  const runEvaluation = async (config: AgentConfiguration) => {
+    console.log('🧪 Running real agent evaluation...');
+    setEvaluating(true);
+    setEvaluationResults(null);
+    
+    try {
+      const response = await fetch('/api/agents/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentConfig: config,
+          qualityCriteria: config.qualityCriteria || [],
+          acceptanceCriteria: config.acceptanceCriteria || [],
+          undesirableOutputs: config.undesirableOutputs || []
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Evaluation failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Evaluation complete:', data.evaluation);
+      setEvaluationResults(data.evaluation);
+      
+    } catch (error: any) {
+      console.error('❌ Error running evaluation:', error);
+      setError(`Error al evaluar agente: ${error.message}`);
+    } finally {
+      setEvaluating(false);
     }
   };
   
@@ -295,7 +331,7 @@ export default function AgentConfigurationModal({
       });
       
       // Show extracted config
-      setTimeout(() => {
+      setTimeout(async () => {
         setExtractedConfig(data.config);
         setRequirementsDoc({
           fileName: data.metadata.fileName,
@@ -307,6 +343,9 @@ export default function AgentConfigurationModal({
           extractionModel: data.metadata.extractionModel
         });
         setUploading(false);
+        
+        // Automatically run evaluation
+        await runEvaluation(data.config);
       }, 500);
       
     } catch (error: any) {
@@ -978,6 +1017,140 @@ export default function AgentConfigurationModal({
                   </div>
                 </div>
               </div>
+              
+              {/* Real Agent Evaluation Results */}
+              {(evaluating || evaluationResults) && (
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-6">
+                  <h3 className="text-2xl font-bold text-purple-900 mb-2 flex items-center gap-2">
+                    ⚡ SALIDA REAL DEL AGENTE
+                  </h3>
+                  <p className="text-sm text-slate-700 mb-4">
+                    Respuesta correcta y completa que sigue los lineamientos establecidos en la configuración del agente. Incluye todos los pasos necesarios y referencias apropiadas.
+                  </p>
+                  
+                  {evaluating ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                      <span className="ml-3 text-purple-700 font-medium">Evaluando agente con criterios reales...</span>
+                    </div>
+                  ) : evaluationResults && (
+                    <div className="space-y-4">
+                      {/* Overall Score */}
+                      <div className="bg-white rounded-lg p-4 border-2 border-purple-300">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-lg font-bold text-slate-900">Puntuación General</h4>
+                          <div className="text-right">
+                            <div className={`text-3xl font-bold ${
+                              evaluationResults.overallScore >= 80 ? 'text-green-600' :
+                              evaluationResults.overallScore >= 60 ? 'text-yellow-600' :
+                              'text-red-600'
+                            }`}>
+                              {evaluationResults.overallScore}/100
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1">
+                              {evaluationResults.passedCriteria}/{evaluationResults.totalCriteria} criterios aprobados
+                            </p>
+                          </div>
+                        </div>
+                        <p className={`text-sm font-medium ${
+                          evaluationResults.overallScore >= 80 ? 'text-green-700' :
+                          evaluationResults.overallScore >= 60 ? 'text-yellow-700' :
+                          'text-red-700'
+                        }`}>
+                          {evaluationResults.recommendation}
+                        </p>
+                      </div>
+                      
+                      {/* Criteria Breakdown */}
+                      <div className="bg-white rounded-lg p-5 border border-slate-200">
+                        <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                          📊 DESGLOSE POR CRITERIO
+                        </h4>
+                        
+                        <div className="space-y-3">
+                          {evaluationResults.results.map((result: any, idx: number) => (
+                            <details key={idx} className="group">
+                              <summary className={`cursor-pointer p-3 rounded-lg border-2 ${
+                                result.passed 
+                                  ? 'bg-green-50 border-green-300 hover:bg-green-100' 
+                                  : 'bg-red-50 border-red-300 hover:bg-red-100'
+                              }`}>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 flex-1">
+                                    {result.passed ? (
+                                      <CheckCircle className="w-5 h-5 text-green-600" />
+                                    ) : (
+                                      <XCircle className="w-5 h-5 text-red-600" />
+                                    )}
+                                    <div>
+                                      <p className="font-bold text-slate-900">{result.criterion}</p>
+                                      <p className="text-xs text-slate-600 mt-0.5">{result.feedback}</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`text-xl font-bold ${
+                                      result.score >= 80 ? 'text-green-600' :
+                                      result.score >= 60 ? 'text-yellow-600' :
+                                      'text-red-600'
+                                    }`}>
+                                      {result.score}
+                                    </span>
+                                    <span className="text-xs text-slate-500 ml-1">/100</span>
+                                  </div>
+                                </div>
+                              </summary>
+                              
+                              <div className="mt-3 p-4 bg-white rounded-lg border border-slate-200 space-y-3">
+                                <div>
+                                  <p className="text-xs font-bold text-slate-700 mb-1">❓ Pregunta de Prueba:</p>
+                                  <p className="text-sm text-slate-800 bg-slate-50 p-2 rounded italic">
+                                    "{result.testQuery}"
+                                  </p>
+                                </div>
+                                
+                                <div>
+                                  <p className="text-xs font-bold text-slate-700 mb-1">🤖 Respuesta del Agente:</p>
+                                  <p className="text-sm text-slate-800 bg-blue-50 p-3 rounded border border-blue-200">
+                                    {result.agentResponse}
+                                  </p>
+                                </div>
+                                
+                                <div>
+                                  <p className="text-xs font-bold text-slate-700 mb-1">🧠 Evaluación del Evaluador:</p>
+                                  <pre className="text-xs text-slate-700 bg-slate-50 p-3 rounded border border-slate-200 overflow-x-auto whitespace-pre-wrap">
+                                    {result.evaluatorReasoning}
+                                  </pre>
+                                </div>
+                              </div>
+                            </details>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Re-evaluate Button */}
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => runEvaluation(extractedConfig!)}
+                          disabled={evaluating}
+                          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-slate-300 font-medium flex items-center gap-2"
+                        >
+                          {evaluating ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Evaluando...
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-5 h-5" />
+                              Re-evaluar Agente
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Add Missing Context Section */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
