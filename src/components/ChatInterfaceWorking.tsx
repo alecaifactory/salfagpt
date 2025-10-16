@@ -2605,6 +2605,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         onClose={() => setShowAgentEvaluation(false)}
         userEmail={userEmail || ''}
         userRole="admin" // TODO: Get from user profile
+        conversations={conversations}
       />
 
       {/* Impersonation Banner */}

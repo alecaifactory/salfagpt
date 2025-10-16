@@ -54,9 +54,10 @@ interface Props {
   onClose: () => void;
   userEmail: string;
   userRole: string;
+  conversations: any[]; // Real agents from system
 }
 
-export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, userRole }: Props) {
+export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, userRole, conversations }: Props) {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isRunningEvaluation, setIsRunningEvaluation] = useState(false);
@@ -74,39 +75,28 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
   }, [isOpen]);
   
   const loadAgents = async () => {
-    // Mock data - replace with real API call
-    setAgents([
-      {
-        id: 'agent-1',
-        name: 'Asistente de Ventas',
-        version: '1.2.0',
-        model: 'gemini-2.5-flash',
-        status: 'active',
-        totalEvaluations: 3,
-        lastEvaluationScore: 92,
-        lastEvaluationDate: new Date('2024-10-14'),
-        totalFeedback: 287,
-        averageCSAT: 4.6,
-        feedbackDistribution: { 5: 195, 4: 63, 3: 20, 2: 6, 1: 3 },
+    // Convert real conversations to agent evaluation format
+    const agentList: Agent[] = conversations
+      .filter(c => c.status !== 'archived')
+      .map((conv, idx) => ({
+        id: conv.id,
+        name: conv.title,
+        version: '1.0.0', // Default version
+        model: 'gemini-2.5-flash', // Default, should come from agent config
+        status: idx === 0 ? 'active' : 'testing', // First is active, rest testing
+        totalEvaluations: Math.floor(Math.random() * 5), // Mock for now
+        lastEvaluationScore: idx === 0 ? 92 : 78, // Mock scores
+        lastEvaluationDate: new Date(),
+        totalFeedback: Math.floor(Math.random() * 300),
+        averageCSAT: idx === 0 ? 4.6 : 3.8,
+        feedbackDistribution: idx === 0 
+          ? { 5: 195, 4: 63, 3: 20, 2: 6, 1: 3 }
+          : { 5: 12, 4: 18, 3: 10, 2: 3, 1: 2 },
         acceptanceThreshold: 85,
         testCasesCount: 15
-      },
-      {
-        id: 'agent-2',
-        name: 'Soporte Técnico',
-        version: '2.0.0',
-        model: 'gemini-2.5-pro',
-        status: 'testing',
-        totalEvaluations: 1,
-        lastEvaluationScore: 78,
-        lastEvaluationDate: new Date('2024-10-15'),
-        totalFeedback: 45,
-        averageCSAT: 3.8,
-        feedbackDistribution: { 5: 12, 4: 18, 3: 10, 2: 3, 1: 2 },
-        acceptanceThreshold: 85,
-        testCasesCount: 20
-      },
-    ]);
+      }));
+    
+    setAgents(agentList);
   };
   
   const runEvaluation = async (agent: Agent) => {
@@ -187,42 +177,42 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
             <div className="space-y-4">
               {/* Overview Stats */}
               <div className="grid grid-cols-4 gap-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <MessageSquare className="w-5 h-5 text-blue-600" />
-                    <span className="text-2xl font-bold text-blue-600">{agents.length}</span>
+                    <MessageSquare className="w-5 h-5 text-slate-600" />
+                    <span className="text-2xl font-bold text-slate-900">{agents.length}</span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">Total Agentes</p>
+                  <p className="text-sm font-semibold text-slate-600">Total Agentes</p>
                 </div>
                 
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-2xl font-bold text-green-600">
+                    <CheckCircle className="w-5 h-5 text-blue-600" />
+                    <span className="text-2xl font-bold text-blue-900">
                       {agents.filter(a => a.status === 'active').length}
                     </span>
                   </div>
                   <p className="text-sm font-semibold text-slate-700">Activos Certificados</p>
                 </div>
                 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Loader2 className="w-5 h-5 text-yellow-600" />
-                    <span className="text-2xl font-bold text-yellow-600">
+                    <Loader2 className="w-5 h-5 text-slate-600" />
+                    <span className="text-2xl font-bold text-slate-900">
                       {agents.filter(a => a.status === 'testing').length}
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">En Testing</p>
+                  <p className="text-sm font-semibold text-slate-600">En Testing</p>
                 </div>
                 
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <Star className="w-5 h-5 text-purple-600" />
-                    <span className="text-2xl font-bold text-purple-600">
-                      {(agents.reduce((sum, a) => sum + (a.averageCSAT || 0), 0) / agents.length).toFixed(1)}
+                    <Star className="w-5 h-5 text-slate-600" />
+                    <span className="text-2xl font-bold text-slate-900">
+                      {agents.length > 0 ? (agents.reduce((sum, a) => sum + (a.averageCSAT || 0), 0) / agents.length).toFixed(1) : '0'}
                     </span>
                   </div>
-                  <p className="text-sm font-semibold text-slate-700">CSAT Promedio</p>
+                  <p className="text-sm font-semibold text-slate-600">CSAT Promedio</p>
                 </div>
               </div>
               
@@ -241,8 +231,8 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                             v{agent.version}
                           </span>
                           <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
-                            agent.status === 'active' ? 'bg-green-100 text-green-700' :
-                            agent.status === 'testing' ? 'bg-yellow-100 text-yellow-700' :
+                            agent.status === 'active' ? 'bg-blue-100 text-blue-700' :
+                            agent.status === 'testing' ? 'bg-slate-100 text-slate-700' :
                             agent.status === 'approved' ? 'bg-blue-100 text-blue-700' :
                             'bg-slate-100 text-slate-700'
                           }`}>
@@ -280,10 +270,10 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                     
                     <div className="grid grid-cols-3 gap-4">
                       {/* Evaluations */}
-                      <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                      <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-purple-700">Evaluaciones</span>
-                          <span className="text-lg font-bold text-purple-900">{agent.totalEvaluations}</span>
+                          <span className="text-xs font-semibold text-slate-700">Evaluaciones</span>
+                          <span className="text-lg font-bold text-slate-900">{agent.totalEvaluations}</span>
                         </div>
                         {agent.lastEvaluationScore && (
                           <>
@@ -291,18 +281,18 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                               <span className="text-slate-600">Última:</span>
                               <span className={`font-bold ${
                                 agent.lastEvaluationScore >= agent.acceptanceThreshold 
-                                  ? 'text-green-600' 
-                                  : 'text-red-600'
+                                  ? 'text-blue-600' 
+                                  : 'text-slate-700'
                               }`}>
                                 {agent.lastEvaluationScore}%
                               </span>
                             </div>
-                            <div className="mt-1 bg-white rounded-full h-2 overflow-hidden">
+                            <div className="mt-1 bg-slate-200 rounded-full h-2 overflow-hidden">
                               <div 
                                 className={`h-full transition-all ${
                                   agent.lastEvaluationScore >= agent.acceptanceThreshold
-                                    ? 'bg-green-500'
-                                    : 'bg-red-500'
+                                    ? 'bg-blue-600'
+                                    : 'bg-slate-400'
                                 }`}
                                 style={{ width: `${agent.lastEvaluationScore}%` }}
                               />
@@ -312,10 +302,10 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                       </div>
                       
                       {/* User Feedback */}
-                      <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                      <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-yellow-700">Feedback Usuarios</span>
-                          <span className="text-lg font-bold text-yellow-900">{agent.totalFeedback}</span>
+                          <span className="text-xs font-semibold text-slate-700">Feedback Usuarios</span>
+                          <span className="text-lg font-bold text-slate-900">{agent.totalFeedback}</span>
                         </div>
                         {agent.averageCSAT && (
                           <>
@@ -325,12 +315,12 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                                   key={star}
                                   className={`w-3.5 h-3.5 ${
                                     star <= Math.round(agent.averageCSAT!)
-                                      ? 'fill-yellow-500 text-yellow-500'
+                                      ? 'fill-blue-600 text-blue-600'
                                       : 'text-slate-300'
                                   }`}
                                 />
                               ))}
-                              <span className="ml-1 text-sm font-bold text-yellow-900">
+                              <span className="ml-1 text-sm font-bold text-slate-900">
                                 {agent.averageCSAT.toFixed(1)}
                               </span>
                             </div>
@@ -340,9 +330,9 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                                 const percentage = agent.totalFeedback > 0 ? (count / agent.totalFeedback) * 100 : 0;
                                 return (
                                   <div key={rating} className="text-center">
-                                    <div className="h-8 bg-slate-100 rounded-t flex items-end">
+                                    <div className="h-8 bg-slate-200 rounded-t flex items-end">
                                       <div 
-                                        className="w-full bg-yellow-400 rounded-t"
+                                        className="w-full bg-blue-600 rounded-t"
                                         style={{ height: `${percentage}%` }}
                                       />
                                     </div>
@@ -356,10 +346,10 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                       </div>
                       
                       {/* Acceptance Criteria */}
-                      <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-green-700">Criterio Aceptación</span>
-                          <span className="text-lg font-bold text-green-900">{agent.acceptanceThreshold}%</span>
+                          <span className="text-xs font-semibold text-blue-700">Criterio Aceptación</span>
+                          <span className="text-lg font-bold text-blue-900">{agent.acceptanceThreshold}%</span>
                         </div>
                         <div className="mt-2 space-y-1 text-[11px]">
                           <div className="flex justify-between">
@@ -371,8 +361,8 @@ export default function AgentEvaluationDashboard({ isOpen, onClose, userEmail, u
                             {agent.lastEvaluationScore && (
                               <span className={`font-semibold ${
                                 agent.lastEvaluationScore >= agent.acceptanceThreshold
-                                  ? 'text-green-600'
-                                  : 'text-red-600'
+                                  ? 'text-blue-600'
+                                  : 'text-slate-700'
                               }`}>
                                 {agent.lastEvaluationScore >= agent.acceptanceThreshold ? '✅ PASA' : '❌ NO PASA'}
                               </span>
