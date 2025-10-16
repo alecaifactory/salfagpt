@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -8,6 +8,7 @@ import ContextSourceSettingsModal from './ContextSourceSettingsModal';
 import ContextManagementDashboard from './ContextManagementDashboard';
 import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
+import AgentEvaluationDashboard from './AgentEvaluationDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
@@ -84,6 +85,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showAgentManagement, setShowAgentManagement] = useState(false);
   const [showAgentConfiguration, setShowAgentConfiguration] = useState(false);
+  const [showAgentEvaluation, setShowAgentEvaluation] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -1728,6 +1730,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </>
                 )}
                 
+                {/* Agent Evaluation - Experts and Admins */}
+                {userEmail && (userEmail === 'alec@getaifactory.com' || userEmail.includes('expert') || userEmail.includes('agent_')) && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => {
+                        setShowAgentEvaluation(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Award className="w-5 h-5 text-slate-600" />
+                      <span className="font-medium">Evaluaciones de Agentes</span>
+                    </button>
+                    <div className="border-t border-slate-200 my-2" />
+                  </>
+                )}
+                
                 {/* Agent Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
@@ -2543,6 +2562,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           currentUser={{ id: userId, email: userEmail, name: userName }}
         />
       )}
+      
+      {/* Agent Evaluation Dashboard */}
+      <AgentEvaluationDashboard
+        isOpen={showAgentEvaluation}
+        onClose={() => setShowAgentEvaluation(false)}
+        userEmail={userEmail || ''}
+        userRole="admin" // TODO: Get from user profile
+      />
 
       {/* Impersonation Banner */}
       {isImpersonating && impersonatedUser && (
