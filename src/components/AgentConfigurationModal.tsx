@@ -604,6 +604,64 @@ export default function AgentConfigurationModal({
                 )}
               </div>
               
+              {/* Executive Summary - Key Mappings */}
+              <div className="bg-gradient-to-r from-slate-100 to-slate-200 border-2 border-slate-400 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-slate-900 mb-3 flex items-center gap-2">
+                  📋 Resumen Ejecutivo - Mapeo Completo
+                </h3>
+                <p className="text-sm text-slate-700 mb-4">
+                  Información extraída del documento para configurar el agente con enfoque en negocio
+                </p>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-white rounded-lg p-3 border-2 border-red-300">
+                    <p className="font-bold text-red-700 mb-1">1️⃣ Usuario con el Dolor:</p>
+                    <p className="text-slate-800">{extractedConfig.businessCase.affectedPersonas[0]}</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 border-2 border-orange-300">
+                    <p className="font-bold text-orange-700 mb-1">2️⃣ El Dolor:</p>
+                    <p className="text-slate-800">{extractedConfig.businessCase.painPoint.substring(0, 80)}...</p>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 border-2 border-green-300">
+                    <p className="font-bold text-green-700 mb-1">3️⃣ Cómo Evalúa Calidad:</p>
+                    <ul className="space-y-0.5">
+                      {extractedConfig.qualityCriteria.map((c, i) => (
+                        <li key={i} className="text-slate-800">• {c.criterion} ({(c.weight * 100).toFixed(0)}%)</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 border-2 border-blue-300">
+                    <p className="font-bold text-blue-700 mb-1">4️⃣ Criterio de Aceptación:</p>
+                    <ul className="space-y-0.5">
+                      {extractedConfig.acceptanceCriteria.map((ac, i) => (
+                        <li key={i} className="text-slate-800">✓ {ac.criterion}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 border-2 border-purple-300">
+                    <p className="font-bold text-purple-700 mb-1">5️⃣ Criterio de Rechazo:</p>
+                    <ul className="space-y-0.5">
+                      {extractedConfig.undesirableOutputs.map((uo, i) => (
+                        <li key={i} className="text-slate-800">✗ {uo.example}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg p-3 border-2 border-indigo-300">
+                    <p className="font-bold text-indigo-700 mb-1">6️⃣ Expectativas de Respuesta:</p>
+                    <p className="text-slate-800">
+                      {extractedConfig.responseRequirements.format} • 
+                      {extractedConfig.responseRequirements.length.target}w • 
+                      {extractedConfig.responseRequirements.speed.target}s
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
               {/* Business Case Section - Full Width */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-5">
                 <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
