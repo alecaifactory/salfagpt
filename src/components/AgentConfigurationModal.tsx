@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   X, 
   Upload, 
@@ -55,6 +55,27 @@ export default function AgentConfigurationModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   useModalClose(isOpen, onClose);
+  
+  // Reset state when modal closes or agentId changes
+  useEffect(() => {
+    if (!isOpen) {
+      // Clear all state when modal closes
+      setFile(null);
+      setUploading(false);
+      setProgress(null);
+      setExtractedConfig(null);
+      setError(null);
+      setUploadMode('file');
+      setPromptInputs({
+        purpose: '',
+        audience: '',
+        inputTypes: '',
+        outputFormat: '',
+        quality: '',
+        undesirable: '',
+      });
+    }
+  }, [isOpen, agentId]);
   
   if (!isOpen) return null;
   
