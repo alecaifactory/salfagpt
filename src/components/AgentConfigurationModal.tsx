@@ -805,26 +805,72 @@ export default function AgentConfigurationModal({
           {/* Extracted Config View */}
           {extractedConfig && (
             <div className="space-y-6">
-              {/* Success Header */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-                <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-green-900">✅ Configuración Generada</h3>
-                  <p className="text-sm text-slate-700 mt-1">
-                    Revisa la configuración extraída y ajusta si es necesario.
-                  </p>
+              {/* Success Header with Actions */}
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div className="flex items-start gap-3 mb-3">
+                  <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-green-900">✅ Configuración Generada</h3>
+                    <p className="text-sm text-slate-700 mt-1">
+                      Revisa la configuración extraída y ajusta si es necesario.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {file && (
+                      <button
+                        onClick={() => {
+                          const url = URL.createObjectURL(file);
+                          window.open(url, '_blank');
+                        }}
+                        className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-50 text-xs font-medium flex items-center gap-1"
+                      >
+                        <Eye className="w-3 h-3" />
+                        Ver Documento
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        // Clear current config to allow re-upload
+                        setExtractedConfig(null);
+                        setFile(null);
+                        setError(null);
+                        setEvaluationResults(null);
+                        // Re-focus file input
+                        setTimeout(() => fileInputRef.current?.click(), 100);
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center gap-1"
+                      title="Subir ARD nuevamente para mejorar la extracción"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Re-procesar ARD
+                    </button>
+                  </div>
                 </div>
-                {file && (
-                  <button
-                    onClick={() => {
-                      const url = URL.createObjectURL(file);
-                      window.open(url, '_blank');
-                    }}
-                    className="px-3 py-1.5 bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-50 text-xs font-medium flex items-center gap-1"
-                  >
-                    <Eye className="w-3 h-3" />
-                    Ver Documento Fuente
-                  </button>
+                
+                {/* Data Completeness Warning */}
+                {(!extractedConfig.targetAudience || extractedConfig.targetAudience.length === 0 || 
+                  !extractedConfig.pilotUsers || extractedConfig.pilotUsers.length === 0 ||
+                  !extractedConfig.tone) && (
+                  <div className="mt-3 bg-yellow-50 border border-yellow-300 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs font-semibold text-yellow-900 mb-1">
+                        ⚠️ Extracción Incompleta
+                      </p>
+                      <p className="text-xs text-yellow-800">
+                        Algunos campos no se extrajeron correctamente. 
+                        <strong className="ml-1">Click "Re-procesar ARD"</strong> para volver a extraer con el sistema mejorado.
+                      </p>
+                      <div className="mt-2 text-[10px] text-yellow-700">
+                        Faltantes: {[
+                          (!extractedConfig.targetAudience || extractedConfig.targetAudience.length === 0) && 'Usuarios Finales',
+                          (!extractedConfig.pilotUsers || extractedConfig.pilotUsers.length === 0) && 'Usuarios Piloto',
+                          !extractedConfig.tone && 'Tono de Respuestas',
+                          !extractedConfig.recommendedModel && 'Modelo Recomendado'
+                        ].filter(Boolean).join(', ')}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
               
