@@ -109,18 +109,67 @@ export default function AgentConfigurationModal({
         // Show extracted config (mock for now)
         setTimeout(() => {
           setExtractedConfig({
-            agentName: agentName || 'Nuevo Agente Configurado',
-            agentPurpose: 'Asistente especializado en [dominio extraído del documento]',
-            targetAudience: ['Usuarios internos', 'Equipo técnico'],
+            agentName: agentName || 'Asistente de Ventas',
+            agentPurpose: 'Proporcionar información rápida y precisa sobre productos, precios y disponibilidad al equipo de ventas',
+            targetAudience: ['Ejecutivos de Ventas', 'Gerentes de Cuenta', 'Soporte Pre-Venta'],
+            businessCase: {
+              painPoint: 'El equipo de ventas dedica 2 horas diarias buscando información en múltiples documentos PDF, reduciendo tiempo disponible para ventas directas',
+              affectedPersonas: ['Ejecutivos de Ventas (25 personas)', 'Gerentes de Cuenta (8 personas)', 'Soporte Pre-Venta (12 personas)'],
+              businessArea: 'Ventas y Marketing',
+              businessImpact: {
+                quantitative: {
+                  usersAffected: 45,
+                  frequency: '50 consultas por día',
+                  timeSavingsPerQuery: '2-3 minutos',
+                  estimatedAnnualValue: '$500,000 USD'
+                },
+                qualitative: {
+                  description: 'Decisiones más rápidas, mayor satisfacción del equipo, menos errores en cotizaciones',
+                  benefitAreas: ['Velocidad de respuesta', 'Precisión de información', 'Satisfacción del equipo'],
+                  risksMitigated: ['Pérdida de ventas por info incorrecta', 'Frustración del equipo', 'Inconsistencia en información']
+                }
+              },
+              alignment: {
+                companyOKRs: ['Aumentar eficiencia operacional 20%', 'Incrementar revenue 15%'],
+                departmentGoals: ['Reducir tiempo ciclo venta 30%', 'Aumentar tasa cierre 15%'],
+                strategicValue: 'high'
+              },
+              roi: {
+                timeSaved: '2 horas/día por usuario',
+                costSaved: '$500K anuales',
+                qualityImprovement: '30% menos errores',
+                userSatisfactionTarget: 4.5
+              }
+            },
             recommendedModel: 'gemini-2.5-flash',
-            systemPrompt: 'Eres un asistente especializado en [dominio]. Tu objetivo es...',
-            tone: 'professional',
-            expectedInputTypes: ['Preguntas técnicas', 'Solicitudes de información'],
+            systemPrompt: 'Eres un asistente especializado en ventas. Proporciona información precisa sobre productos y precios. Cita siempre la fuente. Sé conciso y profesional.',
+            tone: 'Profesional pero amigable',
+            expectedInputTypes: ['Consultas de precios', 'Disponibilidad de productos', 'Comparaciones de productos'],
             expectedInputExamples: [],
-            expectedOutputFormat: 'Respuestas claras y concisas con ejemplos',
+            expectedOutputFormat: 'Bullet points con datos clave, máximo 150 palabras',
             expectedOutputExamples: [],
-            qualityCriteria: [],
-            undesirableOutputs: [],
+            responseRequirements: {
+              format: 'Bullet points',
+              length: { min: 50, max: 200, target: 150 },
+              precision: 'exact',
+              speed: { target: 2, maximum: 5 },
+              mustInclude: ['Precio con moneda', 'Fuente del dato', 'Disponibilidad actual'],
+              mustAvoid: ['Respuestas vagas', 'Inventar datos', 'Jerga técnica excesiva'],
+              citations: true
+            },
+            qualityCriteria: [
+              { id: '1', criterion: 'Precisión', weight: 0.3, description: '100% de datos verificables', examples: [] },
+              { id: '2', criterion: 'Claridad', weight: 0.25, description: 'Lenguaje simple y directo', examples: [] },
+              { id: '3', criterion: 'Velocidad', weight: 0.2, description: 'Respuesta en < 3 segundos', examples: [] }
+            ],
+            undesirableOutputs: [
+              { id: '1', example: '"No sé"', reason: 'Debe buscar en contexto', howToAvoid: 'Siempre consultar documentos antes de responder' },
+              { id: '2', example: '"Depende..."', reason: 'Muy vago', howToAvoid: 'Proporcionar rangos o condiciones específicas' }
+            ],
+            acceptanceCriteria: [
+              { id: '1', criterion: '90% precisión en precios', description: 'Precios correctos en 9 de 10 consultas', isRequired: true, testable: true, howToTest: 'Comparar con catálogo oficial' },
+              { id: '2', criterion: 'Cita fuentes siempre', description: 'Toda respuesta debe indicar fuente', isRequired: true, testable: true, howToTest: 'Verificar presencia de cita' }
+            ],
             requiredContextSources: [],
             recommendedContextSources: [],
             evaluationCriteria: [],
@@ -190,7 +239,7 @@ export default function AgentConfigurationModal({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -534,7 +583,295 @@ export default function AgentConfigurationModal({
                 )}
               </div>
               
-              {/* Configuration Preview */}
+              {/* Business Case Section - Full Width */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-5">
+                <h3 className="text-xl font-bold text-blue-900 mb-4 flex items-center gap-2">
+                  <Target className="w-6 h-6" />
+                  Caso de Uso Identificado
+                </h3>
+                
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Column 1: Pain Point */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-bold text-red-700 mb-2 flex items-center gap-1.5">
+                      ⚠️ Dolor Identificado
+                    </h4>
+                    <p className="text-xs text-slate-700 leading-relaxed">
+                      {extractedConfig.businessCase.painPoint}
+                    </p>
+                  </div>
+                  
+                  {/* Column 2: Who Has It */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                      <UsersIcon className="w-4 h-4" />
+                      Quiénes lo Tienen
+                    </h4>
+                    <ul className="space-y-1 text-xs">
+                      {extractedConfig.businessCase.affectedPersonas.map((persona, idx) => (
+                        <li key={idx} className="text-slate-700 flex items-start gap-1.5">
+                          <span className="text-blue-600">•</span>
+                          {persona}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      <p className="text-[10px] text-slate-600">
+                        <strong>Área:</strong> {extractedConfig.businessCase.businessArea}
+                      </p>
+                      <p className="text-[10px] text-slate-600 mt-0.5">
+                        <strong>Total:</strong> {extractedConfig.businessCase.businessImpact.quantitative.usersAffected} usuarios
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Column 3: Solution Expectation */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-bold text-green-700 mb-2 flex items-center gap-1.5">
+                      ✨ Solución Esperada
+                    </h4>
+                    <p className="text-xs text-slate-700 mb-2">
+                      <strong>Propósito:</strong> {extractedConfig.agentPurpose}
+                    </p>
+                    <p className="text-xs text-slate-700">
+                      <strong>Tono:</strong> {extractedConfig.tone}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Impact Row */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {/* Quantitative Impact */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-bold text-green-700 mb-3 flex items-center gap-1.5">
+                      📊 Impacto Cuantitativo
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-slate-600">Frecuencia:</span>
+                        <p className="font-semibold text-slate-900">{extractedConfig.businessCase.businessImpact.quantitative.frequency}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-600">Ahorro/query:</span>
+                        <p className="font-semibold text-green-600">{extractedConfig.businessCase.businessImpact.quantitative.timeSavingsPerQuery}</p>
+                      </div>
+                      <div className="col-span-2 mt-2 pt-2 border-t border-slate-200">
+                        <span className="text-slate-600">Valor Anual Estimado:</span>
+                        <p className="font-bold text-green-600 text-base mt-1">{extractedConfig.businessCase.businessImpact.quantitative.estimatedAnnualValue}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Qualitative Impact */}
+                  <div className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-bold text-purple-700 mb-2 flex items-center gap-1.5">
+                      💎 Impacto Cualitativo
+                    </h4>
+                    <p className="text-xs text-slate-700 mb-2">{extractedConfig.businessCase.businessImpact.qualitative.description}</p>
+                    <div className="space-y-1 text-[11px]">
+                      <p className="font-semibold text-slate-700">Riesgos Mitigados:</p>
+                      {extractedConfig.businessCase.businessImpact.qualitative.risksMitigated.map((risk, idx) => (
+                        <p key={idx} className="text-slate-600 flex items-start gap-1">
+                          <span className="text-green-600">✓</span>
+                          {risk}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Success Criteria */}
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-yellow-900 mb-4 flex items-center gap-2">
+                  🎯 Evaluación del Éxito
+                </h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* What Makes Success */}
+                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
+                    <h4 className="text-sm font-bold text-green-700 mb-3">✅ Qué Define Éxito</h4>
+                    <div className="space-y-2">
+                      {extractedConfig.qualityCriteria.map((criterion, idx) => (
+                        <div key={idx} className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-slate-800">{criterion.criterion}</p>
+                            <p className="text-[11px] text-slate-600">{criterion.description}</p>
+                            <div className="mt-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div 
+                                className="bg-green-500 h-full"
+                                style={{ width: `${criterion.weight * 100}%` }}
+                              />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-0.5">Peso: {(criterion.weight * 100).toFixed(0)}%</p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <h5 className="text-xs font-bold text-slate-700 mb-1">Criterios de Aceptación:</h5>
+                        {extractedConfig.acceptanceCriteria.map((ac, idx) => (
+                          <div key={idx} className="mt-1.5 bg-green-50 border border-green-200 rounded p-2">
+                            <p className="text-xs font-semibold text-green-800">{ac.criterion}</p>
+                            <p className="text-[10px] text-slate-600 mt-0.5">{ac.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* What Degrades Experience */}
+                  <div className="bg-white rounded-lg p-4 border border-yellow-200">
+                    <h4 className="text-sm font-bold text-red-700 mb-3">❌ Qué Degrada la Experiencia</h4>
+                    <div className="space-y-2">
+                      {extractedConfig.undesirableOutputs.map((output, idx) => (
+                        <div key={idx} className="bg-red-50 border border-red-200 rounded p-2">
+                          <p className="text-xs font-semibold text-red-800 mb-1">
+                            Ejemplo: "{output.example}"
+                          </p>
+                          <p className="text-[11px] text-slate-700">
+                            <strong>Por qué:</strong> {output.reason}
+                          </p>
+                          <p className="text-[11px] text-green-700 mt-1">
+                            <strong>Cómo evitar:</strong> {output.howToAvoid}
+                          </p>
+                        </div>
+                      ))}
+                      
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <h5 className="text-xs font-bold text-slate-700 mb-1">Debe Evitar:</h5>
+                        <div className="space-y-0.5">
+                          {extractedConfig.responseRequirements.mustAvoid.map((avoid, idx) => (
+                            <p key={idx} className="text-xs text-red-700 flex items-start gap-1">
+                              <span>✗</span>
+                              {avoid}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Response Requirements */}
+                <div className="mt-4 bg-white rounded-lg p-4 border border-yellow-200">
+                  <h4 className="text-sm font-bold text-slate-800 mb-3">📏 Requerimientos de Respuesta</h4>
+                  <div className="grid grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-slate-600">Formato:</span>
+                      <p className="font-semibold text-slate-800">{extractedConfig.responseRequirements.format}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Longitud:</span>
+                      <p className="font-semibold text-slate-800">
+                        {extractedConfig.responseRequirements.length.target} palabras
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        (max: {extractedConfig.responseRequirements.length.max})
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Velocidad:</span>
+                      <p className="font-semibold text-green-600">
+                        ⚡ {extractedConfig.responseRequirements.speed.target}s
+                      </p>
+                      <p className="text-[10px] text-slate-500">
+                        (max: {extractedConfig.responseRequirements.speed.maximum}s)
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-slate-600">Precisión:</span>
+                      <p className="font-semibold text-slate-800 capitalize">{extractedConfig.responseRequirements.precision}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-200">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-green-700 mb-1">Debe Incluir:</p>
+                        <ul className="space-y-0.5">
+                          {extractedConfig.responseRequirements.mustInclude.map((item, idx) => (
+                            <li key={idx} className="text-[11px] text-slate-700 flex items-start gap-1">
+                              <span className="text-green-600">✓</span>
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700 mb-1">Citaciones:</p>
+                        <p className="text-xs text-slate-700">
+                          {extractedConfig.responseRequirements.citations ? '✅ Requeridas' : '❌ No requeridas'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Add Missing Context Section */}
+              <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-orange-900 mb-3 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Añadir Contexto Adicional (Opcional)
+                </h3>
+                <p className="text-sm text-slate-700 mb-4">
+                  Mejora la calidad de las respuestas proporcionando información adicional de tu empresa
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      🌐 URL de la Empresa
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://www.empresa.com"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[10px] text-slate-600 mt-1">
+                      Extraeremos información de misión, visión, productos y servicios
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      🎯 OKRs del Departamento
+                    </label>
+                    <textarea
+                      placeholder="Objetivo: Incrementar ventas 20%&#10;KR1: 100 nuevos clientes&#10;KR2: $2M revenue"
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={3}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      💼 Misión
+                    </label>
+                    <textarea
+                      placeholder="Proporcionar soluciones de valor..."
+                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                      rows={2}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-2">
+                      🌟 Valores Clave
+                    </label>
+                    <div className="space-y-1 text-xs">
+                      {['Integridad', 'Excelencia', 'Innovación', 'Colaboración'].map((valor, idx) => (
+                        <label key={idx} className="flex items-center gap-2">
+                          <input type="checkbox" className="rounded border-slate-300" />
+                          <span className="text-slate-700">{valor}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Configuration Preview - 2 Columns */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Left Column */}
                 <div className="space-y-4">
