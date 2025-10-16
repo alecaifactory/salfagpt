@@ -1266,14 +1266,35 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         fileName: 'Configuración extraída',
         uploadedAt: new Date().toISOString(),
         uploadedBy: userId,
+        // Core fields
+        agentName: config.agentName || '',
         agentPurpose: config.agentPurpose || '',
         setupInstructions: config.systemPrompt || '',
+        // Input/Output examples
         inputExamples,
         correctOutputs,
         incorrectOutputs: (config.undesirableOutputs || []).map((ex: any) => ({
           example: ex.example || '',
           reason: ex.reason || ''
-        }))
+        })),
+        // Full configuration for complete reconstruction
+        targetAudience: config.targetAudience || [],
+        businessCase: config.businessCase || {},
+        recommendedModel: validatedModel, // Use validated model
+        systemPrompt: config.systemPrompt || '',
+        tone: config.tone || '',
+        expectedInputTypes: config.expectedInputTypes || [],
+        expectedOutputFormat: config.expectedOutputFormat || '',
+        expectedOutputExamples: config.expectedOutputExamples || [],
+        responseRequirements: config.responseRequirements || {},
+        qualityCriteria: config.qualityCriteria || [],
+        undesirableOutputs: config.undesirableOutputs || [],
+        acceptanceCriteria: config.acceptanceCriteria || [],
+        // Optional fields
+        requiredContextSources: config.requiredContextSources || [],
+        recommendedContextSources: config.recommendedContextSources || [],
+        evaluationCriteria: config.evaluationCriteria || [],
+        successMetrics: config.successMetrics || []
       };
       
       console.log('💾 [SAVE SETUP] inputExamples mapeados:', setupDocData.inputExamples);
