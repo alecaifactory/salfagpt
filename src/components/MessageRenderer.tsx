@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ExternalLink, FileText, CheckCircle, Image as ImageIcon, Video } from 'lucide-react';
+import type { SourceReference } from '../lib/gemini';
+import ReferencePanel from './ReferencePanel';
 
 interface MessageRendererProps {
   content: string;
@@ -13,20 +15,54 @@ interface MessageRendererProps {
     name: string;
     validated?: boolean;
   }>;
+  references?: SourceReference[];
   onSourceClick?: (sourceId: string) => void;
 }
 
 export default function MessageRenderer({ 
   content, 
   contextSources = [],
+  references = [],
   onSourceClick 
 }: MessageRendererProps) {
+  const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
+
+  // Process content to make reference numbers clickable
+  const processReferences = (text: string) => {
+    // Replace [1], [2], etc. with clickable elements
+    const parts = text.split(/(\[\d+\])/g);
+    
+    return parts.map((part, index) => {
+      const match = part.match(/\[(\d+)\]/);
+      if (match && references) {
+        const refId = parseInt(match[1]);
+        const reference = references.find(r => r.id === refId);
+        
+        if (reference) {
+          return (
+            <sup key={index}>
+              <button
+                onClick={() => setSelectedReference(reference)}
+                className="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold px-0.5 hover:underline transition-colors"
+                title={`Ver referencia ${refId}`}
+              >
+                [{refId}]
+              </button>
+            </sup>
+          );
+        }
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   return (
-    <div className="prose prose-slate max-w-none">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
-        components={{
+    <>
+      <div className="prose prose-slate max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          components={{
           // Código con syntax highlighting
           code(props: any) {
             const { node, inline, className, children, ...rest } = props;
@@ -202,8 +238,22 @@ export default function MessageRenderer({
             );
           },
           
-          // Párrafos con mejor espaciado
+          // Párrafos con mejor espaciado - procesar referencias
           p({ node, children, ...props }) {
+            // Convert children to string if it's simple text
+            const textContent = typeof children === 'string' ? children : 
+                               Array.isArray(children) ? children.join('') : 
+                               String(children);
+            
+            // Check if contains reference markers [1], [2], etc.
+            if (typeof textContent === 'string' && /\[\d+\]/.test(textContent)) {
+              return (
+                <p className="text-slate-800 leading-relaxed my-2" {...props}>
+                  {processReferences(textContent)}
+                </p>
+              );
+            }
+            
             return (
               <p className="text-slate-800 leading-relaxed my-2" {...props}>
                 {children}
@@ -215,6 +265,16 @@ export default function MessageRenderer({
         {content}
       </ReactMarkdown>
     </div>
+    
+    {/* Reference Panel */}
+    {selectedReference && (
+      <ReferencePanel
+        reference={selectedReference}
+        onClose={() => setSelectedReference(null)}
+        onViewFullDocument={onSourceClick}
+      />
+    )}
+  </>
   );
 }
 
