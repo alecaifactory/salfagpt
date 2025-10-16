@@ -44,6 +44,7 @@ export default function AgentConfigurationModal({
   const [error, setError] = useState<string | null>(null);
   const [evaluationResults, setEvaluationResults] = useState<any>(null);
   const [evaluating, setEvaluating] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(false);
   
   // Prompt mode state
   const [promptInputs, setPromptInputs] = useState({
@@ -72,6 +73,7 @@ export default function AgentConfigurationModal({
       setRequirementsDoc(null);
       setError(null);
       setUploadMode('file');
+      setLoadingExisting(false);
       setPromptInputs({
         purpose: '',
         audience: '',
@@ -86,6 +88,7 @@ export default function AgentConfigurationModal({
   const loadExistingConfiguration = async () => {
     if (!agentId) return;
     
+    setLoadingExisting(true);
     try {
       console.log('📥 [CONFIG LOAD] Starting load for agent:', agentId);
       console.log('📥 [CONFIG LOAD] Calling: /api/agent-setup/get?agentId=' + agentId);
@@ -156,6 +159,8 @@ export default function AgentConfigurationModal({
     } catch (error) {
       console.error('❌ [CONFIG LOAD] Exception:', error);
       console.error('❌ [CONFIG LOAD] Error details:', error instanceof Error ? error.message : 'Unknown');
+    } finally {
+      setLoadingExisting(false);
     }
   };
   
@@ -494,7 +499,12 @@ export default function AgentConfigurationModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {!uploading && !extractedConfig && (
+          {loadingExisting ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
+              <p className="text-slate-600 font-medium">Cargando configuración del agente...</p>
+            </div>
+          ) : !uploading && !extractedConfig ? (
             <>
               {/* Upload Mode Selection */}
               <div className="mb-6">
@@ -710,7 +720,7 @@ export default function AgentConfigurationModal({
                 </div>
               )}
             </>
-          )}
+          ) : null}
 
           {/* Progress View */}
           {uploading && progress && !extractedConfig && (
