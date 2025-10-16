@@ -66,18 +66,18 @@ export default function UserSettingsModal({
       onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800">Configuración de Usuario</h2>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Configuración de Usuario</h2>
             {userName && (
-              <p className="text-sm text-slate-600 mt-1">{userName}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{userName}</p>
             )}
             {userEmail && (
-              <p className="text-xs text-slate-500">{userEmail}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{userEmail}</p>
             )}
           </div>
           <button
@@ -88,15 +88,17 @@ export default function UserSettingsModal({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Preferred Model */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-3">
-              Modelo Preferido para Chat
-            </label>
-            
-            <div className="grid grid-cols-2 gap-3">
+        {/* Content - 2 Column Layout */}
+        <div className="flex-1 p-6 grid grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-5">
+            {/* Preferred Model */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-3">
+                Modelo Preferido para Chat
+              </label>
+              
+              <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setSettings({ ...settings, preferredModel: 'gemini-2.5-flash' })}
                 className={`p-4 border-2 rounded-lg transition-all ${
@@ -140,53 +142,54 @@ export default function UserSettingsModal({
               </button>
             </div>
 
-            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-800">
-                💡 <strong>Recomendación:</strong> Usa Flash para la mayoría de tus conversaciones. 
-                Cambia a Pro cuando necesites análisis más profundos o respuestas más precisas.
+              <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-2.5">
+                <p className="text-[11px] text-blue-800">
+                  💡 <strong>Recomendación:</strong> Usa Flash para la mayoría. Pro para análisis profundos.
+                </p>
+              </div>
+            </div>
+
+            {/* System Prompt */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                Instrucciones del Sistema
+              </label>
+              <textarea
+                value={settings.systemPrompt}
+                onChange={(e) => setSettings({ ...settings, systemPrompt: e.target.value })}
+                rows={5}
+                className="w-full px-3 py-2.5 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm dark:bg-slate-700 dark:text-white resize-none"
+                placeholder="Eres un asistente útil y profesional..."
+              />
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5">
+                Define tono, estilo y formato de respuestas.
               </p>
+            </div>
+
+            {/* Language */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">
+                Idioma Preferido
+              </label>
+              <select
+                value={settings.language}
+                onChange={(e) => setSettings({ ...settings, language: e.target.value })}
+                className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white"
+              >
+                <option value="es">Español</option>
+                <option value="en">English</option>
+                <option value="pt">Português</option>
+              </select>
             </div>
           </div>
 
-          {/* System Prompt */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Instrucciones del Sistema (System Prompt)
-            </label>
-            <textarea
-              value={settings.systemPrompt}
-              onChange={(e) => setSettings({ ...settings, systemPrompt: e.target.value })}
-              rows={6}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              placeholder="Eres un asistente útil y profesional..."
-            />
-            <p className="text-xs text-slate-500 mt-2">
-              Define cómo quieres que el AI se comporte en todas tus conversaciones. 
-              Puedes especificar el tono, estilo, formato de respuestas, etc.
-            </p>
-          </div>
-
-          {/* Language */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Idioma Preferido
-            </label>
-            <select
-              value={settings.language}
-              onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="es">Español</option>
-              <option value="en">English</option>
-              <option value="pt">Português</option>
-            </select>
-          </div>
-
-          {/* Theme Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-3">
-              Tema de Interfaz
-            </label>
+          {/* Right Column */}
+          <div className="space-y-5">
+            {/* Theme Toggle */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-3">
+                Tema de Interfaz
+              </label>
             <div className="flex gap-3">
               <button
                 onClick={() => handleThemeToggle('light')}
@@ -211,28 +214,29 @@ export default function UserSettingsModal({
                 <span className="font-medium">Oscuro</span>
               </button>
             </div>
-            <p className="text-xs text-slate-500 mt-2">
-              El tema se guarda automáticamente y persiste entre sesiones.
-            </p>
-          </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
+                El tema se guarda automáticamente y persiste entre sesiones.
+              </p>
+            </div>
 
-          {/* Info Box */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <h4 className="text-sm font-semibold text-slate-800 mb-2">
-              💾 Guardado Automático
-            </h4>
-            <p className="text-xs text-slate-600">
-              Tus preferencias se guardan localmente en tu navegador. 
-              Puedes cambiar el modelo en cualquier momento durante una conversación.
-            </p>
+            {/* Info Box */}
+            <div className="bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-2">
+                💾 Guardado Automático
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Tus preferencias se guardan localmente en tu navegador. 
+                Puedes cambiar el modelo en cualquier momento durante una conversación.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+        <div className="flex items-center justify-between p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors"
+            className="px-6 py-2.5 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
           >
             Cancelar
           </button>
