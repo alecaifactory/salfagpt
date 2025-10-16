@@ -160,6 +160,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     return () => clearInterval(interval);
   }, []);
 
+  // Close user menu with ESC key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showUserMenu) {
+        setShowUserMenu(false);
+      }
+    };
+    
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [showUserMenu]);
+
   // Handle panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1712,21 +1724,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             </button>
 
             {showUserMenu && (
-              <div className="absolute bottom-full left-0 mb-3 bg-white rounded-xl shadow-2xl border-2 border-slate-300 py-2 min-w-[380px] z-50">
+              <>
+                {/* Backdrop to close menu when clicking outside */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowUserMenu(false)}
+                />
+                <div className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
                 {/* Context Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
                         setShowContextManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Database className="w-5 h-5 text-slate-600" />
+                      <Database className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       <span className="font-medium">Gestión de Contexto</span>
                     </button>
-                    <div className="border-t border-slate-200 my-2" />
+                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
                 
@@ -1845,6 +1863,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   Cerrar Sesión
                 </button>
               </div>
+              </>
             )}
           </div>
         </div>
