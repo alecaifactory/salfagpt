@@ -78,7 +78,7 @@ Formato requerido:
       }
     }
   },
-  "recommendedModel": "gemini-2.5-flash" o "gemini-2.5-pro",
+  "recommendedModel": "gemini-2.5-flash" o "gemini-2.5-pro" (EXACTAMENTE estos nombres, NO usar gemini-1.5-*),
   "systemPrompt": "System prompt generado basado en el propósito",
   "tone": "Tono de las respuestas",
   "expectedInputTypes": ["Tipos de preguntas esperadas"],
