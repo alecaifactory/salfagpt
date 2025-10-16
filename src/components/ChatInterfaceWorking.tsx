@@ -24,6 +24,15 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  thinkingSteps?: ThinkingStep[];
+  responseTime?: number; // Time in milliseconds to generate response
+}
+
+interface ThinkingStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'complete';
+  timestamp: Date;
 }
 
 interface ContextLog {
@@ -49,6 +58,7 @@ interface Conversation {
   title: string;
   lastMessageAt: Date;
   status?: 'active' | 'archived';
+  hasBeenRenamed?: boolean; // Track if user has manually renamed this agent
 }
 
 interface ChatInterfaceWorkingProps {
@@ -64,6 +74,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [messages, setMessages] = useState<Message[]>([]);
   const [contextLogs, setContextLogs] = useState<ContextLog[]>([]);
   const [input, setInput] = useState('');
+  const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
   
   // Per-agent processing state
   const [agentProcessing, setAgentProcessing] = useState<Record<string, {
@@ -212,7 +223,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       const response = await fetch(`/api/conversations?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
-        const allConvs = data.groups?.flatMap((g: any) => g.conversations) || [];
+        const allConvs = (data.groups?.flatMap((g: any) => g.conversations) || []).map((conv: any) => ({
+          ...conv,
+          hasBeenRenamed: conv.hasBeenRenamed || false // Ensure hasBeenRenamed is loaded
+        }));
         setConversations(allConvs);
         
         // Auto-select first conversation or create one
@@ -409,7 +423,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   id: conv.id,
                   title: conv.title,
                   lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
-                  status: conv.status || 'active' // Default to active if not set
+                  status: conv.status || 'active', // Default to active if not set
+                  hasBeenRenamed: conv.hasBeenRenamed || false // Track if user renamed manually
                 });
               });
             });
@@ -548,6 +563,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  // Helper: Format response time from milliseconds
+  const formatResponseTime = (ms: number): string => {
+    const seconds = ms / 1000;
+    
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.floor(seconds % 60);
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
   const createNewConversation = async () => {
     try {
       // Call API to create conversation in Firestore
@@ -665,6 +697,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const sendMessage = async () => {
     if (!input.trim() || !currentConversation) return;
 
+    const requestStartTime = Date.now(); // Track request start time
+
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
       role: 'user',
@@ -687,6 +721,51 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       }
     }));
 
+    // Create thinking message with steps
+    const thinkingId = `thinking-${Date.now()}`;
+    const activeContextCount = contextSources.filter(s => s.enabled).length;
+    
+    const thinkingSteps: ThinkingStep[] = [
+      { id: 'step-1', label: 'Pensando...', status: 'active', timestamp: new Date() },
+      { id: 'step-2', label: 'Revisando instrucciones...', status: 'pending', timestamp: new Date() },
+      activeContextCount > 0 
+        ? { id: 'step-3', label: `Analizando ${activeContextCount} documento${activeContextCount > 1 ? 's' : ''}...`, status: 'pending', timestamp: new Date() }
+        : { id: 'step-3', label: 'Preparando respuesta...', status: 'pending', timestamp: new Date() },
+      { id: 'step-4', label: 'Generando respuesta...', status: 'pending', timestamp: new Date() },
+    ];
+
+    const thinkingMessage: Message = {
+      id: thinkingId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+      thinkingSteps
+    };
+
+    setMessages(prev => [...prev, thinkingMessage]);
+    setThinkingMessageId(thinkingId);
+
+    // Simulate sequential step progression
+    const progressSteps = async () => {
+      for (let i = 0; i < thinkingSteps.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms per step
+        
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === thinkingId && msg.thinkingSteps) {
+            const updatedSteps: ThinkingStep[] = msg.thinkingSteps.map((step, idx) => ({
+              ...step,
+              status: (idx < i ? 'complete' : idx === i ? 'active' : 'pending') as 'pending' | 'active' | 'complete'
+            }));
+            return { ...msg, thinkingSteps: updatedSteps };
+          }
+          return msg;
+        }));
+      }
+    };
+
+    // Start step progression (don't await, let it run in parallel)
+    progressSteps();
+
     try {
       // Get active context sources
       const activeContextSources = contextSources
@@ -703,7 +782,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          message: input,
+          message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
           contextSources: activeContextSources
@@ -712,11 +791,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Calculate response time
+        const responseTime = Date.now() - requestStartTime;
+        
+        // Remove thinking message and add real AI response
+        setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
+        setThinkingMessageId(null);
+        
         const aiMessage: Message = {
           id: data.message.id,
           role: 'assistant',
           content: data.message.content.text || data.message.content,
-          timestamp: new Date(data.message.timestamp)
+          timestamp: new Date(data.message.timestamp),
+          responseTime: responseTime // Add response time to message
         };
         setMessages(prev => [...prev, aiMessage]);
 
@@ -762,6 +850,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // Remove thinking message
+      setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
+      setThinkingMessageId(null);
       
       // Update agent processing state on error
       setAgentProcessing(prev => ({
@@ -1321,9 +1413,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       console.error('❌ Error guardando configuración:', error);
     }
     
-    // Rename conversation to match agent name
-    if (config.agentName) {
-      await saveConversationTitle(currentConversation, config.agentName);
+    // Auto-rename conversation to match agent name (ONLY if not manually renamed before)
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    if (config.agentName && !currentConv?.hasBeenRenamed) {
+      console.log('🔄 Auto-renaming agent to:', config.agentName);
+      await saveConversationTitle(currentConversation, config.agentName, false); // false = auto-rename, not manual
+    } else if (currentConv?.hasBeenRenamed) {
+      console.log('ℹ️ Agent already renamed by user, preserving name:', currentConv.title);
     }
     
     console.log('✅ Configuración del agente aplicada solo a este agente');
@@ -1346,7 +1442,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setEditingTitle('');
   };
 
-  const saveConversationTitle = async (conversationId: string, newTitle: string) => {
+  const saveConversationTitle = async (conversationId: string, newTitle: string, isManualRename: boolean = true) => {
     if (!newTitle.trim()) {
       cancelEditingConversation();
       return;
@@ -1357,7 +1453,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle.trim() })
+        body: JSON.stringify({ 
+          title: newTitle.trim(),
+          hasBeenRenamed: isManualRename // Mark if user manually renamed
+        })
       });
 
       if (!response.ok) {
@@ -1366,10 +1465,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       // Update local state
       setConversations(prev => prev.map(c => 
-        c.id === conversationId ? { ...c, title: newTitle.trim() } : c
+        c.id === conversationId 
+          ? { ...c, title: newTitle.trim(), hasBeenRenamed: isManualRename } 
+          : c
       ));
 
-      console.log('✅ Título del agente actualizado en Firestore:', conversationId);
+      const renameType = isManualRename ? 'manual' : 'auto';
+      console.log(`✅ Título del agente actualizado en Firestore (${renameType}):`, conversationId);
       cancelEditingConversation();
     } catch (error) {
       console.error('❌ Error al actualizar título del agente:', error);
@@ -1672,6 +1774,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   <div className="flex items-center gap-2 group">
                     <button
                       onClick={() => setCurrentConversation(conv.id)}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        startEditingConversation(conv);
+                      }}
                       className="flex-1 flex items-center gap-2 text-left min-w-0"
                     >
                       <MessageSquare className={`w-4 h-4 flex-shrink-0 ${conv.status === 'archived' ? 'text-amber-400 dark:text-amber-500' : 'text-slate-400 dark:text-slate-500'}`} />
@@ -2100,27 +2206,64 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </div>
                 ) : (
                   <div className="inline-block max-w-3xl rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700">
+                    <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
                       <span className="text-sm font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
+                      {/* Show response time if available */}
+                      {msg.responseTime && (
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          {formatResponseTime(msg.responseTime)}
+                        </span>
+                      )}
                     </div>
                     <div className="p-5">
-                      <MessageRenderer 
-                        content={msg.content}
-                        contextSources={contextSources
-                          .filter(s => s.enabled)
-                          .map(s => ({
-                            id: s.id,
-                            name: s.name,
-                            validated: s.metadata?.validated || false,
-                          }))
-                        }
-                        onSourceClick={(sourceId) => {
-                          const source = contextSources.find(s => s.id === sourceId);
-                          if (source) {
-                            setSettingsSource(source);
+                      {/* Show thinking steps if present */}
+                      {msg.thinkingSteps && msg.thinkingSteps.length > 0 ? (
+                        <div className="space-y-3">
+                          {msg.thinkingSteps.map((step, index) => (
+                            <div
+                              key={step.id}
+                              className={`flex items-center gap-3 transition-all duration-300 ${
+                                step.status === 'complete' ? 'opacity-50' : 
+                                step.status === 'active' ? 'opacity-100' : 
+                                'opacity-30'
+                              }`}
+                            >
+                              {step.status === 'complete' ? (
+                                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              ) : step.status === 'active' ? (
+                                <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                              ) : (
+                                <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                              )}
+                              <span className={`text-sm ${
+                                step.status === 'active' ? 'font-semibold text-slate-800 dark:text-slate-100' : 
+                                'text-slate-600 dark:text-slate-400'
+                              }`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Show actual message content */
+                        <MessageRenderer 
+                          content={msg.content}
+                          contextSources={contextSources
+                            .filter(s => s.enabled)
+                            .map(s => ({
+                              id: s.id,
+                              name: s.name,
+                              validated: s.metadata?.validated || false,
+                            }))
                           }
-                        }}
-                      />
+                          onSourceClick={(sourceId) => {
+                            const source = contextSources.find(s => s.id === sourceId);
+                            if (source) {
+                              setSettingsSource(source);
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                   </div>
                 )}
