@@ -1,359 +1,687 @@
-import React, { useState, useEffect } from 'react';
-import { BarChart3, Users, Calendar, MessageSquare, Download, Database } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { 
+  X, 
+  BarChart3,
+  TrendingUp,
+  TrendingDown,
+  MessageSquare,
+  Star,
+  Users as UsersIcon,
+  Clock,
+  CheckCircle,
+  AlertTriangle,
+  Eye,
+  GitBranch,
+  Activity
+} from 'lucide-react';
 
-interface MetricsSummary {
-  total_users: number;
-  daily_active_users: number;
-  monthly_active_users: number;
-  total_sessions_today: number;
-  total_conversations_today: number;
-  avg_session_duration_minutes: number;
+interface AgentAnalytics {
+  agentId: string;
+  agentName: string;
+  currentVersion: string;
+  
+  // Conversations
+  totalConversations: number;
+  activeUsers: number;
+  queriesPerDay: number;
+  
+  // User Feedback
+  csatByVersion: {
+    version: string;
+    averageCSAT: number;
+    totalFeedback: number;
+    date: Date;
+    feedbackItems: UserFeedbackItem[];
+  }[];
+  
+  // Version History
+  versions: AgentVersionInfo[];
+  
+  // Trends
+  csatTrend: {
+    date: string;
+    csat: number;
+    version: string;
+  }[];
 }
 
-interface DailyMetrics {
-  date: string;
-  total_users: number;
-  new_users: number;
-  total_sessions: number;
-  total_conversations: number;
-  avg_conversations_per_session: number;
-  avg_messages_per_conversation: number;
+interface UserFeedbackItem {
+  id: string;
+  userId: string;
+  userName: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  comment?: string;
+  messageId: string;
+  userQuestion: string;
+  aiResponse: string;
+  createdAt: Date;
+  status: 'pending' | 'reviewed' | 'implemented';
+  priority: 'high' | 'medium' | 'low';
+  implementedInVersion?: string;
 }
 
-interface TableInfo {
-  name: string;
-  description: string;
-  row_count: number;
-  size_mb: number;
-  last_modified: string;
+interface AgentVersionInfo {
+  version: string;
+  releaseDate: Date;
+  status: 'active' | 'deprecated' | 'draft';
+  changes: string[];
+  evaluationScore?: number;
+  csatAtRelease?: number;
+  totalQueries?: number;
+  improvements: string[];
 }
 
-export default function AnalyticsDashboard() {
-  const [summary, setSummary] = useState<MetricsSummary | null>(null);
-  const [dailyMetrics, setDailyMetrics] = useState<DailyMetrics[]>([]);
-  const [tables, setTables] = useState<TableInfo[]>([]);
-  const [selectedTable, setSelectedTable] = useState<string | null>(null);
-  const [tableSample, setTableSample] = useState<any[]>([]);
-  const [timeRange, setTimeRange] = useState<'7' | '30' | '90'>('30');
-  const [loading, setLoading] = useState(true);
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  conversations: any[];
+}
 
+export default function AnalyticsDashboard({ isOpen, onClose, conversations }: Props) {
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [agentAnalytics, setAgentAnalytics] = useState<AgentAnalytics | null>(null);
+  const [feedbackFilter, setFeedbackFilter] = useState<'all' | 'pending' | 'high-priority'>('all');
+  
   useEffect(() => {
-    fetchAnalyticsData();
-  }, [timeRange]);
-
-  useEffect(() => {
-    fetchTables();
-  }, []);
-
-  useEffect(() => {
-    if (selectedTable) {
-      fetchTableSample(selectedTable);
+    if (isOpen && selectedAgentId) {
+      loadAgentAnalytics(selectedAgentId);
     }
-  }, [selectedTable]);
-
-  const fetchAnalyticsData = async () => {
-    try {
-      setLoading(true);
-      const [summaryRes, dailyRes] = await Promise.all([
-        fetch('/api/analytics/summary'),
-        fetch(`/api/analytics/daily?days=${timeRange}`),
-      ]);
-
-      if (summaryRes.ok && dailyRes.ok) {
-        setSummary(await summaryRes.json());
-        setDailyMetrics(await dailyRes.json());
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTables = async () => {
-    try {
-      const res = await fetch('/api/analytics/tables');
-      if (res.ok) {
-        setTables(await res.json());
-      }
-    } catch (error) {
-      console.error('Error fetching tables:', error);
-    }
-  };
-
-  const fetchTableSample = async (tableName: string) => {
-    try {
-      const res = await fetch(`/api/analytics/table-sample?table=${tableName}&limit=10`);
-      if (res.ok) {
-        setTableSample(await res.json());
-      }
-    } catch (error) {
-      console.error('Error fetching table sample:', error);
-    }
-  };
-
-  const downloadData = (format: 'csv' | 'json') => {
-    const params = new URLSearchParams({
-      days: timeRange,
-      format,
-    });
-    window.location.href = `/api/analytics/daily?${params}&download=true`;
-  };
-
-  const downloadTableSample = (format: 'csv' | 'json') => {
-    if (!selectedTable) return;
+  }, [isOpen, selectedAgentId]);
+  
+  const loadAgentAnalytics = async (agentId: string) => {
+    // Mock data - replace with real API
+    const agent = conversations.find(c => c.id === agentId);
+    if (!agent) return;
     
-    const formatParam = format === 'json' ? 'json-download' : 'csv';
-    const params = new URLSearchParams({
-      table: selectedTable,
-      limit: '1000',
-      format: formatParam,
+    setAgentAnalytics({
+      agentId: agent.id,
+      agentName: agent.title,
+      currentVersion: '1.2.0',
+      totalConversations: 523,
+      activeUsers: 38,
+      queriesPerDay: 52,
+      csatByVersion: [
+        {
+          version: '1.0.0',
+          averageCSAT: 3.8,
+          totalFeedback: 145,
+          date: new Date('2024-09-01'),
+          feedbackItems: []
+        },
+        {
+          version: '1.1.0',
+          averageCSAT: 4.3,
+          totalFeedback: 234,
+          date: new Date('2024-09-15'),
+          feedbackItems: []
+        },
+        {
+          version: '1.2.0',
+          averageCSAT: 4.6,
+          totalFeedback: 287,
+          date: new Date('2024-10-01'),
+          feedbackItems: [
+            {
+              id: '1',
+              userId: 'user1',
+              userName: 'Juan Pérez',
+              rating: 5,
+              comment: 'Excelente, muy preciso y rápido',
+              messageId: 'msg1',
+              userQuestion: '¿Precio del producto X?',
+              aiResponse: 'El producto X cuesta $50 USD...',
+              createdAt: new Date('2024-10-14'),
+              status: 'reviewed',
+              priority: 'low',
+            },
+            {
+              id: '2',
+              userId: 'user2',
+              userName: 'María González',
+              rating: 2,
+              comment: 'Respuesta muy larga y lenta',
+              messageId: 'msg2',
+              userQuestion: 'Disponibilidad modelo Y?',
+              aiResponse: 'El modelo Y está disponible en...',
+              createdAt: new Date('2024-10-13'),
+              status: 'pending',
+              priority: 'high',
+              implementedInVersion: undefined
+            }
+          ]
+        }
+      ],
+      versions: [
+        {
+          version: '1.2.0',
+          releaseDate: new Date('2024-10-01'),
+          status: 'active',
+          changes: ['Optimizado tiempo respuesta', 'Mejorada citación de fuentes'],
+          evaluationScore: 92,
+          csatAtRelease: 4.6,
+          totalQueries: 523,
+          improvements: ['30% más rápido', 'Citas en 100% de respuestas']
+        },
+        {
+          version: '1.1.0',
+          releaseDate: new Date('2024-09-15'),
+          status: 'deprecated',
+          changes: ['Ajustado tono', 'Reducida verbosidad'],
+          evaluationScore: 85,
+          csatAtRelease: 4.3,
+          totalQueries: 234,
+          improvements: ['Respuestas más concisas']
+        },
+        {
+          version: '1.0.0',
+          releaseDate: new Date('2024-09-01'),
+          status: 'deprecated',
+          changes: ['Versión inicial'],
+          evaluationScore: 78,
+          csatAtRelease: 3.8,
+          totalQueries: 145,
+          improvements: []
+        }
+      ],
+      csatTrend: [
+        { date: '2024-09-01', csat: 3.8, version: '1.0.0' },
+        { date: '2024-09-08', csat: 3.9, version: '1.0.0' },
+        { date: '2024-09-15', csat: 4.3, version: '1.1.0' },
+        { date: '2024-09-22', csat: 4.4, version: '1.1.0' },
+        { date: '2024-09-29', csat: 4.4, version: '1.1.0' },
+        { date: '2024-10-01', csat: 4.6, version: '1.2.0' },
+        { date: '2024-10-08', csat: 4.7, version: '1.2.0' },
+        { date: '2024-10-15', csat: 4.6, version: '1.2.0' },
+      ]
     });
-    window.location.href = `/api/analytics/table-sample?${params}`;
   };
-
-  if (loading && !summary) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-slate-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
-  }
-
+  
+  if (!isOpen) return null;
+  
+  const currentVersionData = agentAnalytics?.csatByVersion[agentAnalytics.csatByVersion.length - 1];
+  const pendingFeedback = currentVersionData?.feedbackItems.filter(f => f.status === 'pending') || [];
+  const highPriorityFeedback = currentVersionData?.feedbackItems.filter(f => f.priority === 'high') || [];
+  
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Analytics Dashboard</h1>
-          <p className="text-slate-600 mt-1">Monitor your platform's performance and metrics</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value as any)}
-            className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-800">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
+              <BarChart3 className="w-7 h-7 text-blue-600" />
+              Analíticas por Agente
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+              Métricas, feedback y evolución de calidad
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 90 days</option>
-          </select>
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <MetricCard
-            icon={<Users className="w-6 h-6" />}
-            title="Total Users"
-            value={summary.total_users.toLocaleString()}
-            subtitle={`${summary.daily_active_users} active today`}
-            color="blue"
-          />
-          <MetricCard
-            icon={<BarChart3 className="w-6 h-6" />}
-            title="Monthly Active Users"
-            value={summary.monthly_active_users.toLocaleString()}
-            subtitle={`${((summary.monthly_active_users / summary.total_users) * 100).toFixed(1)}% of total`}
-            color="green"
-          />
-          <MetricCard
-            icon={<Calendar className="w-6 h-6" />}
-            title="Sessions Today"
-            value={summary.total_sessions_today.toLocaleString()}
-            subtitle={`Avg ${summary.avg_session_duration_minutes.toFixed(1)} min duration`}
-            color="purple"
-          />
-          <MetricCard
-            icon={<MessageSquare className="w-6 h-6" />}
-            title="Conversations Today"
-            value={summary.total_conversations_today.toLocaleString()}
-            subtitle={`${(summary.total_conversations_today / Math.max(summary.total_sessions_today, 1)).toFixed(1)} per session`}
-            color="yellow"
-          />
-        </div>
-      )}
-
-      {/* Daily Metrics Table */}
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Daily Metrics</h2>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => downloadData('csv')}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span>CSV</span>
-            </button>
-            <button
-              onClick={() => downloadData('json')}
-              className="flex items-center space-x-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              <span>JSON</span>
-            </button>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-3 px-4 text-slate-700 font-semibold">Date</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">Total Users</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">New Users</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">Sessions</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">Conversations</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">Conv/Session</th>
-                <th className="text-right py-3 px-4 text-slate-700 font-semibold">Msg/Conv</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailyMetrics.map((metric, index) => (
-                <tr key={metric.date} className={index % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
-                  <td className="py-3 px-4 text-slate-900">{metric.date}</td>
-                  <td className="py-3 px-4 text-right text-slate-900">{metric.total_users.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-green-600 font-semibold">+{metric.new_users}</td>
-                  <td className="py-3 px-4 text-right text-slate-900">{metric.total_sessions.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-slate-900">{metric.total_conversations.toLocaleString()}</td>
-                  <td className="py-3 px-4 text-right text-slate-900">{metric.avg_conversations_per_session}</td>
-                  <td className="py-3 px-4 text-right text-slate-900">{metric.avg_messages_per_conversation}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Database Tables Browser */}
-      <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-        <div className="flex items-center space-x-3">
-          <Database className="w-6 h-6 text-slate-700" />
-          <h2 className="text-xl font-bold text-slate-900">Database Tables</h2>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Tables List */}
-          <div className="lg:col-span-1 space-y-2">
-            {tables.map((table) => (
-              <button
-                key={table.name}
-                onClick={() => setSelectedTable(table.name)}
-                className={`w-full text-left p-4 rounded-lg transition-all ${
-                  selectedTable === table.name
-                    ? 'bg-blue-100 border-2 border-blue-500'
-                    : 'bg-slate-50 border-2 border-transparent hover:bg-slate-100'
-                }`}
-              >
-                <div className="font-semibold text-slate-900">{table.name}</div>
-                <div className="text-sm text-slate-600 mt-1">{table.description}</div>
-                <div className="flex items-center justify-between mt-2 text-xs text-slate-500">
-                  <span>{table.row_count.toLocaleString()} rows</span>
-                  <span>{table.size_mb.toFixed(2)} MB</span>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {!selectedAgentId ? (
+            /* Agent Selection */
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4">
+                Selecciona un Agente para Ver Analíticas
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                {conversations.filter(c => c.status !== 'archived').map(agent => (
+                  <button
+                    key={agent.id}
+                    onClick={() => setSelectedAgentId(agent.id)}
+                    className="bg-slate-50 dark:bg-slate-700 border-2 border-slate-200 dark:border-slate-600 rounded-xl p-4 hover:border-blue-400 hover:shadow-md transition-all text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <MessageSquare className="w-6 h-6 text-blue-600" />
+                      <div>
+                        <p className="font-bold text-slate-800 dark:text-white">{agent.title}</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">Ver analíticas →</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : agentAnalytics && (
+            /* Analytics View */
+            <div className="space-y-6">
+              {/* Header with Agent Info */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">
+                    {agentAnalytics.agentName}
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-slate-600 dark:text-slate-400">
+                      Versión Actual: <strong className="text-blue-600">v{agentAnalytics.currentVersion}</strong>
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-slate-600 dark:text-slate-400">
+                      {agentAnalytics.activeUsers} usuarios activos
+                    </span>
+                  </div>
                 </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Table Sample */}
-          <div className="lg:col-span-2">
-            {selectedTable ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900">Sample Data: {selectedTable}</h3>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => downloadTableSample('csv')}
-                      className="flex items-center space-x-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                <button
+                  onClick={() => setSelectedAgentId(null)}
+                  className="px-4 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                >
+                  ← Volver a Lista
+                </button>
+              </div>
+              
+              {/* Key Metrics */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <MessageSquare className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                      {agentAnalytics.totalConversations}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">Conversaciones</p>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Star className="w-5 h-5 text-blue-600" />
+                    <span className="text-2xl font-bold text-blue-900 dark:text-blue-400">
+                      {currentVersionData?.averageCSAT.toFixed(1)}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">CSAT v{agentAnalytics.currentVersion}</p>
+                </div>
+                
+                <div className="bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <Activity className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                      {agentAnalytics.queriesPerDay}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">Queries/Día</p>
+                </div>
+                
+                <div className="bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <UsersIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                      {agentAnalytics.activeUsers}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">Usuarios Activos</p>
+                </div>
+              </div>
+              
+              {/* CSAT Trend Chart */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+                <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  Evolución de CSAT por Versión
+                </h4>
+                
+                <div className="space-y-2">
+                  {agentAnalytics.csatTrend.map((point, idx) => {
+                    const maxCSAT = 5;
+                    const barWidth = (point.csat / maxCSAT) * 100;
+                    const isVersionChange = idx > 0 && point.version !== agentAnalytics.csatTrend[idx - 1].version;
+                    
+                    return (
+                      <div key={idx}>
+                        {isVersionChange && (
+                          <div className="flex items-center gap-2 my-3 py-2 border-t border-blue-200 dark:border-blue-700">
+                            <GitBranch className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm font-bold text-blue-600">
+                              Nueva Versión: v{point.version}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-600 dark:text-slate-400 w-20 text-right font-mono">
+                            {new Date(point.date).toLocaleDateString('es', { month: 'short', day: 'numeric' })}
+                          </span>
+                          <div className="flex-1 bg-slate-100 dark:bg-slate-700 rounded-full h-8 overflow-hidden relative">
+                            <div
+                              className="bg-blue-600 h-full rounded-full transition-all"
+                              style={{ width: `${barWidth}%` }}
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-700 dark:text-slate-200">
+                              {point.csat.toFixed(1)} ★
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 dark:text-slate-500 w-12 font-mono">
+                            v{point.version}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {currentVersionData && currentVersionData.averageCSAT < 4 && (
+                  <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-amber-900 dark:text-amber-400 mb-1">
+                          ⚠️ CSAT Bajo - Solicitar Feedback Activo
+                        </p>
+                        <p className="text-xs text-slate-700 dark:text-slate-300">
+                          Este agente tiene CSAT inferior a 4.0. Se recomienda solicitar feedback explícito a los usuarios 
+                          para identificar áreas de mejora y planear próxima iteración.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Version Roadmap */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+                <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                  <GitBranch className="w-5 h-5 text-blue-600" />
+                  Roadmap de Versiones
+                </h4>
+                
+                <div className="space-y-4">
+                  {agentAnalytics.versions.map((version, idx) => (
+                    <div 
+                      key={version.version}
+                      className={`border-l-4 pl-4 ${
+                        version.status === 'active' 
+                          ? 'border-blue-600' 
+                          : 'border-slate-300 dark:border-slate-600'
+                      }`}
                     >
-                      <Download className="w-3 h-3" />
-                      <span>CSV</span>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              v{version.version}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                              version.status === 'active' 
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400' 
+                                : 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-400'
+                            }`}>
+                              {version.status === 'active' ? '✅ ACTIVA' : '📦 Deprecated'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {version.releaseDate.toLocaleDateString('es', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })}
+                          </p>
+                        </div>
+                        
+                        <div className="text-right">
+                          {version.evaluationScore && (
+                            <p className="text-sm">
+                              <span className="text-slate-600 dark:text-slate-400">Eval:</span>
+                              <span className={`ml-1 font-bold ${
+                                version.evaluationScore >= 85 ? 'text-blue-600' : 'text-slate-700 dark:text-slate-300'
+                              }`}>
+                                {version.evaluationScore}%
+                              </span>
+                            </p>
+                          )}
+                          {version.csatAtRelease && (
+                            <p className="text-sm">
+                              <span className="text-slate-600 dark:text-slate-400">CSAT:</span>
+                              <span className="ml-1 font-bold text-slate-900 dark:text-white">
+                                {version.csatAtRelease.toFixed(1)} ★
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                        <p className="font-semibold mb-1">Cambios:</p>
+                        <ul className="ml-4 space-y-0.5">
+                          {version.changes.map((change, cidx) => (
+                            <li key={cidx} className="flex items-start gap-1.5">
+                              <span className="text-blue-600">•</span>
+                              <span>{change}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        {version.improvements.length > 0 && (
+                          <>
+                            <p className="font-semibold mt-2 mb-1">Mejoras:</p>
+                            <ul className="ml-4 space-y-0.5">
+                              {version.improvements.map((improvement, iidx) => (
+                                <li key={iidx} className="flex items-start gap-1.5">
+                                  <span className="text-blue-600">✓</span>
+                                  <span>{improvement}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                        
+                        {version.totalQueries && (
+                          <p className="mt-2 text-slate-500 dark:text-slate-400">
+                            {version.totalQueries} queries durante esta versión
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* User Feedback Section */}
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <Star className="w-5 h-5 text-blue-600" />
+                    Feedback de Usuarios (v{agentAnalytics.currentVersion})
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setFeedbackFilter('all')}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        feedbackFilter === 'all'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      Todos ({currentVersionData?.feedbackItems.length || 0})
                     </button>
                     <button
-                      onClick={() => downloadTableSample('json')}
-                      className="flex items-center space-x-2 px-3 py-1.5 bg-slate-600 text-white text-sm rounded-lg hover:bg-slate-700 transition-colors"
+                      onClick={() => setFeedbackFilter('pending')}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        feedbackFilter === 'pending'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                      }`}
                     >
-                      <Download className="w-3 h-3" />
-                      <span>JSON</span>
+                      Pendientes ({pendingFeedback.length})
+                    </button>
+                    <button
+                      onClick={() => setFeedbackFilter('high-priority')}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        feedbackFilter === 'high-priority'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      Alta Prioridad ({highPriorityFeedback.length})
                     </button>
                   </div>
                 </div>
-                <div className="overflow-x-auto border border-slate-200 rounded-lg">
-                  {tableSample.length > 0 ? (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-slate-100 border-b border-slate-200">
-                          {Object.keys(tableSample[0]).map((key) => (
-                            <th key={key} className="text-left py-2 px-3 text-slate-700 font-semibold">
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableSample.map((row, index) => (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                            {Object.values(row).map((value: any, i) => (
-                              <td key={i} className="py-2 px-3 text-slate-900">
-                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                              </td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="p-8 text-center text-slate-500">
-                      No data available
-                    </div>
-                  )}
+                
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {(currentVersionData?.feedbackItems || [])
+                    .filter(f => {
+                      if (feedbackFilter === 'pending') return f.status === 'pending';
+                      if (feedbackFilter === 'high-priority') return f.priority === 'high';
+                      return true;
+                    })
+                    .map(feedback => (
+                      <div 
+                        key={feedback.id}
+                        className={`border-2 rounded-lg p-4 ${
+                          feedback.priority === 'high'
+                            ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700'
+                            : 'border-slate-200 bg-slate-50 dark:bg-slate-700 dark:border-slate-600'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map(star => (
+                                <Star 
+                                  key={star}
+                                  className={`w-4 h-4 ${
+                                    star <= feedback.rating
+                                      ? 'fill-blue-600 text-blue-600'
+                                      : 'text-slate-300'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-sm font-bold text-slate-900 dark:text-white">
+                              {feedback.userName}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                              feedback.priority === 'high'
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
+                            }`}>
+                              {feedback.priority === 'high' ? 'ALTA' : feedback.priority.toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            {feedback.createdAt.toLocaleDateString('es')}
+                          </span>
+                        </div>
+                        
+                        {feedback.comment && (
+                          <p className="text-sm text-slate-700 dark:text-slate-300 mb-3 italic">
+                            "{feedback.comment}"
+                          </p>
+                        )}
+                        
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-white dark:bg-slate-800 rounded p-2">
+                          <div>
+                            <p className="text-slate-600 dark:text-slate-400 font-semibold mb-1">Pregunta:</p>
+                            <p className="text-slate-800 dark:text-slate-200">{feedback.userQuestion}</p>
+                          </div>
+                          <div>
+                            <p className="text-slate-600 dark:text-slate-400 font-semibold mb-1">Respuesta:</p>
+                            <p className="text-slate-800 dark:text-slate-200 line-clamp-2">
+                              {feedback.aiResponse}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              feedback.status === 'pending' 
+                                ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300' 
+                                : feedback.status === 'reviewed'
+                                ? 'bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300'
+                                : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400'
+                            }`}>
+                              {feedback.status === 'pending' ? '📋 Pendiente' :
+                               feedback.status === 'reviewed' ? '👁️ Revisado' :
+                               '✅ Implementado'}
+                            </span>
+                            {feedback.implementedInVersion && (
+                              <span className="text-xs text-blue-600 dark:text-blue-400">
+                                → v{feedback.implementedInVersion}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {feedback.status === 'pending' && (
+                            <button
+                              onClick={() => {
+                                alert('Marcar como considerado para v1.3.0');
+                              }}
+                              className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+                            >
+                              Considerar para Próxima Versión
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                 </div>
               </div>
-            ) : (
-              <div className="h-full flex items-center justify-center text-slate-400">
-                Select a table to view sample data
+              
+              {/* Continuous Improvement Summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-xl p-6">
+                <h4 className="text-lg font-bold text-blue-900 dark:text-blue-400 mb-4 flex items-center gap-2">
+                  🔄 Proceso de Mejora Continua
+                </h4>
+                
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+                    <p className="font-semibold text-slate-800 dark:text-white mb-2">1. Feedback de Usuarios</p>
+                    <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                      <li>• CSAT ratings (1-5 ★)</li>
+                      <li>• Comentarios</li>
+                      <li>• Issues identificados</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+                    <p className="font-semibold text-slate-800 dark:text-white mb-2">2. Evaluación Experta</p>
+                    <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                      <li>• Tests automáticos</li>
+                      <li>• Priorización de feedback</li>
+                      <li>• Sugerencias de mejora</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-blue-200 dark:border-blue-700">
+                    <p className="font-semibold text-slate-800 dark:text-white mb-2">3. Nueva Versión</p>
+                    <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1">
+                      <li>• Implementar cambios</li>
+                      <li>• Re-evaluar (≥85%)</li>
+                      <li>• Certificar como activa</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-blue-700 text-xs text-slate-700 dark:text-slate-300">
+                  <p className="font-semibold mb-2">Ciclo Actual:</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-slate-200 dark:bg-slate-600 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-full rounded-full"
+                        style={{ width: `${(currentVersionData?.averageCSAT || 0) / 5 * 100}%` }}
+                      />
+                    </div>
+                    <span className="font-mono font-semibold">
+                      {currentVersionData?.averageCSAT.toFixed(1)}/5.0
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[11px]">
+                    Target: 4.5 ★ sostenido • 
+                    {pendingFeedback.length} feedback pendiente de revisar •
+                    Próxima iteración planificada: {pendingFeedback.length >= 10 ? 'Pronto' : 'Cuando se acumule más feedback'}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-
-interface MetricCardProps {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  subtitle: string;
-  color: 'blue' | 'green' | 'purple' | 'yellow';
-}
-
-function MetricCard({ icon, title, value, subtitle, color }: MetricCardProps) {
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    purple: 'bg-purple-100 text-purple-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon}
-        </div>
-      </div>
-      <div>
-        <p className="text-sm text-slate-600 font-medium">{title}</p>
-        <p className="text-3xl font-bold text-slate-900 mt-1">{value}</p>
-        <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
-

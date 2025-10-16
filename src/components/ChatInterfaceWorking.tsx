@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3 } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -9,6 +9,7 @@ import ContextManagementDashboard from './ContextManagementDashboard';
 import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
 import AgentEvaluationDashboard from './AgentEvaluationDashboard';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
@@ -86,6 +87,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showAgentManagement, setShowAgentManagement] = useState(false);
   const [showAgentConfiguration, setShowAgentConfiguration] = useState(false);
   const [showAgentEvaluation, setShowAgentEvaluation] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -1837,27 +1839,44 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
                         setShowDomainManagement(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Globe className="w-5 h-5 text-slate-600" />
+                      <Globe className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       <span className="font-medium">Gestión de Dominios</span>
                     </button>
-                    <div className="h-px bg-slate-200 my-2" />
+                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
+                  </>
+                )}
+                
+                {/* Analytics - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowAnalytics(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                      <span className="font-medium">Analíticas</span>
+                    </button>
+                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
                 
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                   onClick={() => {
                     setShowUserSettings(true);
                     setShowUserMenu(false);
                   }}
                 >
-                  <Settings className="w-5 h-5 text-slate-600" />
+                  <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                   <span className="font-medium">Configuración</span>
                 </button>
                 <button
@@ -2605,6 +2624,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         onClose={() => setShowAgentEvaluation(false)}
         userEmail={userEmail || ''}
         userRole="admin" // TODO: Get from user profile
+        conversations={conversations}
+      />
+      
+      {/* Analytics Dashboard */}
+      <AnalyticsDashboard
+        isOpen={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
         conversations={conversations}
       />
 
