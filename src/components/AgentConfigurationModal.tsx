@@ -79,14 +79,14 @@ export default function AgentConfigurationModal({
     ];
     
     const messages: Record<ExtractionProgress['stage'], string> = {
-      'uploading': 'Subiendo documento...',
-      'analyzing': 'Analizando estructura del documento...',
-      'extracting-purpose': 'Extrayendo propósito y objetivos del agente...',
-      'mapping-inputs': 'Mapeando tipos de entrada y ejemplos...',
-      'mapping-outputs': 'Identificando formatos de salida esperados...',
-      'extracting-criteria': 'Extrayendo criterios de calidad...',
-      'generating-config': 'Generando configuración del agente...',
-      'complete': 'Configuración generada exitosamente',
+      'uploading': 'Subiendo documento de requerimientos...',
+      'analyzing': 'Identificando caso de negocio y dolores...',
+      'extracting-purpose': 'Extrayendo propósito y user personas afectadas...',
+      'mapping-inputs': 'Mapeando expectativas de entrada (cómo preguntan)...',
+      'mapping-outputs': 'Identificando solución diferencial esperada (cómo debe responder)...',
+      'extracting-criteria': 'Extrayendo criterios de evaluación del éxito...',
+      'generating-config': 'Definiendo criterios de aceptación y certificación...',
+      'complete': '✅ Caso de uso y configuración generados',
       'error': 'Error en el procesamiento'
     };
     
@@ -524,13 +524,13 @@ export default function AgentConfigurationModal({
                 <h4 className="text-sm font-semibold text-slate-700 mb-3">Etapas del Proceso:</h4>
                 <div className="space-y-2">
                   {[
-                    { stage: 'uploading', label: 'Subiendo documento', icon: Upload },
-                    { stage: 'analyzing', label: 'Analizando estructura', icon: Eye },
-                    { stage: 'extracting-purpose', label: 'Extrayendo propósito', icon: Target },
-                    { stage: 'mapping-inputs', label: 'Mapeando entradas', icon: MessageSquare },
-                    { stage: 'mapping-outputs', label: 'Mapeando salidas', icon: CheckCircle },
-                    { stage: 'extracting-criteria', label: 'Extrayendo criterios', icon: Sparkles },
-                    { stage: 'generating-config', label: 'Generando configuración', icon: SettingsIcon },
+                    { stage: 'uploading', label: '📤 Subiendo documento de requerimientos', icon: Upload },
+                    { stage: 'analyzing', label: '🎯 Identificando caso de negocio y dolores', icon: Eye },
+                    { stage: 'extracting-purpose', label: '👥 Extrayendo user personas afectadas', icon: Target },
+                    { stage: 'mapping-inputs', label: '💬 Expectativas de entrada (cómo preguntan)', icon: MessageSquare },
+                    { stage: 'mapping-outputs', label: '✨ Solución diferencial (cómo responde)', icon: CheckCircle },
+                    { stage: 'extracting-criteria', label: '📊 Criterios de evaluación del éxito', icon: Sparkles },
+                    { stage: 'generating-config', label: '🏆 Criterios de aceptación y certificación', icon: SettingsIcon },
                   ].map(({ stage, label, icon: Icon }) => {
                     const isPast = getStageIndex(progress.stage) > getStageIndex(stage as any);
                     const isCurrent = progress.stage === stage;
