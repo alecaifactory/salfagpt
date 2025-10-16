@@ -14,7 +14,40 @@ models/gemini-1.5-pro is not found for API version v1beta
 
 ## ✅ Solutions Implemented
 
-### 1. Model Name Validation in Evaluation (evaluate.ts)
+### 1. Model Name Validation in Frontend Save (ChatInterfaceWorking.tsx)
+
+**File**: `src/components/ChatInterfaceWorking.tsx`
+
+**What Changed**:
+- Added validation in `handleAgentConfigSaved` before saving to Firestore
+- Converts invalid model names to valid ones
+- Uses TypeScript type casting for flexibility
+- Logs corrections for debugging
+
+**Code**:
+```typescript
+// Validate and correct model name
+let validatedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-flash';
+const modelStr = String(config.recommendedModel || 'gemini-2.5-flash');
+
+if (modelStr === 'gemini-1.5-pro' || modelStr === 'gemini-pro' || modelStr === 'gemini-2.5-pro') {
+  if (modelStr !== 'gemini-2.5-pro') {
+    console.log(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-pro`);
+  }
+  validatedModel = 'gemini-2.5-pro';
+}
+// ... saves validatedModel to Firestore
+```
+
+**Why This Works**:
+- ✅ Prevents invalid models from being saved to database
+- ✅ Catches the issue at save time (earliest possible point)
+- ✅ Ensures consistent data in Firestore
+- ✅ Makes downstream validation unnecessary (defense in depth)
+
+---
+
+### 2. Model Name Validation in Evaluation (evaluate.ts)
 
 **File**: `src/pages/api/agents/evaluate.ts`
 
@@ -47,7 +80,7 @@ if (modelToUse === 'gemini-1.5-pro' || modelToUse === 'gemini-pro') {
 
 ---
 
-### 2. Explicit Model Name Constraint in Extraction (extract-config.ts)
+### 3. Explicit Model Name Constraint in Extraction (extract-config.ts)
 
 **File**: `src/pages/api/agents/extract-config.ts`
 
@@ -105,9 +138,10 @@ if (modelToUse === 'gemini-1.5-pro' || modelToUse === 'gemini-pro') {
 
 ## 📊 Impact
 
-**Files Modified**: 2
-- `src/pages/api/agents/evaluate.ts` - Added model validation
-- `src/pages/api/agents/extract-config.ts` - Improved prompt clarity
+**Files Modified**: 3
+- `src/components/ChatInterfaceWorking.tsx` - Added model validation on save (primary fix)
+- `src/pages/api/agents/evaluate.ts` - Added model validation in evaluation (defense in depth)
+- `src/pages/api/agents/extract-config.ts` - Improved prompt clarity (prevention at source)
 
 **Backward Compatible**: ✅ Yes
 - Existing configs with correct models: Unchanged
