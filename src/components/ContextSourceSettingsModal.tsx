@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User, Globe, Tag } from 'lucide-react';
+import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCircle, AlertCircle, User, Globe, Tag, Sparkles, Eye } from 'lucide-react';
 import type { ContextSource, WorkflowConfig } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 
@@ -417,87 +417,54 @@ export default function ContextSourceSettingsModal({
 
           {/* Right Column */}
           <div className="space-y-3">
-            {/* Current Configuration - Compact */}
-            <section className="bg-white border border-slate-200 rounded-lg p-3">
-              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                <HardDrive className="w-4 h-4 text-green-600" />
-                Configuración
+            {/* Extraction Details - Historical Info Only */}
+            <section className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+              <h3 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-1.5">
+                <Info className="w-4 h-4" />
+                Detalles de la Extracción
               </h3>
-              <div className="space-y-2.5">
-                {/* Max File Size - Compact */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Tamaño Max (MB)
-                  </label>
-                  <input
-                    type="number"
-                    value={config.maxFileSize || 50}
-                    onChange={(e) => setConfig({ ...config, maxFileSize: parseInt(e.target.value) })}
-                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Modelo Utilizado:</p>
+                  <div className="flex items-center gap-2">
+                    {source.metadata?.model === 'gemini-2.5-pro' ? (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Gemini 2.5 Pro
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Gemini 2.5 Flash
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2 italic">
+                    Este fue el modelo utilizado para esta extracción
+                  </p>
                 </div>
-
-                {/* Max Output Length - Compact */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Longitud Max (tokens)
-                  </label>
-                  <input
-                    type="number"
-                    value={config.maxOutputLength || 10000}
-                    onChange={(e) => setConfig({ ...config, maxOutputLength: parseInt(e.target.value) })}
-                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* AI Model Selection - Compact */}
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1 flex items-center gap-1">
-                    Modelo de IA
+                
+                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Documento Fuente:</p>
+                  {source.originalFile ? (
                     <button
-                      onMouseEnter={() => setShowModelTooltip(true)}
-                      onMouseLeave={() => setShowModelTooltip(false)}
-                      className="text-slate-400 hover:text-slate-600"
+                      onClick={() => {
+                        const url = URL.createObjectURL(source.originalFile!);
+                        window.open(url, '_blank');
+                      }}
+                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
                     >
-                      <Info className="w-3 h-3" />
+                      <Eye className="w-3.5 h-3.5" />
+                      Ver Documento Original
                     </button>
-                  </label>
-
-                  {showModelTooltip && (
-                    <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-slate-700 leading-tight">
-                      <p className="font-semibold">💡 Flash: $0.000075/1K | Pro: $0.00125/1K</p>
+                  ) : (
+                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-center">
+                      ⚠️ Archivo no disponible
                     </div>
                   )}
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setConfig({ ...config, model: 'gemini-2.5-flash' })}
-                      className={`p-2 rounded-lg border transition-all ${
-                        config.model === 'gemini-2.5-flash' || !config.model
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-slate-200 hover:border-green-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        <Zap className="w-3 h-3 text-green-600" />
-                        <span className="text-xs font-semibold text-slate-800">Flash</span>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setConfig({ ...config, model: 'gemini-2.5-pro' })}
-                      className={`p-2 rounded-lg border transition-all ${
-                        config.model === 'gemini-2.5-pro'
-                          ? 'border-purple-500 bg-purple-50'
-                          : 'border-slate-200 hover:border-purple-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-1 justify-center">
-                        <Zap className="w-3 h-3 text-purple-600" />
-                        <span className="text-xs font-semibold text-slate-800">Pro</span>
-                      </div>
-                    </button>
-                  </div>
+                  <p className="text-[10px] text-slate-500 mt-2 italic">
+                    Usa el botón Re-extraer para cambiar configuración
+                  </p>
                 </div>
               </div>
             </section>
