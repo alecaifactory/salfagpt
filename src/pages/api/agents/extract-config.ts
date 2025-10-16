@@ -46,12 +46,16 @@ export const POST: APIRoute = async ({ request }) => {
     console.log('🔄 File converted to base64, calling Gemini...');
 
     // Prepare extraction prompt
-    const extractionPrompt = `Analiza este documento de requerimientos para un agente AI y extrae la siguiente información en formato JSON:
+    const extractionPrompt = `Analiza este documento de requerimientos para un agente AI y extrae la siguiente información.
+
+IMPORTANTE: Devuelve SOLO un objeto JSON válido, sin texto adicional antes o después. No uses markdown. Solo JSON puro.
+
+Formato requerido:
 
 {
   "agentName": "Nombre del agente",
   "agentPurpose": "Propósito y objetivo principal",
-  "targetAudience": ["Lista de usuarios objetivo"],
+  "targetAudience": ["Usuario 1", "Usuario 2"],
   "businessCase": {
     "painPoint": "Problema que resuelve",
     "affectedPersonas": ["Personas afectadas con cantidad si se menciona"],
@@ -141,16 +145,80 @@ Extrae TODA la información disponible del documento. Si algo no está explícit
     console.log('✅ Gemini response received, length:', responseText.length);
     console.log('📝 Response preview:', responseText.substring(0, 200));
     
+    // Clean response - remove markdown code blocks if present
+    let cleanedResponse = responseText.trim();
+    if (cleanedResponse.startsWith('```json')) {
+      cleanedResponse = cleanedResponse.replace(/```json\n?/, '').replace(/```\s*$/, '');
+    } else if (cleanedResponse.startsWith('```')) {
+      cleanedResponse = cleanedResponse.replace(/```\n?/, '').replace(/```\s*$/, '');
+    }
+    
+    console.log('🧹 Cleaned response preview:', cleanedResponse.substring(0, 200));
+    
     // Extract JSON from response
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       console.error('❌ No JSON found in Gemini response');
-      console.error('Full response:', responseText);
-      throw new Error('No JSON found in Gemini response. Response: ' + responseText.substring(0, 500));
+      console.error('Full response:', cleanedResponse.substring(0, 1000));
+      throw new Error('No JSON found in Gemini response');
     }
 
     console.log('🔍 JSON extracted, parsing...');
-    const extractedConfig = JSON.parse(jsonMatch[0]);
+    let extractedConfig;
+    try {
+      extractedConfig = JSON.parse(jsonMatch[0]);
+    } catch (parseError: any) {
+      console.error('❌ JSON parse error:', parseError.message);
+      console.error('JSON string preview:', jsonMatch[0].substring(0, 500));
+      console.error('JSON string end:', jsonMatch[0].substring(Math.max(0, jsonMatch[0].length - 500)));
+      
+      // Try to fix common JSON issues more aggressively
+      let fixedJson = jsonMatch[0]
+        .replace(/,\s*}/g, '}')     // Remove trailing commas before }
+        .replace(/,\s*]/g, ']')     // Remove trailing commas before ]
+        .replace(/,(\s*[}\]])/g, '$1') // More aggressive trailing comma removal
+        .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":') // Fix unquoted keys
+        .replace(/:\s*'([^']*)'/g, ':"$1"') // Fix single quotes to double quotes
+        .replace(/\n/g, ' ')        // Remove newlines
+        .replace(/\t/g, ' ')        // Remove tabs
+        .replace(/\s+/g, ' ')       // Normalize whitespace
+        .replace(/\s*([{}\[\],:])\s*/g, '$1'); // Remove whitespace around structural chars
+      
+      try {
+        extractedConfig = JSON.parse(fixedJson);
+        console.log('✅ JSON fixed and parsed successfully');
+      } catch (secondError: any) {
+        console.error('❌ Second parse attempt failed:', secondError.message);
+        console.error('Fixed JSON preview:', fixedJson.substring(0, 500));
+        
+        // Final attempt: Ask Gemini to fix the JSON
+        console.log('🔄 Asking Gemini to fix malformed JSON...');
+        const fixPrompt = `The following JSON is malformed. Fix it and return ONLY valid JSON:
+
+${jsonMatch[0]}
+
+Return ONLY the fixed JSON object, no explanation, no markdown.`;
+
+        const fixResult = await genAI.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: fixPrompt,
+          config: {
+            temperature: 0,
+            maxOutputTokens: 8192
+          }
+        });
+
+        const fixedResponse = (fixResult.text || '').trim();
+        const fixedJsonMatch = fixedResponse.match(/\{[\s\S]*\}/);
+        
+        if (fixedJsonMatch) {
+          extractedConfig = JSON.parse(fixedJsonMatch[0]);
+          console.log('✅ Gemini fixed the JSON successfully');
+        } else {
+          throw new Error(`JSON parsing failed after all attempts: ${parseError.message}`);
+        }
+      }
+    }
     
     console.log('✅ Configuration extracted successfully');
     console.log('Agent name:', extractedConfig.agentName);
