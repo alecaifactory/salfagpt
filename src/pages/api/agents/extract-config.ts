@@ -345,7 +345,8 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
         console.log('💾 [SAVE] Mapped inputExamples:', inputExamples);
         console.log('💾 [SAVE] inputExamples count:', inputExamples.length);
         
-        const setupDocData = {
+        // Build data object with only defined values (Firestore doesn't accept undefined)
+        const setupDocData: any = {
           agentId,
           fileName: file.name,
           uploadedAt: new Date(),
@@ -388,14 +389,22 @@ Return ONLY the fixed JSON object, no explanation, no markdown.`;
             name: 'Unknown',
             email: 'Unknown',
             department: 'Unknown'
-          },
-          
-          // Optional/legacy fields (preserve if exist)
-          businessCase: extractedConfig.businessCase,
-          qualityCriteria: extractedConfig.qualityCriteria,
-          undesirableOutputs: extractedConfig.undesirableOutputs,
-          acceptanceCriteria: extractedConfig.acceptanceCriteria
+          }
         };
+        
+        // Add optional/legacy fields only if they are defined and not empty
+        if (extractedConfig.businessCase && Object.keys(extractedConfig.businessCase).length > 0) {
+          setupDocData.businessCase = extractedConfig.businessCase;
+        }
+        if (extractedConfig.qualityCriteria && extractedConfig.qualityCriteria.length > 0) {
+          setupDocData.qualityCriteria = extractedConfig.qualityCriteria;
+        }
+        if (extractedConfig.undesirableOutputs && extractedConfig.undesirableOutputs.length > 0) {
+          setupDocData.undesirableOutputs = extractedConfig.undesirableOutputs;
+        }
+        if (extractedConfig.acceptanceCriteria && extractedConfig.acceptanceCriteria.length > 0) {
+          setupDocData.acceptanceCriteria = extractedConfig.acceptanceCriteria;
+        }
         
         console.log('💾 [SAVE] Final setupDocData.inputExamples:', setupDocData.inputExamples);
         console.log('💾 [SAVE] Final setupDocData.inputExamples.length:', setupDocData.inputExamples.length);
