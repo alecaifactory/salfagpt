@@ -1159,9 +1159,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     console.log('🔍 [SAVE FULL] expectedInputExamples:', config.expectedInputExamples);
     console.log('🔍 [SAVE FULL] expectedInputExamples count:', config.expectedInputExamples?.length);
     
+    // Validate and correct model name (fix gemini-1.5-* -> gemini-2.5-*)
+    let validatedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-flash';
+    const modelStr = String(config.recommendedModel || 'gemini-2.5-flash');
+    
+    if (modelStr === 'gemini-1.5-pro' || modelStr === 'gemini-pro' || modelStr === 'gemini-2.5-pro') {
+      if (modelStr !== 'gemini-2.5-pro') {
+        console.log(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-pro`);
+      }
+      validatedModel = 'gemini-2.5-pro';
+    } else if (modelStr === 'gemini-1.5-flash' || modelStr === 'gemini-flash' || modelStr === 'gemini-2.5-flash') {
+      if (modelStr !== 'gemini-2.5-flash') {
+        console.log(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-flash`);
+      }
+      validatedModel = 'gemini-2.5-flash';
+    }
+    
     // Update ONLY current agent config (not global)
     setCurrentAgentConfig({
-      preferredModel: config.recommendedModel,
+      preferredModel: validatedModel,
       systemPrompt: config.systemPrompt,
     });
     
@@ -1173,10 +1189,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         body: JSON.stringify({
           conversationId: currentConversation,
           userId,
-          model: config.recommendedModel,
+          model: validatedModel, // Use validated model name
           systemPrompt: config.systemPrompt,
-          // Store full config for future use
-          fullConfig: config,
+          // Store full config for future use (with corrected model)
+          fullConfig: {
+            ...config,
+            recommendedModel: validatedModel
+          },
         }),
       });
       console.log('✅ Configuración guardada en Firestore para agente:', currentConversation);
