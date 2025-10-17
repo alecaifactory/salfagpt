@@ -1,0 +1,7 @@
+# Ignore actual .env files (keep templates only)
+*.env
+!env-templates/*.env
+
+# Ignore generated files
+*.log
+*.tmp

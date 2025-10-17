@@ -710,6 +710,85 @@ git --no-pager log --oneline -10
 
 ---
 
+### 🌍 MULTI-ENVIRONMENT & DEPLOYMENT PROTECTION (NEW)
+
+#### 29. `environment-awareness.mdc` ⭐ NEW
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-17  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: **false** ⚠️
+
+**Purpose**: Multi-environment awareness and safety for staging/production deployments.
+
+**Key Topics**:
+- 4-environment architecture (local, staging-internal, staging-client, production-client)
+- Environment detection and validation
+- Risk level assessment
+- Pre-operation confirmation requirements
+
+**Complements**:
+- Works with `deployment.mdc`
+- Enhanced by `staging-deployment-protection.mdc`
+- Enhanced by `production-deployment-protection.mdc`
+
+**Alignment**: ✅ Multi-tenant deployment safety
+
+**Critical**: Requires user confirmation for staging/production operations
+
+---
+
+#### 30. `staging-deployment-protection.mdc` ⭐ NEW
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-17  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: **false** ⚠️
+
+**Purpose**: Protection for staging environment deployments (staging-internal, staging-client).
+
+**Key Topics**:
+- Pre-deployment checklists
+- User confirmation requirements
+- Client notification for staging-client
+- Environment validation
+
+**Complements**:
+- Extends `environment-awareness.mdc`
+- Works with `deployment.mdc`
+
+**Alignment**: ✅ Staging deployment safety
+
+**Critical**: User must type "yes" to deploy to staging
+
+---
+
+#### 31. `production-deployment-protection.mdc` ⭐ NEW
+
+**Version**: 1.0.0  
+**Last Updated**: 2025-10-17  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: **false** 🔴 CRITICAL  
+**severity**: CRITICAL
+
+**Purpose**: Maximum protection for production environment deployments.
+
+**Key Topics**:
+- Complete pre-deployment checklist
+- Rollback plan requirement
+- Client approval verification
+- "DEPLOY" confirmation (not "yes")
+
+**Complements**:
+- Extends `environment-awareness.mdc`
+- Strictest protection in rule system
+
+**Alignment**: ✅ Production deployment safety
+
+**Critical**: User must type "DEPLOY" (uppercase) + complete checklist verification
+
+---
+
 ## 🔗 Rule Relationships
 
 ### Core Dependencies

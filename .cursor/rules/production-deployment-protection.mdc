@@ -1,0 +1,261 @@
+# Production Deployment Protection
+
+**alwaysApply**: false
+**requiresConfirmation**: true
+**appliesTo**: Production environment deployments ONLY
+**severity**: CRITICAL
+
+## 🔴 CRITICAL WARNING
+
+This rule protects LIVE PRODUCTION environments serving real customers.
+
+**ANY production operation requires**:
+- User types "DEPLOY" (not "yes")
+- Complete checklist verification
+- Client approval documented
+- Rollback plan stated
+
+**This rule is NOT always applied** - it's loaded when AI detects production operations.
+
+---
+
+## 🎯 Purpose
+
+Ensures that NO production deployment or modification happens without:
+1. Explicit user confirmation (typing "DEPLOY")
+2. Complete pre-deployment checklist
+3. Multiple safety verifications
+4. Clear rollback plan
+
+---
+
+## 🔴 Protected Environment
+
+### Production Client (Client GCP)
+- **Project**: [CLIENT-PRODUCTION-PROJECT-ID]
+- **Service**: flow-production
+- **URL**: https://flow.client-domain.com
+- **Impact**: LIVE CUSTOMERS
+- **Uptime SLA**: 99.9%
+- **Data**: Production customer data
+
+---
+
+## 🚨 MANDATORY Confirmation Process
+
+### Step 1: Detect Production Operation
+
+When user requests production deployment, AI must:
+
+```
+🔴 PRODUCTION ENVIRONMENT DETECTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Operation: Deploy to production-client
+Target Project: [CLIENT-PRODUCTION-PROJECT-ID]
+Service: flow-production
+URL: https://flow.client-domain.com
+
+⚠️  This affects LIVE CUSTOMERS
+⚠️  Downtime or errors impact real users
+⚠️  Changes are immediately visible
+
+Proceeding to complete checklist...
+```
+
+### Step 2: Complete Pre-Deployment Checklist
+
+```
+📋 PRODUCTION DEPLOYMENT CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CODE QUALITY:
+□ npm run type-check → PASSED
+□ npm run build → SUCCESSFUL  
+□ No TypeScript errors
+□ No console.logs or debug code
+□ Code reviewed
+
+TESTING:
+□ All features tested in staging-internal
+□ All features tested in staging-client
+□ No regressions detected
+□ Performance verified (< 2s response time)
+□ Security validated
+
+STAGING VALIDATION:
+□ Staging-internal: DEPLOYED and TESTED
+□ Staging-client: DEPLOYED and TESTED
+□ Client UAT: COMPLETED
+□ Client approval: DOCUMENTED
+
+APPROVALS:
+□ Client sign-off: RECEIVED (date: [DATE])
+□ Technical review: COMPLETED
+□ Security review: COMPLETED (if data changes)
+
+SAFETY:
+□ Rollback plan: DOCUMENTED
+□ Monitoring: CONFIGURED
+□ Alerts: ENABLED
+□ Backup: COMPLETED (if data migration)
+
+COMMUNICATION:
+□ Client notified of deployment window
+□ Downtime communicated (if any)
+□ Support team alerted
+
+Have you verified ALL items above? (yes/no):
+```
+
+### Step 3: Rollback Plan
+
+```
+🔄 ROLLBACK PLAN
+━━━━━━━━━━━━━━━━
+
+Current version: [version]
+Target version: [new-version]
+Previous revision: [revision-name]
+
+If deployment fails:
+
+Immediate Rollback (< 2 minutes):
+  ./deployment/rollback-deployment.sh production-client [previous-revision]
+
+Or manual:
+  gcloud run services update-traffic flow-production \
+    --to-revisions=[previous-revision]=100 \
+    --region=us-central1
+
+Rollback plan documented? (yes/no):
+```
+
+### Step 4: Final Confirmation
+
+```
+⚠️  FINAL CONFIRMATION REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Deploying to PRODUCTION:
+• Environment: production-client
+• Project: [CLIENT-PRODUCTION-PROJECT-ID]
+• Service: flow-production
+• URL: https://flow.client-domain.com
+
+✅ Checklist complete
+✅ Client approval documented
+✅ Rollback plan ready
+
+⚠️  Type 'DEPLOY' to proceed (must be uppercase):
+```
+
+**User must type exactly**: `DEPLOY`
+
+Any other input (including "yes", "deploy", "Yes") will be rejected.
+
+---
+
+## 🚫 Absolute Prohibitions
+
+AI must NEVER do to production without "DEPLOY" confirmation:
+
+### Forbidden Operations
+- ❌ Execute deployment scripts
+- ❌ Run `gcloud run deploy`
+- ❌ Modify Firestore data
+- ❌ Delete documents or collections
+- ❌ Run database migrations
+- ❌ Change environment variables
+- ❌ Update secrets
+- ❌ Modify OAuth configuration
+- ❌ Delete resources
+
+---
+
+## ⚡ Emergency Override
+
+For critical production fixes:
+
+**User must state**:
+```
+EMERGENCY PRODUCTION FIX
+Reason: [Critical bug affecting customers]
+```
+
+**AI still requires**:
+```
+🚨 EMERGENCY PRODUCTION DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Emergency reason: [stated reason]
+
+Expedited checklist:
+✅ Fix tested locally
+✅ Fix verified in staging-client
+✅ Rollback: [previous-revision]
+
+Even in emergencies, safety matters.
+
+Type 'EMERGENCY-DEPLOY' to proceed:
+```
+
+**User must type**: `EMERGENCY-DEPLOY`
+
+---
+
+## 📊 Post-Deployment Verification
+
+After deployment, AI must:
+
+```
+✅ DEPLOYMENT SUCCESSFUL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Service: flow-production
+Revision: flow-production-00124-xyz
+URL: https://flow.client-domain.com
+
+Monitoring (next 15 minutes):
+📊 View logs:
+  gcloud run services logs read flow-production \
+    --region=us-central1 \
+    --limit=100 \
+    --project=[PROJECT-ID]
+
+🏥 Health monitoring:
+  Watch: https://console.cloud.google.com/monitoring
+
+🔔 Alert if:
+  • Error rate > 1%
+  • Response time > 2s
+  • Any 5xx errors
+
+Rollback ready:
+  ./deployment/rollback-deployment.sh production-client flow-production-00123-abc
+```
+
+---
+
+## 🎯 Success Metrics
+
+Track these for production deployments:
+
+- ✅ Zero deployments without "DEPLOY" confirmation
+- ✅ 100% checklist completion
+- ✅ Zero rollbacks needed
+- ✅ < 2 production deployments per week
+- ✅ Client satisfaction maintained
+
+---
+
+**Last Updated**: 2025-10-17  
+**Version**: 1.0.0  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: false ⚠️  
+**severity**: CRITICAL 🔴  
+**Backward Compatible**: Yes
+
+---
+
+**Remember**: Production is sacred. Every deployment is a risk. Always confirm. Always have a plan. The customer's trust depends on it.
