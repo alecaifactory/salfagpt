@@ -47,6 +47,7 @@ interface ThinkingStep {
   label: string;
   status: 'pending' | 'active' | 'complete';
   timestamp: Date;
+  dots?: number; // For animating ellipsis (0, 1, 2, 3)
 }
 
 interface ContextLog {
@@ -140,6 +141,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   // Agent-specific config state (overrides global settings)
   const [currentAgentConfig, setCurrentAgentConfig] = useState<Partial<UserSettings> | null>(null);
+  
+  // Agent model selector state
+  const [showAgentModelSelector, setShowAgentModelSelector] = useState(false);
   
   // Workflows state
   const [workflows, setWorkflows] = useState<Workflow[]>(
@@ -370,6 +374,56 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
+  // NEW: Change model for current agent
+  const changeAgentModel = async (newModel: 'gemini-2.5-flash' | 'gemini-2.5-pro') => {
+    if (!currentConversation || currentConversation.startsWith('temp-')) {
+      console.warn('⚠️ No se puede cambiar modelo de conversación temporal');
+      return;
+    }
+
+    try {
+      console.log('🔄 Cambiando modelo del agente a:', newModel);
+      
+      // Update local state immediately (optimistic update)
+      setCurrentAgentConfig(prev => ({
+        ...prev,
+        preferredModel: newModel,
+      }));
+      
+      // Save to Firestore
+      const response = await fetch('/api/agent-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: currentConversation,
+          userId,
+          model: newModel,
+          systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
+        }),
+      });
+
+      if (response.ok) {
+        console.log('✅ Modelo del agente actualizado en Firestore');
+      } else {
+        console.error('❌ Error al guardar modelo del agente');
+        // Revert on error
+        setCurrentAgentConfig(prev => ({
+          ...prev,
+          preferredModel: prev?.preferredModel || globalUserSettings.preferredModel,
+        }));
+      }
+    } catch (error) {
+      console.error('❌ Error al cambiar modelo del agente:', error);
+      // Revert on error
+      setCurrentAgentConfig(prev => ({
+        ...prev,
+        preferredModel: prev?.preferredModel || globalUserSettings.preferredModel,
+      }));
+    } finally {
+      setShowAgentModelSelector(false);
+    }
+  };
+
   // Load current user's roles to check for admin access (NEW)
   useEffect(() => {
     if (userEmail) {
@@ -385,6 +439,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         .catch(err => console.error('Error loading user roles:', err));
     }
   }, [userEmail]);
+
+  // Close model selector dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showAgentModelSelector) {
+        setShowAgentModelSelector(false);
+      }
+    };
+
+    if (showAgentModelSelector) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showAgentModelSelector]);
 
   // Impersonation handlers (NEW)
   function handleImpersonate(user: UserType) {
@@ -620,18 +691,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         
         console.log('✅ Conversación creada en Firestore:', newConv.id);
         
-        // Save initial agent config for the new conversation
+        // Save initial agent config for the new conversation (always Flash by default)
+        const initialModel = 'gemini-2.5-flash'; // Default to Flash for new agents
         await fetch('/api/agent-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             conversationId: newConv.id,
             userId,
-            model: globalUserSettings.preferredModel,
+            model: initialModel,
             systemPrompt: globalUserSettings.systemPrompt,
           }),
         });
-        console.log('✅ Configuración inicial del agente guardada para:', newConv.id);
+        console.log('✅ Configuración inicial del agente guardada (Flash por defecto):', newConv.id);
 
         // Auto-assign PUBLIC tagged context sources to new agent
         const publicSources = contextSources.filter(s => s.tags?.includes('PUBLIC'));
@@ -675,9 +747,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           console.log('ℹ️ No hay fuentes PUBLIC - nuevo agente sin contexto predeterminado');
         }
 
-        // Also set the current agent config locally
+        // Set local config (Flash by default)
         setCurrentAgentConfig({
-          preferredModel: globalUserSettings.preferredModel,
+          preferredModel: initialModel,
           systemPrompt: globalUserSettings.systemPrompt,
         });
 
@@ -740,12 +812,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     const activeContextCount = contextSources.filter(s => s.enabled).length;
     
     const thinkingSteps: ThinkingStep[] = [
-      { id: 'step-1', label: 'Pensando...', status: 'active', timestamp: new Date() },
-      { id: 'step-2', label: 'Revisando instrucciones...', status: 'pending', timestamp: new Date() },
+      { id: 'step-1', label: 'Pensando', status: 'active', timestamp: new Date(), dots: 1 },
+      { id: 'step-2', label: 'Revisando instrucciones', status: 'pending', timestamp: new Date() },
       activeContextCount > 0 
-        ? { id: 'step-3', label: `Analizando ${activeContextCount} documento${activeContextCount > 1 ? 's' : ''}...`, status: 'pending', timestamp: new Date() }
-        : { id: 'step-3', label: 'Preparando respuesta...', status: 'pending', timestamp: new Date() },
-      { id: 'step-4', label: 'Generando respuesta...', status: 'pending', timestamp: new Date() },
+        ? { id: 'step-3', label: `Analizando ${activeContextCount} documento${activeContextCount > 1 ? 's' : ''}`, status: 'pending', timestamp: new Date() }
+        : { id: 'step-3', label: 'Preparando respuesta', status: 'pending', timestamp: new Date() },
+      { id: 'step-4', label: 'Generando respuesta', status: 'pending', timestamp: new Date() },
     ];
 
     const thinkingMessage: Message = {
@@ -759,21 +831,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setMessages(prev => [...prev, thinkingMessage]);
     setThinkingMessageId(thinkingId);
 
-    // Simulate sequential step progression
+    // Simulate sequential step progression with ellipsis animation
     const progressSteps = async () => {
       for (let i = 0; i < thinkingSteps.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms per step
+        // Animate dots for active step (3 seconds total, updating every 500ms)
+        const dotAnimationIntervals = 6; // 3000ms / 500ms = 6 intervals
         
-        setMessages(prev => prev.map(msg => {
-          if (msg.id === thinkingId && msg.thinkingSteps) {
-            const updatedSteps: ThinkingStep[] = msg.thinkingSteps.map((step, idx) => ({
-              ...step,
-              status: (idx < i ? 'complete' : idx === i ? 'active' : 'pending') as 'pending' | 'active' | 'complete'
-            }));
-            return { ...msg, thinkingSteps: updatedSteps };
-          }
-          return msg;
-        }));
+        for (let dotCycle = 0; dotCycle < dotAnimationIntervals; dotCycle++) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms per dot cycle
+          
+          setMessages(prev => prev.map(msg => {
+            if (msg.id === thinkingId && msg.thinkingSteps) {
+              const updatedSteps: ThinkingStep[] = msg.thinkingSteps.map((step, idx) => ({
+                ...step,
+                status: (idx < i ? 'complete' : idx === i ? 'active' : 'pending') as 'pending' | 'active' | 'complete',
+                dots: idx === i ? (dotCycle % 3) + 1 : undefined // Cycle through 1, 2, 3 dots for active step
+              }));
+              return { ...msg, thinkingSteps: updatedSteps };
+            }
+            return msg;
+          }));
+        }
       }
     };
 
@@ -2187,15 +2265,95 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
                 {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
               </h2>
-              {currentAgentConfig?.preferredModel && (
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                  currentAgentConfig.preferredModel === 'gemini-2.5-pro'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-green-100 text-green-700'
-                }`}>
-                  {currentAgentConfig.preferredModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
-                </span>
-              )}
+              
+              {/* Model Selector with Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAgentModelSelector(!showAgentModelSelector);
+                  }}
+                  disabled={currentConversation?.startsWith('temp-')}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
+                      ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                      : 'bg-green-100 text-green-700 hover:bg-green-200'
+                  } ${currentConversation?.startsWith('temp-') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title="Click para cambiar modelo del agente"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {currentAgentConfig?.preferredModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
+                  <span className="text-[10px]">▼</span>
+                </button>
+                
+                {/* Model Selector Dropdown */}
+                {showAgentModelSelector && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl z-50 min-w-[280px]"
+                  >
+                    <div className="p-3 border-b border-slate-200 dark:border-slate-600">
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Modelo del Agente</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Solo afecta a este agente
+                      </p>
+                    </div>
+                    
+                    <div className="p-2 space-y-1">
+                      {/* Flash Option */}
+                      <button
+                        onClick={() => changeAgentModel('gemini-2.5-flash')}
+                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                          currentAgentConfig?.preferredModel === 'gemini-2.5-flash'
+                            ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="w-4 h-4 text-green-600" />
+                          <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Flash</span>
+                          <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
+                            Rápido
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
+                          Respuestas rápidas y económicas • 94% más barato
+                        </p>
+                      </button>
+                      
+                      {/* Pro Option */}
+                      <button
+                        onClick={() => changeAgentModel('gemini-2.5-pro')}
+                        className={`w-full p-3 rounded-lg text-left transition-all ${
+                          currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
+                            ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Sparkles className="w-4 h-4 text-purple-600" />
+                          <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Pro</span>
+                          <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
+                            Avanzado
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
+                          Mayor precisión y análisis profundo • Tareas complejas
+                        </p>
+                      </button>
+                    </div>
+                    
+                    <div className="p-2 border-t border-slate-200 dark:border-slate-600">
+                      <button
+                        onClick={() => setShowAgentModelSelector(false)}
+                        className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <button
               onClick={() => setShowAgentConfiguration(true)}
@@ -2238,30 +2396,43 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                       {/* Show thinking steps if present */}
                       {msg.thinkingSteps && msg.thinkingSteps.length > 0 ? (
                         <div className="space-y-3">
-                          {msg.thinkingSteps.map((step, index) => (
-                            <div
-                              key={step.id}
-                              className={`flex items-center gap-3 transition-all duration-300 ${
-                                step.status === 'complete' ? 'opacity-50' : 
-                                step.status === 'active' ? 'opacity-100' : 
-                                'opacity-30'
-                              }`}
-                            >
-                              {step.status === 'complete' ? (
-                                <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                              ) : step.status === 'active' ? (
-                                <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
-                              ) : (
-                                <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
-                              )}
-                              <span className={`text-sm ${
-                                step.status === 'active' ? 'font-semibold text-slate-800 dark:text-slate-100' : 
-                                'text-slate-600 dark:text-slate-400'
-                              }`}>
-                                {step.label}
-                              </span>
-                            </div>
-                          ))}
+                          {msg.thinkingSteps.map((step, index) => {
+                            // Generate ellipsis based on dots count (1, 2, or 3)
+                            const ellipsis = step.status === 'active' && step.dots 
+                              ? '.'.repeat(step.dots)
+                              : '';
+                            
+                            // Remove existing ellipsis from label if present, then add animated one
+                            const baseLabel = step.label.replace(/\.\.\.?$/, '');
+                            const displayLabel = step.status === 'active' 
+                              ? `${baseLabel}${ellipsis}`
+                              : step.label;
+                            
+                            return (
+                              <div
+                                key={step.id}
+                                className={`flex items-center gap-3 transition-all duration-300 ${
+                                  step.status === 'complete' ? 'opacity-50' : 
+                                  step.status === 'active' ? 'opacity-100' : 
+                                  'opacity-30'
+                                }`}
+                              >
+                                {step.status === 'complete' ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                ) : step.status === 'active' ? (
+                                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                                )}
+                                <span className={`text-sm ${
+                                  step.status === 'active' ? 'font-semibold text-slate-800 dark:text-slate-100' : 
+                                  'text-slate-600 dark:text-slate-400'
+                                }`}>
+                                  {displayLabel}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
                       ) : (
                         /* Show actual message content */
