@@ -35,30 +35,40 @@ export default function MessageRenderer({
 
     let processed = content;
     
-    // Replace [1], [2], etc. with styled span that's more visible
+    // Replace [1], [2], etc. with styled span with data attribute
     references.forEach(ref => {
       const pattern = new RegExp(`\\[${ref.id}\\]`, 'g');
-      // Use bold, larger, colored reference markers
+      // Use bold, larger, colored reference markers - NO onclick inline
       processed = processed.replace(
         pattern, 
-        `<sup><span class="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 cursor-pointer hover:bg-blue-200 hover:border-blue-400 transition-colors shadow-sm" data-ref-id="${ref.id}" title="Click para ver fuente" onclick="window.openReference(${ref.id})">[${ref.id}]</span></sup>`
+        `<sup><span class="reference-badge inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 cursor-pointer hover:bg-blue-200 hover:border-blue-400 transition-colors shadow-sm" data-ref-id="${ref.id}" title="Click para ver fuente">[${ref.id}]</span></sup>`
       );
     });
     
     return processed;
   }, [content, references]);
 
-  // Expose function to window for onclick handlers
+  // Add click listeners to reference badges after render
   React.useEffect(() => {
-    (window as any).openReference = (refId: number) => {
-      const reference = references.find(r => r.id === refId);
-      if (reference) {
-        setSelectedReference(reference);
+    const handleReferenceClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const badge = target.closest('.reference-badge');
+      
+      if (badge) {
+        const refId = parseInt(badge.getAttribute('data-ref-id') || '0');
+        const reference = references.find(r => r.id === refId);
+        
+        if (reference) {
+          console.log('🔍 Referencia clicada:', refId);
+          setSelectedReference(reference);
+        }
       }
     };
+
+    document.addEventListener('click', handleReferenceClick);
     
     return () => {
-      delete (window as any).openReference;
+      document.removeEventListener('click', handleReferenceClick);
     };
   }, [references]);
 
