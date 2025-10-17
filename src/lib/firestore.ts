@@ -1,20 +1,40 @@
 import { Firestore } from '@google-cloud/firestore';
 
-// Support both Astro (import.meta.env) and Node.js (process.env)
-// In production (Cloud Run), prioritize process.env
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
-  (typeof import.meta !== 'undefined' && import.meta.env 
-    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
-    : undefined);
+// BACKWARD COMPATIBLE: Environment-aware Firestore initialization
+// Supports multi-tenant deployments with separate GCP projects per environment
+
+// Try to load environment config (if available)
+let ENV_CONFIG: any = null;
+try {
+  // Dynamic import for environment config (may not exist in all deployments)
+  const envModule = await import('../../config/environments.js').catch(() => null);
+  if (envModule) {
+    ENV_CONFIG = envModule.ENV_CONFIG;
+  }
+} catch (error) {
+  // Fallback to original behavior if config doesn't exist
+  console.log('📝 Using legacy environment configuration (backward compatible)');
+}
+
+// Determine project ID (BACKWARD COMPATIBLE)
+// Priority: environment config > process.env > import.meta.env
+const PROJECT_ID = ENV_CONFIG?.projectId 
+  || process.env.GOOGLE_CLOUD_PROJECT 
+  || (typeof import.meta !== 'undefined' && import.meta.env 
+      ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+      : undefined);
 
 if (!PROJECT_ID) {
   console.error('❌ GOOGLE_CLOUD_PROJECT is not set! Please configure your .env file.');
   console.error('💡 See ENV_VARIABLES_REFERENCE.md for setup instructions.');
 }
 
+const ENVIRONMENT_NAME = ENV_CONFIG?.name || process.env.ENVIRONMENT_NAME || 'local';
+
 console.log('🔧 Initializing Firestore client...');
 console.log(`📦 Project ID: ${PROJECT_ID || 'NOT SET'}`);
-console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`🌍 Environment: ${ENVIRONMENT_NAME}`);
+console.log(`🏗️  Node ENV: ${process.env.NODE_ENV || 'development'}`);
 
 // Initialize Firestore client
 // In production (Cloud Run): Uses Workload Identity automatically
@@ -27,6 +47,10 @@ export const firestore = new Firestore({
 console.log('✅ Firestore client initialized successfully');
 console.log('💡 Local dev: Ensure you have run "gcloud auth application-default login"');
 console.log('💡 Production: Uses Workload Identity automatically');
+
+// Export environment info for debugging
+export const CURRENT_ENVIRONMENT = ENVIRONMENT_NAME;
+export const CURRENT_PROJECT_ID = PROJECT_ID;
 
 // Helper function to determine source environment
 export function getEnvironmentSource(): 'localhost' | 'production' {

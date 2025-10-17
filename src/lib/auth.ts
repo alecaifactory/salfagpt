@@ -2,18 +2,51 @@ import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import type { APIContext } from 'astro';
 
-// Use process.env for runtime secrets (works with Secret Manager)
-// Fallback to import.meta.env for local development
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || import.meta.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || import.meta.env.GOOGLE_CLIENT_SECRET;
-const JWT_SECRET = process.env.JWT_SECRET || import.meta.env.JWT_SECRET;
-const BASE_URL = process.env.PUBLIC_BASE_URL || import.meta.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+// BACKWARD COMPATIBLE: Environment-aware OAuth configuration
+// Supports multi-tenant deployments with separate OAuth clients per environment
+
+// Try to load environment config (if available)
+let ENV_CONFIG: any = null;
+try {
+  const envModule = await import('../../config/environments.js').catch(() => null);
+  if (envModule) {
+    ENV_CONFIG = envModule.ENV_CONFIG;
+  }
+} catch (error) {
+  // Fallback to original behavior
+  console.log('📝 Using legacy OAuth configuration (backward compatible)');
+}
+
+// Determine OAuth credentials (BACKWARD COMPATIBLE)
+// Priority: environment config > process.env > import.meta.env
+const GOOGLE_CLIENT_ID = ENV_CONFIG?.oauth?.clientId 
+  || process.env.GOOGLE_CLIENT_ID 
+  || import.meta.env.GOOGLE_CLIENT_ID;
+
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET 
+  || import.meta.env.GOOGLE_CLIENT_SECRET;
+
+const JWT_SECRET = process.env.JWT_SECRET 
+  || import.meta.env.JWT_SECRET;
+
+const BASE_URL = ENV_CONFIG?.baseUrl 
+  || process.env.PUBLIC_BASE_URL 
+  || import.meta.env.PUBLIC_BASE_URL 
+  || 'http://localhost:3000';
+
+const REDIRECT_URI = ENV_CONFIG?.oauth?.redirectUri 
+  || `${BASE_URL}/auth/callback`;
+
+console.log('🔐 OAuth Configuration:');
+console.log(`  Environment: ${ENV_CONFIG?.name || 'local'}`);
+console.log(`  Client ID: ${GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET'}`);
+console.log(`  Redirect URI: ${REDIRECT_URI}`);
 
 // Initialize OAuth2 client
 export const oauth2Client = new OAuth2Client(
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
-  `${BASE_URL}/auth/callback`
+  REDIRECT_URI
 );
 
 // Generate authorization URL

@@ -1,0 +1,264 @@
+# Environment Awareness & Multi-Tenant Safety
+
+**alwaysApply**: false
+**requiresConfirmation**: true
+**appliesTo**: Multi-environment deployments
+
+## 🎯 Purpose
+
+This rule ensures AI assistants are aware of the multi-environment architecture and ALWAYS confirm which environment they're operating in before making changes or deployments.
+
+**This rule is NOT always applied** - it's loaded when the AI detects staging/production operations and requires user confirmation.
+
+---
+
+## 🌍 Environment Structure
+
+Flow has **4 distinct environments**:
+
+### 1. Local Development 🟢
+- **Purpose**: Feature development and local testing
+- **GCP Project**: gen-lang-client-0986191192
+- **URL**: http://localhost:3000
+- **Data**: Shared with staging-internal
+- **Risk**: LOW - No customer impact
+- **Confirmation**: NOT REQUIRED
+
+### 2. Staging Internal (Your GCP) 🟡
+- **Purpose**: Internal QA before client deployment
+- **GCP Project**: gen-lang-client-0986191192
+- **Service**: flow-staging-internal
+- **URL**: https://flow-staging-internal-xxx.run.app
+- **Data**: Test data only
+- **Risk**: LOW - Internal team only
+- **Confirmation**: REQUIRED before deployment
+
+### 3. Staging Client (Client GCP) 🟠
+- **Purpose**: Client UAT and approval
+- **GCP Project**: [CLIENT-STAGING-PROJECT-ID]
+- **Service**: flow-staging
+- **URL**: https://staging.client-domain.com
+- **Data**: Client test data
+- **Risk**: MEDIUM - Client visibility
+- **Confirmation**: REQUIRED before deployment
+
+### 4. Production Client (Client GCP) 🔴
+- **Purpose**: Live customer-facing service
+- **GCP Project**: [CLIENT-PRODUCTION-PROJECT-ID]
+- **Service**: flow-production
+- **URL**: https://flow.client-domain.com
+- **Data**: Production customer data
+- **Risk**: CRITICAL - Customer impact
+- **Confirmation**: REQUIRED + DOUBLE-CHECK (see production-deployment-protection.mdc)
+
+---
+
+## 🚨 Critical Rules
+
+### Rule 1: ALWAYS Identify Current Environment
+
+Before ANY operation that affects staging/production, explicitly state:
+
+**Template**:
+```
+🌍 Environment Check
+━━━━━━━━━━━━━━━━━━━━
+Current Environment: [local/staging-internal/staging-client/production-client]
+GCP Project: [project-id]
+Risk Level: [LOW/MEDIUM/CRITICAL]
+```
+
+### Rule 2: NEVER Assume Environment
+
+**❌ WRONG**:
+```
+Deploying to staging...
+```
+
+**✅ CORRECT**:
+```
+🟠 Environment: staging-client
+📦 Project: acme-corp-staging-12345
+⚠️  RISK: MEDIUM - Client UAT environment
+
+This will deploy to CLIENT's staging.
+Changes will be visible to client team.
+
+Proceed? (yes/no)
+```
+
+### Rule 3: Color-Code Risk Levels
+
+Use visual indicators:
+
+```
+🟢 LOCAL: Safe to experiment
+🟡 STAGING-INTERNAL: Ask before deploy
+🟠 STAGING-CLIENT: Confirm before deploy
+🔴 PRODUCTION-CLIENT: See production-deployment-protection.mdc
+```
+
+---
+
+## 📋 Environment Detection
+
+### From File Context
+
+```bash
+# If working with these files:
+.env.staging-internal        → staging-internal
+.env.staging-client          → staging-client
+.env.production-client       → production-client
+
+deployment/deploy-to-environment.sh staging-internal   → staging-internal
+deployment/deploy-to-environment.sh staging-client     → staging-client
+deployment/deploy-to-environment.sh production-client  → production-client
+```
+
+### From gcloud Context
+
+```bash
+# Check active project
+gcloud config get-value project
+
+# Returns:
+gen-lang-client-0986191192     → local OR staging-internal
+[CLIENT-STAGING-PROJECT-ID]    → staging-client
+[CLIENT-PRODUCTION-PROJECT-ID] → production-client
+```
+
+---
+
+## ✅ Safe Operations (No Confirmation)
+
+- ✅ Reading files
+- ✅ Analyzing code
+- ✅ Running `npm run type-check`
+- ✅ Running `npm run build` locally
+- ✅ Creating documentation
+- ✅ Generating scripts
+- ✅ Viewing logs (read-only)
+
+---
+
+## ⚠️ Operations Requiring Confirmation
+
+### For ANY Staging/Production:
+
+**Require user confirmation**:
+- Deploying code (`./deploy-to-environment.sh`)
+- Modifying Firestore data
+- Changing environment variables
+- Creating/deleting GCP resources
+- Running database migrations
+- Updating secrets
+
+**Before executing, AI must**:
+1. Display environment info
+2. State what will happen
+3. Assess risk level
+4. Ask for explicit "yes"
+5. Wait for user response
+
+---
+
+## 💬 Example User Interactions
+
+### Example 1: Deployment Clarification
+
+**User**: "Deploy to staging"
+
+**AI Response**:
+```
+🤔 Which staging environment?
+
+We have 2 staging environments:
+1. 🟡 staging-internal (your GCP - internal QA)
+2. 🟠 staging-client (client GCP - UAT)
+
+Please specify: staging-internal or staging-client
+```
+
+### Example 2: Staging-Internal Deployment
+
+**User**: "Deploy to staging-internal"
+
+**AI Response**:
+```
+🟡 STAGING-INTERNAL DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Environment: staging-internal
+Project: gen-lang-client-0986191192
+Service: flow-staging-internal
+Impact: Internal team only
+Risk: LOW
+
+Pre-checks:
+✅ Type check: PASSED
+✅ Build: SUCCESSFUL
+
+Command to execute:
+  ./deployment/deploy-to-environment.sh staging-internal
+
+Proceed? (yes/no)
+```
+
+### Example 3: Production Redirect
+
+**User**: "Deploy to production"
+
+**AI Response**:
+```
+🔴 PRODUCTION DEPLOYMENT DETECTED
+
+This requires stricter confirmation and complete checklist.
+Loading: .cursor/rules/production-deployment-protection.mdc
+
+[Switches to production protection rule]
+```
+
+---
+
+## 🎯 Integration with Other Rules
+
+**Relationship**:
+- `deployment.mdc` (alwaysApply: true) - General deployment rules
+- **This rule** (alwaysApply: false) - Multi-environment awareness
+- `staging-deployment-protection.mdc` (alwaysApply: false) - Staging protection
+- `production-deployment-protection.mdc` (alwaysApply: false) - Production protection
+
+**Flow**:
+```
+User requests deployment
+    ↓
+Is it staging or production?
+    ↓
+Yes → Load environment-awareness.mdc (this file)
+    ↓
+Is it production?
+    ↓
+Yes → Also load production-deployment-protection.mdc
+    ↓
+Show confirmation, wait for user response
+```
+
+---
+
+## 📚 Files Created by This System
+
+- `config/environments.ts` - Environment definitions
+- `deployment/env-templates/*.env` - Environment templates
+- `deployment/setup-client-project.sh` - Automated GCP setup
+- `deployment/deploy-to-environment.sh` - Universal deployer
+- `deployment/create-secrets.sh` - Secret management
+- `deployment/verify-environment.sh` - Health checks
+- `deployment/rollback-deployment.sh` - Emergency rollback
+
+---
+
+**Last Updated**: 2025-10-17  
+**Version**: 1.0.0  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: false ⚠️  
+**Backward Compatible**: Yes - existing setup unchanged

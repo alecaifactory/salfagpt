@@ -1433,6 +1433,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     if (config.agentName && !currentConv?.hasBeenRenamed) {
       console.log('🔄 Auto-renaming agent to:', config.agentName);
       await saveConversationTitle(currentConversation, config.agentName, false); // false = auto-rename, not manual
+      
+      // Force UI update by re-loading conversations to ensure name change is visible
+      console.log('🔄 Reloading conversations to reflect name change...');
+      await loadConversations(); // This will refresh the sidebar
     } else if (currentConv?.hasBeenRenamed) {
       console.log('ℹ️ Agent already renamed by user, preserving name:', currentConv.title);
     }

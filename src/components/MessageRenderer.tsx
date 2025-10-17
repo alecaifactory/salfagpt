@@ -27,94 +27,44 @@ export default function MessageRenderer({
 }: MessageRendererProps) {
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
 
-  // Log when references are received
-  React.useEffect(() => {
-    console.log('📥 MessageRenderer recibió:', {
-      contentLength: content.length,
-      referencesCount: references?.length || 0,
-      hasReferences: !!(references && references.length > 0)
-    });
-    if (references && references.length > 0) {
-      console.log('  Referencias:', references);
+  // Pre-process content to make references VISUALLY OBVIOUS and clickable
+  const processedContent = React.useMemo(() => {
+    if (!references || references.length === 0) {
+      return content;
     }
+
+    let processed = content;
+    
+    // Replace [1], [2], etc. with styled span that's more visible
+    references.forEach(ref => {
+      const pattern = new RegExp(`\\[${ref.id}\\]`, 'g');
+      // Use bold, larger, colored reference markers
+      processed = processed.replace(
+        pattern, 
+        `<sup><span class="inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 cursor-pointer hover:bg-blue-200 hover:border-blue-400 transition-colors shadow-sm" data-ref-id="${ref.id}" title="Click para ver fuente" onclick="window.openReference(${ref.id})">[${ref.id}]</span></sup>`
+      );
+    });
+    
+    return processed;
   }, [content, references]);
 
-  // Create a wrapper component that processes the entire content after ReactMarkdown
-  const ContentWithReferences = () => {
-    const contentRef = React.useRef<HTMLDivElement>(null);
-
-    React.useEffect(() => {
-      console.log('🔧 MessageRenderer useEffect triggered');
-      console.log('  → contentRef.current:', !!contentRef.current);
-      console.log('  → references:', references?.length || 0);
-      
-      if (!contentRef.current || !references || references.length === 0) {
-        console.log('⚠️ Saltando procesamiento: no hay referencias o ref no disponible');
-        return;
+  // Expose function to window for onclick handlers
+  React.useEffect(() => {
+    (window as any).openReference = (refId: number) => {
+      const reference = references.find(r => r.id === refId);
+      if (reference) {
+        setSelectedReference(reference);
       }
+    };
+    
+    return () => {
+      delete (window as any).openReference;
+    };
+  }, [references]);
 
-      console.log('✅ Iniciando procesamiento de referencias con TreeWalker...');
-
-      // Find all text nodes with [1], [2], etc. and make them clickable
-      const walker = document.createTreeWalker(
-        contentRef.current,
-        NodeFilter.SHOW_TEXT,
-        null
-      );
-
-      const nodesToReplace: { node: Text; refId: number; reference: SourceReference }[] = [];
-      let currentNode: Text | null;
-
-      while ((currentNode = walker.nextNode() as Text | null)) {
-        const text = currentNode.textContent || '';
-        const matches = text.matchAll(/\[(\d+)\]/g);
-        
-        for (const match of matches) {
-          const refId = parseInt(match[1]);
-          const reference = references.find(r => r.id === refId);
-          if (reference) {
-            nodesToReplace.push({ node: currentNode, refId, reference });
-            console.log(`  → Encontrado [${refId}] en:`, text.substring(0, 50) + '...');
-          }
-        }
-      }
-
-      console.log(`🔍 Total nodos para reemplazar: ${nodesToReplace.length}`);
-
-      // Replace text nodes with elements containing buttons
-      nodesToReplace.forEach(({ node, refId, reference }) => {
-        const text = node.textContent || '';
-        const parts = text.split(new RegExp(`(\\[${refId}\\])`));
-        
-        const span = document.createElement('span');
-        parts.forEach(part => {
-          if (part === `[${refId}]`) {
-            const sup = document.createElement('sup');
-            const button = document.createElement('button');
-            button.textContent = `[${refId}]`;
-            button.className = 'inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold px-0.5 hover:underline transition-colors cursor-pointer';
-            button.title = `Ver referencia ${refId}`;
-            button.onclick = (e) => {
-              e.preventDefault();
-              console.log('🔍 Referencia clicada:', refId);
-              setSelectedReference(reference);
-            };
-            sup.appendChild(button);
-            span.appendChild(sup);
-            console.log(`  ✅ Botón creado para [${refId}]`);
-          } else {
-            span.appendChild(document.createTextNode(part));
-          }
-        });
-        
-        node.parentNode?.replaceChild(span, node);
-      });
-      
-      console.log('✨ Procesamiento de referencias completado');
-    }, [references]);
-
-    return (
-      <div ref={contentRef}>
+  return (
+    <>
+      <div className="prose prose-slate max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw]}
@@ -305,27 +255,19 @@ export default function MessageRenderer({
           },
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
-      </div>
-    );
-  };
-
-  return (
-    <>
-      <div className="prose prose-slate max-w-none">
-        <ContentWithReferences />
-      </div>
-      
-      {/* Reference Panel */}
-      {selectedReference && (
-        <ReferencePanel
-          reference={selectedReference}
-          onClose={() => setSelectedReference(null)}
-          onViewFullDocument={onSourceClick}
-        />
-      )}
-    </>
+    </div>
+    
+    {/* Reference Panel */}
+    {selectedReference && (
+      <ReferencePanel
+        reference={selectedReference}
+        onClose={() => setSelectedReference(null)}
+        onViewFullDocument={onSourceClick}
+      />
+    )}
+  </>
   );
 }
 

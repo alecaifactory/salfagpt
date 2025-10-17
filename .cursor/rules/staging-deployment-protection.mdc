@@ -1,0 +1,247 @@
+# Staging Deployment Protection
+
+**alwaysApply**: false
+**requiresConfirmation**: true
+**appliesTo**: Staging environment deployments (staging-internal, staging-client)
+
+## 🎯 Purpose
+
+Protects staging environments from accidental deployments by requiring explicit user confirmation before ANY staging deployment operation.
+
+**This rule is NOT always applied** - it's loaded when AI detects staging deployment operations.
+
+---
+
+## 🟡 Protected Operations
+
+This rule triggers confirmation for:
+
+### Staging-Internal Operations
+- `./deployment/deploy-to-environment.sh staging-internal`
+- `gcloud run deploy flow-staging-internal`
+- Modifying staging Firestore data via scripts
+- Creating/deleting staging resources
+
+### Staging-Client Operations  
+- `./deployment/deploy-to-environment.sh staging-client`
+- `gcloud run deploy flow-staging`
+- Any operation on client's staging GCP project
+- Modifying client staging Firestore
+
+---
+
+## 📋 Required Confirmation Format
+
+### For Staging-Internal
+
+```
+🟡 STAGING-INTERNAL DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Environment: staging-internal
+Project: gen-lang-client-0986191192
+Service: flow-staging-internal
+Purpose: Internal QA testing
+
+Pre-deployment checks:
+✅ Type check passed: npm run type-check
+✅ Build successful: npm run build
+✅ Local testing: Completed
+
+Changes to deploy:
+• [List files changed]
+• [Summary of changes]
+
+Impact: Internal team only
+Risk: LOW
+
+Do you want to proceed with deployment? (yes/no):
+```
+
+### For Staging-Client
+
+```
+🟠 STAGING-CLIENT DEPLOYMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Environment: staging-client
+Project: [CLIENT-STAGING-PROJECT-ID]
+Service: flow-staging
+URL: https://staging.client-domain.com
+Purpose: Client UAT testing
+
+Pre-deployment checks:
+✅ Type check passed: npm run type-check
+✅ Build successful: npm run build
+✅ Staging-internal: Validated
+□ Client notified: [REQUIRED]
+
+Changes to deploy:
+• [List files changed]
+• [Summary of changes]
+
+Impact: Client UAT environment
+Risk: MEDIUM
+
+Has client been notified? (yes/no):
+[Wait for yes]
+
+Do you want to proceed with deployment? (yes/no):
+```
+
+---
+
+## 🚫 Forbidden Without Confirmation
+
+**NEVER do these without asking**:
+
+1. ❌ Execute deployment scripts
+2. ❌ Run `gcloud run deploy` to staging
+3. ❌ Modify Firestore via admin SDK
+4. ❌ Delete staging resources
+5. ❌ Change environment variables
+6. ❌ Update secrets in Secret Manager
+7. ❌ Modify OAuth configuration
+
+**ALWAYS do these first**:
+
+1. ✅ Display environment info
+2. ✅ List what will change
+3. ✅ Assess risk level
+4. ✅ Ask for explicit confirmation
+5. ✅ Wait for user's "yes"
+
+---
+
+## 📊 Deployment Checklist
+
+### Before ANY Staging Deployment
+
+AI must verify and display:
+
+**Code Quality**:
+- [ ] `npm run type-check` → 0 errors
+- [ ] `npm run build` → successful
+- [ ] No TypeScript errors
+- [ ] No console.logs in production code
+
+**Testing**:
+- [ ] Local testing completed
+- [ ] Features working as expected
+- [ ] No breaking changes
+- [ ] Backward compatible
+
+**Configuration**:
+- [ ] Correct .env file loaded
+- [ ] Correct GCP project set
+- [ ] Secrets configured
+- [ ] OAuth redirect URIs match
+
+**Communication** (for staging-client):
+- [ ] Client notified of deployment
+- [ ] Changes documented
+- [ ] Testing instructions provided
+
+---
+
+## 💬 Example Interaction
+
+**User**: "Deploy to staging-client"
+
+**AI Response**:
+```
+🟠 STAGING-CLIENT DEPLOYMENT REQUEST
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Target: staging-client
+Project: acme-corp-staging-12345
+Service: flow-staging
+URL: https://staging.acme.com
+
+Pre-deployment checks:
+✅ Type check: PASSED
+✅ Build: SUCCESSFUL
+⚠️  Have you tested in staging-internal first?
+
+Changes:
+• src/components/Feature.tsx (modified)
+• src/lib/service.ts (new function)
+
+Impact: Client UAT environment
+Risk: MEDIUM
+
+Client notification:
+Has the client team been notified? (yes/no):
+```
+
+**User**: "yes"
+
+**AI**:
+```
+✅ Client notified
+
+Ready to deploy to staging-client.
+
+Command that will execute:
+  ./deployment/deploy-to-environment.sh staging-client
+
+This will:
+1. Load .env.staging-client
+2. Set project to acme-corp-staging-12345
+3. Build Docker image
+4. Deploy to flow-staging service
+5. Update PUBLIC_BASE_URL
+6. Run health check
+
+Estimated time: 3-5 minutes
+
+Proceed with deployment? (yes/no):
+```
+
+**User**: "yes"
+
+**AI**:
+```
+✅ Deploying to staging-client...
+
+[Executes deployment]
+[Shows progress]
+[Shows results]
+```
+
+---
+
+## 🔄 Rollback Information
+
+After every staging deployment, AI should remind:
+
+```
+✅ Deployment complete
+
+Current revision: flow-staging-00123-abc
+
+If issues occur, rollback with:
+  ./deployment/rollback-deployment.sh staging-client flow-staging-00122-xyz
+
+Previous revision: flow-staging-00122-xyz
+```
+
+---
+
+## 🎯 Success Criteria
+
+This rule works correctly if:
+
+- ✅ AI NEVER deploys to staging without confirmation
+- ✅ User must explicitly type "yes"
+- ✅ Environment clearly identified
+- ✅ Risk level communicated
+- ✅ Pre-checks displayed
+
+---
+
+**Last Updated**: 2025-10-17  
+**Version**: 1.0.0  
+**Status**: ✅ Active (requires confirmation)  
+**alwaysApply**: false ⚠️  
+**Backward Compatible**: Yes

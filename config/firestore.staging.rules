@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // =====================================================
+    // STAGING SECURITY RULES
+    // Slightly more permissive than production for testing
+    // Still enforces user isolation
+    // Last Updated: 2025-10-17
+    // =====================================================
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // =====================================================
+    // STAGING: More permissive for testing
+    // All collections follow same pattern as production
+    // but with additional debugging access for admins
+    // =====================================================
+    
+    match /conversations/{conversationId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if isAuthenticated() && 
+                                      (request.resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && 
+                    (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && 
+                      (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin(); // Allow updates in staging for testing
+      allow delete: if isAuthenticated() && 
+                      (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /context_sources/{sourceId} {
+      allow read, write: if isAuthenticated() && 
+                          (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /user_settings/{userId} {
+      allow read, write: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+    
+    match /agent_configs/{configId} {
+      allow read, write: if isAuthenticated() && 
+                          (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /conversation_context/{contextId} {
+      allow read, write: if isAuthenticated() && 
+                          (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /workflow_configs/{configId} {
+      allow read, write: if isAuthenticated() && 
+                          (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /usage_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin(); // Allow cleanup in staging
+    }
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /folders/{folderId} {
+      allow read, write: if isAuthenticated() && 
+                          (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    
+    match /groups/{groupId} {
+      allow read, write: if isAuthenticated();
+    }
+    
+    match /context_access_rules/{ruleId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
+
