@@ -952,27 +952,34 @@ export default function ContextManagementDashboard({
                 </h3>
                 <div className="space-y-4">
                   {uploadQueue.map(item => {
-                    // Calculate pipeline stage based on progress
-                    const currentStage = 
-                      item.status === 'queued' ? 'queued' :
-                      item.status === 'uploading' ? 'upload' :
-                      item.progress < 30 ? 'upload' :
-                      item.progress < 60 ? 'extract' :
-                      item.progress < 85 ? 'chunk' :
-                      item.progress < 100 ? 'embed' :
-                      'complete';
-                    
+                    // Define stage thresholds - sequential and clear
                     const stages = [
-                      { key: 'upload', label: 'Upload', icon: Upload },
-                      { key: 'extract', label: 'Extract', icon: FileText },
-                      { key: 'chunk', label: 'Chunk', icon: Grid },
-                      { key: 'embed', label: 'Embed', icon: Zap },
+                      { key: 'upload', label: 'Upload', icon: Upload, startProgress: 0, endProgress: 25 },
+                      { key: 'extract', label: 'Extract', icon: FileText, startProgress: 25, endProgress: 50 },
+                      { key: 'chunk', label: 'Chunk', icon: Grid, startProgress: 50, endProgress: 75 },
+                      { key: 'embed', label: 'Embed', icon: Zap, startProgress: 75, endProgress: 100 },
                     ];
 
+                    // Determine current stage based on progress
+                    const getCurrentStageIndex = () => {
+                      if (item.status === 'queued') return -1;
+                      if (item.status === 'complete') return stages.length;
+                      
+                      // Find the stage we're in
+                      for (let i = 0; i < stages.length; i++) {
+                        if (item.progress >= stages[i].startProgress && item.progress < stages[i].endProgress) {
+                          return i;
+                        }
+                      }
+                      return stages.length - 1; // Last stage
+                    };
+                    
+                    const currentStageIndex = getCurrentStageIndex();
+
                     return (
-                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
                         {/* Header: File name, model, time */}
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
                             <span className="text-sm font-semibold text-gray-900 truncate">
@@ -991,7 +998,7 @@ export default function ContextManagementDashboard({
                           <div className="flex items-center gap-3 flex-shrink-0">
                             {item.elapsedTime !== undefined && (
                               <span className={`text-xs font-mono ${
-                                item.status === 'complete' ? 'text-green-600' : 'text-blue-600'
+                                item.status === 'complete' ? 'text-green-600 font-bold' : 'text-blue-600'
                               }`}>
                                 {item.status === 'complete' ? '✓ ' : ''}
                                 {formatElapsedTime(item.elapsedTime)}
@@ -1000,7 +1007,7 @@ export default function ContextManagementDashboard({
                             {item.status === 'failed' && (
                               <button
                                 onClick={() => handleReupload(item.id)}
-                                className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1"
+                                className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
                                 Retry
@@ -1009,50 +1016,68 @@ export default function ContextManagementDashboard({
                           </div>
                         </div>
 
-                        {/* Pipeline Stages - Horizontal */}
+                        {/* Pipeline Stages - Sequential Horizontal Flow */}
                         {item.status !== 'failed' && (
                           <div className="relative">
                             <div className="flex items-center justify-between">
                               {stages.map((stage, idx) => {
-                                const isActive = currentStage === stage.key;
-                                const isComplete = 
-                                  (stage.key === 'upload' && item.progress >= 30) ||
-                                  (stage.key === 'extract' && item.progress >= 60) ||
-                                  (stage.key === 'chunk' && item.progress >= 85) ||
-                                  (stage.key === 'embed' && item.progress >= 100);
+                                const isComplete = idx < currentStageIndex;
+                                const isActive = idx === currentStageIndex;
+                                const isPending = idx > currentStageIndex;
                                 const StageIcon = stage.icon;
+                                
+                                // Calculate stage-specific progress (0-100% within this stage)
+                                const stageProgress = isActive 
+                                  ? Math.min(100, Math.max(0, ((item.progress - stage.startProgress) / (stage.endProgress - stage.startProgress)) * 100))
+                                  : 0;
 
                                 return (
                                   <React.Fragment key={stage.key}>
-                                    {/* Stage */}
-                                    <div className="flex flex-col items-center gap-1">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                                    {/* Stage Circle */}
+                                    <div className="flex flex-col items-center gap-1.5 relative z-10">
+                                      <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${
                                         isComplete 
-                                          ? 'bg-green-600 text-white' 
+                                          ? 'bg-green-600 text-white shadow-lg scale-100' 
                                           : isActive 
-                                          ? 'bg-blue-600 text-white animate-pulse' 
-                                          : 'bg-gray-200 text-gray-400'
+                                          ? 'bg-blue-600 text-white shadow-lg scale-110 ring-4 ring-blue-200' 
+                                          : 'bg-gray-100 text-gray-400 scale-95'
                                       }`}>
                                         {isComplete ? (
-                                          <CheckCircle className="w-5 h-5" />
+                                          <CheckCircle className="w-6 h-6" />
                                         ) : isActive ? (
-                                          <Loader2 className="w-5 h-5 animate-spin" />
+                                          <Loader2 className="w-6 h-6 animate-spin" />
                                         ) : (
                                           <StageIcon className="w-5 h-5" />
                                         )}
                                       </div>
-                                      <span className={`text-[10px] font-medium ${
+                                      
+                                      {/* Stage label */}
+                                      <span className={`text-[10px] font-semibold transition-colors ${
                                         isComplete ? 'text-green-700' : isActive ? 'text-blue-700' : 'text-gray-500'
                                       }`}>
                                         {stage.label}
                                       </span>
+                                      
+                                      {/* Stage progress indicator (for active stage) */}
+                                      {isActive && (
+                                        <span className="text-[9px] font-mono text-blue-600">
+                                          {Math.round(stageProgress)}%
+                                        </span>
+                                      )}
                                     </div>
 
-                                    {/* Connector */}
+                                    {/* Connector with animated fill */}
                                     {idx < stages.length - 1 && (
-                                      <div className={`flex-1 h-0.5 mx-2 ${
-                                        isComplete ? 'bg-green-600' : 'bg-gray-200'
-                                      }`} />
+                                      <div className="flex-1 h-1 mx-1 bg-gray-200 rounded-full overflow-hidden relative">
+                                        <div 
+                                          className={`h-full transition-all duration-500 rounded-full ${
+                                            isComplete ? 'bg-green-600 w-full' : 
+                                            isActive ? 'bg-blue-600' : 
+                                            'bg-gray-200 w-0'
+                                          }`}
+                                          style={isActive ? { width: `${stageProgress}%` } : undefined}
+                                        />
+                                      </div>
                                     )}
                                   </React.Fragment>
                                 );
