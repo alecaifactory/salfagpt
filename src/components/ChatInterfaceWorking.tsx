@@ -4,7 +4,7 @@ import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
 import UserSettingsModal, { type UserSettings } from './UserSettingsModal';
-import ContextSourceSettingsModal from './ContextSourceSettingsModal';
+import ContextSourceSettingsModal from './ContextSourceSettingsModalSimple';
 import ContextManagementDashboard from './ContextManagementDashboard';
 import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
@@ -13,6 +13,8 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
+import RAGConfigPanel from './RAGConfigPanel';
+import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -26,6 +28,7 @@ interface Message {
   timestamp: Date;
   thinkingSteps?: ThinkingStep[];
   responseTime?: number; // Time in milliseconds to generate response
+  isStreaming?: boolean; // Whether message is currently streaming
   references?: Array<{
     id: number;
     sourceId: string;
@@ -59,6 +62,7 @@ interface ContextLog {
   contextSources: Array<{
     name: string;
     tokens: number;
+    mode?: 'rag' | 'full-text'; // NEW: Actual mode used
   }>;
   totalInputTokens: number;
   totalOutputTokens: number;
@@ -66,6 +70,25 @@ interface ContextLog {
   contextWindowAvailable: number;
   contextWindowCapacity: number;
   aiResponse: string;
+  // NEW: RAG configuration details
+  ragConfiguration?: {
+    enabled: boolean;
+    actuallyUsed: boolean; // Did RAG actually run?
+    hadFallback: boolean; // Did it fall back to full-text?
+    topK?: number;
+    minSimilarity?: number;
+    stats?: {
+      totalChunks: number;
+      totalTokens: number;
+      avgSimilarity: number;
+      sources: Array<{
+        id: string;
+        name: string;
+        chunkCount: number;
+        tokens: number;
+      }>;
+    };
+  };
 }
 
 interface Conversation {
@@ -116,6 +139,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
+  const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
+  const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
@@ -807,56 +832,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       }
     }));
 
-    // Create thinking message with steps
-    const thinkingId = `thinking-${Date.now()}`;
-    const activeContextCount = contextSources.filter(s => s.enabled).length;
-    
-    const thinkingSteps: ThinkingStep[] = [
-      { id: 'step-1', label: 'Pensando', status: 'active', timestamp: new Date(), dots: 1 },
-      { id: 'step-2', label: 'Revisando instrucciones', status: 'pending', timestamp: new Date() },
-      activeContextCount > 0 
-        ? { id: 'step-3', label: `Analizando ${activeContextCount} documento${activeContextCount > 1 ? 's' : ''}`, status: 'pending', timestamp: new Date() }
-        : { id: 'step-3', label: 'Preparando respuesta', status: 'pending', timestamp: new Date() },
-      { id: 'step-4', label: 'Generando respuesta', status: 'pending', timestamp: new Date() },
-    ];
-
-    const thinkingMessage: Message = {
-      id: thinkingId,
+    // Create streaming message (empty, will fill progressively)
+    const streamingId = `streaming-${Date.now()}`;
+    const streamingMessage: Message = {
+      id: streamingId,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
-      thinkingSteps
+      isStreaming: true
     };
 
-    setMessages(prev => [...prev, thinkingMessage]);
-    setThinkingMessageId(thinkingId);
-
-    // Simulate sequential step progression with ellipsis animation
-    const progressSteps = async () => {
-      for (let i = 0; i < thinkingSteps.length; i++) {
-        // Animate dots for active step (3 seconds total, updating every 500ms)
-        const dotAnimationIntervals = 6; // 3000ms / 500ms = 6 intervals
-        
-        for (let dotCycle = 0; dotCycle < dotAnimationIntervals; dotCycle++) {
-          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms per dot cycle
-          
-          setMessages(prev => prev.map(msg => {
-            if (msg.id === thinkingId && msg.thinkingSteps) {
-              const updatedSteps: ThinkingStep[] = msg.thinkingSteps.map((step, idx) => ({
-                ...step,
-                status: (idx < i ? 'complete' : idx === i ? 'active' : 'pending') as 'pending' | 'active' | 'complete',
-                dots: idx === i ? (dotCycle % 3) + 1 : undefined // Cycle through 1, 2, 3 dots for active step
-              }));
-              return { ...msg, thinkingSteps: updatedSteps };
-            }
-            return msg;
-          }));
-        }
-      }
-    };
-
-    // Start step progression (don't await, let it run in parallel)
-    progressSteps();
+    setMessages(prev => [...prev, streamingMessage]);
 
     try {
       // Get active context sources
@@ -869,7 +855,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           content: source.extractedData
         }));
 
-      const response = await fetch(`/api/conversations/${currentConversation}/messages`, {
+      // Use streaming endpoint
+      const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -881,72 +868,144 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Calculate response time
-        const responseTime = Date.now() - requestStartTime;
-        
-        // Remove thinking message and add real AI response
-        setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
-        setThinkingMessageId(null);
-        
-        const aiMessage: Message = {
-          id: data.message.id,
-          role: 'assistant',
-          content: data.message.content.text || data.message.content,
-          timestamp: new Date(data.message.timestamp),
-          responseTime: responseTime, // Add response time to message
-          references: data.references // Include references from API
-        };
-        setMessages(prev => [...prev, aiMessage]);
-
-        // Check if response needs feedback
-        const needsFeedback = detectFeedbackNeeded(aiMessage.content);
-
-        // Update agent processing state
-        setAgentProcessing(prev => ({
-          ...prev,
-          [agentId]: {
-            isProcessing: false,
-            needsFeedback,
-          }
-        }));
-
-        // Play sound notification
-        playNotificationSound();
-
-        // Create context log if tokenStats are available
-        if (data.tokenStats) {
-          const log: ContextLog = {
-            id: `log-${Date.now()}`,
-            timestamp: new Date(),
-            userMessage: messageToSend,
-            model: data.tokenStats.model,
-            systemPrompt: data.tokenStats.systemPrompt,
-            contextSources: activeContextSources.map(s => ({
-              name: s.name,
-              tokens: Math.ceil((s.content?.length || 0) / 4),
-            })),
-            totalInputTokens: data.tokenStats.totalInputTokens,
-            totalOutputTokens: data.tokenStats.totalOutputTokens,
-            contextWindowUsed: data.tokenStats.contextWindowUsed,
-            contextWindowAvailable: data.tokenStats.contextWindowAvailable,
-            contextWindowCapacity: data.tokenStats.contextWindowCapacity,
-            aiResponse: aiMessage.content,
-          };
-          setContextLogs(prev => [...prev, log]);
-          console.log('📊 Context log created:', log);
-        }
-      } else {
+      if (!response.ok) {
         throw new Error('Failed to send message');
+      }
+
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = '';
+      let finalMessageId = '';
+      let finalUserMessageId = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.type === 'chunk') {
+                  // Append chunk to accumulated content
+                  accumulatedContent += data.content;
+                  
+                  // Update streaming message with new content
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === streamingId 
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  ));
+                } else if (data.type === 'complete') {
+                  // Streaming complete
+                  finalMessageId = data.messageId;
+                  finalUserMessageId = data.userMessageId;
+                  
+                  // Mark message as no longer streaming
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === streamingId 
+                      ? { 
+                          ...msg, 
+                          id: finalMessageId,
+                          isStreaming: false,
+                          content: accumulatedContent 
+                        }
+                      : msg
+                  ));
+
+                  // Calculate response time
+                  const responseTime = Date.now() - requestStartTime;
+
+                  // Check if response needs feedback
+                  const needsFeedback = detectFeedbackNeeded(accumulatedContent);
+
+                  // Update agent processing state
+                  setAgentProcessing(prev => ({
+                    ...prev,
+                    [agentId]: {
+                      isProcessing: false,
+                      needsFeedback,
+                    }
+                  }));
+
+                  // Play sound notification
+                  playNotificationSound();
+
+                  // NEW: Create context log with ACTUAL RAG configuration used
+                  const ragConfig = data.ragConfiguration;
+                  const ragActuallyUsed = ragConfig?.actuallyUsed || false;
+                  
+                  // Calculate tokens based on ACTUAL mode used
+                  const contextSourcesWithMode = activeContextSources.map(s => {
+                    const fullTextTokens = Math.ceil((s.content?.length || 0) / 4);
+                    
+                    // Determine actual mode and tokens used
+                    let mode: 'rag' | 'full-text';
+                    let tokensUsed: number;
+                    
+                    if (ragActuallyUsed && ragConfig?.stats) {
+                      // Check if this source was in RAG results
+                      const sourceInRAG = ragConfig.stats.sources?.find((rs: any) => rs.id === s.id);
+                      if (sourceInRAG) {
+                        mode = 'rag';
+                        tokensUsed = sourceInRAG.tokens; // ACTUAL tokens from RAG chunks
+                      } else {
+                        mode = 'full-text';
+                        tokensUsed = fullTextTokens;
+                      }
+                    } else {
+                      // Full-text mode or RAG fallback
+                      mode = 'full-text';
+                      tokensUsed = fullTextTokens;
+                    }
+                    
+                    return {
+                      name: s.name,
+                      tokens: tokensUsed, // REAL tokens, not estimate
+                      mode,
+                    };
+                  });
+                  
+                  const log: ContextLog = {
+                    id: `log-${Date.now()}`,
+                    timestamp: new Date(),
+                    userMessage: messageToSend,
+                    model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel || 'gemini-2.5-flash',
+                    systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt || '',
+                    contextSources: contextSourcesWithMode, // NOW includes mode and real tokens
+                    totalInputTokens: Math.ceil(messageToSend.length / 4),
+                    totalOutputTokens: Math.ceil(accumulatedContent.length / 4),
+                    contextWindowUsed: Math.ceil((messageToSend.length + accumulatedContent.length) / 4),
+                    contextWindowAvailable: 1000000 - Math.ceil((messageToSend.length + accumulatedContent.length) / 4),
+                    contextWindowCapacity: 1000000,
+                    aiResponse: accumulatedContent,
+                    // NEW: Complete RAG audit trail
+                    ragConfiguration: ragConfig,
+                  };
+                  setContextLogs(prev => [...prev, log]);
+
+                } else if (data.type === 'error') {
+                  throw new Error(data.error);
+                }
+              } catch (parseError) {
+                console.error('Error parsing SSE data:', parseError);
+              }
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
       
-      // Remove thinking message
-      setMessages(prev => prev.filter(msg => msg.id !== thinkingId));
-      setThinkingMessageId(null);
+      // Remove streaming message
+      setMessages(prev => prev.filter(msg => msg.id !== streamingId));
       
       // Update agent processing state on error
       setAgentProcessing(prev => ({
@@ -966,8 +1025,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       };
       setMessages(prev => [...prev, errorMessage]);
     }
-    // Note: agentProcessing state is updated in try/catch blocks above
-    // No need for finally block with setLoading
   };
 
   const stopProcessing = () => {
@@ -1228,6 +1285,53 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           
           await saveContextForConversation(currentConversation, newActiveIds);
           console.log(`✅ Fuente activada automáticamente para agente ${currentConversation}`);
+        }
+
+        // AUTO-INDEX WITH RAG (NEW - Automatic)
+        if (data.extractedText && data.extractedText.length > 100) {
+          console.log('🔍 Auto-indexing with RAG...');
+          
+          try {
+            // Update UI to show indexing started
+            setContextSources(prev => prev.map(s => 
+              s.id === sourceId
+                ? {
+                    ...s,
+                    progress: {
+                      stage: 'processing',
+                      percentage: 75,
+                      message: 'Indexando con RAG...',
+                      startTime,
+                      elapsedSeconds: Math.floor((Date.now() - startTime) / 1000),
+                    }
+                  }
+                : s
+            ));
+
+            const indexResponse = await fetch('/api/reindex-source', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sourceId,
+                userId,
+              }),
+            });
+
+            if (indexResponse.ok) {
+              const indexData = await indexResponse.json();
+              console.log(`✅ RAG indexing complete: ${indexData.chunksCreated} chunks created`);
+              
+              // Reload context sources to show RAG metadata
+              if (currentConversation) {
+                await loadContextForConversation(currentConversation);
+              }
+            } else {
+              console.warn('⚠️ RAG indexing failed, document still usable in full-text mode');
+            }
+          } catch (indexError) {
+            console.warn('⚠️ RAG indexing error (non-critical):', indexError);
+            // Continue - document is still usable without RAG
+          }
         }
       }
     } catch (error) {
@@ -1742,27 +1846,44 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
     const modelWindow = contextWindows[globalUserSettings.preferredModel];
 
-    // Calculate total characters from:
-    // 1. System prompt
-    const systemChars = globalUserSettings.systemPrompt.length;
+    // Calculate total tokens considering RAG modes:
+    // 1. System prompt tokens
+    const systemTokens = Math.ceil(globalUserSettings.systemPrompt.length / 4);
     
-    // 2. Messages (rough estimate: 4 chars = 1 token)
-    const messageChars = messages.reduce((sum, msg) => sum + msg.content.length, 0);
+    // 2. Messages tokens
+    const messageTokens = messages.reduce((sum, msg) => sum + Math.ceil(msg.content.length / 4), 0);
     
-    // 3. Active context sources
-    const contextChars = contextSources
+    // 3. Active context sources - CONSIDERING RAG MODE PER DOCUMENT
+    const contextTokens = contextSources
       .filter(s => s.enabled)
-      .reduce((sum, s) => sum + (s.extractedData?.length || 0), 0);
+      .reduce((sum, s) => {
+        const fullTextTokens = Math.ceil((s.extractedData?.length || 0) / 4);
+        
+        // Check if this source uses RAG mode
+        const sourceUseRAG = (s as any).useRAGMode !== false && s.ragEnabled;
+        
+        if (sourceUseRAG && s.ragMetadata) {
+          // RAG mode: estimate ~5 chunks @ ~500 tokens each = ~2500 tokens
+          return sum + Math.min(2500, fullTextTokens);
+        }
+        
+        // Full-text mode: use complete document
+        return sum + fullTextTokens;
+      }, 0);
 
-    const totalChars = systemChars + messageChars + contextChars;
-    const estimatedTokens = Math.ceil(totalChars / 4); // Rough estimate
+    const estimatedTokens = systemTokens + messageTokens + contextTokens;
     const usagePercent = ((estimatedTokens / modelWindow) * 100).toFixed(1);
 
     return {
-      totalChars,
+      systemTokens,
+      messageTokens,
+      contextTokens,
       estimatedTokens,
       usagePercent: parseFloat(usagePercent),
       modelWindow,
+      // NEW: Breakdown by mode
+      ragSources: contextSources.filter(s => s.enabled && (s as any).useRAGMode !== false && s.ragEnabled).length,
+      fullTextSources: contextSources.filter(s => s.enabled && ((s as any).useRAGMode === false || !s.ragEnabled)).length,
     };
   };
 
@@ -2162,6 +2283,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </>
                 )}
                 
+                {/* RAG Configuration - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors rounded-lg group"
+                      onClick={() => {
+                        setShowRAGConfig(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Database className="w-5 h-5 text-slate-600" />
+                      <span className="font-medium">Configuración RAG</span>
+                    </button>
+                    <div className="h-px bg-slate-200 my-2" />
+                  </>
+                )}
+
                 {/* Provider Management - SuperAdmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
@@ -2395,7 +2533,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     <div className="p-5">
                       {/* Show thinking steps if present */}
                       {msg.thinkingSteps && msg.thinkingSteps.length > 0 ? (
-                        <div className="space-y-3">
+                        <div className="space-y-3 min-w-[320px]">
                           {msg.thinkingSteps.map((step, index) => {
                             // Generate ellipsis based on dots count (1, 2, or 3)
                             const ellipsis = step.status === 'active' && step.dots 
@@ -2424,7 +2562,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                                 ) : (
                                   <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
                                 )}
-                                <span className={`text-sm ${
+                                <span className={`text-sm min-w-[280px] ${
                                   step.status === 'active' ? 'font-semibold text-slate-800 dark:text-slate-100' : 
                                   'text-slate-600 dark:text-slate-400'
                                 }`}>
@@ -2436,24 +2574,31 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                         </div>
                       ) : (
                         /* Show actual message content */
-                        <MessageRenderer 
-                          content={msg.content}
-                          contextSources={contextSources
-                            .filter(s => s.enabled)
-                            .map(s => ({
-                              id: s.id,
-                              name: s.name,
-                              validated: s.metadata?.validated || false,
-                            }))
-                          }
-                          references={msg.references} // Pass references for this message
-                          onSourceClick={(sourceId) => {
-                            const source = contextSources.find(s => s.id === sourceId);
-                            if (source) {
-                              setSettingsSource(source);
+                        <div className="relative">
+                          <MessageRenderer 
+                            content={msg.content}
+                            contextSources={contextSources
+                              .filter(s => s.enabled)
+                              .map(s => ({
+                                id: s.id,
+                                name: s.name,
+                                validated: s.metadata?.validated || false,
+                              }))
                             }
-                          }}
-                        />
+                            references={msg.references} // Pass references for this message
+                            onSourceClick={(sourceId) => {
+                              const source = contextSources.find(s => s.id === sourceId);
+                              if (source) {
+                                setSettingsSource(source);
+                              }
+                            }}
+                          />
+                          {/* Streaming cursor indicator */}
+                          {msg.isStreaming && (
+                            <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse" 
+                                  style={{ animation: 'blink 1s step-end infinite' }} />
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2509,7 +2654,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="grid grid-cols-3 gap-3 text-xs mb-3">
                     <div className="bg-white rounded p-2">
                       <p className="text-slate-500 mb-1">Total Tokens</p>
                       <p className="font-bold text-slate-800">
@@ -2527,6 +2672,82 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                       <p className="font-bold text-slate-800">
                         {(calculateContextUsage().modelWindow / 1000).toFixed(0)}K
                       </p>
+                    </div>
+                  </div>
+                  
+                  {/* Context Breakdown by Component - NUEVO */}
+                  <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-lg p-3">
+                    <h5 className="text-xs font-bold text-slate-700 mb-2">📊 Desglose Detallado</h5>
+                    <div className="space-y-1.5 text-[10px]">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">System Prompt:</span>
+                        <span className="font-semibold text-slate-700">
+                          {calculateContextUsage().systemTokens.toLocaleString()} tokens
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600">Historial ({messages.length} mensajes):</span>
+                        <span className="font-semibold text-slate-700">
+                          {calculateContextUsage().messageTokens.toLocaleString()} tokens
+                        </span>
+                      </div>
+                      <div className="border-t border-slate-200 pt-1.5 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-600 text-xs font-medium">Contexto de Fuentes:</span>
+                            {calculateContextUsage().ragSources > 0 && (
+                              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[9px] font-bold flex items-center gap-1">
+                                🔍 {calculateContextUsage().ragSources} RAG
+                              </span>
+                            )}
+                            {calculateContextUsage().fullTextSources > 0 && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-bold flex items-center gap-1">
+                                📝 {calculateContextUsage().fullTextSources} Full
+                              </span>
+                            )}
+                          </div>
+                          <span className={`font-bold ${
+                            calculateContextUsage().ragSources > 0 ? 'text-green-600' : 'text-blue-600'
+                          }`}>
+                            {calculateContextUsage().contextTokens.toLocaleString()} tokens
+                          </span>
+                        </div>
+                        
+                        {/* RAG Status Indicator - NEW: More visible */}
+                        {calculateContextUsage().ragSources > 0 && (
+                          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded px-2 py-1">
+                            <span className="text-[9px] text-green-700 font-medium">
+                              ✅ RAG Optimizado Activo
+                            </span>
+                            <span className="text-[9px] text-green-600 font-bold">
+                              {(() => {
+                                const totalChunksAvailable = contextSources
+                                  .filter(s => s.enabled && s.ragEnabled)
+                                  .reduce((sum, s) => sum + (s.ragMetadata?.chunkCount || 0), 0);
+                                return `${totalChunksAvailable} chunks indexados`;
+                              })()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Savings indicator */}
+                      {calculateContextUsage().ragSources > 0 && (() => {
+                        const fullTextEstimate = contextSources.filter(s => s.enabled).reduce((sum, s) => 
+                          sum + Math.ceil((s.extractedData?.length || 0) / 4), 0
+                        );
+                        const saved = fullTextEstimate - calculateContextUsage().contextTokens;
+                        const percent = (saved / fullTextEstimate * 100).toFixed(0);
+                        
+                        return saved > 0 && (
+                          <div className="flex items-center justify-between bg-green-100 border border-green-300 rounded px-2 py-1 mt-1.5">
+                            <span className="text-green-700 font-semibold">💰 Ahorro vs Full-Text:</span>
+                            <span className="font-bold text-green-600">
+                              -{saved.toLocaleString()} tokens ({percent}%)
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2576,55 +2797,232 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     </div>
                   )}
 
-                  {/* Context Sources */}
+                  {/* Context Sources with RAG Controls */}
                   <div className="border border-slate-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
                       <span className="text-xs text-slate-500">
-                        {contextSources.filter(s => s.enabled).length} activas • ~{Math.ceil(
-                          contextSources.filter(s => s.enabled).reduce((sum, s) => sum + (s.extractedData?.length || 0), 0) / 4
-                        )} tokens
+                        {contextSources.filter(s => s.enabled).length} activas • ~{(() => {
+                          // Calculate mixed-mode tokens (some RAG, some full-text)
+                          const totalTokens = contextSources.filter(s => s.enabled).reduce((sum, s) => {
+                            const fullTokens = Math.floor((s.extractedData?.length || 0) / 4);
+                            
+                            // Check if this source uses RAG mode
+                            const sourceUseRAG = (s as any).useRAGMode !== false && s.ragEnabled;
+                            if (sourceUseRAG && s.ragMetadata) {
+                              // Estimate: top 5 chunks @ ~500 tokens each = ~2500
+                              return sum + Math.min(2500, fullTokens);
+                            }
+                            
+                            // Otherwise full-text for this source
+                            return sum + fullTokens;
+                          }, 0);
+                          
+                          return Math.ceil(totalTokens);
+                        })()} tokens
                       </span>
                     </div>
+                    
+                    {/* RAG Bulk Actions - NUEVO - More Evident */}
+                    {contextSources.filter(s => s.enabled && s.ragEnabled).length > 0 && (
+                      <div className="mb-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-700">⚙️ Modo de Búsqueda</span>
+                            <span className="text-[9px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                              Aplicar a todos
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => {
+                              // Enable RAG for all sources that have it available
+                              setContextSources(prev => prev.map(s => 
+                                s.enabled && s.ragEnabled ? { ...s, useRAGMode: true } : s
+                              ));
+                            }}
+                            className="px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
+                          >
+                            🔍 Todos RAG
+                            <span className="text-[10px] opacity-90">(Optimizado)</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              // Disable RAG for all (use full-text)
+                              setContextSources(prev => prev.map(s => 
+                                s.enabled ? { ...s, useRAGMode: false } : s
+                              ));
+                            }}
+                            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
+                          >
+                            📝 Todos Full-Text
+                            <span className="text-[10px] opacity-90">(Completo)</span>
+                          </button>
+                        </div>
+                        <div className="mt-2 text-center">
+                          <p className="text-[9px] text-slate-600">
+                            Ahorro estimado con RAG: 
+                            <span className="font-bold text-green-600 ml-1">
+                              ~{(() => {
+                                const full = contextSources.filter(s => s.enabled).reduce((sum, s) => 
+                                  sum + Math.floor((s.extractedData?.length || 0) / 4), 0
+                                );
+                                const rag = contextSources.filter(s => s.enabled && s.ragEnabled).length * 2500;
+                                return ((full - rag) / full * 100).toFixed(0);
+                              })()}%
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     {contextSources.filter(s => s.enabled).length === 0 ? (
                       <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
-                        No hay fuentes activas
+                        No hay fuentes activas. Actívalas desde el panel izquierdo.
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        {contextSources.filter(s => s.enabled).map(source => (
-                          <button
+                        {contextSources.filter(s => s.enabled).map(source => {
+                          // Calculate tokens for this source
+                          const fullTextTokens = Math.floor((source.extractedData?.length || 0) / 4);
+                          const ragTokens = source.ragEnabled && source.ragMetadata 
+                            ? (source.ragMetadata.chunkCount || 100) * 25  // ~25 tokens per chunk on average for top 5
+                            : fullTextTokens;
+                          
+                          // Get current mode for this source (user preference, not whether RAG is available)
+                          const sourceRAGMode = (source as any).useRAGMode !== false;  // Default to true (RAG preferred)
+                          
+                          return (
+                          <div
                             key={source.id}
-                            onClick={() => {
-                              setSettingsSource(source);
-                            }}
-                            className="w-full bg-green-50 border border-green-200 rounded p-2 hover:bg-green-100 transition-colors text-left cursor-pointer"
+                            className={`w-full border rounded p-2 ${
+                              source.enabled 
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-slate-50 border-slate-300 opacity-60'
+                            }`}
                           >
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <FileText className="w-3.5 h-3.5 text-green-600" />
-                                <p className="text-xs font-semibold text-slate-800">{source.name}</p>
+                            {/* Header: Name and badges only (NO toggle here - está en sidebar) */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                                <FileText className="w-3.5 h-3.5 flex-shrink-0 text-green-600" />
+                                <p className="text-xs font-semibold truncate text-slate-800">
+                                  {source.name}
+                                </p>
                                 {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
-                                  <span className="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded-full font-semibold">
+                                  <span className="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
                                     🌐 PUBLIC
                                   </span>
                                 )}
                                 {source.metadata?.validated && (
-                                  <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold">
+                                  <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
                                     ✓ Validado
                                   </span>
                                 )}
+                                {source.ragEnabled && source.ragMetadata && (
+                                  <span 
+                                    className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[9px] rounded-full font-semibold flex-shrink-0 flex items-center gap-1"
+                                    title={`RAG Indexado: ${source.ragMetadata.chunkCount} chunks de ~${source.ragMetadata.avgChunkSize || 500} tokens c/u. Embeddings generados el ${source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt).toLocaleDateString() : 'N/A'}`}
+                                  >
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse" />
+                                    🔍 {source.ragMetadata.chunkCount} chunks
+                                  </span>
+                                )}
                               </div>
-                              <span className="text-[10px] text-slate-500">
-                                {source.metadata?.pageCount && `${source.metadata.pageCount} págs`}
-                              </span>
+                              
+                              {/* RAG/Full Toggle Switch - Like ON/OFF toggle */}
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-[10px] font-medium text-slate-600">
+                                  {sourceRAGMode ? '🔍 RAG' : '📝 Full'}
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Toggle between RAG and Full-Text
+                                    setContextSources(prev => prev.map(s => 
+                                      s.id === source.id ? { ...s, useRAGMode: !sourceRAGMode } : s
+                                    ));
+                                    // Recalculate context usage immediately
+                                    setTimeout(() => calculateContextUsage(), 100);
+                                  }}
+                                  className="flex-shrink-0"
+                                  title={sourceRAGMode ? 'Cambiar a Full-Text' : 'Cambiar a RAG'}
+                                >
+                                  <div
+                                    className={`w-11 h-6 rounded-full transition-colors duration-200 ${
+                                      sourceRAGMode ? 'bg-green-500' : 'bg-blue-500'
+                                    }`}
+                                  >
+                                    <div
+                                      className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                                        sourceRAGMode ? 'translate-x-5' : 'translate-x-0.5'
+                                      } mt-0.5`}
+                                    />
+                                  </div>
+                                </button>
+                              </div>
                             </div>
-                            <p className="text-xs text-slate-600">
-                              {source.extractedData?.substring(0, 100)}
-                              {(source.extractedData?.length || 0) > 100 && '...'}
-                            </p>
-                          </button>
-                        ))}
+                            
+                            {/* Warning if RAG not indexed */}
+                            {!source.ragEnabled && sourceRAGMode && (
+                              <div className="mt-1 text-center bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                                <span className="text-[9px] text-yellow-700 font-medium">
+                                  ⚠️ RAG no indexado - usará Full-Text
+                                </span>
+                                {' '}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSettingsSource(source);
+                                  }}
+                                  className="text-[9px] text-yellow-800 hover:underline font-semibold"
+                                >
+                                  Re-extraer
+                                </button>
+                              </div>
+                            )}
+                            
+                            {/* RAG Stats - Show when RAG enabled and using RAG mode */}
+                            {source.ragEnabled && sourceRAGMode && source.ragMetadata && (
+                              <div className="mt-2 bg-purple-50 border border-purple-200 rounded px-2 py-1.5 space-y-0.5">
+                                <div className="flex items-center justify-between text-[9px]">
+                                  <span className="text-purple-700 font-medium">✅ Indexado con RAG</span>
+                                  <span className="text-purple-600 font-bold">{source.ragMetadata.chunkCount} chunks</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[9px]">
+                                  <span className="text-purple-600">Estimado por consulta:</span>
+                                  <span className="text-purple-700 font-mono">~2,500 tokens</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[9px]">
+                                  <span className="text-purple-600">Full-text sería:</span>
+                                  <span className="text-slate-500 font-mono line-through">{fullTextTokens.toLocaleString()} tokens</span>
+                                </div>
+                                <div className="flex items-center justify-center pt-1 border-t border-purple-200">
+                                  <span className="text-[9px] text-green-700 font-bold">
+                                    💰 Ahorro: ~{Math.max(0, Math.round((1 - 2500 / fullTextTokens) * 100))}%
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Full-text mode indicator */}
+                            {!source.ragEnabled && !sourceRAGMode && (
+                              <div className="mt-1 text-center">
+                                <span className="text-[9px] text-slate-500">
+                                  📝 {fullTextTokens.toLocaleString()} tokens (documento completo)
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Preview text - only if not showing RAG stats */}
+                            {!source.ragEnabled && (
+                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                                {source.extractedData?.substring(0, 100)}
+                                {(source.extractedData?.length || 0) > 100 && '...'}
+                              </p>
+                            )}
+                          </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -2646,6 +3044,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                               <th className="px-2 py-1 text-left font-semibold text-slate-700">Hora</th>
                               <th className="px-2 py-1 text-left font-semibold text-slate-700">Pregunta</th>
                               <th className="px-2 py-1 text-left font-semibold text-slate-700">Modelo</th>
+                              <th className="px-2 py-1 text-center font-semibold text-slate-700">Modo</th>
                               <th className="px-2 py-1 text-right font-semibold text-slate-700">Input</th>
                               <th className="px-2 py-1 text-right font-semibold text-slate-700">Output</th>
                               <th className="px-2 py-1 text-right font-semibold text-slate-700">Total</th>
@@ -2677,6 +3076,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                                     }`}>
                                       {log.model === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
                                     </span>
+                                  </td>
+                                  <td className="px-2 py-2 text-center">
+                                    {log.ragConfiguration ? (
+                                      <div className="flex flex-col items-center gap-0.5">
+                                        <span 
+                                          className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
+                                            log.ragConfiguration.actuallyUsed
+                                              ? 'bg-green-100 text-green-700' 
+                                              : log.ragConfiguration.hadFallback
+                                              ? 'bg-yellow-100 text-yellow-700'
+                                              : 'bg-blue-100 text-blue-700'
+                                          }`}
+                                          title={
+                                            log.ragConfiguration.actuallyUsed 
+                                              ? `RAG Optimizado: ${log.ragConfiguration.stats?.totalChunks || 0} chunks relevantes con ${((log.ragConfiguration.stats?.avgSimilarity || 0) * 100).toFixed(1)}% de similaridad promedio` 
+                                              : log.ragConfiguration.hadFallback
+                                              ? 'RAG habilitado pero sin chunks encontrados - usando documento completo'
+                                              : 'Modo Full-Text - documento completo enviado'
+                                          }
+                                        >
+                                          {log.ragConfiguration.actuallyUsed ? '🔍 RAG' : log.ragConfiguration.hadFallback ? '⚠️ Full' : '📝 Full'}
+                                        </span>
+                                        {log.ragConfiguration.actuallyUsed && log.ragConfiguration.stats && (
+                                          <span className="text-[8px] text-green-600 font-medium">
+                                            {log.ragConfiguration.stats.totalChunks} chunks
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-100 text-slate-600">
+                                        N/A
+                                      </span>
+                                    )}
                                   </td>
                                   <td className="px-2 py-2 text-right font-mono text-slate-700">
                                     {log.totalInputTokens.toLocaleString()}
@@ -2727,13 +3159,58 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                                     {log.contextSources.length > 0 ? (
                                       log.contextSources.map((source, sidx) => (
                                         <li key={sidx} className="text-slate-600">
-                                          {source.name} ({source.tokens} tokens)
+                                          {source.mode === 'rag' ? '🔍' : '📝'} {source.name} ({source.tokens.toLocaleString()} tokens)
                                         </li>
                                       ))
                                     ) : (
                                       <li className="text-slate-500 italic">Ninguna</li>
                                     )}
                                   </ul>
+                                  
+                                  {/* NEW: RAG Configuration Details */}
+                                  {log.ragConfiguration && (
+                                    <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
+                                      <p className="font-semibold text-slate-700 mb-1">🔍 Configuración RAG:</p>
+                                      <div className="space-y-0.5 text-[9px]">
+                                        <p>
+                                          <strong>Habilitado:</strong> {log.ragConfiguration.enabled ? 'Sí' : 'No'}
+                                        </p>
+                                        <p>
+                                          <strong>Realmente usado:</strong>{' '}
+                                          <span className={log.ragConfiguration.actuallyUsed ? 'text-green-600' : 'text-yellow-600'}>
+                                            {log.ragConfiguration.actuallyUsed ? 'Sí ✓' : 'No (fallback)'}
+                                          </span>
+                                        </p>
+                                        {log.ragConfiguration.actuallyUsed && log.ragConfiguration.stats && (
+                                          <>
+                                            <p><strong>Chunks usados:</strong> {log.ragConfiguration.stats.totalChunks}</p>
+                                            <p><strong>Tokens RAG:</strong> {log.ragConfiguration.stats.totalTokens.toLocaleString()}</p>
+                                            <p><strong>Similaridad promedio:</strong> {(log.ragConfiguration.stats.avgSimilarity * 100).toFixed(1)}%</p>
+                                            <p><strong>TopK:</strong> {log.ragConfiguration.topK}</p>
+                                            <p><strong>Min Similaridad:</strong> {log.ragConfiguration.minSimilarity}</p>
+                                            
+                                            {log.ragConfiguration.stats.sources && log.ragConfiguration.stats.sources.length > 0 && (
+                                              <div className="mt-1">
+                                                <strong>Por documento:</strong>
+                                                <ul className="ml-2 mt-0.5">
+                                                  {log.ragConfiguration.stats.sources.map((src: any, i: number) => (
+                                                    <li key={i}>
+                                                      {src.name}: {src.chunkCount} chunks, {src.tokens.toLocaleString()} tokens
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </>
+                                        )}
+                                        {log.ragConfiguration.hadFallback && (
+                                          <p className="text-yellow-600">
+                                            <strong>⚠️ Fallback:</strong> RAG no encontró chunks relevantes, usó documentos completos
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <div className="mt-2 text-[10px]">
@@ -3003,19 +3480,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         userEmail={userEmail}
       />
 
-      {/* Context Source Settings Modal */}
+      {/* Context Source Settings Modal - Simplified */}
       <ContextSourceSettingsModal
         source={settingsSource}
         isOpen={settingsSource !== null}
         onClose={() => setSettingsSource(null)}
-        onReExtract={handleReExtract}
         userId={userId}
-        onTagsChanged={() => {
-          // Reload context sources to reflect PUBLIC tag changes
-          if (currentConversation) {
-            loadContextForConversation(currentConversation);
-          }
-        }}
       />
 
       {/* Context Management Dashboard - Superadmin Only */}
@@ -3090,6 +3560,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         <ProviderManagementDashboard
           onClose={() => setShowProviderManagement(false)}
           currentUser={{ id: userId, email: userEmail, name: userName }}
+        />
+      )}
+
+      {/* RAG Configuration Panel - SuperAdmin Only */}
+      {showRAGConfig && (
+        <RAGConfigPanel
+          isOpen={showRAGConfig}
+          onClose={() => setShowRAGConfig(false)}
+          isAdmin={userEmail === 'alec@getaifactory.com'}
         />
       )}
       
