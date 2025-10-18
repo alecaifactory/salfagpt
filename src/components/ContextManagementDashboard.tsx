@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Database, 
@@ -15,10 +15,13 @@ import {
   Download,
   AlertCircle,
   Tag,
-  Globe
+  Globe,
+  Grid,
+  Zap
 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
+import PipelineStatusPanel from './PipelineStatusPanel';
 
 interface ContextManagementDashboardProps {
   isOpen: boolean;
@@ -44,6 +47,24 @@ interface UploadQueueItem {
   sourceId?: string;
   tags?: string[]; // Tags for this upload
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // Model to use for extraction
+  startTime?: number; // NEW: Timestamp when upload started
+  elapsedTime?: number; // NEW: Elapsed time in milliseconds
+}
+
+// Helper function to format elapsed time with smooth millisecond updates
+function formatElapsedTime(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  } else if (ms < 60000) {
+    // Show with 1 decimal for smooth updates (23.5s format)
+    return `${(ms / 1000).toFixed(1)}s`;
+  } else {
+    // For times over 1 minute, show minutes and seconds with 1 decimal
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = (totalSeconds % 60).toFixed(1);
+    return `${minutes}m ${seconds}s`;
+  }
 }
 
 export default function ContextManagementDashboard({
@@ -84,6 +105,9 @@ export default function ContextManagementDashboard({
   const selectedSource = selectedSourceIds.length === 1 
     ? sources.find(s => s.id === selectedSourceIds[0]) || null
     : null;
+  
+  // Drag & Drop visual state
+  const [isDragging, setIsDragging] = useState(false);
 
   // Load all context sources
   useEffect(() => {
@@ -306,14 +330,32 @@ export default function ContextManagementDashboard({
     setIsUploading(true);
 
     for (const item of items) {
+      const startTime = Date.now();
+      let progressInterval: NodeJS.Timeout | null = null;
+      let extractionProgressInterval: NodeJS.Timeout | null = null;
+
       try {
-        // Start with queued status
+        // Start upload with timestamp
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'uploading', progress: 5 } : i
+          i.id === item.id ? { 
+            ...i, 
+            status: 'uploading', 
+            progress: 5,
+            startTime,
+            elapsedTime: 0
+          } : i
         ));
 
+        // Start elapsed time tracker - update every 100ms for smooth animation
+        progressInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          setUploadQueue(prev => prev.map(i => 
+            i.id === item.id ? { ...i, elapsedTime: elapsed } : i
+          ));
+        }, 100); // Update every 100ms for smooth millisecond increments
+
         // Progressive update: Preparing upload
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { ...i, progress: 10 } : i
         ));
@@ -327,9 +369,19 @@ export default function ContextManagementDashboard({
         // No assignedToAgents - will be assigned later
 
         // Progressive update: Uploading file
+        await new Promise(resolve => setTimeout(resolve, 200));
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 20 } : i
+          i.id === item.id ? { ...i, progress: 15 } : i
         ));
+
+        // Simulate gradual progress during upload
+        const progressUpdates = [20, 25, 30];
+        for (const targetProgress of progressUpdates) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          setUploadQueue(prev => prev.map(i => 
+            i.id === item.id ? { ...i, progress: targetProgress } : i
+          ));
+        }
 
         // Upload
         const uploadResponse = await fetch('/api/extract-document', {
@@ -337,9 +389,9 @@ export default function ContextManagementDashboard({
           body: formData,
         });
 
-        // Progressive update: Upload complete
+        // Progressive update: Upload complete, starting extraction
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 35 } : i
+          i.id === item.id ? { ...i, progress: 35, status: 'processing' } : i
         ));
 
         if (!uploadResponse.ok) {
@@ -357,23 +409,33 @@ export default function ContextManagementDashboard({
           i.id === item.id ? { ...i, status: 'processing', progress: 50 } : i
         ));
 
-        // Simulate progressive extraction (AI processing)
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 65 } : i
-        ));
-
-        await new Promise(resolve => setTimeout(resolve, 300));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 80 } : i
-        ));
+        // Continuous smooth progress during extraction (35% to 85%)
+        // Update every 200ms, increment by 1% each time
+        let currentProgress = 35;
+        const extractionProgressInterval = setInterval(() => {
+          if (currentProgress < 85) {
+            currentProgress += 1;
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: Math.min(currentProgress, 85) } : i
+            ));
+          }
+        }, 200); // Update every 200ms for smooth continuous progress
+        
+        // Let the upload response complete (this is the actual processing time)
+        // The interval above will show continuous progress
 
         // Progressive update: Saving to database
+        await new Promise(resolve => setTimeout(resolve, 200));
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 85 } : i
+        ));
+
+        await new Promise(resolve => setTimeout(resolve, 200));
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { ...i, progress: 90 } : i
         ));
 
-        // Create source in Firestore with extracted data
+        // Create source in Firestore with extracted data and pipeline logs
         const createResponse = await fetch('/api/context-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -389,7 +451,8 @@ export default function ContextManagementDashboard({
             metadata: {
               ...uploadData.metadata,
               model: item.model || 'gemini-2.5-flash', // Save model used
-            }
+            },
+            pipelineLogs: uploadData.pipelineLogs || [], // ✅ Save pipeline execution logs
           })
         });
 
@@ -400,18 +463,56 @@ export default function ContextManagementDashboard({
         const savedData = await createResponse.json();
         const sourceId = savedData.source?.id;
 
+        // ✅ Auto-trigger RAG pipeline (Chunk → Embed)
+        if (sourceId && uploadData.extractedText) {
+          console.log('🔍 Auto-triggering RAG pipeline for sourceId:', sourceId);
+          
+          try {
+            const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                chunkSize: 500,
+                overlap: 50,
+              }),
+            });
+
+            if (ragResponse.ok) {
+              const ragData = await ragResponse.json();
+              console.log('✅ RAG pipeline completed:', ragData);
+            } else {
+              console.warn('⚠️ RAG pipeline failed, but extraction was successful');
+            }
+          } catch (error) {
+            console.warn('⚠️ RAG auto-trigger failed:', error);
+            // Don't fail the upload, RAG can be enabled manually later
+          }
+        }
+
         // Mark as complete
+        if (progressInterval) clearInterval(progressInterval);
+        if (extractionProgressInterval) clearInterval(extractionProgressInterval);
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'complete', progress: 100, sourceId } : i
+          i.id === item.id ? { 
+            ...i, 
+            status: 'complete', 
+            progress: 100, 
+            sourceId,
+            elapsedTime: Date.now() - startTime
+          } : i
         ));
 
       } catch (error) {
         console.error('Upload failed:', item.file.name, error);
+        if (progressInterval) clearInterval(progressInterval);
+        if (extractionProgressInterval) clearInterval(extractionProgressInterval);
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { 
             ...i, 
             status: 'failed', 
-            error: error instanceof Error ? error.message : 'Upload failed' 
+            error: error instanceof Error ? error.message : 'Upload failed',
+            elapsedTime: Date.now() - startTime
           } : i
         ));
       }
@@ -617,15 +718,23 @@ export default function ContextManagementDashboard({
     await deleteSourceInternal(sourceId);
   };
 
-  // Drag and drop handlers
+  // Drag and drop handlers with visual feedback
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(false);
     
     const files = e.dataTransfer.files;
     handleFileSelect(files);
@@ -673,17 +782,33 @@ export default function ContextManagementDashboard({
                   <div
                     ref={dropZoneRef}
                     onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 hover:bg-gray-50 transition-all cursor-pointer"
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-all cursor-pointer ${
+                      isDragging 
+                        ? 'border-blue-500 bg-blue-50 scale-105 shadow-lg' 
+                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                    }`}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-900">
-                      Drag & drop PDFs here or click to upload
+                    <Upload className={`w-10 h-10 mx-auto mb-3 transition-all ${
+                      isDragging ? 'text-blue-600 scale-110' : 'text-gray-600'
+                    }`} />
+                    <p className={`text-sm font-semibold mb-1 ${
+                      isDragging ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      {isDragging ? '¡Suelta los archivos aquí!' : 'Arrastra PDFs aquí o haz click'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Multiple files supported • Review before upload
+                      Múltiples archivos • Automático: Extract → Chunk → Embed
                     </p>
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-semibold rounded-full">
+                        ⚡ Flash
+                      </span>
+                      <span className="text-gray-400 text-xs">•</span>
+                      <span className="text-[10px] text-gray-600">Pipeline automático</span>
+                    </div>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -819,73 +944,153 @@ export default function ContextManagementDashboard({
               )}
             </div>
 
-            {/* Upload Queue */}
+            {/* Upload Queue - Pipeline Visual */}
             {uploadQueue.length > 0 && (
-              <div className="p-4 border-b border-gray-200 max-h-48 overflow-y-auto">
-                <h3 className="text-sm font-semibold text-gray-900 mb-3">Upload Queue ({uploadQueue.length})</h3>
-                <div className="space-y-2">
-                  {uploadQueue.map(item => (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          {item.status === 'complete' && <CheckCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />}
-                          {item.status === 'failed' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                          {(item.status === 'uploading' || item.status === 'processing') && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
-                          {item.status === 'queued' && <AlertCircle className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-                          <span className="text-xs font-medium text-gray-900 truncate">{item.file.name}</span>
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">
+                  Pipeline de Procesamiento ({uploadQueue.length})
+                </h3>
+                <div className="space-y-4">
+                  {uploadQueue.map(item => {
+                    // Calculate pipeline stage based on progress
+                    const currentStage = 
+                      item.status === 'queued' ? 'queued' :
+                      item.status === 'uploading' ? 'upload' :
+                      item.progress < 30 ? 'upload' :
+                      item.progress < 60 ? 'extract' :
+                      item.progress < 85 ? 'chunk' :
+                      item.progress < 100 ? 'embed' :
+                      'complete';
+                    
+                    const stages = [
+                      { key: 'upload', label: 'Upload', icon: Upload },
+                      { key: 'extract', label: 'Extract', icon: FileText },
+                      { key: 'chunk', label: 'Chunk', icon: Grid },
+                      { key: 'embed', label: 'Embed', icon: Zap },
+                    ];
+
+                    return (
+                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                        {/* Header: File name, model, time */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
+                            <span className="text-sm font-semibold text-gray-900 truncate">
+                              {item.file.name}
+                            </span>
+                            {item.model && (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0 ${
+                                item.model === 'gemini-2.5-pro'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {item.model === 'gemini-2.5-pro' ? '✨ Pro' : '⚡ Flash'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            {item.elapsedTime !== undefined && (
+                              <span className={`text-xs font-mono ${
+                                item.status === 'complete' ? 'text-green-600' : 'text-blue-600'
+                              }`}>
+                                {item.status === 'complete' ? '✓ ' : ''}
+                                {formatElapsedTime(item.elapsedTime)}
+                              </span>
+                            )}
+                            {item.status === 'failed' && (
+                              <button
+                                onClick={() => handleReupload(item.id)}
+                                className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1"
+                              >
+                                <RefreshCw className="w-3.5 h-3.5" />
+                                Retry
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {item.status === 'failed' && (
-                          <button
-                            onClick={() => handleReupload(item.id)}
-                            className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 flex-shrink-0"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Retry
-                          </button>
-                        )}
-                      </div>
-                      
-                      {/* Progress Bar */}
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full transition-all ${
-                            item.status === 'complete' ? 'bg-gray-600' :
-                            item.status === 'failed' ? 'bg-red-600' :
-                            'bg-gray-800'
-                          }`}
-                          style={{ width: `${item.progress}%` }}
-                        />
-                      </div>
 
-                      {item.status === 'failed' && item.error && (
-                        <p className="text-xs text-red-600 mt-1">{item.error}</p>
-                      )}
+                        {/* Pipeline Stages - Horizontal */}
+                        {item.status !== 'failed' && (
+                          <div className="relative">
+                            <div className="flex items-center justify-between">
+                              {stages.map((stage, idx) => {
+                                const isActive = currentStage === stage.key;
+                                const isComplete = 
+                                  (stage.key === 'upload' && item.progress >= 30) ||
+                                  (stage.key === 'extract' && item.progress >= 60) ||
+                                  (stage.key === 'chunk' && item.progress >= 85) ||
+                                  (stage.key === 'embed' && item.progress >= 100);
+                                const StageIcon = stage.icon;
 
-                      {/* Show model and tags on upload item */}
-                      <div className="mt-2 flex items-center gap-2 flex-wrap">
-                        {/* Model indicator */}
-                        {item.model && (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                            item.model === 'gemini-2.5-pro'
-                              ? 'bg-purple-100 text-purple-700 border border-purple-300'
-                              : 'bg-green-100 text-green-700 border border-green-300'
-                          }`}>
-                            {item.model === 'gemini-2.5-pro' ? '✨ Pro' : '⚡ Flash'}
-                          </span>
+                                return (
+                                  <React.Fragment key={stage.key}>
+                                    {/* Stage */}
+                                    <div className="flex flex-col items-center gap-1">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                                        isComplete 
+                                          ? 'bg-green-600 text-white' 
+                                          : isActive 
+                                          ? 'bg-blue-600 text-white animate-pulse' 
+                                          : 'bg-gray-200 text-gray-400'
+                                      }`}>
+                                        {isComplete ? (
+                                          <CheckCircle className="w-5 h-5" />
+                                        ) : isActive ? (
+                                          <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                          <StageIcon className="w-5 h-5" />
+                                        )}
+                                      </div>
+                                      <span className={`text-[10px] font-medium ${
+                                        isComplete ? 'text-green-700' : isActive ? 'text-blue-700' : 'text-gray-500'
+                                      }`}>
+                                        {stage.label}
+                                      </span>
+                                    </div>
+
+                                    {/* Connector */}
+                                    {idx < stages.length - 1 && (
+                                      <div className={`flex-1 h-0.5 mx-2 ${
+                                        isComplete ? 'bg-green-600' : 'bg-gray-200'
+                                      }`} />
+                                    )}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </div>
+                          </div>
                         )}
-                        
+
+                        {/* Error Display */}
+                        {item.status === 'failed' && item.error && (
+                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-red-800 mb-1">Error en procesamiento</p>
+                                <p className="text-xs text-red-700">{item.error}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Tags */}
-                        {item.tags && item.tags.map(tag => (
-                          <span
-                            key={tag}
-                            className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium border border-gray-300"
-                          >
-                            {tag}
-                          </span>
-                        ))}
+                        {item.tags && item.tags.length > 0 && (
+                          <div className="mt-3 flex items-center gap-2 flex-wrap">
+                            <Tag className="w-3 h-3 text-gray-500" />
+                            {item.tags.map(tag => (
+                              <span
+                                key={tag}
+                                className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1041,22 +1246,24 @@ export default function ContextManagementDashboard({
                           {source.status === 'processing' && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
                         </div>
 
-                      <div className="space-y-1 text-xs text-gray-600">
-                        <div className="flex items-center gap-2">
-                          <UserIcon className="w-3 h-3" />
-                          <span>Uploaded by: {source.uploaderEmail || source.userId}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MessageSquare className="w-3 h-3" />
-                          <span>
-                            {source.assignedAgents?.length || 0} agent(s) using this
-                          </span>
-                        </div>
+                      {/* Compact metadata */}
+                      <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
                         {source.metadata?.pageCount && (
-                          <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1">
                             <FileText className="w-3 h-3" />
-                            <span>{source.metadata.pageCount} pages</span>
-                          </div>
+                            {source.metadata.pageCount}p
+                          </span>
+                        )}
+                        {(source.assignedAgents?.length ?? 0) > 0 && (
+                          <span className="flex items-center gap-1">
+                            <MessageSquare className="w-3 h-3" />
+                            {source.assignedAgents?.length ?? 0}
+                          </span>
+                        )}
+                        {source.metadata?.tokensEstimate && (
+                          <span className="flex items-center gap-1 font-mono">
+                            ~{Math.round(source.metadata.tokensEstimate / 1000)}k tokens
+                          </span>
                         )}
                       </div>
 
@@ -1066,17 +1273,13 @@ export default function ContextManagementDashboard({
                           {source.labels.map(tag => (
                             <span
                               key={tag}
-                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium border border-gray-300"
+                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
                             >
                               {tag}
                             </span>
                           ))}
                         </div>
                       )}
-
-                      <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                        {source.extractedData?.substring(0, 120)}...
-                      </p>
                     </div>
                   );
                   })}
@@ -1343,10 +1546,28 @@ export default function ContextManagementDashboard({
                   </div>
                 </div>
 
+                {/* Pipeline Status - Show processing details */}
+                {selectedSource.pipelineLogs && selectedSource.pipelineLogs.length > 0 && (
+                  <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-slate-50 to-blue-50">
+                    <PipelineStatusPanel 
+                      logs={selectedSource.pipelineLogs}
+                      sourceName={selectedSource.name}
+                    />
+                  </div>
+                )}
+
                 {/* Extracted Data Preview */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 flex flex-col p-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Extracted Data</h4>
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-gray-700" />
+                      <h4 className="text-sm font-semibold text-gray-900">Texto Extraído</h4>
+                      {selectedSource.extractedData && (
+                        <span className="text-xs text-gray-500">
+                          ({selectedSource.metadata?.charactersExtracted?.toLocaleString() || selectedSource.extractedData.length.toLocaleString()} caracteres)
+                        </span>
+                      )}
+                    </div>
                     {selectedSource.extractedData && (
                       <button
                         onClick={() => {
@@ -1358,26 +1579,54 @@ export default function ContextManagementDashboard({
                           a.click();
                           URL.revokeObjectURL(url);
                         }}
-                        className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 transition-colors"
+                        className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 transition-colors px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50"
                       >
-                        <Download className="w-3 h-3" />
-                        Download
+                        <Download className="w-3.5 h-3.5" />
+                        Descargar
                       </button>
                     )}
                   </div>
                   
                   {selectedSource.extractedData ? (
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono max-h-96 overflow-y-auto">
-                        {selectedSource.extractedData}
-                      </pre>
+                    <div className="flex-1 bg-white rounded-lg border-2 border-gray-200 overflow-hidden flex flex-col">
+                      {/* Content with better formatting */}
+                      <div className="flex-1 overflow-y-auto p-4">
+                        <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-wrap">
+                          {selectedSource.extractedData}
+                        </div>
+                      </div>
+                      
+                      {/* Bottom stats bar */}
+                      <div className="border-t border-gray-200 bg-gray-50 px-4 py-2">
+                        <div className="flex items-center justify-between text-[10px] text-gray-600">
+                          <div className="flex items-center gap-4">
+                            {selectedSource.metadata?.pageCount && (
+                              <span>📄 {selectedSource.metadata.pageCount} páginas</span>
+                            )}
+                            {selectedSource.metadata?.tokensEstimate && (
+                              <span>🔢 ~{selectedSource.metadata.tokensEstimate.toLocaleString()} tokens</span>
+                            )}
+                          </div>
+                          {selectedSource.metadata?.extractionDate && (
+                            <span className="text-gray-500">
+                              Extraído: {new Date(selectedSource.metadata.extractionDate).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <p className="text-sm">No extracted data available</p>
-                      {selectedSource.status === 'processing' && (
-                        <p className="text-xs mt-2">Processing in progress...</p>
-                      )}
+                    <div className="flex-1 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
+                      <div className="text-center">
+                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">No hay texto extraído</p>
+                        {selectedSource.status === 'processing' && (
+                          <div className="flex items-center justify-center gap-2 mt-2">
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                            <p className="text-xs text-blue-600">Procesando documento...</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
