@@ -37,6 +37,8 @@ export const POST: APIRoute = async ({ params, request }) => {
       };
 
       try {
+        const startTime = Date.now(); // Track total duration
+        
         // Get source
         sendProgress('init', 0, 'Verificando documento...');
         const source = await getContextSource(sourceId);
@@ -194,7 +196,14 @@ export const POST: APIRoute = async ({ params, request }) => {
         // Update metadata
         sendProgress('saving', 92, 'Actualizando metadata...');
         
-        await updateContextSource(sourceId, {
+        const indexingDuration = Date.now() - startTime;
+        
+        // Get current source to append to indexing history
+        const currentSource = await firestore.collection('context_sources').doc(sourceId).get();
+        const currentData = currentSource.data();
+        const existingHistory = currentData?.indexingHistory || [];
+        
+        const updateData = {
           ragEnabled: true,
           ragMetadata: {
             chunkCount: savedCount,
@@ -202,7 +211,34 @@ export const POST: APIRoute = async ({ params, request }) => {
             indexedAt: new Date(),
             embeddingModel: 'text-embedding-004',
           },
-        } as any);
+          indexingHistory: [
+            ...existingHistory,
+            {
+              timestamp: new Date(),
+              userId: userId,
+              userName: body.userName || userId, // Include user name if available
+              method: 'reindex',
+              chunksCreated: savedCount,
+              embeddingModel: 'text-embedding-004',
+              duration: indexingDuration,
+              success: true,
+            }
+          ],
+        };
+        
+        console.log(`🔄 Updating source ${sourceId} with:`, {
+          ragEnabled: true,
+          chunkCount: savedCount,
+          historyEntries: updateData.indexingHistory.length
+        });
+        
+        await updateContextSource(sourceId, updateData as any);
+        
+        // Verify update was successful
+        const verifyDoc = await firestore.collection('context_sources').doc(sourceId).get();
+        const verifyData = verifyDoc.data();
+        console.log(`✅ Verification - ragEnabled is now: ${verifyData?.ragEnabled}`);
+        console.log(`📝 Indexing history now has ${verifyData?.indexingHistory?.length || 0} entries`);
 
         sendProgress('complete', 100, `✅ Completado: ${savedCount} chunks indexados`, {
           chunksCreated: savedCount,

@@ -26,6 +26,18 @@ export default function MessageRenderer({
   onSourceClick 
 }: MessageRendererProps) {
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
+  
+  // Debug: Log references received
+  React.useEffect(() => {
+    if (references && references.length > 0) {
+      console.log('📚 MessageRenderer received references:', references.length);
+      references.forEach(ref => {
+        console.log(`  [${ref.id}] ${ref.sourceName} - ${ref.similarity ? `${(ref.similarity * 100).toFixed(1)}%` : 'N/A'} - Chunk #${ref.chunkIndex}`);
+      });
+    } else {
+      console.log('📚 MessageRenderer: No references received');
+    }
+  }, [references]);
 
   // Pre-process content to make references VISUALLY OBVIOUS and clickable
   const processedContent = React.useMemo(() => {
@@ -35,18 +47,43 @@ export default function MessageRenderer({
 
     let processed = content;
     
-    // Replace [1], [2], etc. with styled span with data attribute
+    // First, try to replace existing [1], [2] markers if AI included them
     references.forEach(ref => {
       const pattern = new RegExp(`\\[${ref.id}\\]`, 'g');
-      // Use bold, larger, colored reference markers - NO onclick inline
       processed = processed.replace(
         pattern, 
         `<sup><span class="reference-badge inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 cursor-pointer hover:bg-blue-200 hover:border-blue-400 transition-colors shadow-sm" data-ref-id="${ref.id}" title="Click para ver fuente">[${ref.id}]</span></sup>`
       );
     });
     
+    // If AI didn't include markers, try to smart-match source names and insert references
+    // Look for mentions of source names in the content
+    references.forEach(ref => {
+      // Check if this reference badge was already inserted
+      if (processed.includes(`data-ref-id="${ref.id}"`)) {
+        return; // Already has badge, skip
+      }
+      
+      // Try to find mentions of the source name in the text
+      const sourceName = ref.sourceName.replace(/\.(pdf|docx?|xlsx?|csv)$/i, ''); // Remove extension
+      const sourcePattern = new RegExp(`(${escapeRegExp(sourceName)})(?!.*\\[\\d+\\])`, 'gi');
+      
+      // Replace first occurrence with source name + reference badge
+      let replaced = false;
+      processed = processed.replace(sourcePattern, (match) => {
+        if (replaced) return match; // Only replace first occurrence
+        replaced = true;
+        return `${match} <sup><span class="reference-badge inline-flex items-center px-1.5 py-0.5 mx-0.5 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 cursor-pointer hover:bg-blue-200 hover:border-blue-400 transition-colors shadow-sm" data-ref-id="${ref.id}" title="Click para ver fuente">[${ref.id}]</span></sup>`;
+      });
+    });
+    
     return processed;
   }, [content, references]);
+  
+  // Helper function to escape special regex characters
+  function escapeRegExp(string: string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
   // Add click listeners to reference badges after render
   React.useEffect(() => {

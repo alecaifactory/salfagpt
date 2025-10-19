@@ -179,10 +179,30 @@ export default function ContextSourceSettingsModalSimple({
                   text: `✅ Re-indexado exitoso: ${data.chunksCreated} chunks creados`,
                 });
 
-                // Reload page after 2 seconds
-                setTimeout(() => {
-                  window.location.reload();
-                }, 2000);
+                // Reload chunks data to show updated state
+                setTimeout(async () => {
+                  await loadChunks();
+                  
+                  // Force re-fetch the source to get updated ragEnabled flag
+                  if (source) {
+                    try {
+                      const sourceResponse = await fetch(`/api/context-sources/${source.id}?userId=${userId}`);
+                      if (sourceResponse.ok) {
+                        const updatedSource = await sourceResponse.json();
+                        console.log('✅ Source reloaded, ragEnabled:', updatedSource.ragEnabled);
+                        
+                        // Trigger parent component reload via callback
+                        if (window.dispatchEvent) {
+                          window.dispatchEvent(new CustomEvent('source-updated', { 
+                            detail: { sourceId: source.id } 
+                          }));
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error reloading source:', error);
+                    }
+                  }
+                }, 1000);
               }
 
               // Check for error
@@ -497,6 +517,68 @@ export default function ContextSourceSettingsModalSimple({
                           </div>
                         )}
                       </div>
+                      
+                      {/* Indexing History */}
+                      {source.indexingHistory && source.indexingHistory.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <button
+                            onClick={() => setShowAdvancedLogs(!showAdvancedLogs)}
+                            className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
+                          >
+                            {showAdvancedLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            Historial de indexaciones ({source.indexingHistory.length})
+                          </button>
+                          
+                          {showAdvancedLogs && (
+                            <div className="mt-2 space-y-2">
+                              {source.indexingHistory.slice().reverse().map((entry, index) => (
+                                <div key={index} className="bg-white border border-slate-200 rounded p-2 text-xs">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                      entry.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                    }`}>
+                                      {entry.method === 'initial' ? '📄 Inicial' : 
+                                       entry.method === 'reindex' ? '🔄 Re-indexado' : 
+                                       '🤖 Automático'}
+                                    </span>
+                                    <span className="text-slate-500">
+                                      {new Date(entry.timestamp).toLocaleDateString('es-ES', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Usuario:</span>
+                                      <span className="text-slate-900 font-medium">{entry.userName || entry.userId}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Chunks creados:</span>
+                                      <span className="text-slate-900">{entry.chunksCreated}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Modelo:</span>
+                                      <span className="text-slate-900 font-mono text-xs">{entry.embeddingModel}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Duración:</span>
+                                      <span className="text-slate-900">{(entry.duration / 1000).toFixed(2)}s</span>
+                                    </div>
+                                    {entry.error && (
+                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                        <p className="text-red-700 text-xs">{entry.error}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="flex items-start gap-3">

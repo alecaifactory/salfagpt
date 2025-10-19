@@ -213,6 +213,11 @@ export const POST: APIRoute = async ({ params, request }) => {
                 metadata: result.metadata
               }));
 
+              console.log('📚 Built references for message:', references.length);
+              references.forEach(ref => {
+                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - Chunk #${ref.chunkIndex}`);
+              });
+
               // Save message with references
               const aiMsg = await addMessage(
                 conversationId,

@@ -168,6 +168,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
   
   // Edit conversation state
@@ -322,6 +323,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             : msg.content?.text || String(msg.content),
           timestamp: new Date(msg.timestamp)
         }));
+        
+        // Debug: Check for references in loaded messages
+        const messagesWithRefs = transformedMessages.filter((m: Message) => m.references && m.references.length > 0);
+        if (messagesWithRefs.length > 0) {
+          console.log(`📚 Loaded ${messagesWithRefs.length} messages with references`);
+          messagesWithRefs.forEach((m: Message) => {
+            console.log(`  Message ${m.id}: ${m.references?.length} references`);
+          });
+        } else {
+          console.log('📚 No messages with references found in loaded history');
+        }
+        
         setMessages(transformedMessages);
       }
     } catch (error) {
@@ -479,10 +492,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       fetch(`/api/users?requesterEmail=${encodeURIComponent(userEmail)}`)
         .then(res => res.json())
         .then(data => {
-          const currentUser = data.users?.find((u: UserType) => u.email === userEmail);
-          if (currentUser) {
-            setCurrentUserRoles(currentUser.roles || [currentUser.role]);
-            console.log('👤 Current user roles:', currentUser.roles);
+          const foundUser = data.users?.find((u: UserType) => u.email === userEmail);
+          if (foundUser) {
+            setCurrentUser(foundUser);
+            setCurrentUserRoles(foundUser.roles || [foundUser.role]);
+            console.log('👤 Current user roles:', foundUser.roles);
           }
         })
         .catch(err => console.error('Error loading user roles:', err));
@@ -984,6 +998,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   // Streaming complete
                   finalMessageId = data.messageId;
                   finalUserMessageId = data.userMessageId;
+                  
+                  // Debug: Check if references were received
+                  console.log('✅ Message complete event received');
+                  console.log('📚 References in completion:', data.references?.length || 0);
+                  if (data.references && data.references.length > 0) {
+                    console.log('📚 Reference details:', data.references);
+                  }
                   
                   // Mark message as no longer streaming and add references
                   setMessages(prev => prev.map(msg => 
@@ -3577,7 +3598,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       <ContextSourceSettingsModal
         source={settingsSource}
         isOpen={settingsSource !== null}
-        onClose={() => setSettingsSource(null)}
+        onClose={() => {
+          setSettingsSource(null);
+          // Reload sources after modal closes to get updated ragEnabled flag
+          if (currentConversation) {
+            loadContextForConversation(currentConversation);
+          }
+        }}
         userId={userId}
       />
 
