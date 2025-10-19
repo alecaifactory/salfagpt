@@ -67,7 +67,7 @@ export default function ContextSourceSettingsModalSimple({
   // NEW: Chunk data state
   const [chunksData, setChunksData] = useState<ChunksResponse | null>(null);
   const [loadingChunks, setLoadingChunks] = useState(false);
-  const [showExtractedText, setShowExtractedText] = useState(false);
+  const [showExtractedText, setShowExtractedText] = useState(true); // Always expanded by default
   const [showChunks, setShowChunks] = useState(false);
   const [selectedChunk, setSelectedChunk] = useState<ChunkData | null>(null);
   
@@ -746,25 +746,25 @@ export default function ContextSourceSettingsModalSimple({
             {/* Right Column - Extracted Content & Chunks */}
             <div className="space-y-6">
               
-              {/* Extracted Text Section */}
+              {/* Extracted Text Section - Always Expanded */}
               <section>
-                <div className="flex items-center justify-between mb-3">
+                <div className="mb-3">
                   <h3 className="text-sm font-semibold text-slate-900">Texto Extraído</h3>
-                  <button
-                    onClick={() => setShowExtractedText(!showExtractedText)}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
-                  >
-                    {showExtractedText ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    {showExtractedText ? 'Ocultar' : 'Mostrar'}
-                  </button>
                 </div>
 
-                {showExtractedText && source.extractedData && (
+                {source.extractedData ? (
                   <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
                     <div className="bg-slate-700 text-white px-3 py-2 text-xs flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <Code className="w-3 h-3" />
-                        {source.metadata?.charactersExtracted?.toLocaleString() || '0'} caracteres
+                        <span className="font-semibold">
+                          {source.metadata?.charactersExtracted?.toLocaleString() || source.extractedData.length.toLocaleString()} caracteres
+                        </span>
+                        <span className="text-slate-400">•</span>
+                        <Hash className="w-3 h-3" />
+                        <span className="font-semibold">
+                          {source.metadata?.tokensEstimate?.toLocaleString() || Math.ceil(source.extractedData.length / 4).toLocaleString()} tokens
+                        </span>
                       </span>
                       <button
                         onClick={() => {
@@ -772,7 +772,7 @@ export default function ContextSourceSettingsModalSimple({
                           setMessage({ type: 'success', text: 'Texto copiado al portapapeles' });
                           setTimeout(() => setMessage(null), 2000);
                         }}
-                        className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-[10px]"
+                        className="px-2 py-1 bg-slate-600 hover:bg-slate-500 rounded text-[10px] font-medium"
                       >
                         Copiar
                       </button>
@@ -783,9 +783,7 @@ export default function ContextSourceSettingsModalSimple({
                       </pre>
                     </div>
                   </div>
-                )}
-
-                {!source.extractedData && (
+                ) : (
                   <div className="bg-slate-50 rounded-lg p-4 text-center">
                     <p className="text-xs text-slate-500">No hay texto extraído disponible</p>
                   </div>
