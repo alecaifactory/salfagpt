@@ -104,6 +104,32 @@ export interface ContextSource {
   // Pipeline logs (NEW - detailed step tracking)
   pipelineLogs?: PipelineLog[];
   
+  // Indexing history (NEW - track all indexing attempts)
+  indexingHistory?: Array<{
+    timestamp: Date;
+    userId: string;
+    userName?: string;
+    method: 'initial' | 'reindex' | 'auto';
+    chunksCreated: number;
+    embeddingModel: string;
+    duration: number; // milliseconds
+    success: boolean;
+    error?: string;
+  }>;
+  
+  // Usage history (NEW - track when chunks are used in conversations)
+  usageHistory?: Array<{
+    timestamp: Date;
+    conversationId: string;
+    conversationTitle?: string;
+    userId: string;
+    userName?: string;
+    chunksUsed: number; // How many chunks were selected
+    avgSimilarity: number; // Average similarity score
+    query: string; // User's question
+    chunkIndices?: number[]; // Which specific chunks were used
+  }>;
+  
   // Error details
   error?: {
     message: string;

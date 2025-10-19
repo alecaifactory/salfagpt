@@ -320,6 +320,6 @@ function SuggestionCard({ suggestion, onApply, onTest, onReject }: any) {
         </div>
       </div>
     </div>
-  ));
+  );
 }
 
