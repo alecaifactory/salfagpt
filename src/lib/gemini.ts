@@ -39,6 +39,9 @@ export interface SourceReference {
   sourceId: string;
   sourceName: string;
   snippet: string;
+  fullText?: string; // Full chunk text for detailed view
+  chunkIndex?: number; // Which chunk from the source
+  similarity?: number; // Similarity score (0-1) for RAG
   context?: {
     before?: string;
     after?: string;
@@ -46,6 +49,13 @@ export interface SourceReference {
   location?: {
     page?: number;
     section?: string;
+  };
+  metadata?: {
+    startChar?: number;
+    endChar?: number;
+    tokenCount?: number;
+    startPage?: number;
+    endPage?: number;
   };
 }
 

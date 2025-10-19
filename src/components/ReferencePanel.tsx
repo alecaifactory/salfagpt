@@ -61,29 +61,80 @@ export default function ReferencePanel({
 
         {/* Content */}
         <div className="p-6 space-y-4">
+          {/* Metadata del chunk y similitud */}
+          <div className="space-y-2">
+            {reference.similarity !== undefined && (
+              <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-200">
+                <span className="text-sm font-medium text-slate-700">
+                  Similitud
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="w-24 bg-white rounded-full h-2 overflow-hidden border border-blue-200">
+                    <div 
+                      className={`h-full transition-all ${
+                        reference.similarity >= 0.8 ? 'bg-green-500' :
+                        reference.similarity >= 0.6 ? 'bg-yellow-500' :
+                        'bg-orange-500'
+                      }`}
+                      style={{ width: `${reference.similarity * 100}%` }}
+                    />
+                  </div>
+                  <span className={`text-sm font-bold ${
+                    reference.similarity >= 0.8 ? 'text-green-600' :
+                    reference.similarity >= 0.6 ? 'text-yellow-600' :
+                    'text-orange-600'
+                  }`}>
+                    {(reference.similarity * 100).toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {reference.chunkIndex !== undefined && (
+              <div className="flex items-center gap-2 text-xs text-slate-600">
+                <span className="bg-slate-100 px-2 py-1 rounded font-mono">
+                  Chunk #{reference.chunkIndex + 1}
+                </span>
+                {reference.metadata?.tokenCount && (
+                  <span className="text-slate-500">
+                    • {reference.metadata.tokenCount} tokens
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Ubicación (si está disponible) */}
-          {reference.location && (
-            <div className="flex items-center gap-3 text-xs text-slate-500 pb-3 border-b border-slate-100">
-              {reference.location.page && (
+          {(reference.location || reference.metadata) && (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 pb-3 border-b border-slate-100">
+              {reference.location?.page && (
                 <span className="flex items-center gap-1">
                   📄 Página {reference.location.page}
                 </span>
               )}
-              {reference.location.section && (
+              {reference.location?.section && (
                 <span className="flex items-center gap-1">
                   📍 {reference.location.section}
+                </span>
+              )}
+              {reference.metadata?.startPage && (
+                <span className="flex items-center gap-1">
+                  📄 Páginas {reference.metadata.startPage}
+                  {reference.metadata.endPage && reference.metadata.endPage !== reference.metadata.startPage 
+                    ? `-${reference.metadata.endPage}` 
+                    : ''}
                 </span>
               )}
             </div>
           )}
 
-          {/* Extracto con contexto */}
+          {/* Extracto completo del chunk */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-slate-700">
-              Extracto del documento:
+              Texto del chunk utilizado:
             </h4>
             
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
+            <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm max-h-96 overflow-y-auto">
               {/* Contexto anterior (si existe) */}
               {reference.context?.before && (
                 <p className="text-slate-400 italic">
@@ -91,10 +142,10 @@ export default function ReferencePanel({
                 </p>
               )}
               
-              {/* Snippet exacto (destacado) */}
+              {/* Full chunk text (destacado) */}
               <div className="bg-yellow-100 border-l-4 border-yellow-500 -mx-2 px-3 py-2 rounded">
-                <p className="text-slate-900 font-medium">
-                  {reference.snippet}
+                <p className="text-slate-900 leading-relaxed">
+                  {reference.fullText || reference.snippet}
                 </p>
               </div>
               
