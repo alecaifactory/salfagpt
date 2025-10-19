@@ -10,6 +10,7 @@ import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
 import AgentEvaluationDashboard from './AgentEvaluationDashboard';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import SalfaAnalyticsDashboard from './SalfaAnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
@@ -34,6 +35,9 @@ interface Message {
     sourceId: string;
     sourceName: string;
     snippet: string;
+    fullText?: string; // Full chunk text
+    chunkIndex?: number; // Which chunk
+    similarity?: number; // RAG similarity score (0-1)
     context?: {
       before?: string;
       after?: string;
@@ -41,6 +45,13 @@ interface Message {
     location?: {
       page?: number;
       section?: string;
+    };
+    metadata?: {
+      startChar?: number;
+      endChar?: number;
+      tokenCount?: number;
+      startPage?: number;
+      endPage?: number;
     };
   }>;
 }
@@ -113,6 +124,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [contextLogs, setContextLogs] = useState<ContextLog[]>([]);
   const [input, setInput] = useState('');
   const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
+  const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [selectedReference, setSelectedReference] = useState<{
+    sourceId: string;
+    sourceName: string;
+    chunkIndex: number;
+    similarity: number;
+    snippet: string;
+    fullText: string;
+    metadata?: any;
+  } | null>(null);
   
   // Per-agent processing state
   const [agentProcessing, setAgentProcessing] = useState<Record<string, {
@@ -129,6 +150,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showContextManagement, setShowContextManagement] = useState(false);
+  const [showSalfaAnalytics, setShowSalfaAnalytics] = useState(false);
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
   // User Management state (SuperAdmin only)
@@ -141,6 +163,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
   const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
+  const [ragTopK, setRagTopK] = useState(5); // Number of chunks to retrieve
+  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.5); // Minimum similarity threshold
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
@@ -864,7 +888,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
-          contextSources: activeContextSources
+          contextSources: activeContextSources,
+          ragEnabled: agentRAGMode === 'rag',
+          ragTopK: ragTopK,
+          ragMinSimilarity: ragMinSimilarity
         })
       });
 
@@ -880,10 +907,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       let finalUserMessageId = '';
 
       if (reader) {
+        // Initialize thinking steps
+        const stepLabels = {
+          thinking: 'Pensando...',
+          searching: 'Buscando Contexto Relevante...',
+          selecting: 'Seleccionando Chunks...',
+          generating: 'Generando Respuesta...'
+        };
+
+        const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
+          id: key,
+          label,
+          status: 'pending' as const,
+          timestamp: new Date(),
+          dots: 0
+        }));
+
+        setCurrentThinkingSteps(initialSteps);
+
+        // Start ellipsis animation for thinking steps
+        const dotsInterval = setInterval(() => {
+          setCurrentThinkingSteps(prev => prev.map(step => ({
+            ...step,
+            dots: step.status === 'active' ? ((step.dots || 0) + 1) % 4 : step.dots || 0
+          })));
+        }, 500);
+
         while (true) {
           const { done, value } = await reader.read();
           
-          if (done) break;
+          if (done) {
+            clearInterval(dotsInterval);
+            break;
+          }
 
           const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
@@ -893,14 +949,35 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               try {
                 const data = JSON.parse(line.slice(6));
 
-                if (data.type === 'chunk') {
+                if (data.type === 'thinking') {
+                  // Update thinking step status
+                  setCurrentThinkingSteps(prev => {
+                    const updated = prev.map(step => 
+                      step.id === data.step 
+                        ? { ...step, status: data.status, timestamp: new Date(data.timestamp) }
+                        : step
+                    );
+                    
+                    // Immediately update the streaming message with the new steps
+                    setMessages(prevMsgs => prevMsgs.map(msg => 
+                      msg.id === streamingId 
+                        ? { ...msg, thinkingSteps: updated }
+                        : msg
+                    ));
+                    
+                    return updated;
+                  });
+                } else if (data.type === 'chunks') {
+                  // Store chunk information for later display
+                  console.log('📊 Chunks seleccionados:', data.chunks);
+                } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
                   
                   // Update streaming message with new content
                   setMessages(prev => prev.map(msg => 
                     msg.id === streamingId 
-                      ? { ...msg, content: accumulatedContent }
+                      ? { ...msg, content: accumulatedContent, thinkingSteps: undefined }
                       : msg
                   ));
                 } else if (data.type === 'complete') {
@@ -908,14 +985,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   finalMessageId = data.messageId;
                   finalUserMessageId = data.userMessageId;
                   
-                  // Mark message as no longer streaming
+                  // Mark message as no longer streaming and add references
                   setMessages(prev => prev.map(msg => 
                     msg.id === streamingId 
                       ? { 
                           ...msg, 
                           id: finalMessageId,
                           isStreaming: false,
-                          content: accumulatedContent 
+                          content: accumulatedContent,
+                          references: data.references,
+                          thinkingSteps: undefined
                         }
                       : msg
                   ));
@@ -925,6 +1004,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
                   // Check if response needs feedback
                   const needsFeedback = detectFeedbackNeeded(accumulatedContent);
+
+                  // Clear thinking steps
+                  setCurrentThinkingSteps([]);
 
                   // Update agent processing state
                   setAgentProcessing(prev => ({
@@ -2362,6 +2444,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   <span className="font-medium">Configuración</span>
                 </button>
                 <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  onClick={() => {
+                    setShowSalfaAnalytics(true);
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                  <span className="font-medium">Analíticas SalfaGPT</span>
+                </button>
+                <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+                <button
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                   onClick={async () => {
                     try {
@@ -3591,6 +3684,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={showAnalytics}
         onClose={() => setShowAnalytics(false)}
         conversations={conversations}
+      />
+
+      {/* SalfaGPT Analytics Dashboard */}
+      <SalfaAnalyticsDashboard
+        isOpen={showSalfaAnalytics}
+        onClose={() => setShowSalfaAnalytics(false)}
+        userId={userId || ''}
+        userEmail={userEmail || ''}
+        userRole={currentUser?.role || 'user'}
       />
 
       {/* Impersonation Banner */}

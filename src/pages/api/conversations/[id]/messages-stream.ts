@@ -31,6 +31,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     let ragUsed = false;
     let ragStats = null;
     let ragHadFallback = false;
+    let ragResults: any[] = []; // Store RAG results for references
     
     // NEW: Track RAG configuration used
     const ragTopK = body.ragTopK || 5;
@@ -47,7 +48,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
           const { searchRelevantChunks, buildRAGContext, getRAGStats } = await import('../../../../lib/rag-search.js');
           
-          const ragResults = await searchRelevantChunks(userId, message, {
+          ragResults = await searchRelevantChunks(userId, message, {
             topK: ragTopK,
             minSimilarity: ragMinSimilarity,
             activeSourceIds
@@ -103,6 +104,54 @@ export const POST: APIRoute = async ({ params, request }) => {
     const stream = new ReadableStream({
       async start(controller) {
         try {
+          // Helper to send status update
+          const sendStatus = (step: string, status: 'active' | 'complete') => {
+            const data = `data: ${JSON.stringify({ 
+              type: 'thinking', 
+              step,
+              status,
+              timestamp: new Date().toISOString()
+            })}\n\n`;
+            controller.enqueue(encoder.encode(data));
+          };
+
+          // Step 1: Pensando...
+          sendStatus('thinking', 'active');
+          await new Promise(resolve => setTimeout(resolve, 300)); // Short delay for UX
+          sendStatus('thinking', 'complete');
+
+          // Step 2: Buscando Contexto Relevante...
+          if (contextSources && contextSources.length > 0) {
+            sendStatus('searching', 'active');
+            await new Promise(resolve => setTimeout(resolve, 200));
+            sendStatus('searching', 'complete');
+
+            // Step 3: Seleccionando Chunks... (only if RAG is used)
+            if (ragUsed) {
+              sendStatus('selecting', 'active');
+              
+              // Send chunk selection details
+              if (ragStats && ragStats.sources) {
+                const chunkData = `data: ${JSON.stringify({ 
+                  type: 'chunks',
+                  chunks: ragStats.sources.map((s: any) => ({
+                    sourceId: s.id,
+                    sourceName: s.name,
+                    chunkCount: s.chunkCount,
+                    tokens: s.tokens
+                  }))
+                })}\n\n`;
+                controller.enqueue(encoder.encode(chunkData));
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 200));
+              sendStatus('selecting', 'complete');
+            }
+          }
+
+          // Step 4: Generando Respuesta...
+          sendStatus('generating', 'active');
+          
           // Store user message first (for persistent conversations)
           let userMessageId = '';
           if (!conversationId.startsWith('temp-')) {
@@ -147,15 +196,32 @@ export const POST: APIRoute = async ({ params, request }) => {
             controller.enqueue(encoder.encode(data));
           }
 
+          sendStatus('generating', 'complete');
+
           // Save complete AI message to Firestore (for persistent conversations)
           if (!conversationId.startsWith('temp-')) {
             try {
+              // Build references from RAG results BEFORE saving message
+              const references = ragResults.map((result, index) => ({
+                id: index + 1,
+                sourceId: result.sourceId,
+                sourceName: result.sourceName,
+                chunkIndex: result.chunkIndex,
+                similarity: result.similarity,
+                snippet: result.text.substring(0, 200), // First 200 chars
+                fullText: result.text,
+                metadata: result.metadata
+              }));
+
+              // Save message with references
               const aiMsg = await addMessage(
                 conversationId,
                 userId,
                 'assistant',
                 { type: 'text', text: fullResponse },
-                Math.ceil(fullResponse.length / 4)
+                Math.ceil(fullResponse.length / 4),
+                undefined, // contextSections (not used here)
+                references.length > 0 ? references : undefined // Save references!
               );
 
               // Update conversation stats
@@ -164,13 +230,14 @@ export const POST: APIRoute = async ({ params, request }) => {
                 lastMessageAt: new Date(),
               });
 
-              // Send completion event with message ID and RAG configuration
+              // Send completion event with message ID, RAG configuration, and references
               const data = `data: ${JSON.stringify({ 
                 type: 'complete', 
                 messageId: aiMsg.id,
                 userMessageId: userMessageId,
                 ragUsed,
                 ragStats,
+                references: references.length > 0 ? references : undefined,
                 // NEW: Complete RAG configuration audit trail
                 ragConfiguration: {
                   enabled: ragEnabled,

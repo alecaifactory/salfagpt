@@ -267,6 +267,55 @@ export default function MessageRenderer({
       >
         {processedContent}
       </ReactMarkdown>
+      
+      {/* References Footer */}
+      {references.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-slate-200">
+          <h4 className="text-xs font-semibold text-slate-600 mb-3">
+            📚 Referencias utilizadas ({references.length})
+          </h4>
+          <div className="space-y-2">
+            {references.map(ref => (
+              <button
+                key={ref.id}
+                onClick={() => setSelectedReference(ref)}
+                className="w-full text-left bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-lg p-3 transition-all group"
+              >
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded font-bold text-sm border border-blue-300 group-hover:bg-blue-200 flex-shrink-0">
+                    [{ref.id}]
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-xs font-semibold text-slate-800 truncate">
+                        {ref.sourceName}
+                      </p>
+                      {ref.similarity !== undefined && (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                          ref.similarity >= 0.8 ? 'bg-green-100 text-green-700' :
+                          ref.similarity >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}>
+                          {(ref.similarity * 100).toFixed(1)}% similar
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 line-clamp-2">
+                      {ref.snippet}
+                    </p>
+                    {ref.chunkIndex !== undefined && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Chunk #{ref.chunkIndex + 1}
+                        {ref.metadata?.tokenCount && ` • ${ref.metadata.tokenCount} tokens`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
     
     {/* Reference Panel */}

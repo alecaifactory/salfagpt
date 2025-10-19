@@ -115,6 +115,22 @@ export interface Message {
   timestamp: Date;
   tokenCount: number;
   contextSections?: ContextSection[];
+  references?: Array<{
+    id: number;
+    sourceId: string;
+    sourceName: string;
+    snippet: string;
+    fullText?: string;
+    chunkIndex?: number;
+    similarity?: number;
+    metadata?: {
+      startChar?: number;
+      endChar?: number;
+      tokenCount?: number;
+      startPage?: number;
+      endPage?: number;
+    };
+  }>; // NEW: RAG chunk references for traceability
   source?: 'localhost' | 'production'; // For analytics tracking
 }
 
@@ -355,7 +371,23 @@ export async function addMessage(
   role: 'user' | 'assistant' | 'system',
   content: MessageContent,
   tokenCount: number,
-  contextSections?: ContextSection[]
+  contextSections?: ContextSection[],
+  references?: Array<{
+    id: number;
+    sourceId: string;
+    sourceName: string;
+    snippet: string;
+    fullText?: string;
+    chunkIndex?: number;
+    similarity?: number;
+    metadata?: {
+      startChar?: number;
+      endChar?: number;
+      tokenCount?: number;
+      startPage?: number;
+      endPage?: number;
+    };
+  }>
 ): Promise<Message> {
   const messageRef = firestore.collection(COLLECTIONS.MESSAGES).doc();
   
@@ -368,6 +400,7 @@ export async function addMessage(
     timestamp: new Date(),
     tokenCount,
     ...(contextSections !== undefined && { contextSections }), // Only include if defined
+    ...(references !== undefined && { references }), // Only include if defined
     source: getEnvironmentSource(), // Track source for analytics
   };
 
