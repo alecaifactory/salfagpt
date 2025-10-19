@@ -193,30 +193,18 @@ export default function ContextSourceSettingsModalSimple({
                   text: `✅ Re-indexado exitoso: ${data.chunksCreated} chunks creados`,
                 });
 
-                // Reload chunks data to show updated state
+                // Immediately reload chunks to show updated state
+                console.log('🔄 Re-indexing complete, reloading chunks...');
+                
+                // Wait a bit for Firestore to propagate, then reload
                 setTimeout(async () => {
                   await loadChunks();
+                  console.log('✅ Chunks reloaded');
                   
-                  // Force re-fetch the source to get updated ragEnabled flag
-                  if (source) {
-                    try {
-                      const sourceResponse = await fetch(`/api/context-sources/${source.id}?userId=${userId}`);
-                      if (sourceResponse.ok) {
-                        const updatedSource = await sourceResponse.json();
-                        console.log('✅ Source reloaded, ragEnabled:', updatedSource.ragEnabled);
-                        
-                        // Trigger parent component reload via callback
-                        if (window.dispatchEvent) {
-                          window.dispatchEvent(new CustomEvent('source-updated', { 
-                            detail: { sourceId: source.id } 
-                          }));
-                        }
-                      }
-                    } catch (error) {
-                      console.error('Error reloading source:', error);
-                    }
-                  }
-                }, 1000);
+                  // Clear progress state to show the updated RAG section
+                  setProgressState(null);
+                  setIsReIndexing(false);
+                }, 1500);
               }
 
               // Check for error
@@ -238,7 +226,6 @@ export default function ContextSourceSettingsModalSimple({
         type: 'error',
         text: error instanceof Error ? error.message : 'Error al re-indexar',
       });
-    } finally {
       setIsReIndexing(false);
     }
   };
