@@ -476,251 +476,7 @@ export default function ContextSourceSettingsModalSimple({
                 </div>
               </section>
 
-              {/* RAG Indexing Section */}
-              <section>
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">Indexación RAG</h3>
-                <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-                  {/* Show loading state while fetching chunks */}
-                  {loadingChunks ? (
-                    <div className="flex items-center justify-center py-4">
-                      <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
-                      <span className="ml-2 text-sm text-slate-600">Cargando información de RAG...</span>
-                    </div>
-                  ) : chunksData && chunksData.chunks.length > 0 ? (
-                    <>
-                      {/* RAG is active with chunks */}
-                      <div className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-slate-900 mb-1">
-                            RAG habilitado
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* RAG Statistics from actual chunks */}
-                      <div className="bg-white border border-slate-200 rounded p-3 space-y-2 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Total de chunks:</span>
-                          <span className="font-semibold text-slate-900">{chunksData.stats.totalChunks}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Tokens totales:</span>
-                          <span className="font-semibold text-slate-900">{chunksData.stats.totalTokens.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Tamaño promedio:</span>
-                          <span className="font-semibold text-slate-900">{chunksData.stats.avgChunkSize} tokens</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Dimensiones de embedding:</span>
-                          <span className="font-semibold text-slate-900">{chunksData.stats.embeddingDimensions}</span>
-                        </div>
-                        {chunksData.chunks[0]?.createdAt && (
-                          <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
-                            <span className="text-slate-600">Indexado:</span>
-                            <span className="font-medium text-slate-700">
-                              {new Date(chunksData.chunks[0].createdAt).toLocaleDateString('es-ES', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Indexing History */}
-                      {source.indexingHistory && source.indexingHistory.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-slate-200">
-                          <button
-                            onClick={() => setShowAdvancedLogs(!showAdvancedLogs)}
-                            className="flex items-center gap-2 text-xs font-medium text-slate-600 hover:text-slate-800 transition-colors"
-                          >
-                            {showAdvancedLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            Historial de indexaciones ({source.indexingHistory.length})
-                          </button>
-                          
-                          {showAdvancedLogs && (
-                            <div className="mt-2 space-y-2">
-                              {source.indexingHistory.slice().reverse().map((entry, index) => (
-                                <div key={index} className="bg-white border border-slate-200 rounded p-2 text-xs">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                      entry.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                    }`}>
-                                      {entry.method === 'initial' ? '📄 Inicial' : 
-                                       entry.method === 'reindex' ? '🔄 Re-indexado' : 
-                                       '🤖 Automático'}
-                                    </span>
-                                    <span className="text-slate-500">
-                                      {new Date(entry.timestamp).toLocaleDateString('es-ES', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })}
-                                    </span>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-600">Usuario:</span>
-                                      <span className="text-slate-900 font-medium">{entry.userName || entry.userId}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-600">Chunks creados:</span>
-                                      <span className="text-slate-900">{entry.chunksCreated}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-600">Modelo:</span>
-                                      <span className="text-slate-900 font-mono text-xs">{entry.embeddingModel}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-slate-600">Duración:</span>
-                                      <span className="text-slate-900">{(entry.duration / 1000).toFixed(2)}s</span>
-                                    </div>
-                                    {entry.error && (
-                                      <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
-                                        <p className="text-red-700 text-xs">{entry.error}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900 mb-1">
-                          RAG no indexado
-                        </p>
-                        <p className="text-xs text-slate-600">
-                          Este documento aún no tiene indexación RAG. Re-indexa para habilitar búsqueda inteligente y ahorrar tokens.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-              {/* Progress Display - Thinking-style */}
-              {progressState && (
-                <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${progressState.progress}%` }}
-                    />
-                  </div>
-                  
-                  {/* Current Stage with animated dots */}
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-slate-700">
-                      {progressState.message}{'.'.repeat(progressState.dots)}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {progressState.progress}%
-                    </p>
-                  </div>
-                  
-                  {/* Stage checklist */}
-                  <div className="space-y-1.5 text-xs">
-                    {[
-                      { stage: 'downloading', label: 'Descargando archivo' },
-                      { stage: 'extracting', label: 'Procesando con API (chunking + embeddings)' },
-                      { stage: 'complete', label: 'Finalizando' },
-                    ].map(({ stage, label }) => (
-                      <div key={stage} className="flex items-center gap-2">
-                        {progressState.stage === stage ? (
-                          <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
-                        ) : progressState.progress > getStageProgress(stage) ? (
-                          <CheckCircle className="w-3 h-3 text-green-600" />
-                        ) : (
-                          <div className="w-3 h-3 rounded-full border-2 border-slate-300" />
-                        )}
-                        <span className={progressState.stage === stage ? 'text-slate-900 font-medium' : 'text-slate-500'}>
-                          {label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {/* Advanced Logs - Collapsible */}
-                  {progressLogs.length > 0 && (
-                    <div className="border-t border-slate-200 pt-3 mt-3">
-                      <button
-                        onClick={() => setShowAdvancedLogs(!showAdvancedLogs)}
-                        className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 font-medium"
-                      >
-                        {showAdvancedLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                        Ver logs detallados ({progressLogs.length})
-                      </button>
-                      
-                      {showAdvancedLogs && (
-                        <div className="mt-2 bg-slate-50 rounded p-2 max-h-40 overflow-y-auto">
-                          <div className="space-y-1 font-mono text-[10px]">
-                            {progressLogs.map((log, idx) => (
-                              <div key={idx} className="text-slate-700">
-                                <span className="text-slate-500">
-                                  [{log.timestamp.toLocaleTimeString('es-ES')}]
-                                </span>
-                                {' '}
-                                <span className="text-blue-600">{log.progress}%</span>
-                                {' '}
-                                <span className="font-semibold">{log.stage}:</span>
-                                {' '}
-                                {log.message}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-                  {/* Re-index Button */}
-                  {hasCloudStorage && !progressState && (
-                    <>
-                      <button
-                        onClick={handleReIndex}
-                        disabled={isReIndexing}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium"
-                      >
-                        <Database className="w-4 h-4" />
-                        {hasRAG ? 'Re-indexar' : 'Indexar con RAG'}
-                      </button>
-                      
-                      {/* Interactive Test Button */}
-                      {chunksData && chunksData.chunks.length > 0 && (
-                        <button
-                          onClick={() => setShowInteractiveTest(true)}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-medium shadow-md"
-                        >
-                          <Target className="w-4 h-4" />
-                          <span>Probar Documento Interactivamente</span>
-                          <Sparkles className="w-4 h-4" />
-                        </button>
-                      )}
-                    </>
-                  )}
-
-                  {!hasCloudStorage && (
-                    <div className="text-center py-2">
-                      <p className="text-xs text-slate-500">
-                        Re-indexar no disponible sin archivo original
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
+              {/* RAG section moved to right column */}
 
               {/* Success/Error Message */}
               {message && (
@@ -743,8 +499,264 @@ export default function ContextSourceSettingsModalSimple({
               )}
             </div>
 
-            {/* Right Column - Extracted Content & Chunks */}
+            {/* Right Column - RAG, Extracted Content & Chunks */}
             <div className="space-y-6">
+              
+              {/* RAG Indexing Section - MOVED FROM LEFT COLUMN */}
+              <section>
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">Indexación RAG</h3>
+                
+                {/* Show loading state while fetching chunks */}
+                {loadingChunks ? (
+                  <div className="flex items-center justify-center py-4 bg-slate-50 rounded-lg">
+                    <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
+                    <span className="ml-2 text-sm text-slate-600">Cargando información de RAG...</span>
+                  </div>
+                ) : chunksData && chunksData.chunks.length > 0 ? (
+                  <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+                    {/* RAG is active with chunks */}
+                    <div className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 mb-1">
+                          ✅ RAG habilitado
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          Búsqueda inteligente activa con {chunksData.stats.totalChunks} chunks
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* RAG Statistics from actual chunks */}
+                    <div className="bg-white border border-slate-200 rounded p-3 space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Total de chunks:</span>
+                        <span className="font-semibold text-slate-900">{chunksData.stats.totalChunks}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Tokens totales:</span>
+                        <span className="font-semibold text-slate-900">{chunksData.stats.totalTokens.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Tamaño promedio:</span>
+                        <span className="font-semibold text-slate-900">{chunksData.stats.avgChunkSize} tokens</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Dimensiones de embedding:</span>
+                        <span className="font-semibold text-slate-900">{chunksData.stats.embeddingDimensions}</span>
+                      </div>
+                      {chunksData.chunks[0]?.createdAt && (
+                        <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
+                          <span className="text-slate-600">Indexado:</span>
+                          <span className="font-medium text-slate-700">
+                            {new Date(chunksData.chunks[0].createdAt).toLocaleDateString('es-ES', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Indexing History - ALWAYS EXPANDED */}
+                    {source.indexingHistory && source.indexingHistory.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-slate-200">
+                        <h4 className="text-xs font-semibold text-slate-700 mb-2">
+                          📋 Historial de Indexaciones ({source.indexingHistory.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {source.indexingHistory.slice().reverse().map((entry, index) => (
+                            <div key={index} className="bg-white border border-slate-200 rounded p-3 text-xs">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                  entry.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {entry.method === 'initial' ? '📄 Inicial' : 
+                                   entry.method === 'reindex' ? '🔄 Re-indexado' : 
+                                   '🤖 Automático'}
+                                </span>
+                                <span className="text-slate-500 font-medium">
+                                  {new Date(entry.timestamp).toLocaleDateString('es-ES', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <span className="text-slate-600">Usuario:</span>
+                                  <p className="text-slate-900 font-medium truncate">{entry.userName || entry.userId}</p>
+                                </div>
+                                <div>
+                                  <span className="text-slate-600">Chunks:</span>
+                                  <p className="text-slate-900 font-semibold">{entry.chunksCreated}</p>
+                                </div>
+                                <div>
+                                  <span className="text-slate-600">Modelo:</span>
+                                  <p className="text-slate-900 font-mono text-[10px]">{entry.embeddingModel}</p>
+                                </div>
+                                <div>
+                                  <span className="text-slate-600">Duración:</span>
+                                  <p className="text-slate-900 font-semibold">{(entry.duration / 1000).toFixed(2)}s</p>
+                                </div>
+                              </div>
+                              {entry.error && (
+                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded">
+                                  <p className="text-red-700 text-xs">{entry.error}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      {/* Re-index Button */}
+                      {hasCloudStorage && !progressState && (
+                        <>
+                          <button
+                            onClick={handleReIndex}
+                            disabled={isReIndexing}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium"
+                          >
+                            <Database className="w-4 h-4" />
+                            {hasRAG ? 'Re-indexar' : 'Indexar con RAG'}
+                          </button>
+                          
+                          {/* Interactive Test Button */}
+                          <button
+                            onClick={() => setShowInteractiveTest(true)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-medium shadow-md"
+                          >
+                            <Target className="w-4 h-4" />
+                            <span>Probar Documento Interactivamente</span>
+                            <Sparkles className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                      
+                      {!hasCloudStorage && (
+                        <div className="text-center py-2 bg-amber-50 border border-amber-200 rounded">
+                          <p className="text-xs text-amber-700">
+                            Re-indexar no disponible sin archivo original
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-900 mb-1">
+                          RAG no indexado
+                        </p>
+                        <p className="text-xs text-slate-600 mb-3">
+                          Este documento aún no tiene indexación RAG. Re-indexa para habilitar búsqueda inteligente y ahorrar tokens.
+                        </p>
+                        
+                        {/* Re-index Button for non-indexed docs */}
+                        {hasCloudStorage && !progressState && (
+                          <button
+                            onClick={handleReIndex}
+                            disabled={isReIndexing}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 text-sm font-medium"
+                          >
+                            <Database className="w-4 h-4" />
+                            Indexar con RAG
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Progress Display - Thinking-style */}
+                {progressState && (
+                  <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-3">
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `${progressState.progress}%` }}
+                      />
+                    </div>
+                    
+                    {/* Current Stage with animated dots */}
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-slate-700">
+                        {progressState.message}{'.'.repeat(progressState.dots)}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {progressState.progress}%
+                      </p>
+                    </div>
+                    
+                    {/* Stage checklist */}
+                    <div className="space-y-1.5 text-xs">
+                      {[
+                        { stage: 'downloading', label: 'Descargando archivo' },
+                        { stage: 'extracting', label: 'Procesando con API (chunking + embeddings)' },
+                        { stage: 'complete', label: 'Finalizando' },
+                      ].map(({ stage, label }) => (
+                        <div key={stage} className="flex items-center gap-2">
+                          {progressState.stage === stage ? (
+                            <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" />
+                          ) : progressState.progress > getStageProgress(stage) ? (
+                            <CheckCircle className="w-3 h-3 text-green-600" />
+                          ) : (
+                            <div className="w-3 h-3 rounded-full border-2 border-slate-300" />
+                          )}
+                          <span className={progressState.stage === stage ? 'text-slate-900 font-medium' : 'text-slate-500'}>
+                            {label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Advanced Logs - Collapsible */}
+                    {progressLogs.length > 0 && (
+                      <div className="border-t border-slate-200 pt-3 mt-3">
+                        <button
+                          onClick={() => setShowAdvancedLogs(!showAdvancedLogs)}
+                          className="flex items-center gap-2 text-xs text-slate-600 hover:text-slate-900 font-medium"
+                        >
+                          {showAdvancedLogs ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          Ver logs detallados ({progressLogs.length})
+                        </button>
+                        
+                        {showAdvancedLogs && (
+                          <div className="mt-2 bg-slate-50 rounded p-2 max-h-40 overflow-y-auto">
+                            <div className="space-y-1 font-mono text-[10px]">
+                              {progressLogs.map((log, idx) => (
+                                <div key={idx} className="text-slate-700">
+                                  <span className="text-slate-500">
+                                    [{log.timestamp.toLocaleTimeString('es-ES')}]
+                                  </span>
+                                  {' '}
+                                  <span className="text-blue-600">{log.progress}%</span>
+                                  {' '}
+                                  <span className="font-semibold">{log.stage}:</span>
+                                  {' '}
+                                  {log.message}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
               
               {/* Extracted Text Section - Always Expanded */}
               <section>
