@@ -476,9 +476,12 @@ export default function ContextManagementDashboard({
               }),
             });
 
-            if (ragResponse.ok) {
-              const ragData = await ragResponse.json();
+            const ragData = await ragResponse.json();
+            
+            if (ragResponse.ok && ragData.success) {
               console.log('✅ RAG pipeline completed:', ragData);
+              console.log(`   Chunks created: ${ragData.chunksCreated}`);
+              console.log(`   Total tokens: ${ragData.totalTokens}`);
               
               // Chunk complete, moving to Embed (75%)
               setUploadQueue(prev => prev.map(i => 
@@ -499,14 +502,24 @@ export default function ContextManagementDashboard({
                 i.id === item.id ? { ...i, progress: 95 } : i
               ));
             } else {
-              console.warn('⚠️ RAG pipeline failed, but extraction was successful');
+              console.error('❌ RAG pipeline failed:', ragData);
+              console.error('   Error:', ragData.error || ragData.message);
+              console.error('   Response status:', ragResponse.status);
+              
+              // Show warning but still complete
+              alert(`⚠️ RAG indexing falló: ${ragData.error || ragData.message}\n\nEl documento está disponible en modo Full-text.`);
+              
               // Still advance to completion
               setUploadQueue(prev => prev.map(i => 
                 i.id === item.id ? { ...i, progress: 95 } : i
               ));
             }
           } catch (error) {
-            console.warn('⚠️ RAG auto-trigger failed:', error);
+            console.error('❌ RAG auto-trigger exception:', error);
+            
+            // Show error
+            alert(`⚠️ Error indexando con RAG: ${error instanceof Error ? error.message : 'Unknown error'}\n\nEl documento está disponible en modo Full-text.`);
+            
             // Still advance to completion
             setUploadQueue(prev => prev.map(i => 
               i.id === item.id ? { ...i, progress: 95 } : i
