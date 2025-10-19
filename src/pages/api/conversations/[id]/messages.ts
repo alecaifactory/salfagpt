@@ -61,14 +61,68 @@ export const POST: APIRoute = async ({ params, request }) => {
     }
 
     // Build additional context from active sources
-    const additionalContext = contextSources && contextSources.length > 0
-      ? contextSources
-          .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-          .join('\n')
-      : '';
+    // NEW: Try RAG search first, fall back to full documents
+    let additionalContext = '';
+    let ragUsed = false;
+    let ragStats = null;
+    let ragHadFallback = false;
     
-    if (additionalContext) {
-      console.log('📎 Including context from', contextSources.length, 'active sources');
+    // NEW: Track RAG configuration used
+    const ragTopK = body.ragTopK || 5;
+    const ragMinSimilarity = body.ragMinSimilarity || 0.5;
+    const ragEnabled = body.ragEnabled !== false; // Default: enabled
+
+    if (contextSources && contextSources.length > 0) {
+      const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
+      
+      // Try RAG search if enabled
+      if (ragEnabled && activeSourceIds.length > 0) {
+        try {
+          console.log('🔍 Attempting RAG search...');
+          console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
+          const { searchRelevantChunks, buildRAGContext, getRAGStats } = await import('../../../../lib/rag-search');
+          
+          const ragResults = await searchRelevantChunks(userId, message, {
+            topK: ragTopK,
+            minSimilarity: ragMinSimilarity,
+            activeSourceIds
+          });
+          
+          if (ragResults.length > 0) {
+            // RAG search succeeded - use relevant chunks only
+            additionalContext = buildRAGContext(ragResults);
+            ragUsed = true;
+            ragStats = getRAGStats(ragResults);
+            console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
+            console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
+            console.log(`  Sources: ${ragStats.sources.map((s: { name: string; chunkCount: number }) => `${s.name} (${s.chunkCount} chunks)`).join(', ')}`);
+          } else {
+            console.log('⚠️ RAG: No results above similarity threshold, falling back to full documents');
+            ragHadFallback = true;
+            // Fall back to full documents
+            additionalContext = contextSources
+              .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+              .join('\n');
+          }
+        } catch (error) {
+          console.error('⚠️ RAG search failed, using full documents:', error);
+          ragHadFallback = true;
+          
+          // Graceful degradation - use full documents
+          additionalContext = contextSources
+            .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+            .join('\n');
+        }
+      } else {
+        // RAG disabled or not explicitly enabled - use full documents (original behavior)
+        additionalContext = contextSources
+          .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+          .join('\n');
+        
+        if (additionalContext) {
+          console.log('📎 Including full context from', contextSources.length, 'active sources (full-text mode)');
+        }
+      }
     }
 
     // Handle temporary conversations (no Firestore persistence)
@@ -118,6 +172,16 @@ export const POST: APIRoute = async ({ params, request }) => {
             contextWindowCapacity,
             model: model || 'gemini-2.5-flash',
             systemPrompt: systemPrompt || 'Default system prompt',
+          },
+          ragStats: ragUsed ? ragStats : null, // Include RAG stats if used
+          // NEW: Complete RAG configuration audit trail
+          ragConfiguration: {
+            enabled: ragEnabled,
+            actuallyUsed: ragUsed,
+            hadFallback: ragHadFallback,
+            topK: ragTopK,
+            minSimilarity: ragMinSimilarity,
+            stats: ragUsed ? ragStats : null,
           },
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -204,7 +268,7 @@ export const POST: APIRoute = async ({ params, request }) => {
       }
     }
 
-    // Calculate token stats
+    // Calculate token stats (using REAL tokens from Gemini API)
     const totalInputTokens = aiResponse.contextSections
       ?.filter(s => s.name !== 'Model Response')
       .reduce((sum, s) => sum + (s.tokenCount || 0), 0) || 0;
@@ -212,6 +276,11 @@ export const POST: APIRoute = async ({ params, request }) => {
     const contextWindowCapacity = (model === 'gemini-2.5-pro') ? 2000000 : 1000000;
     const contextWindowUsed = totalInputTokens + totalOutputTokens;
     const contextWindowAvailable = contextWindowCapacity - contextWindowUsed;
+    
+    // Calculate actual context tokens used (considering RAG)
+    const actualContextTokens = ragUsed && ragStats 
+      ? ragStats.totalTokens  // REAL tokens from RAG chunks
+      : contextSources?.reduce((sum: number, s: any) => sum + Math.ceil((s.content?.length || 0) / 4), 0) || 0;
 
     return new Response(
       JSON.stringify({
@@ -219,14 +288,25 @@ export const POST: APIRoute = async ({ params, request }) => {
         contextUsage: usage,
         contextSections: sections,
         references: enhancedReferences, // Include references in response
+        ragStats: ragUsed ? ragStats : null, // Include RAG stats if used
         tokenStats: {
           totalInputTokens,
           totalOutputTokens,
           contextWindowUsed,
           contextWindowAvailable,
           contextWindowCapacity,
+          actualContextTokens, // NEW: Real context tokens (RAG or full-text)
           model: model || 'gemini-2.5-flash',
           systemPrompt: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
+        },
+        // NEW: Complete RAG configuration audit trail
+        ragConfiguration: {
+          enabled: ragEnabled,
+          actuallyUsed: ragUsed,
+          hadFallback: ragHadFallback,
+          topK: ragTopK,
+          minSimilarity: ragMinSimilarity,
+          stats: ragUsed ? ragStats : null,
         },
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

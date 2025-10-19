@@ -336,3 +336,9 @@ gcloud run domain-mappings list \
 **Manual Tasks**: 3 (Secrets, OAuth, DNS)  
 **Difficulty**: Beginner-friendly with step-by-step instructions
 
+
+
+
+
+
+

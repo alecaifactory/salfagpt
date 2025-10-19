@@ -245,3 +245,9 @@ gcloud secrets list --project=[PROJECT-ID]
 
 **Let's deploy your first client! 🎯**
 
+
+
+
+
+
+
