@@ -176,7 +176,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-gray-50 rounded-xl w-full h-full max-w-[95vw] max-h-[95vh] flex flex-col shadow-2xl">
+      <div className="bg-gray-50 rounded-xl w-full max-w-[95vw] h-[95vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white rounded-t-xl">
           <div>
@@ -383,14 +383,18 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-1">Actividad de Conversaciones</h3>
                     <p className="text-sm text-gray-500 mb-4">Número de conversaciones por día</p>
-                    <canvas id="activityChart" className="w-full h-64"></canvas>
+                    <div className="w-full h-64">
+                      <canvas id="activityChart"></canvas>
+                    </div>
                   </div>
 
                   {/* RF-4.2: Messages by Assistant */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-1">Mensajes por Asistente</h3>
                     <p className="text-sm text-gray-500 mb-4">Distribución de mensajes entre asistentes</p>
-                    <canvas id="assistantChart" className="w-full h-64"></canvas>
+                    <div className="w-full h-64">
+                      <canvas id="assistantChart"></canvas>
+                    </div>
                   </div>
                 </div>
 
@@ -400,7 +404,9 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-1">Distribución de Mensajes por Hora</h3>
                     <p className="text-sm text-gray-500 mb-4">Volumen de mensajes por hora del día</p>
-                    <canvas id="hourlyChart" className="w-full h-64"></canvas>
+                    <div className="w-full h-64">
+                      <canvas id="hourlyChart"></canvas>
+                    </div>
                   </div>
                 </div>
 
@@ -410,7 +416,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-1">Usuarios Más Activos (Top 10)</h3>
                     <p className="text-sm text-gray-500 mb-4">Usuarios con mayor cantidad de mensajes</p>
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-96">
                       <table className="w-full text-sm">
                         <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                           <tr>
@@ -441,7 +447,9 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                     <h3 className="font-semibold text-gray-900 mb-1">Usuarios por Dominio</h3>
                     <p className="text-sm text-gray-500 mb-4">Distribución de usuarios activos por dominio de correo</p>
-                    <canvas id="domainChart" className="w-full h-64"></canvas>
+                    <div className="w-full h-64">
+                      <canvas id="domainChart"></canvas>
+                    </div>
                   </div>
                 </div>
 
@@ -449,7 +457,9 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                   <h3 className="font-semibold text-gray-900 mb-1">Mensajes por Usuario (Top 10)</h3>
                   <p className="text-sm text-gray-500 mb-4">Cantidad de mensajes de los usuarios más activos</p>
-                  <canvas id="userMessagesChart" className="w-full h-64"></canvas>
+                  <div className="w-full h-64">
+                    <canvas id="userMessagesChart"></canvas>
+                  </div>
                 </div>
               </>
             )}
@@ -473,19 +483,53 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
 
 // Chart Initializer Component (renders charts after data loads)
 function ChartInitializer({ conversationsOverTime, messagesByAssistant, messagesByHour, topUsers, usersByDomain }: any) {
+  const [chartJsLoaded, setChartJsLoaded] = useState(false);
+
+  // Load Chart.js library once
   useEffect(() => {
-    // Dynamically load Chart.js
+    if ((window as any).Chart) {
+      setChartJsLoaded(true);
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/chart.js';
     script.onload = () => {
-      initCharts();
+      setChartJsLoaded(true);
     };
     document.head.appendChild(script);
 
     return () => {
-      document.head.removeChild(script);
+      // Don't remove script - keep it for reuse
     };
   }, []);
+
+  // Initialize charts when data changes (but only if Chart.js is loaded)
+  useEffect(() => {
+    if (!chartJsLoaded) return;
+    
+    // Destroy existing charts before creating new ones
+    destroyExistingCharts();
+    
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      initCharts();
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [chartJsLoaded, conversationsOverTime, messagesByAssistant, messagesByHour, topUsers, usersByDomain]);
+
+  const destroyExistingCharts = () => {
+    const chartIds = ['activityChart', 'assistantChart', 'hourlyChart', 'userMessagesChart', 'domainChart'];
+    chartIds.forEach(id => {
+      const canvas = document.getElementById(id) as HTMLCanvasElement;
+      if (canvas && (canvas as any).chart) {
+        (canvas as any).chart.destroy();
+      }
+    });
+  };
 
   const initCharts = () => {
     const Chart = (window as any).Chart;
@@ -504,7 +548,7 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
     // RF-4.1: Conversations Over Time
     const activityCanvas = document.getElementById('activityChart') as HTMLCanvasElement;
     if (activityCanvas) {
-      new Chart(activityCanvas, {
+      (activityCanvas as any).chart = new Chart(activityCanvas, {
         type: 'line',
         data: {
           labels: conversationsOverTime.labels,
@@ -529,7 +573,7 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
     // RF-4.2: Messages by Assistant
     const assistantCanvas = document.getElementById('assistantChart') as HTMLCanvasElement;
     if (assistantCanvas) {
-      new Chart(assistantCanvas, {
+      (assistantCanvas as any).chart = new Chart(assistantCanvas, {
         type: 'bar',
         data: {
           labels: messagesByAssistant.labels,
@@ -552,7 +596,7 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
     // RF-4.3: Messages by Hour
     const hourlyCanvas = document.getElementById('hourlyChart') as HTMLCanvasElement;
     if (hourlyCanvas) {
-      new Chart(hourlyCanvas, {
+      (hourlyCanvas as any).chart = new Chart(hourlyCanvas, {
         type: 'line',
         data: {
           labels: messagesByHour.labels,
@@ -577,7 +621,7 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
     // RF-4.4: Messages by User (Horizontal Bar)
     const userMessagesCanvas = document.getElementById('userMessagesChart') as HTMLCanvasElement;
     if (userMessagesCanvas) {
-      new Chart(userMessagesCanvas, {
+      (userMessagesCanvas as any).chart = new Chart(userMessagesCanvas, {
         type: 'bar',
         data: {
           labels: topUsers.slice(0, 10).map((u: any) => u.email),
@@ -607,7 +651,7 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
     // RF-4.5: Users by Domain
     const domainCanvas = document.getElementById('domainChart') as HTMLCanvasElement;
     if (domainCanvas) {
-      new Chart(domainCanvas, {
+      (domainCanvas as any).chart = new Chart(domainCanvas, {
         type: 'pie',
         data: {
           labels: usersByDomain.labels,
