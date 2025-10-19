@@ -331,68 +331,59 @@ export default function ContextManagementDashboard({
 
     for (const item of items) {
       const startTime = Date.now();
-      let progressInterval: NodeJS.Timeout | null = null;
-      let extractionProgressInterval: NodeJS.Timeout | null = null;
+      let elapsedTimeInterval: NodeJS.Timeout | null = null;
+      let smoothProgressInterval: NodeJS.Timeout | null = null;
 
       try {
-        // Start upload with timestamp
+        // Start with initial state
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { 
             ...i, 
             status: 'uploading', 
-            progress: 5,
+            progress: 0,
             startTime,
             elapsedTime: 0
           } : i
         ));
 
         // Start elapsed time tracker - update every 100ms for smooth animation
-        progressInterval = setInterval(() => {
+        elapsedTimeInterval = setInterval(() => {
           const elapsed = Date.now() - startTime;
           setUploadQueue(prev => prev.map(i => 
             i.id === item.id ? { ...i, elapsedTime: elapsed } : i
           ));
         }, 100); // Update every 100ms for smooth millisecond increments
 
-        // Progressive update: Preparing upload
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 10 } : i
-        ));
+        // ✨ NEW: Smooth incremental progress through ALL stages
+        let currentProgress = 0;
+        smoothProgressInterval = setInterval(() => {
+          setUploadQueue(prev => prev.map(i => {
+            if (i.id !== item.id) return i;
+            
+            // Increment progress smoothly (0.5% per second)
+            const newProgress = Math.min(i.progress + 0.5, 97); // Cap at 97%, API will finish it
+            
+            return { ...i, progress: newProgress };
+          }));
+        }, 500); // Update every 500ms
 
         // Create FormData
         const formData = new FormData();
         formData.append('file', item.file);
         formData.append('userId', userId);
         formData.append('name', item.file.name);
-        formData.append('model', item.model || 'gemini-2.5-flash'); // Use selected model
-        // No assignedToAgents - will be assigned later
+        formData.append('model', item.model || 'gemini-2.5-flash');
 
-        // Progressive update: Uploading file
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Upload stage (0-25%)
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 15 } : i
+          i.id === item.id ? { ...i, status: 'uploading', progress: 5 } : i
         ));
 
-        // Simulate gradual progress during upload
-        const progressUpdates = [20, 25, 30];
-        for (const targetProgress of progressUpdates) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-          setUploadQueue(prev => prev.map(i => 
-            i.id === item.id ? { ...i, progress: targetProgress } : i
-          ));
-        }
-
-        // Upload
+        // Call API (this takes the real time)
         const uploadResponse = await fetch('/api/extract-document', {
           method: 'POST',
           body: formData,
         });
-
-        // Progressive update: Upload complete, starting extraction
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 35, status: 'processing' } : i
-        ));
 
         if (!uploadResponse.ok) {
           throw new Error('Upload failed');
@@ -403,36 +394,16 @@ export default function ContextManagementDashboard({
         if (!uploadData.success) {
           throw new Error(uploadData.error || 'Extraction failed');
         }
+
+        // Clear smooth progress - API done, move to RAG phase
+        if (smoothProgressInterval) {
+          clearInterval(smoothProgressInterval);
+          smoothProgressInterval = null;
+        }
         
-        // Progressive update: Starting extraction
+        // Extract complete (50%)
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { ...i, status: 'processing', progress: 50 } : i
-        ));
-
-        // Continuous smooth progress during extraction (35% to 85%)
-        // Update every 200ms, increment by 1% each time
-        let currentProgress = 35;
-        const extractionProgressInterval = setInterval(() => {
-          if (currentProgress < 85) {
-            currentProgress += 1;
-            setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: Math.min(currentProgress, 85) } : i
-            ));
-          }
-        }, 200); // Update every 200ms for smooth continuous progress
-        
-        // Let the upload response complete (this is the actual processing time)
-        // The interval above will show continuous progress
-
-        // Progressive update: Saving to database
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 85 } : i
-        ));
-
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 90 } : i
         ));
 
         // Create source in Firestore with extracted data and pipeline logs
@@ -463,9 +434,24 @@ export default function ContextManagementDashboard({
         const savedData = await createResponse.json();
         const sourceId = savedData.source?.id;
 
-        // ✅ Auto-trigger RAG pipeline (Chunk → Embed)
+        // ✅ Auto-trigger RAG pipeline (Chunk → Embed) with progress
         if (sourceId && uploadData.extractedText) {
           console.log('🔍 Auto-triggering RAG pipeline for sourceId:', sourceId);
+          
+          // Chunk stage (50-75%)
+          setUploadQueue(prev => prev.map(i => 
+            i.id === item.id ? { ...i, progress: 55 } : i
+          ));
+          
+          // Restart smooth progress for RAG phase (50-97%)
+          currentProgress = 55;
+          smoothProgressInterval = setInterval(() => {
+            setUploadQueue(prev => prev.map(i => {
+              if (i.id !== item.id) return i;
+              const newProgress = Math.min(i.progress + 0.5, 97);
+              return { ...i, progress: newProgress };
+            }));
+          }, 500);
           
           try {
             const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
@@ -481,6 +467,17 @@ export default function ContextManagementDashboard({
             if (ragResponse.ok) {
               const ragData = await ragResponse.json();
               console.log('✅ RAG pipeline completed:', ragData);
+              
+              // Stop smooth progress
+              if (smoothProgressInterval) {
+                clearInterval(smoothProgressInterval);
+                smoothProgressInterval = null;
+              }
+              
+              // Embed complete (99%)
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { ...i, progress: 99 } : i
+              ));
             } else {
               console.warn('⚠️ RAG pipeline failed, but extraction was successful');
             }
@@ -490,9 +487,10 @@ export default function ContextManagementDashboard({
           }
         }
 
-        // Mark as complete
-        if (progressInterval) clearInterval(progressInterval);
-        if (extractionProgressInterval) clearInterval(extractionProgressInterval);
+        // Final completion
+        if (smoothProgressInterval) clearInterval(smoothProgressInterval);
+        if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
+        
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { 
             ...i, 
@@ -505,8 +503,8 @@ export default function ContextManagementDashboard({
 
       } catch (error) {
         console.error('Upload failed:', item.file.name, error);
-        if (progressInterval) clearInterval(progressInterval);
-        if (extractionProgressInterval) clearInterval(extractionProgressInterval);
+        if (smoothProgressInterval) clearInterval(smoothProgressInterval);
+        if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
         setUploadQueue(prev => prev.map(i => 
           i.id === item.id ? { 
             ...i, 
