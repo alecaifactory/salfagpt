@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, RefreshCw, Database, Sparkles, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Eye, Code, Hash } from 'lucide-react';
+import { X, FileText, RefreshCw, Database, Sparkles, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Eye, Code, Hash, Target } from 'lucide-react';
 import type { ContextSource } from '../types/context';
+import DocumentTestPanel from './DocumentTestPanel';
 
 interface ContextSourceSettingsModalSimpleProps {
   source: ContextSource | null;
@@ -69,6 +70,19 @@ export default function ContextSourceSettingsModalSimple({
   const [showExtractedText, setShowExtractedText] = useState(false);
   const [showChunks, setShowChunks] = useState(false);
   const [selectedChunk, setSelectedChunk] = useState<ChunkData | null>(null);
+  
+  // NEW: Interactive testing state
+  const [showInteractiveTest, setShowInteractiveTest] = useState(false);
+  const [selectedText, setSelectedText] = useState('');
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
+  const [testQuestion, setTestQuestion] = useState('');
+  const [testResult, setTestResult] = useState<{
+    question: string;
+    response: string;
+    references: any[];
+    matchedChunk: boolean;
+  } | null>(null);
+  const [isTestingQuestion, setIsTestingQuestion] = useState(false);
 
   const addProgressLog = (stage: string, message: string, progress: number) => {
     console.log(`[Re-index Progress] ${progress}% - ${stage}: ${message}`);
@@ -674,14 +688,28 @@ export default function ContextSourceSettingsModalSimple({
 
                   {/* Re-index Button */}
                   {hasCloudStorage && !progressState && (
-                    <button
-                      onClick={handleReIndex}
-                      disabled={isReIndexing}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium"
-                    >
-                      <Database className="w-4 h-4" />
-                      {hasRAG ? 'Re-indexar' : 'Indexar con RAG'}
-                    </button>
+                    <>
+                      <button
+                        onClick={handleReIndex}
+                        disabled={isReIndexing}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors font-medium"
+                      >
+                        <Database className="w-4 h-4" />
+                        {hasRAG ? 'Re-indexar' : 'Indexar con RAG'}
+                      </button>
+                      
+                      {/* Interactive Test Button */}
+                      {chunksData && chunksData.chunks.length > 0 && (
+                        <button
+                          onClick={() => setShowInteractiveTest(true)}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all font-medium shadow-md"
+                        >
+                          <Target className="w-4 h-4" />
+                          <span>Probar Documento Interactivamente</span>
+                          <Sparkles className="w-4 h-4" />
+                        </button>
+                      )}
+                    </>
                   )}
 
                   {!hasCloudStorage && (
@@ -899,6 +927,17 @@ export default function ContextSourceSettingsModalSimple({
           </button>
         </div>
       </div>
+      
+      {/* Interactive Test Panel */}
+      {showInteractiveTest && chunksData && (
+        <DocumentTestPanel
+          sourceId={source?.id || ''}
+          sourceName={source?.name || ''}
+          chunks={chunksData.chunks}
+          userId={userId}
+          onClose={() => setShowInteractiveTest(false)}
+        />
+      )}
     </div>
   );
 }
