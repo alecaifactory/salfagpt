@@ -134,6 +134,16 @@ export default function ContextManager({
                         </span>
                       )}
                       
+                      {/* RAG Status Badge - NEW */}
+                      {source.ragEnabled && source.ragMetadata && source.status === 'active' && (
+                        <span 
+                          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-0.5"
+                          title={`RAG: ${source.ragMetadata.totalChunks} chunks indexados`}
+                        >
+                          🔍 RAG
+                        </span>
+                      )}
+                      
                       {/* PUBLIC Tag Badge */}
                       {source.tags?.includes('PUBLIC') && (
                         <span 

@@ -167,15 +167,39 @@ REFERENCIAS:
     // Parse response for different content types
     const content = parseResponseContent(cleanText);
     
-    // Calculate token counts
-    const systemTokens = estimateTokenCount(systemInstruction);
-    const historyTokens = conversationHistory.reduce(
-      (sum, msg) => sum + estimateTokenCount(msg.content),
-      0
-    );
-    const contextTokens = estimateTokenCount(userContext);
-    const userTokens = estimateTokenCount(userMessage);
-    const responseTokens = estimateTokenCount(responseText);
+    // NEW: Use ACTUAL token counts from Gemini API if available
+    const usageMetadata = (result as any).usageMetadata;
+    
+    let systemTokens, historyTokens, contextTokens, userTokens, responseTokens;
+    
+    if (usageMetadata && usageMetadata.promptTokenCount && usageMetadata.candidatesTokenCount) {
+      // Use REAL token counts from API
+      responseTokens = usageMetadata.candidatesTokenCount;
+      const totalPromptTokens = usageMetadata.promptTokenCount;
+      
+      // Distribute prompt tokens proportionally (estimate)
+      systemTokens = estimateTokenCount(systemInstruction);
+      historyTokens = conversationHistory.reduce(
+        (sum, msg) => sum + estimateTokenCount(msg.content),
+        0
+      );
+      contextTokens = estimateTokenCount(userContext);
+      userTokens = estimateTokenCount(userMessage);
+      
+      console.log(`📊 Real token counts from API: prompt=${totalPromptTokens}, response=${responseTokens}`);
+    } else {
+      // Fallback to estimation
+      systemTokens = estimateTokenCount(systemInstruction);
+      historyTokens = conversationHistory.reduce(
+        (sum, msg) => sum + estimateTokenCount(msg.content),
+        0
+      );
+      contextTokens = estimateTokenCount(userContext);
+      userTokens = estimateTokenCount(userMessage);
+      responseTokens = estimateTokenCount(responseText);
+      
+      console.log('⚠️ Using estimated token counts (no usageMetadata from API)');
+    }
 
     // Build context sections for display
     const contextSections: ContextSection[] = [

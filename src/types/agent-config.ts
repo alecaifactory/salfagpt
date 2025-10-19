@@ -37,6 +37,12 @@ export interface AgentConfiguration {
   
   // ===== CONTEXT SOURCES (From ARD or inferred) =====
   requiredContextSources: string[]; // From document table or inferred
+  
+  // ===== RAG CONFIGURATION (NEW) =====
+  ragEnabled?: boolean;              // Enable RAG for this agent (default: true)
+  ragTopK?: number;                  // Chunks to retrieve (default: 5)
+  ragMinSimilarity?: number;         // Min similarity threshold (default: 0.5)
+  ragFallbackToFullText?: boolean;   // Auto-fallback if no results (default: true)
   detectedSources?: DetectedSource[]; // NEW - Auto-detected from questions
   
   // ===== DOMAIN EXPERT (From ARD) =====

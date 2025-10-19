@@ -119,3 +119,8 @@ echo "Next: Deploy application"
 echo "  ./deployment/deploy-to-environment.sh $ENVIRONMENT"
 echo ""
 
+
+
+
+
+

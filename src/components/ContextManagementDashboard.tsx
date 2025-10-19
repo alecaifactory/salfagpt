@@ -22,6 +22,7 @@ import {
 import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 import PipelineStatusPanel from './PipelineStatusPanel';
+import PipelineDetailView from './PipelineDetailView';
 
 interface ContextManagementDashboardProps {
   isOpen: boolean;
@@ -815,10 +816,10 @@ export default function ContextManagementDashboard({
 
         {/* Main Content */}
         <div className="flex-1 overflow-hidden flex">
-          {/* Left: Sources List */}
-          <div className="w-1/2 border-r border-gray-200 flex flex-col">
-            {/* Upload Zone */}
-            <div className="p-4 border-b border-gray-200">
+          {/* Left: Sources List with Scrollable Pipeline */}
+          <div className="w-1/2 border-r border-gray-200 flex flex-col overflow-hidden">
+            {/* Upload Zone - Fixed at top */}
+            <div className="flex-shrink-0 p-4 border-b border-gray-200">
               {!showUploadStaging ? (
                 // File selection zone
                 <div>
@@ -987,13 +988,20 @@ export default function ContextManagementDashboard({
               )}
             </div>
 
-            {/* Upload Queue - Pipeline Visual */}
+            {/* Upload Queue - Pipeline Visual - Scrollable */}
             {uploadQueue.length > 0 && (
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                  Pipeline de Procesamiento ({uploadQueue.length})
-                </h3>
-                <div className="space-y-4">
+              <div className="flex-shrink-0 border-b border-gray-200 flex flex-col" style={{ maxHeight: '50vh' }}>
+                <div className="flex-shrink-0 p-4 pb-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Pipeline de Procesamiento ({uploadQueue.length})
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {uploadQueue.filter(i => i.status === 'complete').length} completados
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
                   {uploadQueue.map(item => {
                     // Define stage thresholds - sequential and clear
                     const stages = [
@@ -1020,7 +1028,38 @@ export default function ContextManagementDashboard({
                     const currentStageIndex = getCurrentStageIndex();
 
                     return (
-                      <div key={item.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                      <button
+                        key={item.id}
+                        onClick={async () => {
+                          // If complete, find the source and select it
+                          if (item.status === 'complete' && item.sourceId) {
+                            console.log('🔍 Pipeline card clicked, sourceId:', item.sourceId);
+                            
+                            // First check if source is in current list
+                            let source = sources.find(s => s.id === item.sourceId);
+                            
+                            // If not found, reload sources (might be newly created)
+                            if (!source) {
+                              console.log('⟳ Source not in list, reloading...');
+                              await loadAllSources();
+                              source = sources.find(s => s.id === item.sourceId);
+                            }
+                            
+                            if (source) {
+                              console.log('✅ Found source, selecting:', source.name);
+                              setSelectedSourceIds([item.sourceId]);
+                              // Clear any tag filters to ensure source is visible
+                              setSelectedTags([]);
+                            } else {
+                              console.error('❌ Source not found after reload:', item.sourceId);
+                              alert('Documento no encontrado. Por favor, refresca la página.');
+                            }
+                          }
+                        }}
+                        className={`w-full border border-gray-200 rounded-lg p-4 bg-white shadow-sm text-left transition-all ${
+                          item.status === 'complete' ? 'hover:border-blue-400 hover:shadow-md cursor-pointer' : 'cursor-default'
+                        }`}
+                      >
                         {/* Header: File name, model, time */}
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1156,7 +1195,17 @@ export default function ContextManagementDashboard({
                             ))}
                           </div>
                         )}
-                      </div>
+                        
+                        {/* Clickable indicator for completed items */}
+                        {item.status === 'complete' && (
+                          <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-center">
+                            <span className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                              <Eye className="w-3.5 h-3.5" />
+                              Click para ver detalles completos
+                            </span>
+                          </div>
+                        )}
+                      </button>
                     );
                   })}
                 </div>
@@ -1200,8 +1249,8 @@ export default function ContextManagementDashboard({
               </div>
             )}
 
-            {/* Sources List */}
-            <div className="flex-1 overflow-y-auto p-4">
+            {/* Sources List - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 min-h-0">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -1367,82 +1416,36 @@ export default function ContextManagementDashboard({
                 </div>
               </div>
             ) : selectedSourceIds.length === 1 && selectedSource ? (
-              <>
-                {/* Source Details Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{selectedSource.name}</h3>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold border ${
-                          selectedSource.status === 'active' ? 'bg-gray-100 text-gray-700 border-gray-300' :
-                          selectedSource.status === 'error' ? 'bg-red-50 text-red-700 border-red-300' :
-                          'bg-gray-100 text-gray-700 border-gray-300'
-                        }`}>
-                          {selectedSource.status}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          Uploaded by {selectedSource.uploaderEmail || selectedSource.userId}
-                        </span>
+              /* Single Source Selected - Show Comprehensive Pipeline Detail View */
+              <div className="flex flex-col h-full">
+                {/* Header with Actions */}
+                <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={clearSourceSelection}
+                        className="p-2 hover:bg-white rounded-lg transition-colors"
+                        title="Volver a la lista"
+                      >
+                        <X className="w-5 h-5 text-gray-600" />
+                      </button>
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">Vista Detallada</h3>
+                        <p className="text-xs text-gray-600">Pipeline completo y contenido</p>
                       </div>
-                      
-                      {/* Tags in source details */}
-                      {selectedSource.labels && selectedSource.labels.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {selectedSource.labels.map(tag => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium border border-gray-300"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                     <button
                       onClick={() => handleDeleteSource(selectedSource.id)}
-                      className="text-red-600 hover:text-red-700 transition-colors"
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Eliminar fuente"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
-
-                  {/* Metadata */}
-                  {selectedSource.metadata && (
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      {selectedSource.metadata.pageCount && (
-                        <div>
-                          <span className="text-gray-500">Pages:</span>
-                          <span className="ml-2 font-medium text-gray-900">{selectedSource.metadata.pageCount}</span>
-                        </div>
-                      )}
-                      {selectedSource.metadata.model && (
-                        <div>
-                          <span className="text-gray-500">Model:</span>
-                          <span className="ml-2 font-medium text-gray-900">{selectedSource.metadata.model}</span>
-                        </div>
-                      )}
-                      {selectedSource.metadata.charactersExtracted && (
-                        <div>
-                          <span className="text-gray-500">Characters:</span>
-                          <span className="ml-2 font-medium text-gray-900">{selectedSource.metadata.charactersExtracted.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {selectedSource.metadata.tokensEstimate && (
-                        <div>
-                          <span className="text-gray-500">Tokens:</span>
-                          <span className="ml-2 font-medium text-gray-900">{selectedSource.metadata.tokensEstimate.toLocaleString()}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
-                {/* PUBLIC Tag Management */}
-                <div className="p-6 border-b border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-900 mb-3">Configuración de Visibilidad</h4>
-                  
+                {/* PUBLIC Tag Management - Compact */}
+                <div className="flex-shrink-0 p-4 border-b border-gray-200">
                   <button
                     onClick={async () => {
                       const newLabels = selectedSource.labels?.includes('PUBLIC')
@@ -1479,226 +1482,74 @@ export default function ContextManagementDashboard({
                       // Reload
                       await loadAllSources();
                     }}
-                    className={`w-full p-3 rounded-lg border-2 transition-all ${
+                    className={`w-full p-2 rounded-lg border transition-all text-left ${
                       selectedSource.labels?.includes('PUBLIC')
                         ? 'border-blue-500 bg-blue-50'
-                        : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition-all ${
+                    <div className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${
                         selectedSource.labels?.includes('PUBLIC')
                           ? 'border-blue-500 bg-blue-500'
-                          : 'border-slate-300'
+                          : 'border-gray-300'
                       }`}>
                         {selectedSource.labels?.includes('PUBLIC') && (
-                          <CheckCircle className="w-4 h-4 text-white" />
+                          <CheckCircle className="w-3.5 h-3.5 text-white" />
                         )}
                       </div>
-                      <div className="text-left flex-1">
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-semibold text-gray-900">PUBLIC</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mt-0.5">
-                          Se asigna automáticamente a todos los nuevos agentes
-                        </p>
-                      </div>
+                      <Globe className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-semibold text-gray-900">PUBLIC</span>
+                      <span className="text-xs text-gray-600 ml-auto">Auto-assign a nuevos agentes</span>
                     </div>
                   </button>
-                  
-                  {selectedSource.labels?.includes('PUBLIC') && (
-                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                      ℹ️ Este contexto está disponible para todos los agentes (nuevos y existentes)
-                    </div>
-                  )}
                 </div>
 
-                {/* Agent Assignment */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold text-gray-900">Asignar a Agentes Específicos</h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">
-                        {pendingAgentIds.length} agent{pendingAgentIds.length !== 1 ? 's' : ''} selected
-                      </span>
-                      <button
-                        onClick={handleAssignClick}
-                        disabled={isAssigning || pendingAgentIds.length === 0}
-                        className="px-3 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-xs font-medium flex items-center gap-1"
-                      >
-                        {isAssigning ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            Assigning...
-                          </>
-                        ) : (
-                          <>Assign to Agents</>
-                        )}
-                      </button>
-                    </div>
+                {/* Agent Assignment - Compact */}
+                <div className="flex-shrink-0 p-4 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-gray-900">Asignar a Agentes</h4>
+                    <button
+                      onClick={handleAssignClick}
+                      disabled={isAssigning || pendingAgentIds.length === 0}
+                      className="px-2 py-1 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+                    >
+                      {isAssigning ? 'Assigning...' : `Assign (${pendingAgentIds.length})`}
+                    </button>
                   </div>
                   
-                  {/* Bulk Assign by Tags */}
-                  {selectedTags.length > 0 && (
-                    <div className="mb-3 p-3 bg-gray-50 border border-gray-300 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div>
-                          <p className="text-xs font-semibold text-gray-900">Bulk Assign by Tags</p>
-                          <p className="text-xs text-gray-600 mt-0.5">
-                            {filteredSources.length} source(s) with selected tags
-                          </p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            if (pendingAgentIds.length === 0) {
-                              alert('Please select at least one agent first');
-                              return;
-                            }
-                            
-                            setIsAssigning(true);
-                            try {
-                              // Assign all tagged sources to selected agents
-                              for (const source of filteredSources) {
-                                await handleBulkAssign(source.id, pendingAgentIds);
-                              }
-                              alert(`✅ Assigned ${filteredSources.length} sources to ${pendingAgentIds.length} agent(s)`);
-                            } catch (error) {
-                              console.error('Bulk assign failed:', error);
-                              alert('Error during bulk assignment');
-                            } finally {
-                              setIsAssigning(false);
-                            }
-                          }}
-                          disabled={isAssigning || pendingAgentIds.length === 0}
-                          className="px-3 py-1.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-xs font-medium"
-                        >
-                          Assign All Tagged
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedTags.map(tag => (
-                          <span
-                            key={tag}
-                            className="px-2 py-0.5 bg-gray-800 text-white rounded-full text-xs font-medium"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="max-h-48 overflow-y-auto space-y-2">
-                    {conversations.map(agent => {
-                      const isSelected = pendingAgentIds.includes(agent.id);
-                      
-                      return (
-                        <label
-                          key={agent.id}
-                          className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleAgentSelection(agent.id)}
-                            className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                          />
-                          <MessageSquare className="w-4 h-4 text-gray-600" />
-                          <span className="text-sm font-medium text-gray-900 flex-1 truncate">
-                            {agent.title}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Pipeline Status - Show processing details */}
-                {selectedSource.pipelineLogs && selectedSource.pipelineLogs.length > 0 && (
-                  <div className="p-6 border-b border-gray-200 bg-gradient-to-br from-slate-50 to-blue-50">
-                    <PipelineStatusPanel 
-                      logs={selectedSource.pipelineLogs}
-                      sourceName={selectedSource.name}
-                    />
-                  </div>
-                )}
-
-                {/* Extracted Data Preview */}
-                <div className="flex-1 flex flex-col p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-gray-700" />
-                      <h4 className="text-sm font-semibold text-gray-900">Texto Extraído</h4>
-                      {selectedSource.extractedData && (
-                        <span className="text-xs text-gray-500">
-                          ({selectedSource.metadata?.charactersExtracted?.toLocaleString() || selectedSource.extractedData.length.toLocaleString()} caracteres)
-                        </span>
-                      )}
-                    </div>
-                    {selectedSource.extractedData && (
-                      <button
-                        onClick={() => {
-                          const blob = new Blob([selectedSource.extractedData!], { type: 'text/plain' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `${selectedSource.name}-extracted.txt`;
-                          a.click();
-                          URL.revokeObjectURL(url);
-                        }}
-                        className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 transition-colors px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {conversations.slice(0, 5).map(agent => (
+                      <label
+                        key={agent.id}
+                        className="flex items-center gap-2 p-2 border border-gray-200 rounded hover:bg-gray-50 cursor-pointer transition-colors text-xs"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        Descargar
-                      </button>
+                        <input
+                          type="checkbox"
+                          checked={pendingAgentIds.includes(agent.id)}
+                          onChange={() => toggleAgentSelection(agent.id)}
+                          className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                        />
+                        <MessageSquare className="w-3 h-3 text-gray-600" />
+                        <span className="font-medium text-gray-900 flex-1 truncate">{agent.title}</span>
+                      </label>
+                    ))}
+                    {conversations.length > 5 && (
+                      <p className="text-xs text-gray-500 text-center py-1">
+                        +{conversations.length - 5} más agentes
+                      </p>
                     )}
                   </div>
-                  
-                  {selectedSource.extractedData ? (
-                    <div className="flex-1 bg-white rounded-lg border-2 border-gray-200 overflow-hidden flex flex-col">
-                      {/* Content with better formatting */}
-                      <div className="flex-1 overflow-y-auto p-4">
-                        <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-wrap">
-                          {selectedSource.extractedData}
-                        </div>
-                      </div>
-                      
-                      {/* Bottom stats bar */}
-                      <div className="border-t border-gray-200 bg-gray-50 px-4 py-2">
-                        <div className="flex items-center justify-between text-[10px] text-gray-600">
-                          <div className="flex items-center gap-4">
-                            {selectedSource.metadata?.pageCount && (
-                              <span>📄 {selectedSource.metadata.pageCount} páginas</span>
-                            )}
-                            {selectedSource.metadata?.tokensEstimate && (
-                              <span>🔢 ~{selectedSource.metadata.tokensEstimate.toLocaleString()} tokens</span>
-                            )}
-                          </div>
-                          {selectedSource.metadata?.extractionDate && (
-                            <span className="text-gray-500">
-                              Extraído: {new Date(selectedSource.metadata.extractionDate).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 border-2 border-dashed border-gray-200 rounded-lg">
-                      <div className="text-center">
-                        <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                        <p className="text-sm font-medium">No hay texto extraído</p>
-                        {selectedSource.status === 'processing' && (
-                          <div className="flex items-center justify-center gap-2 mt-2">
-                            <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                            <p className="text-xs text-blue-600">Procesando documento...</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </>
+
+                {/* MAIN: Pipeline Detail View */}
+                <div className="flex-1 overflow-hidden">
+                  <PipelineDetailView 
+                    source={selectedSource}
+                    userId={userId}
+                  />
+                </div>
+              </div>
             ) : (
               /* Multiple Sources Selected - Bulk Assignment View */
               <div className="flex flex-col h-full">

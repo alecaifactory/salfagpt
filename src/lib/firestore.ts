@@ -1534,6 +1534,45 @@ export async function createContextSource(
 /**
  * Get all context sources for a user
  */
+export async function getContextSource(sourceId: string): Promise<ContextSource | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .doc(sourceId)
+      .get();
+    
+    if (!doc.exists) {
+      return null;
+    }
+    
+    const data = doc.data();
+    return {
+      id: doc.id,
+      ...data,
+      addedAt: data?.addedAt?.toDate() || new Date(),
+      metadata: data?.metadata ? {
+        ...data.metadata,
+        extractionDate: data.metadata.extractionDate?.toDate(),
+        validatedAt: data.metadata.validatedAt?.toDate(),
+      } : undefined,
+      certified: data?.certified || false,
+      certifiedAt: data?.certifiedAt?.toDate(),
+      progress: data?.progress,
+      error: data?.error ? {
+        ...data.error,
+        timestamp: data.error.timestamp?.toDate() || new Date(),
+      } : undefined,
+      ragMetadata: data?.ragMetadata ? {
+        ...data.ragMetadata,
+        indexedAt: data.ragMetadata.indexedAt?.toDate(),
+      } : undefined,
+    } as ContextSource;
+  } catch (error) {
+    console.error('❌ Error getting context source:', error);
+    return null;
+  }
+}
+
 export async function getContextSources(userId: string): Promise<ContextSource[]> {
   try {
     const snapshot = await firestore

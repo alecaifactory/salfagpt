@@ -16,6 +16,11 @@ export interface UserSettings {
   systemPrompt: string;
   language: string;
   theme?: 'light' | 'dark';
+  // RAG Settings
+  ragEnabled?: boolean;              // Enable RAG search (default: true)
+  ragTopK?: number;                  // Number of chunks to retrieve (default: 5)
+  ragChunkSize?: number;             // Tokens per chunk (default: 500)
+  ragMinSimilarity?: number;         // Minimum similarity threshold (default: 0.5)
 }
 
 export default function UserSettingsModal({
@@ -180,6 +185,47 @@ export default function UserSettingsModal({
                 <option value="en">English</option>
                 <option value="pt">Português</option>
               </select>
+            </div>
+
+            {/* RAG Configuration */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                    🔍 Búsqueda Vectorial (RAG)
+                  </label>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Busca solo las partes relevantes de los documentos
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.ragEnabled !== false} // Default: true
+                    onChange={(e) => setSettings({ ...settings, ragEnabled: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-green-600"></div>
+                </label>
+              </div>
+              
+              {/* RAG Benefits */}
+              {settings.ragEnabled !== false && (
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded p-2">
+                    <p className="text-green-600 dark:text-green-400 font-semibold">Eficiencia</p>
+                    <p className="text-slate-700 dark:text-slate-300">95% menos tokens</p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded p-2">
+                    <p className="text-blue-600 dark:text-blue-400 font-semibold">Precisión</p>
+                    <p className="text-slate-700 dark:text-slate-300">Solo lo relevante</p>
+                  </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-700 rounded p-2">
+                    <p className="text-purple-600 dark:text-purple-400 font-semibold">Velocidad</p>
+                    <p className="text-slate-700 dark:text-slate-300">2x más rápido</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

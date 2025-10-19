@@ -127,3 +127,8 @@ echo "  Login: $SERVICE_URL/auth/login"
 echo "  Chat: $SERVICE_URL/chat"
 echo ""
 
+
+
+
+
+

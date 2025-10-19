@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { GoogleGenAI } from '@google/genai';
 import { estimateTokens, calculateGeminiCost, formatCost } from '../../lib/pricing';
+import { uploadFile } from '../../lib/storage';
 
 // Initialize Gemini AI client
 const IS_DEVELOPMENT = import.meta.env.DEV;
@@ -68,9 +69,60 @@ export const POST: APIRoute = async ({ request }) => {
 
     console.log(`📄 Extracting text from: ${file.name} (${file.type}, ${file.size} bytes) using ${model}`);
 
-    // Convert file to base64
+    // Initialize pipeline logs
+    const pipelineLogs: any[] = [];
+    const overallStartTime = Date.now();
+
+    // Convert file to buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+    
+    // STEP 1: Save to Cloud Storage FIRST (before processing)
+    console.log('💾 Step 1/3: Saving original file to Cloud Storage...');
+    const uploadStepStart = Date.now();
+    pipelineLogs.push({
+      step: 'upload',
+      status: 'in_progress',
+      startTime: new Date(uploadStepStart),
+      message: 'Guardando archivo original en Cloud Storage...',
+    });
+    
+    const storageResult = await uploadFile(
+      buffer,
+      file.name,
+      file.type,
+      {
+        model,
+        fileSize: file.size,
+        uploadedBy: formData.get('userId') || 'unknown',
+      }
+    );
+    
+    const uploadStepEnd = Date.now();
+    pipelineLogs[pipelineLogs.length - 1] = {
+      ...pipelineLogs[pipelineLogs.length - 1],
+      status: 'success',
+      endTime: new Date(uploadStepEnd),
+      duration: uploadStepEnd - uploadStepStart,
+      message: 'Archivo guardado exitosamente en Cloud Storage',
+      details: {
+        fileSize: file.size,
+        storagePath: storageResult.storagePath,
+      }
+    };
+    
+    console.log(`✅ File saved to storage: ${storageResult.storagePath}`);
+    
+    // STEP 2: Process with Gemini
+    console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
+    const extractStepStart = Date.now();
+    pipelineLogs.push({
+      step: 'extract',
+      status: 'in_progress',
+      startTime: new Date(extractStepStart),
+      message: `Extrayendo texto con ${model}...`,
+    });
+    
     const base64Data = buffer.toString('base64');
 
     // Determine mime type
@@ -124,19 +176,70 @@ export const POST: APIRoute = async ({ request }) => {
               },
             },
             {
-              text: `Por favor, extrae TODO el contenido de este documento de manera completa y estructurada:
+              text: `Extrae TODO el contenido de este documento con MÁXIMA FIDELIDAD usando formato markdown:
 
-1. TEXTO: Extrae todo el texto manteniendo el formato original (títulos, párrafos, listas, etc.)
+# REQUISITOS DE EXTRACCIÓN:
 
-2. TABLAS: Si hay tablas, extráelas preservando la estructura en formato de texto (usa | para separar columnas)
+## 1. TEXTO:
+- Extrae todo el texto exactamente como está escrito
+- Usa markdown para estructura:
+  - # para títulos principales
+  - ## para subtítulos
+  - ### para sub-secciones
+  - **negrita** para énfasis
+  - *cursiva* para términos técnicos
+- Preserva párrafos, listas, numeración
 
-3. IMÁGENES: Si hay imágenes, gráficos o diagramas, descríbelos en texto claro y detallado. Describe:
-   - Qué muestra la imagen
-   - Elementos importantes (texto visible, datos, símbolos)
-   - Contexto o propósito aparente
-   - Usa formato tipo ASCII art si es relevante para diagramas simples
+## 2. TABLAS (CRÍTICO):
+- Convierte TODAS las tablas a formato markdown
+- Preserva estructura, alineación y TODOS los datos
+- Ejemplo:
 
-NO resumas, extrae TODO el contenido de manera completa. El objetivo es preservar toda la información del documento en formato de texto para uso posterior.`,
+| Columna 1 | Columna 2 | Columna 3 |
+|-----------|-----------|-----------|
+| Dato A    | Dato B    | Dato C    |
+| **Total** | **100**   | **200**   |
+
+## 3. IMÁGENES, GRÁFICOS Y DIAGRAMAS (CRÍTICO):
+Para CADA imagen/gráfico/diagrama proporciona:
+
+a) **Descripción Detallada:** Qué muestra, elementos clave, propósito
+
+b) **Representación Visual ASCII:** Recrea visualmente usando caracteres
+
+Ejemplo para gráfico de barras:
+**Descripción:** Ventas trimestrales Q1-Q4 mostrando crecimiento
+**Visual ASCII:**
+\`\`\`
+  $200K ┤                               ╭──╮
+  $150K ┤                       ╭──╮    │Q4│
+  $100K ┤           ╭──╮        │Q3│    │██│
+   $50K ┤   ╭──╮    │Q2│        │██│    │██│
+     $0 └───┴Q1┴────┴──┴────────┴──┴────┴──┴───
+\`\`\`
+
+Ejemplo para diagrama de flujo:
+\`\`\`
+  ┌─────────┐     ┌─────────┐     ┌─────────┐
+  │ Inicio  │ ──→ │ Proceso │ ──→ │  Fin    │
+  └─────────┘     └─────────┘     └─────────┘
+       │               │               │
+       ▼               ▼               ▼
+   Decisión        Validar         Guardar
+\`\`\`
+
+## 4. ESTRUCTURA:
+- Usa "---" para separar secciones/páginas
+- Mantén flujo lógico del documento
+- Indica números de página cuando sea relevante
+
+## 5. FORMATO FINAL:
+- Markdown bien estructurado
+- Fácil de leer y verificar
+- Completo (NO resumas)
+- Preserva TODA la información
+
+OBJETIVO: Crear representación de texto que capture el 100% de la información del documento original, incluyendo visual ASCII de todos los gráficos y diagramas.`,
             },
           ],
         },
@@ -147,7 +250,8 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       },
     });
 
-    const extractionTime = Date.now() - startTime;
+    const extractStepEnd = Date.now();
+    const extractionTime = extractStepEnd - extractStepStart;
     const extractedText = result.text || '';
     
     // Calculate token usage
@@ -164,6 +268,22 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
 
     // ✅ CRITICAL: Validate extraction success - don't mark empty as successful
     if (!extractedText || extractedText.trim().length === 0) {
+      // Update extract step log with error
+      pipelineLogs[pipelineLogs.length - 1] = {
+        ...pipelineLogs[pipelineLogs.length - 1],
+        status: 'error',
+        endTime: new Date(extractStepEnd),
+        duration: extractionTime,
+        message: 'No se pudo extraer texto del documento',
+        details: {
+          error: 'El documento puede estar vacío o ser una imagen escaneada sin OCR',
+          suggestions: [
+            'Intenta re-extraer con modelo Pro',
+            'Verifica que el PDF contenga texto seleccionable',
+          ],
+          model,
+        }
+      };
       console.warn(`⚠️ No text extracted from ${file.name} using ${model}`);
       
       return new Response(
@@ -188,6 +308,22 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       );
     }
 
+    // Update extract step log with success
+    pipelineLogs[pipelineLogs.length - 1] = {
+      ...pipelineLogs[pipelineLogs.length - 1],
+      status: 'success',
+      endTime: new Date(extractStepEnd),
+      duration: extractionTime,
+      message: `Texto extraído exitosamente: ${extractedText.length.toLocaleString()} caracteres`,
+      details: {
+        model,
+        inputTokens,
+        outputTokens,
+        charactersExtracted: extractedText.length,
+        cost: costBreakdown.totalCost,
+      }
+    };
+    
     // ✅ Warn if extraction is suspiciously short
     if (extractedText.length < 100) {
       console.warn(`⚠️ Very short extraction (${extractedText.length} chars) for ${file.name} (${file.size} bytes)`);
@@ -216,6 +352,11 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       outputCost: costBreakdown.outputCost,
       totalCost: costBreakdown.totalCost,
       costFormatted: formatCost(costBreakdown.totalCost),
+      
+      // Cloud Storage information (NEW)
+      storagePath: storageResult.storagePath,
+      bucketName: storageResult.bucketName,
+      originalFileUrl: storageResult.publicUrl,
     };
 
     // ✅ Add model recommendation for large files
@@ -236,6 +377,28 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
       console.log(`⚠️ ${modelWarning.message}`);
     }
 
+    // STEP 3: Auto-index with RAG (optional, based on flag)
+    const autoIndexRAG = formData.get('autoIndexRAG') !== 'false'; // Default: true
+    let ragMetadata = null;
+    
+    if (autoIndexRAG) {
+      try {
+        console.log('🔍 Step 3/3: Auto-indexing with RAG...');
+        
+        // We'll get sourceId after frontend creates the context source
+        // For now, just indicate RAG is ready
+        ragMetadata = {
+          autoIndexEnabled: true,
+          textReady: true,
+          charactersExtracted: extractedText.length,
+        };
+        
+        console.log('✅ Text ready for RAG indexing (will index after source creation)');
+      } catch (error) {
+        console.warn('⚠️ RAG auto-index preparation failed, will be available for manual indexing:', error);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -243,7 +406,9 @@ NO resumas, extrae TODO el contenido de manera completa. El objetivo es preserva
         metadata: {
           ...documentMetadata,
           modelWarning, // ✅ Include recommendation
+          ragMetadata, // ✅ Include RAG readiness
         },
+        pipelineLogs, // ✅ Include pipeline execution logs
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

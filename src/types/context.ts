@@ -43,6 +43,11 @@ export interface ExtractionMetadata {
   validatedBy?: string; // User email or ID
   validatedAt?: Date;
   validationNotes?: string;
+  
+  // Cloud Storage reference (NEW)
+  storagePath?: string;      // Path in Cloud Storage
+  bucketName?: string;       // Bucket name
+  originalFileUrl?: string;  // Public URL
 }
 
 export interface ContextSource {
@@ -76,6 +81,16 @@ export interface ContextSource {
   certifiedAt?: Date; // When it was certified
   certificationNotes?: string; // Notes from certifier
   
+  // RAG configuration (NEW)
+  ragEnabled?: boolean; // Whether RAG is enabled for this source
+  ragMetadata?: {
+    chunkCount?: number;
+    avgChunkSize?: number;
+    indexedAt?: Date;
+    embeddingModel?: string;
+  };
+  useRAGMode?: boolean; // User preference: use RAG (true) or full-text (false) for this source
+  
   // Progress tracking
   progress?: {
     stage: 'uploading' | 'processing' | 'complete' | 'error';
@@ -85,6 +100,9 @@ export interface ContextSource {
     elapsedSeconds?: number; // Elapsed time in seconds
     estimatedCost?: number; // Estimated cost so far
   };
+  
+  // Pipeline logs (NEW - detailed step tracking)
+  pipelineLogs?: PipelineLog[];
   
   // Error details
   error?: {
@@ -192,4 +210,38 @@ export const DEFAULT_WORKFLOWS: Omit<Workflow, 'id' | 'status'>[] = [
     },
   },
 ];
+
+// Pipeline execution log entry
+export interface PipelineLog {
+  step: 'upload' | 'extract' | 'chunk' | 'embed' | 'complete';
+  status: 'pending' | 'in_progress' | 'success' | 'error';
+  startTime: Date;
+  endTime?: Date;
+  duration?: number; // milliseconds
+  message: string;
+  details?: {
+    // Upload step
+    fileSize?: number;
+    storagePath?: string;
+    
+    // Extract step
+    model?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    charactersExtracted?: number;
+    cost?: number;
+    
+    // Chunk step
+    chunkCount?: number;
+    avgChunkSize?: number;
+    
+    // Embed step
+    embeddingCount?: number;
+    embeddingModel?: string;
+    
+    // Error details
+    error?: string;
+    suggestions?: string[];
+  };
+}
 

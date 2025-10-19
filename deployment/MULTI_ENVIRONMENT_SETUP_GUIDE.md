@@ -722,3 +722,9 @@ Overall:
 **Automation Level**: 90% (only secrets, OAuth, DNS are manual)  
 **Safety Level**: Multi-layer with Cursor confirmations
 
+
+
+
+
+
+
