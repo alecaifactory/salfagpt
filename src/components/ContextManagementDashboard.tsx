@@ -355,13 +355,27 @@ export default function ContextManagementDashboard({
         }, 100); // Update every 100ms for smooth millisecond increments
 
         // ✨ NEW: Smooth incremental progress through ALL stages
-        let currentProgress = 0;
         smoothProgressInterval = setInterval(() => {
           setUploadQueue(prev => prev.map(i => {
             if (i.id !== item.id) return i;
             
-            // Increment progress smoothly (0.5% per second)
-            const newProgress = Math.min(i.progress + 0.5, 97); // Cap at 97%, API will finish it
+            // Dynamic increment based on current stage
+            let increment = 0.5; // Default: 0.5% per 500ms (1% per second)
+            
+            // Speed up during long-running stages
+            if (i.progress >= 25 && i.progress < 50) {
+              // Extract stage - slower increment (API is working)
+              increment = 0.3;
+            } else if (i.progress >= 50 && i.progress < 75) {
+              // Chunk stage - medium speed
+              increment = 0.8;
+            } else if (i.progress >= 75) {
+              // Embed stage - faster (we want to reach completion)
+              increment = 1.0;
+            }
+            
+            // Cap at 98% before final completion
+            const newProgress = Math.min(i.progress + increment, 98);
             
             return { ...i, progress: newProgress };
           }));
@@ -395,15 +409,17 @@ export default function ContextManagementDashboard({
           throw new Error(uploadData.error || 'Extraction failed');
         }
 
-        // Clear smooth progress - API done, move to RAG phase
-        if (smoothProgressInterval) {
-          clearInterval(smoothProgressInterval);
-          smoothProgressInterval = null;
-        }
-        
-        // Extract complete (50%)
+        // API complete! Transition smoothly to next stage
+        // First jump to end of Extract stage
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'processing', progress: 50 } : i
+          i.id === item.id ? { ...i, status: 'processing', progress: 48 } : i
+        ));
+        
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Complete Extract stage (50%)
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 50 } : i
         ));
 
         // Create source in Firestore with extracted data and pipeline logs
@@ -434,26 +450,22 @@ export default function ContextManagementDashboard({
         const savedData = await createResponse.json();
         const sourceId = savedData.source?.id;
 
+        // Transition to Chunk stage
+        await new Promise(resolve => setTimeout(resolve, 200));
+        setUploadQueue(prev => prev.map(i => 
+          i.id === item.id ? { ...i, progress: 52 } : i
+        ));
+
         // ✅ Auto-trigger RAG pipeline (Chunk → Embed) with progress
         if (sourceId && uploadData.extractedText) {
           console.log('🔍 Auto-triggering RAG pipeline for sourceId:', sourceId);
           
-          // Chunk stage (50-75%)
-          setUploadQueue(prev => prev.map(i => 
-            i.id === item.id ? { ...i, progress: 55 } : i
-          ));
-          
-          // Restart smooth progress for RAG phase (50-97%)
-          currentProgress = 55;
-          smoothProgressInterval = setInterval(() => {
-            setUploadQueue(prev => prev.map(i => {
-              if (i.id !== item.id) return i;
-              const newProgress = Math.min(i.progress + 0.5, 97);
-              return { ...i, progress: newProgress };
-            }));
-          }, 500);
-          
           try {
+            // Chunk stage starting (55%)
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 55 } : i
+            ));
+            
             const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -468,23 +480,43 @@ export default function ContextManagementDashboard({
               const ragData = await ragResponse.json();
               console.log('✅ RAG pipeline completed:', ragData);
               
-              // Stop smooth progress
-              if (smoothProgressInterval) {
-                clearInterval(smoothProgressInterval);
-                smoothProgressInterval = null;
-              }
-              
-              // Embed complete (99%)
+              // Chunk complete, moving to Embed (75%)
               setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: 99 } : i
+                i.id === item.id ? { ...i, progress: 75 } : i
+              ));
+              
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Embed progressing (85%)
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { ...i, progress: 85 } : i
+              ));
+              
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Embed almost done (95%)
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { ...i, progress: 95 } : i
               ));
             } else {
               console.warn('⚠️ RAG pipeline failed, but extraction was successful');
+              // Still advance to completion
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { ...i, progress: 95 } : i
+              ));
             }
           } catch (error) {
             console.warn('⚠️ RAG auto-trigger failed:', error);
-            // Don't fail the upload, RAG can be enabled manually later
+            // Still advance to completion
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 95 } : i
+            ));
           }
+        } else {
+          // No RAG, skip to 95%
+          setUploadQueue(prev => prev.map(i => 
+            i.id === item.id ? { ...i, progress: 95 } : i
+          ));
         }
 
         // Final completion
