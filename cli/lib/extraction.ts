@@ -5,10 +5,17 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { readFile } from 'fs/promises';
+import { config } from 'dotenv';
+
+// Load environment variables from .env
+config();
 
 const API_KEY = process.env.GOOGLE_AI_API_KEY;
 
 if (!API_KEY) {
+  console.error('❌ Error: GOOGLE_AI_API_KEY no encontrada');
+  console.error('💡 Verifica que .env contenga:');
+  console.error('   GOOGLE_AI_API_KEY=tu-api-key-aqui');
   throw new Error('GOOGLE_AI_API_KEY no configurada en .env');
 }
 

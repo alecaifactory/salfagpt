@@ -34,6 +34,7 @@
     "@google-cloud/storage": "^7.14.0",
     "@google/genai": "^1.23.0",
     "astro": "^5.1.2",
+    "dotenv": "^17.2.3",
     "lucide-react": "^0.468.0",
     "papaparse": "^5.4.1",
     "react": "^18.3.1",
