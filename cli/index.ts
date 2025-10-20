@@ -268,6 +268,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
         addedAt: new Date(),
         extractedData: extractionResult.extractedText,
         assignedToAgents: ['cli-upload'], // Default assignment
+        tags: ['cli', 'automated'], // ⭐ TAGS for webapp filtering
         metadata: {
           originalFileName: fileName,
           originalFileSize: fileStats.size,

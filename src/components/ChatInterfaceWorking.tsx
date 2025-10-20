@@ -3043,6 +3043,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                                 )}
                               </div>
                               
+                              {/* CLI Tag - Show if uploaded via CLI */}
+                              {source.tags?.includes('cli') && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded flex-shrink-0">
+                                  🔷 CLI
+                                </span>
+                              )}
+                              
                               {/* RAG/Full Toggle Switch - Like ON/OFF toggle */}
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <span className="text-[10px] font-medium text-slate-600">
