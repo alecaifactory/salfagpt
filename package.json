@@ -33,6 +33,7 @@
     "@google-cloud/bigquery": "^7.9.0",
     "@google-cloud/firestore": "^7.10.0",
     "@google-cloud/storage": "^7.14.0",
+    "@google-cloud/vertexai": "^1.10.0",
     "@google/genai": "^1.23.0",
     "astro": "^5.1.2",
     "dotenv": "^17.2.3",

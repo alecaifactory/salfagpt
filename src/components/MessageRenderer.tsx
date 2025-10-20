@@ -343,12 +343,32 @@ export default function MessageRenderer({
                     <p className="text-xs text-slate-600 line-clamp-2">
                       {ref.snippet}
                     </p>
-                    {ref.chunkIndex !== undefined && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Chunk #{ref.chunkIndex + 1}
-                        {ref.metadata?.tokenCount && ` • ${ref.metadata.tokenCount} tokens`}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                      {ref.chunkIndex !== undefined && (
+                        <span className={`px-2 py-0.5 rounded font-mono ${
+                          ref.metadata?.isRAGChunk 
+                            ? 'bg-green-100 text-green-700 border border-green-300'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {ref.chunkIndex >= 0 ? `Fragmento ${ref.chunkIndex}` : 'Doc. Completo'}
+                        </span>
+                      )}
+                      {ref.metadata?.tokenCount && (
+                        <span className="text-slate-500">
+                          {ref.metadata.tokenCount.toLocaleString()} tokens
+                        </span>
+                      )}
+                      {ref.metadata?.isRAGChunk && (
+                        <span className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px] font-semibold">
+                          🔍 RAG
+                        </span>
+                      )}
+                      {ref.metadata?.isFullDocument && (
+                        <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-[10px] font-semibold">
+                          📝 Full
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </button>

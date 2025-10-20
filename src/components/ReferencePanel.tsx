@@ -92,12 +92,21 @@ export default function ReferencePanel({
             
             {reference.chunkIndex !== undefined && (
               <div className="flex items-center gap-2 text-xs text-slate-600">
-                <span className="bg-slate-100 px-2 py-1 rounded font-mono">
-                  {reference.chunkIndex >= 0 ? `Chunk #${reference.chunkIndex + 1}` : 'Documento Completo'}
+                <span className={`px-2 py-1 rounded font-mono ${
+                  reference.metadata?.isRAGChunk 
+                    ? 'bg-green-100 text-green-700 border border-green-300'
+                    : 'bg-slate-100 text-slate-600'
+                }`}>
+                  {reference.chunkIndex >= 0 ? `Fragmento ${reference.chunkIndex}` : 'Documento Completo'}
                 </span>
                 {reference.metadata?.tokenCount && (
                   <span className="text-slate-500">
                     • {reference.metadata.tokenCount.toLocaleString()} tokens
+                  </span>
+                )}
+                {reference.metadata?.isRAGChunk && (
+                  <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                    🔍 RAG Chunk
                   </span>
                 )}
                 {reference.metadata?.isFullDocument && (
@@ -166,10 +175,18 @@ export default function ReferencePanel({
           </div>
 
           {/* Información adicional */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-800">
+          <div className={`border rounded-lg p-3 ${
+            reference.metadata?.isRAGChunk 
+              ? 'bg-green-50 border-green-200'
+              : 'bg-blue-50 border-blue-200'
+          }`}>
+            <p className={`text-xs ${
+              reference.metadata?.isRAGChunk ? 'text-green-800' : 'text-blue-800'
+            }`}>
               <span className="font-semibold">💡 Nota:</span> 
-              {reference.chunkIndex !== undefined && reference.chunkIndex >= 0
+              {reference.metadata?.isRAGChunk
+                ? ` Este fragmento específico fue identificado como relevante (${reference.similarity ? `${(reference.similarity * 100).toFixed(1)}% de similitud` : 'alta similitud'}) por la búsqueda vectorial RAG y fue utilizado por el AI para generar la respuesta.`
+                : reference.chunkIndex !== undefined && reference.chunkIndex >= 0
                 ? ' Este fragmento específico fue identificado como relevante por el sistema RAG y utilizado por el AI para generar la respuesta.'
                 : ' El AI tuvo acceso al documento completo para generar la respuesta (modo Full-Text).'}
             </p>
