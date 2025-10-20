@@ -1,5 +1,5 @@
 import { BigQuery } from '@google-cloud/bigquery';
-import { VertexAI } from '@google-cloud/vertexai';
+// import { VertexAI } from '@google-cloud/vertexai'; // Commented out - not used currently
 
 // Prioritize process.env for Cloud Run
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
@@ -26,11 +26,12 @@ export const bigquery = new BigQuery({
 // Initialize Vertex AI client
 // In production (Cloud Run), uses Workload Identity automatically
 // In development, uses Application Default Credentials (gcloud auth)
-export const vertexAI = new VertexAI({
-  project: PROJECT_ID,
-  location: LOCATION,
-  // No credentials needed - uses automatic authentication
-});
+// export const vertexAI = new VertexAI({
+//   project: PROJECT_ID,
+//   location: LOCATION,
+//   // No credentials needed - uses automatic authentication
+// });
+// Commented out - not using VertexAI currently, using Gemini AI instead
 
 // BigQuery helper functions
 export async function insertUserSession(userId: string, sessionData: any) {
