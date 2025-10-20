@@ -100,23 +100,24 @@ export async function getUserChatHistory(userId: string, limit: number = 50) {
 }
 
 // Vertex AI helper functions
-export async function generateAIResponse(prompt: string) {
-  const generativeModel = vertexAI.getGenerativeModel({
-    model: 'gemini-1.5-pro',
-  });
+// Commented out - not using VertexAI, using Gemini AI from @google/genai instead
+// export async function generateAIResponse(prompt: string) {
+//   const generativeModel = vertexAI.getGenerativeModel({
+//     model: 'gemini-1.5-pro',
+//   });
 
-  try {
-    const result = await generativeModel.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
+//   try {
+//     const result = await generativeModel.generateContent({
+//       contents: [{ role: 'user', parts: [{ text: prompt }] }],
+//     });
 
-    const response = result.response;
-    return response.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
-  } catch (error) {
-    console.error('Error generating AI response:', error);
-    throw error;
-  }
-}
+//     const response = result.response;
+//     return response.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated';
+//   } catch (error) {
+//     console.error('Error generating AI response:', error);
+//     throw error;
+//   }
+// }
 
 // Initialize BigQuery tables (run once during setup)
 export async function initializeBigQueryTables() {
