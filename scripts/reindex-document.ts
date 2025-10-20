@@ -5,6 +5,12 @@
  * Example: npx tsx scripts/reindex-document.ts 8tjgUceVZW0A46QYYRfW
  */
 
+// Load .env file FIRST
+import dotenv from 'dotenv';
+dotenv.config();
+
+console.log('🔑 API Key loaded:', process.env.GOOGLE_AI_API_KEY ? 'YES ✅' : 'NO ❌');
+
 import { firestore } from '../src/lib/firestore';
 import { generateEmbedding } from '../src/lib/embeddings';
 

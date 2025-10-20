@@ -8,16 +8,38 @@
  * Cost: FREE (included with Gemini API key)
  */
 
-// Configuration - Prioritize process.env for server-side code
-const API_KEY = typeof process !== 'undefined' && process.env 
-  ? process.env.GOOGLE_AI_API_KEY
-  : (typeof import.meta !== 'undefined' && import.meta.env 
-    ? import.meta.env.GOOGLE_AI_API_KEY 
-    : undefined);
+import * as fs from 'fs';
+import * as path from 'path';
 
-if (!API_KEY) {
-  console.warn('⚠️ GOOGLE_AI_API_KEY not set - embeddings will use deterministic fallback');
-  console.warn('   Check .env file has GOOGLE_AI_API_KEY=...');
+// Configuration - Load API key from .env file directly (Astro doesn't auto-load for server code)
+function getAPIKey(): string | undefined {
+  // Try process.env first (in case it's set)
+  if (typeof process !== 'undefined' && process.env?.GOOGLE_AI_API_KEY) {
+    return process.env.GOOGLE_AI_API_KEY;
+  }
+  
+  // Try import.meta.env (build time)
+  if (typeof import.meta !== 'undefined' && import.meta.env?.GOOGLE_AI_API_KEY) {
+    return import.meta.env.GOOGLE_AI_API_KEY;
+  }
+  
+  // Last resort: Read .env file directly
+  try {
+    const envPath = path.join(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf-8');
+      const match = envContent.match(/GOOGLE_AI_API_KEY=(.+)/);
+      if (match && match[1]) {
+        const key = match[1].trim();
+        console.log('🔑 [Embeddings] Loaded API key from .env file');
+        return key;
+      }
+    }
+  } catch (error) {
+    // Silent fail - will use deterministic fallback
+  }
+  
+  return undefined;
 }
 
 export const EMBEDDING_MODEL = 'text-embedding-004'; // Gemini embedding model
@@ -37,8 +59,12 @@ export const EMBEDDING_DIMENSIONS = 768;
  * Uses Gemini AI embedContent API for semantic embeddings
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
+  // Get API key at runtime (not module load time)
+  const API_KEY = getAPIKey();
+  
   // If no API key, use deterministic immediately
   if (!API_KEY) {
+    console.warn('⚠️ GOOGLE_AI_API_KEY not available - using deterministic fallback');
     return generateDeterministicEmbedding(text);
   }
   
