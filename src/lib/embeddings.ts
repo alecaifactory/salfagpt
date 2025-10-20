@@ -188,10 +188,12 @@ function generateDeterministicEmbedding(text: string): number[] {
 /**
  * Generate embeddings for multiple texts in batch
  * Processes in parallel with rate limiting
+ * 
+ * Optimized batch size: 32 (balances speed and rate limits)
  */
 export async function generateEmbeddingsBatch(
   texts: string[],
-  batchSize: number = 5
+  batchSize: number = 32  // Increased for better throughput
 ): Promise<number[][]> {
   console.log(`🧮 Generating ${texts.length} embeddings (batch size: ${batchSize})...`);
   

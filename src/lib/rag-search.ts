@@ -38,8 +38,8 @@ export async function searchRelevantChunks(
   options: RAGSearchOptions = {}
 ): Promise<RAGSearchResult[]> {
   const {
-    topK = 5,
-    minSimilarity = 0, // Show ALL chunks with any similarity to debug
+    topK = 5, // Top 5 most relevant chunks
+    minSimilarity = 0, // Show ALL chunks to see similarity distribution (TODO: raise to 0.3 after testing)
     activeSourceIds
   } = options;
 
