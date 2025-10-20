@@ -296,12 +296,12 @@ export default function ContextSourceSettingsModal({
           </div>
         )}
 
-        {/* Content - New Layout: Top-left: extracted text, below: extraction info, top-right: chunking history, below: original file */}
+        {/* Content - New Layout: Top-left: extracted text (max 50% height), below: extraction info, top-right: RAG + Chunks, below: original file */}
         <div className="p-4 flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
           {/* Left Column */}
           <div className="space-y-3 flex flex-col">
-            {/* Extracted Text Preview - Top Priority */}
-            <section className="bg-white rounded-lg border border-slate-300 p-3 flex-1 flex flex-col">
+            {/* Extracted Text Preview - Limited to 50% of modal height */}
+            <section className="bg-white rounded-lg border border-slate-300 p-3 flex flex-col" style={{ maxHeight: '40vh' }}>
               <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-blue-600" />
                 Texto Extraído
@@ -333,8 +333,8 @@ export default function ContextSourceSettingsModal({
               </div>
             </section>
 
-            {/* Extraction Information - Below extracted text */}
-            <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-200">
+            {/* Extraction Information - Below extracted text, fixed size */}
+            <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-200 flex-shrink-0">
               <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                 <Zap className="w-4 h-4 text-blue-600" />
                 Información de Extracción
