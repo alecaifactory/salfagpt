@@ -11,7 +11,10 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    port: 3000,  // Main branch - OAuth configured
+    // Port from environment variable
+    // AI Factory (.env): 3000 (OAuth configured)
+    // Salfacorp (.env.salfacorp): 3001
+    port: parseInt(process.env.DEV_PORT || '3000', 10)
   },
   integrations: [
     react(),
