@@ -1,6 +1,6 @@
 {
   "name": "salfagpt",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "private": false,
   "description": "Flow AI Platform - Developer CLI and SDK for context management",
@@ -29,6 +29,7 @@
     "@astrojs/check": "^0.9.4",
     "@astrojs/node": "^8.3.4",
     "@astrojs/react": "^3.6.2",
+    "@astrojs/tailwind": "^6.0.2",
     "@google-cloud/bigquery": "^7.9.0",
     "@google-cloud/firestore": "^7.10.0",
     "@google-cloud/storage": "^7.14.0",

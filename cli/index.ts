@@ -24,6 +24,7 @@ import {
 } from './lib/analytics';
 import { uploadFileToGCS, ensureBucketExists } from './lib/storage';
 import { extractDocument } from './lib/extraction';
+import { processForRAG } from './lib/embeddings';
 import { firestore } from '../src/lib/firestore';
 
 // Load environment variables from .env file
@@ -44,7 +45,7 @@ function log(message: string, color: keyof typeof colors = 'reset') {
 }
 
 // CLI Version
-const CLI_VERSION = '0.2.0';
+const CLI_VERSION = '0.3.0';
 
 interface ProcessedFile {
   success: boolean;
@@ -57,6 +58,11 @@ interface ProcessedFile {
   extractionModel?: string;
   extractionCost?: number;
   extractionDuration?: number;
+  // RAG fields
+  chunksCreated?: number;
+  embeddingsGenerated?: number;
+  ragCost?: number;
+  ragDuration?: number;
   error?: string;
 }
 
@@ -251,7 +257,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
       });
       
       // STEP 3: Save to Firestore
-      log(`   ⏳ Paso 3/3: Guardando en Firestore...`, 'cyan');
+      log(`   ⏳ Paso 3/5: Guardando metadata en Firestore...`, 'cyan');
       
       const contextSource = await firestore.collection('context_sources').add({
         userId: user.userId,
@@ -267,6 +273,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
           originalFileSize: fileStats.size,
           uploadedVia: 'cli',
           cliVersion: CLI_VERSION,
+          userEmail: user.email,  // ⭐ User attribution
           gcsPath: uploadResult.gcsPath,
           extractionDate: new Date(),
           extractionTime: extractionResult.duration,
@@ -280,13 +287,71 @@ async function uploadFolder(folderPath: string): Promise<void> {
         source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
       });
       
-      log(`   ✅ Paso 3/3: Guardado en Firestore`, 'green');
+      log(`   ✅ Paso 3/5: Metadata guardada en Firestore`, 'green');
       log(`      🔑 Document ID: ${contextSource.id}`, 'reset');
       log(`      📍 Ver en: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_sources~2F${contextSource.id}`, 'reset');
       
-      const totalDuration = Date.now() - fileStartTime;
+      // STEP 4 & 5: RAG Processing (Chunking + Embeddings)
+      log(`   ⏳ Paso 4/5: Procesando para RAG (chunking + embeddings)...`, 'cyan');
       
-      log(`\n   ✨ Archivo completado en ${(totalDuration / 1000).toFixed(1)}s`, 'green');
+      const ragResult = await processForRAG(
+        contextSource.id,
+        fileName,
+        extractionResult.extractedText,
+        user.userId,
+        'cli-upload', // agentId
+        {
+          chunkSize: 512,
+          embeddingModel: 'text-embedding-004',
+          uploadedVia: 'cli',
+          cliVersion: CLI_VERSION,
+          userEmail: user.email,  // ⭐ User attribution in embeddings
+        }
+      );
+      
+      if (!ragResult.success) {
+        log(`   ⚠️  Warning: RAG process failed: ${ragResult.error}`, 'yellow');
+        log(`   💡 Document still available, but without vector search`, 'yellow');
+      } else {
+        log(`   ✅ Paso 4/5: Chunking completado`, 'green');
+        log(`      📦 ${ragResult.totalChunks} chunks creados`, 'reset');
+        log(`      🧬 ${ragResult.embeddings.length} embeddings generados (768-dim)`, 'reset');
+        log(`      🎯 ${ragResult.totalTokens.toLocaleString()} tokens procesados`, 'reset');
+        log(`      💰 Costo embeddings: $${ragResult.estimatedCost.toFixed(6)}`, 'reset');
+        log(`      ⏱️  Tiempo RAG: ${(ragResult.duration / 1000).toFixed(1)}s`, 'reset');
+        
+        // Show chunk preview
+        if (ragResult.chunks.length > 0) {
+          log(`\n   📑 Preview de chunks creados:`, 'cyan');
+          log(`   ${'─'.repeat(60)}`, 'reset');
+          log(`   Chunk 1 (${ragResult.chunks[0].tokenCount} tokens):`, 'reset');
+          log(`   ${ragResult.chunks[0].text.substring(0, 200)}...`, 'reset');
+          log(`   ${'─'.repeat(60)}`, 'reset');
+        }
+      }
+      
+      log(`   ⏳ Paso 5/5: Finalizando índice vectorial...`, 'cyan');
+      
+      // Update context_source with RAG metadata
+      await firestore.collection('context_sources').doc(contextSource.id).update({
+        'metadata.ragEnabled': ragResult.success,
+        'metadata.ragChunks': ragResult.totalChunks,
+        'metadata.ragEmbeddings': ragResult.embeddings.length,
+        'metadata.ragTokens': ragResult.totalTokens,
+        'metadata.ragCost': ragResult.estimatedCost,
+        'metadata.ragModel': 'text-embedding-004',
+        'metadata.ragProcessedAt': new Date(),
+        'metadata.ragProcessedBy': user.email,  // ⭐ Attribution
+      });
+      
+      log(`   ✅ Paso 5/5: Índice vectorial completado`, 'green');
+      log(`      📚 ${ragResult.totalChunks} chunks indexados`, 'reset');
+      log(`      🔍 Búsqueda semántica disponible`, 'reset');
+      
+      const totalDuration = Date.now() - fileStartTime;
+      const totalCost = extractionResult.estimatedCost + (ragResult.estimatedCost || 0);
+      
+      log(`\n   ✨ Archivo completado en ${(totalDuration / 1000).toFixed(1)}s (Costo total: $${totalCost.toFixed(6)})`, 'green');
       
       results.push({
         success: true,
@@ -299,6 +364,10 @@ async function uploadFolder(folderPath: string): Promise<void> {
         extractionModel: extractionModel,
         extractionCost: extractionResult.estimatedCost,
         extractionDuration: extractionResult.duration,
+        chunksCreated: ragResult.totalChunks,
+        embeddingsGenerated: ragResult.embeddings.length,
+        ragCost: ragResult.estimatedCost,
+        ragDuration: ragResult.duration,
       });
       
     } catch (error) {
@@ -333,7 +402,11 @@ async function uploadFolder(folderPath: string): Promise<void> {
   const failCount = results.filter(r => !r.success).length;
   const totalSize = results.reduce((sum, r) => sum + r.fileSize, 0);
   const totalChars = results.reduce((sum, r) => sum + (r.extractedChars || 0), 0);
-  const totalCost = results.reduce((sum, r) => sum + (r.extractionCost || 0), 0);
+  const totalExtractionCost = results.reduce((sum, r) => sum + (r.extractionCost || 0), 0);
+  const totalRAGCost = results.reduce((sum, r) => sum + (r.ragCost || 0), 0);
+  const totalCost = totalExtractionCost + totalRAGCost;
+  const totalChunks = results.reduce((sum, r) => sum + (r.chunksCreated || 0), 0);
+  const totalEmbeddings = results.reduce((sum, r) => sum + (r.embeddingsGenerated || 0), 0);
   const totalDuration = Date.now() - sessionStartTime;
   
   log(`\n📁 Archivos Procesados:`, 'blue');
@@ -349,13 +422,24 @@ async function uploadFolder(folderPath: string): Promise<void> {
     log(`   Tiempo Total Extracción: ${(results.reduce((sum, r) => sum + (r.extractionDuration || 0), 0) / 1000).toFixed(1)}s`, 'reset');
     log(`   Promedio por Archivo: ${((results.reduce((sum, r) => sum + (r.extractionDuration || 0), 0) / successCount) / 1000).toFixed(1)}s`, 'reset');
     
+    log(`\n🧬 RAG & Vector Indexing:`, 'blue');
+    log(`   Total Chunks: ${totalChunks.toLocaleString()}`, 'reset');
+    log(`   Total Embeddings: ${totalEmbeddings.toLocaleString()} (768-dim cada uno)`, 'reset');
+    log(`   Modelo Embeddings: text-embedding-004`, 'reset');
+    log(`   Tiempo Total RAG: ${(results.reduce((sum, r) => sum + (r.ragDuration || 0), 0) / 1000).toFixed(1)}s`, 'reset');
+    log(`   Promedio por Archivo: ${((results.reduce((sum, r) => sum + (r.ragDuration || 0), 0) / successCount) / 1000).toFixed(1)}s`, 'reset');
+    
     log(`\n💰 Costos:`, 'blue');
-    log(`   Costo Total Extracción: $${totalCost.toFixed(6)}`, 'reset');
-    log(`   Costo Promedio por Archivo: $${(totalCost / successCount).toFixed(6)}`, 'reset');
+    log(`   Extracción (Gemini): $${totalExtractionCost.toFixed(6)}`, 'reset');
+    log(`   Embeddings (RAG): $${totalRAGCost.toFixed(6)}`, 'reset');
+    log(`   Total: $${totalCost.toFixed(6)}`, 'reset');
+    log(`   Promedio por Archivo: $${(totalCost / successCount).toFixed(6)}`, 'reset');
     
     log(`\n☁️  Recursos Creados en GCP:`, 'blue');
     log(`   Storage: ${successCount} archivo(s) en gs://${process.env.GOOGLE_CLOUD_PROJECT}-context-documents/`, 'reset');
-    log(`   Firestore: ${successCount} documento(s) en collection 'context_sources'`, 'reset');
+    log(`   Firestore context_sources: ${successCount} documento(s)`, 'reset');
+    log(`   Firestore document_embeddings: ${totalEmbeddings.toLocaleString()} chunks vectorizados`, 'reset');
+    log(`   🔍 Búsqueda semántica: Habilitada para ${successCount} documentos`, 'reset');
   }
   
   log(`\n⏱️  Tiempo Total: ${(totalDuration / 1000).toFixed(1)}s`, 'blue');
@@ -413,7 +497,11 @@ async function logToFile(
   const timestamp = new Date().toISOString();
   const successResults = results.filter(r => r.success);
   const totalChars = successResults.reduce((sum, r) => sum + (r.extractedChars || 0), 0);
-  const totalCost = successResults.reduce((sum, r) => sum + (r.extractionCost || 0), 0);
+  const totalExtractionCost = successResults.reduce((sum, r) => sum + (r.extractionCost || 0), 0);
+  const totalRAGCost = successResults.reduce((sum, r) => sum + (r.ragCost || 0), 0);
+  const totalCost = totalExtractionCost + totalRAGCost;
+  const totalChunks = successResults.reduce((sum, r) => sum + (r.chunksCreated || 0), 0);
+  const totalEmbeddings = successResults.reduce((sum, r) => sum + (r.embeddingsGenerated || 0), 0);
   const extractionModel = successResults.length > 0 ? (successResults[0].extractionModel || 'gemini-2.5-flash') : 'gemini-2.5-flash';
   
   const logEntry = `
@@ -429,13 +517,13 @@ async function logToFile(
 
 ### Files Processed
 
-| File | Size (KB) | GCS Path | Firestore ID | Chars | Model | Cost | Status |
-|------|-----------|----------|--------------|-------|-------|------|--------|
+| File | Size (KB) | GCS Path | Firestore ID | Chars | Chunks | Embeddings | Cost Total | Status |
+|------|-----------|----------|--------------|-------|--------|------------|------------|--------|
 ${results.map(r => {
   if (r.success) {
-    return `| ${r.fileName} | ${(r.fileSize / 1024).toFixed(2)} | \`${r.gcsPath}\` | \`${r.firestoreDocId}\` | ${(r.extractedChars || 0).toLocaleString()} | ${r.extractionModel} | $${(r.extractionCost || 0).toFixed(6)} | ✅ |`;
+    return `| ${r.fileName} | ${(r.fileSize / 1024).toFixed(2)} | \`${r.gcsPath}\` | \`${r.firestoreDocId}\` | ${(r.extractedChars || 0).toLocaleString()} | ${r.chunksCreated || 0} | ${r.embeddingsGenerated || 0} | $${((r.extractionCost || 0) + (r.ragCost || 0)).toFixed(6)} | ✅ |`;
   } else {
-    return `| ${r.fileName} | ${(r.fileSize / 1024).toFixed(2)} | - | - | - | - | - | ❌ |`;
+    return `| ${r.fileName} | ${(r.fileSize / 1024).toFixed(2)} | - | - | - | - | - | - | ❌ |`;
   }
 }).join('\n')}
 
@@ -443,17 +531,41 @@ ${results.map(r => {
 
 - **Caracteres Totales:** ${totalChars.toLocaleString()}
 - **Modelo Usado:** ${extractionModel}
-- **Costo Total:** $${totalCost.toFixed(6)}
+- **Costo Extracción:** $${totalExtractionCost.toFixed(6)}
+
+### RAG & Vectorización
+
+- **Total Chunks:** ${totalChunks.toLocaleString()}
+- **Total Embeddings:** ${totalEmbeddings.toLocaleString()} vectores (768 dimensiones)
+- **Modelo Embeddings:** text-embedding-004
+- **Costo RAG:** $${totalRAGCost.toFixed(6)}
+- **Costo Total (Extracción + RAG):** $${totalCost.toFixed(6)}
 
 ### Recursos en GCP
 
 ${successResults.map(r => `
 #### ${r.fileName}
-- **GCS:** ${r.gcsPath}
-- **Firestore:** \`context_sources/${r.firestoreDocId}\`
+- **GCS (Archivo Original):** ${r.gcsPath}
+- **Firestore (Metadata):** \`context_sources/${r.firestoreDocId}\`
+- **Firestore (Embeddings):** \`document_embeddings\` - ${r.chunksCreated || 0} chunks vectorizados
 - **Texto Extraído:** ${(r.extractedChars || 0).toLocaleString()} caracteres
-- **Preview:** ${results.find(res => res.fileName === r.fileName)?.extractedChars ? 'Ver en Firestore' : 'N/A'}
+- **Chunks RAG:** ${r.chunksCreated || 0} chunks de ~512 tokens cada uno
+- **Embeddings:** ${r.embeddingsGenerated || 0} vectores de 768 dimensiones
+- **Búsqueda Semántica:** ${r.embeddingsGenerated ? '✅ Habilitada' : '❌ No disponible'}
 `).join('\n')}
+
+### Traceabilidad (User Attribution)
+
+Todas las operaciones y vectores vinculados a:
+- **Usuario:** ${user.email} (\`${user.userId}\`)
+- **Fuente:** salfagpt-cli v${CLI_VERSION}
+- **Session ID:** \`${sessionId}\`
+
+Registro en Firestore:
+- **Collection \`cli_events\`:** Eventos de upload, extracción, chunking, embedding
+- **Collection \`cli_sessions\`:** Resumen de esta sesión
+- **Collection \`context_sources\`:** Metadata con \`userEmail: ${user.email}\`, \`uploadedVia: 'cli'\`
+- **Collection \`document_embeddings\`:** Cada chunk con \`userEmail: ${user.email}\`, \`source: 'cli'\`
 
 ${results.filter(r => !r.success).length > 0 ? `
 ### Errors
