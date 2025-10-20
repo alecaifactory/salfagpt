@@ -56,7 +56,8 @@ export interface SourceReference {
     tokenCount?: number;
     startPage?: number;
     endPage?: number;
-    isFullDocument?: boolean; // True if this is full document (not RAG chunk)
+    isRAGChunk?: boolean; // NEW: Whether this is a RAG chunk (vs full document)
+    isFullDocument?: boolean; // NEW: Whether this is the full document
   };
 }
 
@@ -384,18 +385,65 @@ export async function* streamAIResponse(
     let enhancedSystemInstruction = systemInstruction;
     
     if (userContext) {
-      fullUserMessage = `Context:\n${userContext}\n\nUser Message:\n${userMessage}`;
+      // Detectar si el contexto contiene chunks RAG numerados
+      const isRAGContext = userContext.includes('[Fragmento ') || userContext.includes('Relevancia:');
       
-      // Enhance system instruction to request inline citations
-      enhancedSystemInstruction = `${systemInstruction}
+      if (isRAGContext) {
+        // Modo RAG: Extraer números de fragmentos del contexto
+        const fragmentMatches = userContext.match(/\[Fragmento (\d+),/g) || [];
+        const fragmentNumbers = fragmentMatches.map(m => {
+          const match = m.match(/\[Fragmento (\d+),/);
+          return match ? match[1] : null;
+        }).filter(Boolean);
+        
+        fullUserMessage = `FRAGMENTOS RELEVANTES DEL CONTEXTO (ordenados por relevancia):
+${userContext}
 
-IMPORTANTE: Cuando uses información de los documentos de contexto:
-- Incluye referencias numeradas inline usando el formato [1], [2], etc.
-- Coloca la referencia INMEDIATAMENTE después de la información que uses
-- Sé específico: cada dato del documento debe tener su referencia
+───────────────────────────────────
+PREGUNTA DEL USUARIO:
+${userMessage}`;
 
-Ejemplo:
-"Las construcciones en subterráneo deben cumplir con distanciamientos[1]. La DDU 189 establece zonas inexcavables[2]."`;
+        enhancedSystemInstruction = `${systemInstruction}
+
+🔍 MODO RAG ACTIVADO - INSTRUCCIONES CRÍTICAS:
+
+Te he proporcionado ${fragmentNumbers.length} fragmentos específicos y relevantes del documento, numerados como: ${fragmentNumbers.join(', ')}.
+
+DEBES OBLIGATORIAMENTE:
+1. ✅ Citar cada fragmento que uses con su número exacto entre corchetes [N]
+2. ✅ Colocar la cita INMEDIATAMENTE después del dato específico que proviene de ese fragmento
+3. ✅ Si un dato específico viene de múltiples fragmentos, cita todos: [1][2]
+4. ✅ Cada afirmación factual del documento DEBE tener su referencia
+5. ❌ NO inventes información que no esté en los fragmentos
+6. ❌ Si la información no está en los fragmentos, di explícitamente "No tengo información sobre..."
+
+FORMATO REQUERIDO DE RESPUESTA:
+"La Ley N°19.537 derogó expresamente la Ley N°6.071[1]. Esta ley se aplica a las 
+comunidades de copropietarios que estaban acogidas a la ley anterior[2]. Las construcciones 
+en subterráneo deben cumplir con distanciamientos[3]."
+
+Fragmentos disponibles para citar: ${fragmentNumbers.join(', ')}
+RECUERDA: Cada dato del documento DEBE llevar su número de fragmento entre corchetes.`;
+      } else {
+        // Modo Full-Text (documento completo)
+        fullUserMessage = `DOCUMENTO COMPLETO:
+${userContext}
+
+───────────────────────────────────
+PREGUNTA DEL USUARIO:
+${userMessage}`;
+        
+        enhancedSystemInstruction = `${systemInstruction}
+
+📝 MODO FULL-TEXT ACTIVADO:
+
+Tienes acceso al documento completo. Puedes usar cualquier parte del documento para responder.
+
+RECOMENDADO (pero no obligatorio):
+- Menciona el documento cuando sea útil: "Según el documento..."
+- Cita secciones específicas si es relevante
+`;
+      }
     }
 
     // Add current user message

@@ -54,6 +54,8 @@ interface Message {
       tokenCount?: number;
       startPage?: number;
       endPage?: number;
+      isRAGChunk?: boolean; // NEW: Whether this is a RAG chunk (vs full document)
+      isFullDocument?: boolean; // NEW: Whether this is the full document
     };
   }>;
 }
@@ -157,6 +159,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
+  
+  // NEW: Ref to store fragment mapping for current streaming response
+  const fragmentMappingRef = useRef<Array<{
+    refId: number;
+    chunkIndex: number;
+    sourceName: string;
+    similarity: number;
+    tokens: number;
+  }> | null>(null);
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -926,6 +937,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     
     // Track processing for this agent
     const agentId = currentConversation;
+    // Clear previous fragment mapping for new message
+    fragmentMappingRef.current = null;
+    
     setAgentProcessing(prev => ({
       ...prev,
       [agentId]: {
@@ -1049,6 +1063,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 } else if (data.type === 'chunks') {
                   // Store chunk information for later display
                   console.log('📊 Chunks seleccionados:', data.chunks);
+                } else if (data.type === 'fragmentMapping') {
+                  // NEW: Store fragment mapping for validation
+                  console.log('🗺️ Fragment mapping received:', data.mapping);
+                  fragmentMappingRef.current = data.mapping;
+                  
+                  // Log expected citations
+                  const expectedCitations = data.mapping.map((m: any) => `[${m.refId}]`).join(', ');
+                  console.log(`📋 Expected citations in response: ${expectedCitations}`);
+                  data.mapping.forEach((m: any) => {
+                    console.log(`  [${m.refId}] → Fragmento ${m.chunkIndex} (${m.sourceName}) - ${(m.similarity * 100).toFixed(1)}%`);
+                  });
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
@@ -1071,6 +1096,34 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     console.log('📚 Reference details:', data.references);
                   }
                   
+                  // NEW: Validate citations if we have fragment mapping
+                  if (fragmentMappingRef.current && fragmentMappingRef.current.length > 0) {
+                    const expectedCitations = fragmentMappingRef.current.map(m => `[${m.refId}]`);
+                    const foundCitations: string[] = [];
+                    
+                    for (const citation of expectedCitations) {
+                      if (accumulatedContent.includes(citation)) {
+                        foundCitations.push(citation);
+                      }
+                    }
+                    
+                    console.log('📋 Citation validation:');
+                    console.log(`  Expected: ${expectedCitations.join(', ')}`);
+                    console.log(`  Found in text: ${foundCitations.join(', ')}`);
+                    console.log(`  Coverage: ${foundCitations.length}/${expectedCitations.length} (${(foundCitations.length / expectedCitations.length * 100).toFixed(0)}%)`);
+                    
+                    if (foundCitations.length === 0) {
+                      console.warn('⚠️ WARNING: AI did not include any inline citations [1], [2], etc.');
+                      console.warn('   The AI may not have followed the RAG citation instructions.');
+                      console.warn('   References will still be shown below the message.');
+                    } else if (foundCitations.length < expectedCitations.length) {
+                      console.warn(`⚠️ WARNING: AI only cited ${foundCitations.length}/${expectedCitations.length} fragments.`);
+                      console.warn(`   Missing: ${expectedCitations.filter((c: string) => !foundCitations.includes(c)).join(', ')}`);
+                    } else {
+                      console.log('✅ All fragments were cited correctly by the AI!');
+                    }
+                  }
+                  
                   // Mark message as no longer streaming and add references
                   setMessages(prev => prev.map(msg => 
                     msg.id === streamingId 
@@ -1079,7 +1132,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                           id: finalMessageId,
                           isStreaming: false,
                           content: accumulatedContent,
-                          references: data.references, // RAG chunk references
+                          references: data.references, // RAG chunk references with real similarity
                           thinkingSteps: undefined
                         }
                       : msg

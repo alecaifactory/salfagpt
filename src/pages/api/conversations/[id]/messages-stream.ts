@@ -187,6 +187,22 @@ export const POST: APIRoute = async ({ params, request }) => {
                 }))
               })}\n\n`;
               controller.enqueue(encoder.encode(chunkData));
+              
+              // NEW: Send fragment mapping so frontend knows what to expect
+              const fragmentMapping = ragResults.map((result, index) => ({
+                refId: index + 1,
+                chunkIndex: result.chunkIndex,
+                sourceName: result.sourceName,
+                similarity: result.similarity,
+                tokens: result.metadata.tokenCount
+              }));
+              
+              console.log('🗺️ Sending fragment mapping to client:', fragmentMapping.length, 'chunks');
+              const mappingData = `data: ${JSON.stringify({ 
+                type: 'fragmentMapping',
+                mapping: fragmentMapping
+              })}\n\n`;
+              controller.enqueue(encoder.encode(mappingData));
             }
             
             await new Promise(resolve => setTimeout(resolve, 3000)); // Always 3 seconds
@@ -254,8 +270,8 @@ export const POST: APIRoute = async ({ params, request }) => {
                   id: index + 1,
                   sourceId: result.sourceId,
                   sourceName: result.sourceName,
-                  chunkIndex: result.chunkIndex,
-                  similarity: result.similarity,
+                  chunkIndex: result.chunkIndex, // Real chunk index from document
+                  similarity: result.similarity, // Real similarity score (0-1)
                   snippet: result.text.substring(0, 300),
                   fullText: result.text,
                   metadata: {
@@ -264,9 +280,14 @@ export const POST: APIRoute = async ({ params, request }) => {
                     tokenCount: result.metadata.tokenCount,
                     startPage: result.metadata.startPage,
                     endPage: result.metadata.endPage,
+                    isRAGChunk: true, // NEW: Explicitly mark as RAG chunk
                   }
                 }));
-                console.log('📚 Built references from RAG chunks:', references.length);
+                
+                console.log('📚 Built RAG references from chunks:');
+                references.forEach(ref => {
+                  console.log(`  [${ref.id}] Fragmento ${ref.chunkIndex} de ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% similar - ${ref.metadata.tokenCount} tokens`);
+                });
               } else if (contextSources && contextSources.length > 0) {
                 // Full-text mode: Create references from complete documents
                 references = contextSources.map((source: any, index: number) => ({
