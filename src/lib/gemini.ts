@@ -40,7 +40,7 @@ export interface SourceReference {
   sourceName: string;
   snippet: string;
   fullText?: string; // Full chunk text for detailed view
-  chunkIndex?: number; // Which chunk from the source
+  chunkIndex?: number; // Which chunk from the source (-1 = full document, >=0 = specific chunk)
   similarity?: number; // Similarity score (0-1) for RAG
   context?: {
     before?: string;
@@ -56,6 +56,7 @@ export interface SourceReference {
     tokenCount?: number;
     startPage?: number;
     endPage?: number;
+    isFullDocument?: boolean; // True if this is full document (not RAG chunk)
   };
 }
 

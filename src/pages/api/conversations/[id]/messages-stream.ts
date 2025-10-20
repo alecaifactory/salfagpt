@@ -245,28 +245,49 @@ export const POST: APIRoute = async ({ params, request }) => {
           // Save complete AI message to Firestore (for persistent conversations)
           if (!conversationId.startsWith('temp-')) {
             try {
-              // Build references from RAG results BEFORE saving message
-              // Map RAG chunks to reference format that matches what AI will cite
-              const references = ragResults.map((result, index) => ({
-                id: index + 1, // Sequential numbering [1], [2], etc.
-                sourceId: result.sourceId,
-                sourceName: result.sourceName,
-                chunkIndex: result.chunkIndex,
-                similarity: result.similarity,
-                snippet: result.text.substring(0, 300), // Longer snippet for better preview
-                fullText: result.text, // Complete chunk text
-                metadata: {
-                  startChar: result.metadata.startChar,
-                  endChar: result.metadata.endChar,
-                  tokenCount: result.metadata.tokenCount,
-                  startPage: result.metadata.startPage,
-                  endPage: result.metadata.endPage,
-                }
-              }));
+              // Build references from RAG results OR full documents
+              let references: any[] = [];
+              
+              if (ragUsed && ragResults.length > 0) {
+                // RAG mode: Map chunks to references
+                references = ragResults.map((result, index) => ({
+                  id: index + 1,
+                  sourceId: result.sourceId,
+                  sourceName: result.sourceName,
+                  chunkIndex: result.chunkIndex,
+                  similarity: result.similarity,
+                  snippet: result.text.substring(0, 300),
+                  fullText: result.text,
+                  metadata: {
+                    startChar: result.metadata.startChar,
+                    endChar: result.metadata.endChar,
+                    tokenCount: result.metadata.tokenCount,
+                    startPage: result.metadata.startPage,
+                    endPage: result.metadata.endPage,
+                  }
+                }));
+                console.log('📚 Built references from RAG chunks:', references.length);
+              } else if (contextSources && contextSources.length > 0) {
+                // Full-text mode: Create references from complete documents
+                references = contextSources.map((source: any, index: number) => ({
+                  id: index + 1,
+                  sourceId: source.id,
+                  sourceName: source.name,
+                  chunkIndex: -1, // -1 indicates full document (not a chunk)
+                  similarity: 1.0, // Full document = 100% (all content available)
+                  snippet: (source.content || '').substring(0, 300),
+                  fullText: source.content || '',
+                  metadata: {
+                    tokenCount: Math.ceil((source.content?.length || 0) / 4),
+                    isFullDocument: true, // Flag to indicate this is not a RAG chunk
+                  }
+                }));
+                console.log('📚 Built references from full documents (fallback mode):', references.length);
+              }
 
-              console.log('📚 Built references for message:', references.length);
               references.forEach(ref => {
-                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - Chunk #${ref.chunkIndex + 1}`);
+                const chunkInfo = ref.chunkIndex >= 0 ? `Chunk #${ref.chunkIndex + 1}` : 'Full Document';
+                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - ${chunkInfo}`);
               });
 
               // Save message with references
