@@ -74,10 +74,10 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragHadFallback = false;
           let ragResults: any[] = [];
 
-          // Step 2: Buscando Contexto Relevante... (3 seconds)
+          // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
           if (contextSources && contextSources.length > 0) {
             sendStatus('searching', 'active');
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            const searchStartTime = Date.now();
             
             const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
             
@@ -163,29 +163,34 @@ export const POST: APIRoute = async ({ params, request }) => {
                 .join('\n');
             }
             
+            // Ensure minimum 3 seconds for this step
+            const searchElapsed = Date.now() - searchStartTime;
+            if (searchElapsed < 3000) {
+              await new Promise(resolve => setTimeout(resolve, 3000 - searchElapsed));
+            }
+            
             sendStatus('searching', 'complete');
 
-            // Step 3: Seleccionando Chunks... (3 seconds, only if RAG is used)
-            if (ragUsed) {
-              sendStatus('selecting', 'active');
-              
-              // Send chunk selection details
-              if (ragStats && ragStats.sources) {
-                const chunkData = `data: ${JSON.stringify({ 
-                  type: 'chunks',
-                  chunks: ragStats.sources.map((s: any) => ({
-                    sourceId: s.id,
-                    sourceName: s.name,
-                    chunkCount: s.chunkCount,
-                    tokens: s.tokens
-                  }))
-                })}\n\n`;
-                controller.enqueue(encoder.encode(chunkData));
-              }
-              
-              await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds to show chunks
-              sendStatus('selecting', 'complete');
+            // Step 3: Seleccionando Chunks... (ALWAYS show this step, 3 seconds)
+            // Show even if RAG not used, to keep consistent 4-step process
+            sendStatus('selecting', 'active');
+            
+            // Send chunk selection details if available
+            if (ragUsed && ragStats && ragStats.sources) {
+              const chunkData = `data: ${JSON.stringify({ 
+                type: 'chunks',
+                chunks: ragStats.sources.map((s: any) => ({
+                  sourceId: s.id,
+                  sourceName: s.name,
+                  chunkCount: s.chunkCount,
+                  tokens: s.tokens
+                }))
+              })}\n\n`;
+              controller.enqueue(encoder.encode(chunkData));
             }
+            
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Always 3 seconds
+            sendStatus('selecting', 'complete');
           }
 
           // Step 4: Generando Respuesta... (streaming happens here)

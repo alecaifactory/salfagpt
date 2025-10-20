@@ -2732,9 +2732,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                         <div className="space-y-3 min-w-[320px]">
                           {msg.thinkingSteps.map((step, index) => {
                             // Generate ellipsis based on dots count (1, 2, or 3)
-                            const ellipsis = step.status === 'active' && step.dots 
-                              ? '.'.repeat(step.dots)
-                              : '';
+                            // dots cycles: 0, 1, 2, 3 → display: ".", "..", "...", "."
+                            let ellipsis = '';
+                            if (step.status === 'active') {
+                              const dotCount = (step.dots || 0) % 3 + 1; // Convert 0,1,2,3 → 1,2,3,1
+                              ellipsis = '.'.repeat(dotCount);
+                            }
                             
                             // Remove existing ellipsis from label if present, then add animated one
                             const baseLabel = step.label.replace(/\.\.\.?$/, '');
