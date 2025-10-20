@@ -1,0 +1,13 @@
+# Test Document for M001
+
+This is a test document to verify the CLI can scan folders.
+
+## Content
+
+- Section 1: Introduction
+- Section 2: Details
+- Section 3: Conclusion
+
+**Note:** This is a .txt file, so it should be skipped (unsupported format).
+Only PDF, Word, Excel, and CSV files are supported.
+

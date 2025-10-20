@@ -48,6 +48,19 @@ export interface ExtractionMetadata {
   storagePath?: string;      // Path in Cloud Storage
   bucketName?: string;       // Bucket name
   originalFileUrl?: string;  // Public URL
+  
+  // Chunking/RAG history (NEW - 2025-10-19)
+  chunkingHistory?: Array<{
+    timestamp: Date;
+    userId: string;
+    userName?: string;
+    method: 'initial' | 'reindex' | 'auto';
+    chunksCreated: number;
+    embeddingModel: string;
+    duration: number; // milliseconds
+    success: boolean;
+    error?: string;
+  }>;
 }
 
 export interface ContextSource {

@@ -31,7 +31,9 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ users                   # User profiles            │
 │  ├─ folders                 # Organization             │
 │  ├─ groups                  # Team groups              │
-│  └─ context_access_rules    # Sharing permissions      │
+│  ├─ context_access_rules    # Sharing permissions      │
+│  ├─ cli_events              # CLI operation events (NEW)│
+│  └─ cli_sessions            # CLI session tracking (NEW)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
@@ -728,6 +730,210 @@ interface ContextAccessRule {
 **Backward Compatibility:**
 - ✅ Sharing is optional
 - ⚠️ Never remove `contextSourceId`, `sharedBy` (breaking)
+
+---
+
+### 13. cli_events
+
+**Purpose:** Track all CLI operations for traceability, debugging, and analytics
+
+**Collection Path:** `cli_events/{eventId}`
+
+**TypeScript Interface:**
+```typescript
+type CLIEventType = 
+  | 'cli_upload_start'
+  | 'cli_upload_complete'
+  | 'cli_upload_failed'
+  | 'cli_file_uploaded'
+  | 'cli_file_extracted'
+  | 'cli_file_failed'
+  | 'cli_search_query'
+  | 'cli_index_rebuild'
+  | 'cli_config_updated'
+  | 'cli_error';
+
+interface CLIEvent {
+  // Identity & Attribution
+  id: string;                       // Document ID
+  eventType: CLIEventType;          // Type of operation
+  userId: string;                   // User who ran CLI (indexed)
+  userEmail: string;                // User email for easy identification
+  source: 'cli';                    // Always 'cli' to distinguish from webapp
+  cliVersion: string;               // CLI version (e.g., '0.1.0')
+  
+  // Context
+  agentId?: string;                 // Target agent (if applicable)
+  conversationId?: string;          // Target conversation (if applicable)
+  
+  // Operation Details
+  operation: string;                // Command run (e.g., 'upload', 'search')
+  folderPath?: string;              // Folder being processed
+  fileName?: string;                // Specific file (for file-level events)
+  
+  // Results
+  success: boolean;                 // Operation success (indexed)
+  duration?: number;                // Duration in milliseconds
+  filesProcessed?: number;          // Count of files
+  filesSucceeded?: number;          // Count of successful
+  filesFailed?: number;             // Count of failed
+  
+  // Resource Details
+  model?: string;                   // AI model used (e.g., 'gemini-2.5-flash')
+  inputTokens?: number;             // Tokens sent to AI
+  outputTokens?: number;            // Tokens received from AI
+  estimatedCost?: number;           // Cost in USD
+  
+  // Storage
+  gcsPath?: string;                 // GCS path created
+  firestoreDocId?: string;          // Firestore document created
+  
+  // Error Tracking
+  errorMessage?: string;            // Error message if failed
+  errorStack?: string;              // Stack trace (redacted)
+  
+  // Metadata
+  timestamp: Date;                  // When event occurred (indexed)
+  hostname: string;                 // Machine running CLI
+  nodeVersion: string;              // Node.js version
+  platform: string;                 // OS platform
+  
+  // Batch/Session
+  sessionId: string;                // Groups related events (indexed)
+  batchId?: string;                 // For batch operations
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, timestamp DESC
+- sessionId ASC, timestamp ASC
+- eventType ASC, timestamp DESC
+- success ASC, timestamp DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcli_events
+
+**API Endpoints:**
+- `GET /api/cli-events?userId={userId}` - List user's CLI events (admin)
+- `GET /api/cli-events?sessionId={sessionId}` - Get session events
+
+**CRUD Functions (cli/lib/analytics.ts):**
+- `trackCLIEvent(eventData): Promise<void>`
+- `trackFileUpload(data): Promise<void>`
+- `trackFileExtraction(data): Promise<void>`
+
+**Backward Compatibility:**
+- ✅ New collection (additive only)
+- ✅ All fields optional except identity fields
+- ⚠️ Never remove `userId`, `eventType`, `timestamp` (breaking)
+
+**Usage Example:**
+```typescript
+// Track upload start
+await trackCLIEvent({
+  eventType: 'cli_upload_start',
+  userId: '114671162830729001607',
+  userEmail: 'alec@getaifactory.com',
+  cliVersion: '0.1.0',
+  operation: 'upload',
+  folderPath: 'contextos/pdf/agentes/M001',
+  success: true,
+  sessionId: 'cli-session-1234567890-abc123',
+});
+
+// Track file upload
+await trackFileUpload({
+  sessionId: 'cli-session-1234567890-abc123',
+  fileName: 'manual.pdf',
+  fileSize: 1240000,
+  agentId: 'agent-M001',
+  success: true,
+  duration: 2300,
+  gcsPath: 'gs://bucket/user-123/agent-M001/manual.pdf',
+  firestoreDocId: 'source-abc123',
+});
+```
+
+---
+
+### 14. cli_sessions
+
+**Purpose:** Track CLI session summaries for analytics and user activity monitoring
+
+**Collection Path:** `cli_sessions/{sessionId}`
+
+**TypeScript Interface:**
+```typescript
+interface CLISession {
+  id: string;                       // Document ID (same as sessionId)
+  userId: string;                   // User who ran CLI (indexed)
+  userEmail: string;                // User email
+  command: string;                  // Full command run
+  cliVersion: string;               // CLI version
+  
+  // Timing
+  startedAt: Date;                  // Session start (indexed)
+  endedAt?: Date;                   // Session end
+  duration?: number;                // Total duration in ms
+  
+  // Results
+  eventsCount: number;              // Number of events in session
+  filesProcessed?: number;          // Files processed
+  filesSucceeded?: number;          // Successful files
+  filesFailed?: number;             // Failed files
+  success: boolean;                 // Overall success
+  
+  // Costs (if applicable)
+  totalCost?: number;               // Total cost in USD
+  totalTokens?: number;             // Total tokens used
+  
+  // Source
+  source: 'cli';                    // Always 'cli'
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, startedAt DESC
+- startedAt DESC
+- success ASC, startedAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcli_sessions
+
+**API Endpoints:**
+- `GET /api/cli-sessions?userId={userId}` - List user's CLI sessions
+- `GET /api/cli-stats?userId={userId}` - Get CLI usage stats
+
+**CRUD Functions (cli/lib/analytics.ts):**
+- `trackCLISession(sessionData): Promise<void>`
+- `trackUploadSession(data): Promise<void>`
+
+**Backward Compatibility:**
+- ✅ New collection (additive only)
+- ⚠️ Never remove `userId`, `startedAt` (breaking)
+
+**Usage Example:**
+```typescript
+// Track complete upload session
+await trackUploadSession({
+  sessionId: 'cli-session-1234567890-abc123',
+  command: 'upload contextos/pdf/agentes/M001',
+  folderPath: 'contextos/pdf/agentes/M001',
+  agentId: 'agent-M001',
+  startedAt: new Date('2025-10-19T10:30:00'),
+  endedAt: new Date('2025-10-19T10:30:45'),
+  filesProcessed: 3,
+  filesSucceeded: 3,
+  filesFailed: 0,
+  totalDuration: 45300,
+  totalCost: 0.0041,
+  success: true,
+});
+```
 
 ---
 

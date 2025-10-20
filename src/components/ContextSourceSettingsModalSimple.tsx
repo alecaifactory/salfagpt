@@ -274,58 +274,134 @@ export default function ContextSourceSettingsModalSimple({
           </button>
         </div>
 
-        {/* Content - 2 Column Layout */}
+        {/* Content - 2 Column Layout: LEFT: texto + info extracción, RIGHT: historial chunks + archivo original */}
         <div className="p-6 flex-1 overflow-y-auto">
           <div className="grid grid-cols-2 gap-6">
             
-            {/* Left Column - Metadata & Status */}
-            <div className="space-y-6">
+            {/* LEFT COLUMN - Texto Extraído + Información de Extracción */}
+            <div className="space-y-4 flex flex-col">
               
-              {/* Extraction Info */}
-              <section>
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">Información de Extracción</h3>
-                <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Modelo:</span>
-                    <span className="font-medium text-slate-900 flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-slate-400" />
-                      {source.metadata?.model || 'N/A'}
+              {/* 1. TEXTO EXTRAÍDO - ARRIBA IZQUIERDA */}
+              <section className="bg-white rounded-lg border border-slate-300 p-4 flex-1 flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    Texto Extraído
+                  </h3>
+                  <div className="flex items-center gap-3 text-[10px] text-slate-500">
+                    <span className="flex items-center gap-1">
+                      <Code className="w-3 h-3" />
+                      {source.extractedData?.length.toLocaleString() || '0'} caracteres
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Hash className="w-3 h-3" />
+                      ≈ {source.extractedData ? Math.ceil(source.extractedData.length / 4).toLocaleString() : '0'} tokens
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Tamaño:</span>
-                    <span className="font-medium text-slate-900">
+                </div>
+                
+                <div className="flex-1 overflow-y-auto bg-slate-50 rounded-lg p-3">
+                  {source.extractedData ? (
+                    <pre className="text-xs text-slate-700 font-mono leading-relaxed whitespace-pre-wrap">
+{source.extractedData.length > 3000 
+  ? source.extractedData.substring(0, 3000) + '\n\n... (texto truncado para vista previa, total: ' + source.extractedData.length.toLocaleString() + ' caracteres)'
+  : source.extractedData}
+                    </pre>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400">
+                      <p className="text-xs">No hay texto extraído disponible</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* 2. INFORMACIÓN DE EXTRACCIÓN - DEBAJO */}
+              <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  Información de Extracción
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Modelo */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Modelo:</p>
+                    {source.metadata?.model === 'gemini-2.5-pro' ? (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold inline-flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Pro
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold inline-flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Flash
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tamaño */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Tamaño:</p>
+                    <p className="text-xs font-medium text-slate-900">
                       {formatFileSize(source.metadata?.originalFileSize)}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Caracteres extraídos:</span>
-                    <span className="font-medium text-slate-900">
-                      {source.metadata?.charactersExtracted?.toLocaleString() || 'N/A'}
-                    </span>
+
+                  {/* Caracteres extraídos - COHERENTE con texto mostrado */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Caracteres extraídos:</p>
+                    <p className="text-xs font-semibold text-slate-900">
+                      {source.extractedData?.length.toLocaleString() || 
+                       source.metadata?.charactersExtracted?.toLocaleString() || 'N/A'}
+                    </p>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-600">Tokens estimados:</span>
-                    <span className="font-medium text-slate-900">
-                      {source.metadata?.tokensEstimate?.toLocaleString() || 'N/A'}
-                    </span>
+
+                  {/* Tokens estimados - COHERENTE con caracteres */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Tokens estimados:</p>
+                    <p className="text-xs font-semibold text-slate-900">
+                      {source.extractedData 
+                        ? Math.ceil(source.extractedData.length / 4).toLocaleString()
+                        : source.metadata?.tokensEstimate?.toLocaleString() || 'N/A'}
+                    </p>
                   </div>
-                  {source.metadata?.extractionTime && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Tiempo de extracción:</span>
-                      <span className="font-medium text-slate-900">
-                        {(source.metadata.extractionTime / 1000).toFixed(2)}s
-                      </span>
+
+                  {/* Tiempo */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Tiempo de extracción:</p>
+                    <p className="text-xs font-medium text-slate-900">
+                      {source.metadata?.extractionTime 
+                        ? `${(source.metadata.extractionTime / 1000).toFixed(2)}s`
+                        : 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Costo */}
+                  <div className="bg-white rounded-lg p-3 border border-slate-200">
+                    <p className="text-[10px] text-slate-500 mb-1">Costo de extracción:</p>
+                    <p className="text-xs font-semibold text-green-600">
+                      {source.metadata?.totalCost 
+                        ? `$${source.metadata.totalCost.toFixed(4)}`
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* File metadata */}
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-slate-500">Archivo original:</span>
+                      <p className="font-medium text-slate-900 truncate">
+                        {source.metadata?.originalFileName || source.name}
+                      </p>
                     </div>
-                  )}
-                  {source.metadata?.totalCost && (
-                    <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
-                      <span className="text-slate-600">Costo de extracción:</span>
-                      <span className="font-medium text-green-700">
-                        ${source.metadata.totalCost.toFixed(4)}
-                      </span>
+                    <div>
+                      <span className="text-slate-500">Tipo:</span>
+                      <p className="font-medium text-slate-900">
+                        {getSourceTypeLabel(source.type)}
+                      </p>
                     </div>
-                  )}
+                  </div>
                 </div>
               </section>
 
@@ -486,12 +562,15 @@ export default function ContextSourceSettingsModalSimple({
               )}
             </div>
 
-            {/* Right Column - RAG, Extracted Content & Chunks */}
-            <div className="space-y-6">
+            {/* RIGHT COLUMN - Historial Chunkings + Archivo Original */}
+            <div className="space-y-4 flex flex-col">
               
-              {/* RAG Indexing Section - MOVED FROM LEFT COLUMN */}
-              <section>
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">Indexación RAG</h3>
+              {/* 3. HISTORIAL DE CHUNKINGS - ARRIBA DERECHA */}
+              <section className="bg-white rounded-lg border border-slate-300 p-4 flex-1 flex flex-col">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-indigo-600" />
+                  Indexación RAG
+                </h3>
                 
                 {/* Show loading state while fetching chunks */}
                 {loadingChunks ? (
