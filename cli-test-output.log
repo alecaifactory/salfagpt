@@ -1,0 +1,153 @@
+[dotenv@17.2.3] injecting env (8) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+🌍 Environment: Local Development
+📦 Project: gen-lang-client-0986191192
+🔧 Initializing Firestore client...
+📦 Project ID: gen-lang-client-0986191192
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+[36m
+🚀 SalfaGPT CLI - Document Upload Tool[0m
+[36m==================================================[0m
+[34m
+👤 User: alec@getaifactory.com[0m
+[34m📍 Session: cli-session-1760919348501-sinfvs[0m
+[34m
+📁 Scanning folder: /Users/alec/salfagpt/contextos/pdf/agentes/M001-test[0m
+📊 [DEV] Would track CLI event: {
+  type: 'cli_upload_start',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+[32m
+✅ Found 1 document(s) to process:[0m
+[0m   - CIR-182.pdf[0m
+[34m
+🪣 Verificando bucket de GCS...[0m
+[32m   ✅ Bucket listo[0m
+[34m
+🤖 Modelo de extracción: gemini-2.5-flash[0m
+[34m
+📄 Procesando: CIR-182.pdf[0m
+[0m   📊 Tamaño: 541.29 KB[0m
+[36m   ⏳ Paso 1/3: Subiendo a GCP Storage...[0m
+   📤 Subiendo a GCS: gs://gen-lang-client-0986191192-context-documents/114671162830729001607/cli-upload/CIR-182.pdf
+[0m      100% (541 KB / 541 KB)[0m
+   ✅ Subido en 2.5s: gs://gen-lang-client-0986191192-context-documents/114671162830729001607/cli-upload/CIR-182.pdf
+[32m   ✅ Paso 1/3: Subido a: gs://gen-lang-client-0986191192-context-documents/114671162830729001607/cli-upload/CIR-182.pdf[0m
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+[36m   ⏳ Paso 2/3: Extrayendo texto con Gemini AI...[0m
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/contextos/pdf/agentes/M001-test/CIR-182.pdf
+   📊 Tamaño: 541.29 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Extracción completa en 16.1s
+   📝 7,458 caracteres extraídos
+   🎯 ~1,865 tokens estimados
+   💰 Costo estimado: $0.000606
+   👁️  Preview: Aquí tienes el texto completo del documento, incluyendo su estructura y la tabla en formato Markdown:
+
+---
+
+# DDU 182
+
+0386
+
+## CIRCULAR ORD. Nº
+
+**MAT.:** Aplicación artículo 116 y vigencia del artíc...
+[32m   ✅ Paso 2/3: Texto extraído[0m
+[0m      📝 7,458 caracteres[0m
+[0m      🎯 ~1,865 tokens[0m
+[0m      💰 Costo: $0.000606[0m
+[0m      ⏱️  Tiempo: 16.1s[0m
+[36m
+   📖 Preview del texto extraído:[0m
+[0m   ────────────────────────────────────────────────────────────[0m
+[0m   Aquí tienes el texto completo del documento, incluyendo su estructura y la tabla en formato Markdown:
+
+---
+
+# DDU 182
+
+0386
+
+## CIRCULAR ORD. Nº
+
+**MAT.:** Aplicación artículo 116 y vigencia del artículo 133 de la Ley General de Urbanismo y Construcciones
+
+**PERMISOS Y RECEPCIONES; EDIFICACIONES SIN...[0m
+[0m   ────────────────────────────────────────────────────────────[0m
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+[36m   ⏳ Paso 3/3: Guardando en Firestore...[0m
+[32m   ✅ Paso 3/3: Guardado en Firestore[0m
+[0m      🔑 Document ID: HN3DfhwALQXATFDZvgNe[0m
+[0m      📍 Ver en: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_sources~2FHN3DfhwALQXATFDZvgNe[0m
+[32m
+   ✨ Archivo completado en 20.5s[0m
+[36m
+======================================================================[0m
+[36m📊 Resumen del Proceso:[0m
+[36m======================================================================[0m
+[34m
+📁 Archivos Procesados:[0m
+[0m   Total: 1[0m
+[32m   ✅ Exitosos: 1[0m
+[31m   ❌ Fallidos: 0[0m
+[0m   📦 Tamaño Total: 0.53 MB[0m
+[34m
+📝 Extracción de Texto:[0m
+[0m   Caracteres Totales: 7,458[0m
+[0m   Modelo Usado: gemini-2.5-flash[0m
+[0m   Tiempo Total Extracción: 16.1s[0m
+[0m   Promedio por Archivo: 16.1s[0m
+[34m
+💰 Costos:[0m
+[0m   Costo Total Extracción: $0.000606[0m
+[0m   Costo Promedio por Archivo: $0.000606[0m
+[34m
+☁️  Recursos Creados en GCP:[0m
+[0m   Storage: 1 archivo(s) en gs://gen-lang-client-0986191192-context-documents/[0m
+[0m   Firestore: 1 documento(s) en collection 'context_sources'[0m
+[34m
+⏱️  Tiempo Total: 21.8s[0m
+[32m
+✅ Proceso completado![0m
+[33m
+💡 Próximos pasos:[0m
+[0m   1. Revisar salfagpt-cli-log.md para detalles completos[0m
+[0m   2. Ver archivos en GCP Console:[0m
+[0m      https://console.cloud.google.com/storage/browser/gen-lang-client-0986191192-context-documents[0m
+[0m   3. Ver documentos en Firestore:[0m
+[0m      https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_sources[0m
+[0m   4. Usar en webapp: Los documentos ya están disponibles en Flow[0m
+📊 [DEV] Would track CLI event: {
+  type: 'cli_upload_complete',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+📊 [DEV] Would track CLI session: {
+  command: 'upload contextos/pdf/agentes/M001-test',
+  user: 'alec@getaifactory.com',
+  duration: 21793,
+  events: 1
+}
+[36m
+📝 Log appended to: salfagpt-cli-log.md[0m
+[36m📊 Events tracked to Firestore (collection: cli_events)[0m
