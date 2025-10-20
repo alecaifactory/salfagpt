@@ -84,6 +84,10 @@ export default function ContextSourceSettingsModal({
   const loadChunks = async () => {
     if (!source?.id) return;
     
+    console.log('🔄 [CHUNKS MODAL v2025-10-20] Loading chunks for:', source.name);
+    console.log('   RAG enabled:', source.ragEnabled);
+    console.log('   RAG metadata:', source.ragMetadata);
+    
     setLoadingChunks(true);
     setChunksError(null);
     
@@ -96,7 +100,8 @@ export default function ContextSourceSettingsModal({
       
       const data: ChunksResponse = await response.json();
       setChunks(data.chunks || []);
-      console.log(`✅ Loaded ${data.chunks?.length || 0} chunks for ${source.name}`);
+      console.log(`✅ [CHUNKS MODAL v2025-10-20] Loaded ${data.chunks?.length || 0} chunks for ${source.name}`);
+      console.log('   Chunks should now be visible in UI below "Indexación RAG"');
     } catch (error) {
       console.error('❌ Error loading chunks:', error);
       setChunksError(error instanceof Error ? error.message : 'Error desconocido');
@@ -107,6 +112,12 @@ export default function ContextSourceSettingsModal({
   };
 
   if (!isOpen || !source) return null;
+  
+  // Debug log to verify component version
+  console.log('🎨 [MODAL v2025-10-20-15:00] Rendering ContextSourceSettingsModal');
+  console.log('   Source:', source.name);
+  console.log('   Chunks loaded:', chunks.length);
+  console.log('   RAG enabled:', source.ragEnabled);
 
   const handleReExtract = async () => {
     setIsReExtracting(true);
