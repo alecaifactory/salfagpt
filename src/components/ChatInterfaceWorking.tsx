@@ -174,8 +174,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
   const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
-  const [ragTopK, setRagTopK] = useState(5); // Number of chunks to retrieve
-  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.5); // Minimum similarity threshold
+  const [ragTopK, setRagTopK] = useState(10); // Number of chunks to retrieve (increased from 5)
+  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.3); // Minimum similarity threshold (lowered from 0.5)
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
