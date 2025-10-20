@@ -1,0 +1,1010 @@
+🌍 Environment: Local Development
+📦 Project: gen-lang-client-0986191192
+🔧 Initializing Firestore client...
+📦 Project ID: gen-lang-client-0986191192
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+[dotenv@17.2.3] injecting env (8) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+🔄 Batch Re-procesando TODOS los Embeddings
+==========================================
+
+📥 Cargando documentos CLI...
+
+✅ Total CLI: 46
+⚠️  Sin embeddings: 46
+
+🔬 Procesando embeddings...
+
+[1/46] 🔬 CIR-236.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 415 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.8s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,491 tokens totales
+      💰 Costo embeddings: $0.000050
+   ✅ 6 embeddings generados
+
+[2/46] 🔬 CIR-239.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 428 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 6.3s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,855 tokens totales
+      💰 Costo embeddings: $0.000077
+   ✅ 9 embeddings generados
+
+[3/46] 🔬 CIR-236.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 394 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.4s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,362 tokens totales
+      💰 Costo embeddings: $0.000047
+   ✅ 6 embeddings generados
+
+[4/46] 🔬 CIR-239.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 10 chunks
+   📊 Average chunk size: 409 tokens
+   🧬 Generating embeddings for 10 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/10 (10%)
+      Procesando chunk 6/10 (60%)
+      Procesando chunk 10/10 (100%)
+   ✅ Generated 10 embeddings (768 dimensions each)
+   💾 Storing 10 embeddings in Firestore...
+   ✅ Stored 10 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 7.1s
+      📦 10 chunks creados
+      🧬 10 embeddings generados (768-dim)
+      🎯 4,085 tokens totales
+      💰 Costo embeddings: $0.000082
+   ✅ 10 embeddings generados
+
+[5/46] 🔬 Cir-231.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 361 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.6s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,083 tokens totales
+      💰 Costo embeddings: $0.000022
+   ✅ 3 embeddings generados
+
+[6/46] 🔬 CIR-239.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 432 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 6.0s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,887 tokens totales
+      💰 Costo embeddings: $0.000078
+   ✅ 9 embeddings generados
+
+[7/46] 🔬 CIR-422.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 430 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.3s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 859 tokens totales
+      💰 Costo embeddings: $0.000017
+   ✅ 2 embeddings generados
+
+[8/46] 🔬 CIR-421.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 330 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.0s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,321 tokens totales
+      💰 Costo embeddings: $0.000026
+   ✅ 4 embeddings generados
+
+[9/46] 🔬 CIR-420.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 377 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.3s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 753 tokens totales
+      💰 Costo embeddings: $0.000015
+   ✅ 2 embeddings generados
+
+[10/46] 🔬 CIR-232.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 426 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 6.1s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,832 tokens totales
+      💰 Costo embeddings: $0.000077
+   ✅ 9 embeddings generados
+
+[11/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 465 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.7s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,858 tokens totales
+      💰 Costo embeddings: $0.000037
+   ✅ 4 embeddings generados
+
+[12/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 473 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.0s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,890 tokens totales
+      💰 Costo embeddings: $0.000038
+   ✅ 4 embeddings generados
+
+[13/46] 🔬 CIR-421.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 414 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.8s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,241 tokens totales
+      💰 Costo embeddings: $0.000025
+   ✅ 3 embeddings generados
+
+[14/46] 🔬 CIR-234.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 382 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.4s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,289 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ 6 embeddings generados
+
+[15/46] 🔬 CIR-232.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 415 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.5s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,731 tokens totales
+      💰 Costo embeddings: $0.000075
+   ✅ 9 embeddings generados
+
+[16/46] 🔬 CIR-239.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 10 chunks
+   📊 Average chunk size: 396 tokens
+   🧬 Generating embeddings for 10 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/10 (10%)
+      Procesando chunk 6/10 (60%)
+      Procesando chunk 10/10 (100%)
+   ✅ Generated 10 embeddings (768 dimensions each)
+   💾 Storing 10 embeddings in Firestore...
+   ✅ Stored 10 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 6.2s
+      📦 10 chunks creados
+      🧬 10 embeddings generados (768-dim)
+      🎯 3,955 tokens totales
+      💰 Costo embeddings: $0.000079
+   ✅ 10 embeddings generados
+
+[17/46] 🔬 Cir32.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 5 chunks
+   📊 Average chunk size: 403 tokens
+   🧬 Generating embeddings for 5 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/5 (20%)
+      Procesando chunk 5/5 (100%)
+   ✅ Generated 5 embeddings (768 dimensions each)
+   💾 Storing 5 embeddings in Firestore...
+   ✅ Stored 5 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.5s
+      📦 5 chunks creados
+      🧬 5 embeddings generados (768-dim)
+      🎯 2,017 tokens totales
+      💰 Costo embeddings: $0.000040
+   ✅ 5 embeddings generados
+
+[18/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 479 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.0s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,917 tokens totales
+      💰 Costo embeddings: $0.000038
+   ✅ 4 embeddings generados
+
+[19/46] 🔬 Cir-231.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 365 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.8s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,095 tokens totales
+      💰 Costo embeddings: $0.000022
+   ✅ 3 embeddings generados
+
+[20/46] 🔬 CIR-427.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 406 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.3s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,437 tokens totales
+      💰 Costo embeddings: $0.000049
+   ✅ 6 embeddings generados
+
+[21/46] 🔬 CIR-232.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 416 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.7s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,742 tokens totales
+      💰 Costo embeddings: $0.000075
+   ✅ 9 embeddings generados
+
+[22/46] 🔬 CIR-427.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 402 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.4s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,410 tokens totales
+      💰 Costo embeddings: $0.000048
+   ✅ 6 embeddings generados
+
+[23/46] 🔬 CIR-427.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 5 chunks
+   📊 Average chunk size: 469 tokens
+   🧬 Generating embeddings for 5 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/5 (20%)
+      Procesando chunk 5/5 (100%)
+   ✅ Generated 5 embeddings (768 dimensions each)
+   💾 Storing 5 embeddings in Firestore...
+   ✅ Stored 5 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.6s
+      📦 5 chunks creados
+      🧬 5 embeddings generados (768-dim)
+      🎯 2,346 tokens totales
+      💰 Costo embeddings: $0.000047
+   ✅ 5 embeddings generados
+
+[24/46] 🔬 CIR-235.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 5 chunks
+   📊 Average chunk size: 13434 tokens
+   🧬 Generating embeddings for 5 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/5 (20%)
+      Procesando chunk 5/5 (100%)
+   ✅ Generated 5 embeddings (768 dimensions each)
+   💾 Storing 5 embeddings in Firestore...
+   ✅ Stored 5 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.5s
+      📦 5 chunks creados
+      🧬 5 embeddings generados (768-dim)
+      🎯 67,172 tokens totales
+      💰 Costo embeddings: $0.001343
+   ✅ 5 embeddings generados
+
+[25/46] 🔬 Cir-231.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 391 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.6s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,174 tokens totales
+      💰 Costo embeddings: $0.000023
+   ✅ 3 embeddings generados
+
+[26/46] 🔬 CIR-427.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 414 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      ⚠️  Error en chunk 3: terminated
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 5 embeddings (768 dimensions each)
+   💾 Storing 5 embeddings in Firestore...
+   ✅ Stored 5 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 182.2s
+      📦 6 chunks creados
+      🧬 5 embeddings generados (768-dim)
+      🎯 2,483 tokens totales
+      💰 Costo embeddings: $0.000050
+   ✅ 5 embeddings generados
+
+[27/46] 🔬 CIR-422.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 429 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.5s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 857 tokens totales
+      💰 Costo embeddings: $0.000017
+   ✅ 2 embeddings generados
+
+[28/46] 🔬 CIR-236.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 396 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.2s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,375 tokens totales
+      💰 Costo embeddings: $0.000048
+   ✅ 6 embeddings generados
+
+[29/46] 🔬 CIR-420.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 444 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.4s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 887 tokens totales
+      💰 Costo embeddings: $0.000018
+   ✅ 2 embeddings generados
+
+[30/46] 🔬 CIR-234.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 382 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.3s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,294 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ 6 embeddings generados
+
+[31/46] 🔬 Cir-231.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 362 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.3s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,086 tokens totales
+      💰 Costo embeddings: $0.000022
+   ✅ 3 embeddings generados
+
+[32/46] 🔬 CIR-236.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 396 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.2s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,374 tokens totales
+      💰 Costo embeddings: $0.000047
+   ✅ 6 embeddings generados
+
+[33/46] 🔬 CIR-235.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 415 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.2s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,245 tokens totales
+      💰 Costo embeddings: $0.000025
+   ✅ 3 embeddings generados
+
+[34/46] 🔬 CIR-234.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 382 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.5s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,291 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ 6 embeddings generados
+
+[35/46] 🔬 CIR-420.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 385 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.6s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 769 tokens totales
+      💰 Costo embeddings: $0.000015
+   ✅ 2 embeddings generados
+
+[36/46] 🔬 CIR-235.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 415 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.0s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,246 tokens totales
+      💰 Costo embeddings: $0.000025
+   ✅ 3 embeddings generados
+
+[37/46] 🔬 CIR-234.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 6 chunks
+   📊 Average chunk size: 382 tokens
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/6 (17%)
+      Procesando chunk 6/6 (100%)
+   ✅ Generated 6 embeddings (768 dimensions each)
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 4.8s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 2,289 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ 6 embeddings generados
+
+[38/46] 🔬 CIR-422.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 431 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.7s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 861 tokens totales
+      💰 Costo embeddings: $0.000017
+   ✅ 2 embeddings generados
+
+[39/46] 🔬 CIR-422.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 316 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.3s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 947 tokens totales
+      💰 Costo embeddings: $0.000019
+   ✅ 3 embeddings generados
+
+[40/46] 🔬 CIR-421.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 280 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.0s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,119 tokens totales
+      💰 Costo embeddings: $0.000022
+   ✅ 4 embeddings generados
+
+[41/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 473 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.2s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,891 tokens totales
+      💰 Costo embeddings: $0.000038
+   ✅ 4 embeddings generados
+
+[42/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 475 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 2.7s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,901 tokens totales
+      💰 Costo embeddings: $0.000038
+   ✅ 4 embeddings generados
+
+[43/46] 🔬 CIR-182.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 4 chunks
+   📊 Average chunk size: 467 tokens
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/4 (25%)
+      Procesando chunk 4/4 (100%)
+   ✅ Generated 4 embeddings (768 dimensions each)
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 3.4s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 1,869 tokens totales
+      💰 Costo embeddings: $0.000037
+   ✅ 4 embeddings generados
+
+[44/46] 🔬 CIR-420.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 2 chunks
+   📊 Average chunk size: 415 tokens
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/2 (50%)
+      Procesando chunk 2/2 (100%)
+   ✅ Generated 2 embeddings (768 dimensions each)
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.5s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 830 tokens totales
+      💰 Costo embeddings: $0.000017
+   ✅ 2 embeddings generados
+
+[45/46] 🔬 CIR-232.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 9 chunks
+   📊 Average chunk size: 395 tokens
+   🧬 Generating embeddings for 9 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/9 (11%)
+      Procesando chunk 6/9 (67%)
+      Procesando chunk 9/9 (100%)
+   ✅ Generated 9 embeddings (768 dimensions each)
+   💾 Storing 9 embeddings in Firestore...
+   ✅ Stored 9 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 5.6s
+      📦 9 chunks creados
+      🧬 9 embeddings generados (768-dim)
+      🎯 3,557 tokens totales
+      💰 Costo embeddings: $0.000071
+   ✅ 9 embeddings generados
+
+[46/46] 🔬 CIR-421.pdf
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (max 512 tokens/chunk)...
+   ✅ Created 3 chunks
+   📊 Average chunk size: 393 tokens
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+      Procesando chunk 1/3 (33%)
+      Procesando chunk 3/3 (100%)
+   ✅ Generated 3 embeddings (768 dimensions each)
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_embeddings'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings
+   ✅ Paso 4/5: RAG process completado en 1.7s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 1,178 tokens totales
+      💰 Costo embeddings: $0.000024
+   ✅ 3 embeddings generados
+
+
+📊 RESUMEN FINAL
+================
+Total a procesar: 46
+✅ Exitosos: 46
+❌ Fallidos: 0
+
+✅ Búsqueda semántica ahora disponible!
+
+💡 Los documentos procesados ahora tienen:
+   - Embeddings vectoriales (768-dim)
+   - Búsqueda semántica funcional
+   - RAG inteligente habilitado
+

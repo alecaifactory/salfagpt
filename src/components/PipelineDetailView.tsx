@@ -56,19 +56,34 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
 
   const loadChunks = async () => {
     if (!userId) {
-      console.error('userId is required to load chunks');
+      console.error('❌ userId is required to load chunks');
       return;
     }
     
+    console.log('📊 Loading chunks for source:', source.id, 'User:', userId);
+    console.log('   Source name:', source.name);
+    console.log('   RAG enabled:', source.ragEnabled);
+    console.log('   RAG metadata:', source.ragMetadata);
+    
     setLoadingChunks(true);
     try {
-      const response = await fetch(`/api/context-sources/${source.id}/chunks?userId=${userId}`);
+      const url = `/api/context-sources/${source.id}/chunks?userId=${userId}`;
+      console.log('🔍 Fetching chunks from:', url);
+      
+      const response = await fetch(url);
+      console.log('📥 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Chunks loaded:', data.chunks?.length || 0);
+        console.log('   Stats:', data.stats);
         setChunks(data.chunks || []);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to load chunks:', errorData);
       }
     } catch (error) {
-      console.error('Error loading chunks:', error);
+      console.error('❌ Error loading chunks:', error);
     } finally {
       setLoadingChunks(false);
     }
@@ -191,7 +206,13 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
           </button>
           
           <button
-            onClick={() => setActiveTab('chunks')}
+            onClick={() => {
+              setActiveTab('chunks');
+              // Reload chunks when tab is clicked
+              if (source.ragEnabled && userId) {
+                setTimeout(() => loadChunks(), 100);
+              }
+            }}
             className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === 'chunks'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'

@@ -17,6 +17,12 @@ export interface ExtractionMetadata {
   extractedAt?: string; // ISO date string
   model?: string; // AI model used
   
+  // Upload source tracking (CLI vs Webapp)
+  uploadedVia?: 'cli' | 'webapp'; // How the file was uploaded
+  cliVersion?: string; // CLI version if uploaded via CLI
+  userEmail?: string; // Email of uploader (for attribution)
+  gcsPath?: string; // ✅ CRITICAL: GCS path to original file
+  
   // Output details
   charactersExtracted?: number;
   tokensEstimate?: number;

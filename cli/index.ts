@@ -22,7 +22,7 @@ import {
   trackFileExtraction,
   trackUploadSession 
 } from './lib/analytics';
-import { uploadFileToGCS, ensureBucketExists } from './lib/storage';
+import { uploadFileToGCS, ensureBucketExists, type UploadResult } from './lib/storage';
 import { extractDocument } from './lib/extraction';
 import { processForRAG } from './lib/embeddings';
 import { firestore } from '../src/lib/firestore';
@@ -259,7 +259,45 @@ async function uploadFolder(folderPath: string): Promise<void> {
       // STEP 3: Save to Firestore
       log(`   ⏳ Paso 3/5: Guardando metadata en Firestore...`, 'cyan');
       
-      const contextSource = await firestore.collection('context_sources').add({
+      // ✅ CRITICAL VALIDATION: Ensure GCS path is present
+      if (!uploadResult.gcsPath || uploadResult.gcsPath.trim() === '') {
+        throw new Error('❌ CRITICAL: gcsPath is missing from upload result. Cannot establish trace to original file.');
+      }
+      
+      // 🔧 CHECK FOR EXISTING DOCUMENT: Prevent duplicates
+      const existingDocs = await firestore.collection('context_sources')
+        .where('name', '==', fileName)
+        .where('userId', '==', user.userId)
+        .where('metadata.gcsPath', '==', uploadResult.gcsPath)
+        .limit(1)
+        .get();
+      
+      let contextSource;
+      
+      if (existingDocs.size > 0) {
+        // Document already exists with same GCS path - update instead of create
+        const existingDoc = existingDocs.docs[0];
+        contextSource = { id: existingDoc.id };
+        
+        log(`   ℹ️  Documento ya existe en Firestore (ID: ${existingDoc.id})`, 'yellow');
+        log(`      Actualizando metadata en lugar de crear duplicado...`, 'yellow');
+        
+        await existingDoc.ref.update({
+          extractedData: extractionResult.extractedText,
+          status: 'active',
+          updatedAt: new Date(),
+          'metadata.extractionDate': new Date(),
+          'metadata.extractionTime': extractionResult.duration,
+          'metadata.model': extractionModel,
+          'metadata.charactersExtracted': extractionResult.charactersExtracted,
+          'metadata.tokensEstimate': extractionResult.tokensEstimate,
+          'metadata.inputTokens': extractionResult.inputTokens,
+          'metadata.outputTokens': extractionResult.outputTokens,
+          'metadata.estimatedCost': extractionResult.estimatedCost,
+        });
+      } else {
+        // New document - create it
+        contextSource = await firestore.collection('context_sources').add({
         userId: user.userId,
         name: fileName,
         type: getDocumentType(fileName),
@@ -267,7 +305,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
         status: 'active',
         addedAt: new Date(),
         extractedData: extractionResult.extractedText,
-        assignedToAgents: ['cli-upload'], // Default assignment
+        assignedToAgents: [], // 🔧 FIX: Empty by default - user assigns via webapp
         tags: ['cli', 'automated'], // ⭐ TAGS for webapp filtering
         metadata: {
           originalFileName: fileName,
@@ -275,7 +313,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
           uploadedVia: 'cli',
           cliVersion: CLI_VERSION,
           userEmail: user.email,  // ⭐ User attribution
-          gcsPath: uploadResult.gcsPath,
+          gcsPath: uploadResult.gcsPath, // ✅ CRITICAL: Trace to original file
           extractionDate: new Date(),
           extractionTime: extractionResult.duration,
           model: extractionModel,
@@ -287,10 +325,14 @@ async function uploadFolder(folderPath: string): Promise<void> {
         },
         source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
       });
+      }
       
+      // Log result (whether created or updated)
       log(`   ✅ Paso 3/5: Metadata guardada en Firestore`, 'green');
       log(`      🔑 Document ID: ${contextSource.id}`, 'reset');
       log(`      📍 Ver en: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcontext_sources~2F${contextSource.id}`, 'reset');
+      log(`      ☁️  Archivo original: ${uploadResult.gcsPath}`, 'cyan');
+      log(`      🔗 Traza establecida: metadata.gcsPath ✓`, 'green');
       
       // STEP 4 & 5: RAG Processing (Chunking + Embeddings)
       log(`   ⏳ Paso 4/5: Procesando para RAG (chunking + embeddings)...`, 'cyan');
@@ -353,6 +395,12 @@ async function uploadFolder(folderPath: string): Promise<void> {
       const totalCost = extractionResult.estimatedCost + (ragResult.estimatedCost || 0);
       
       log(`\n   ✨ Archivo completado en ${(totalDuration / 1000).toFixed(1)}s (Costo total: $${totalCost.toFixed(6)})`, 'green');
+      
+      // ✅ CRITICAL: Log trace verification
+      log(`\n   🔗 TRAZABILIDAD ESTABLECIDA:`, 'green');
+      log(`      ✓ GCS Path: ${uploadResult.gcsPath}`, 'green');
+      log(`      ✓ Firestore Doc: context_sources/${contextSource.id}`, 'green');
+      log(`      ✓ Visible en webapp con link a GCS`, 'green');
       
       results.push({
         success: true,
@@ -436,11 +484,19 @@ async function uploadFolder(folderPath: string): Promise<void> {
     log(`   Total: $${totalCost.toFixed(6)}`, 'reset');
     log(`   Promedio por Archivo: $${(totalCost / successCount).toFixed(6)}`, 'reset');
     
-    log(`\n☁️  Recursos Creados en GCP:`, 'blue');
-    log(`   Storage: ${successCount} archivo(s) en gs://${process.env.GOOGLE_CLOUD_PROJECT}-context-documents/`, 'reset');
-    log(`   Firestore context_sources: ${successCount} documento(s)`, 'reset');
-    log(`   Firestore document_embeddings: ${totalEmbeddings.toLocaleString()} chunks vectorizados`, 'reset');
-    log(`   🔍 Búsqueda semántica: Habilitada para ${successCount} documentos`, 'reset');
+  log(`\n☁️  Recursos Creados en GCP:`, 'blue');
+  log(`   Storage: ${successCount} archivo(s) en gs://${process.env.GOOGLE_CLOUD_PROJECT}-context-documents/`, 'reset');
+  log(`   Firestore context_sources: ${successCount} documento(s)`, 'reset');
+  log(`   Firestore document_embeddings: ${totalEmbeddings.toLocaleString()} chunks vectorizados`, 'reset');
+  log(`   🔍 Búsqueda semántica: Habilitada para ${successCount} documentos`, 'reset');
+  
+  log(`\n🔗 TRAZABILIDAD (Archivos ↔ GCS):`, 'green');
+  results.filter(r => r.success).forEach(result => {
+    log(`   ✓ ${result.fileName}`, 'green');
+    log(`     → GCS: ${result.gcsPath}`, 'cyan');
+    log(`     → Firestore: context_sources/${result.firestoreDocId}`, 'cyan');
+    log(`     → Visible en webapp con link clickeable a GCS`, 'reset');
+  });
   }
   
   log(`\n⏱️  Tiempo Total: ${(totalDuration / 1000).toFixed(1)}s`, 'blue');
@@ -488,7 +544,7 @@ async function uploadFolder(folderPath: string): Promise<void> {
  */
 async function logToFile(
   folderPath: string, 
-  results: UploadResult[],
+  results: ProcessedFile[],
   sessionId: string,
   user: { userId: string; email: string }
 ): Promise<void> {
