@@ -124,10 +124,10 @@ export const POST: APIRoute = async ({ params, request }) => {
                       .join('\n');
                   } else {
                     // Chunks exist but similarity too low - lower threshold and retry
-                    console.log('  Chunks exist, retrying with lower similarity threshold (0.3)...');
+                    console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
                     const retryResults = await searchRelevantChunks(userId, message, {
                       topK: ragTopK * 2, // Double topK
-                      minSimilarity: 0.3, // Lower threshold
+                      minSimilarity: 0.2, // Lower threshold (more permissive)
                       activeSourceIds
                     });
                     
