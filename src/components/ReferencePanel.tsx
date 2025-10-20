@@ -93,11 +93,16 @@ export default function ReferencePanel({
             {reference.chunkIndex !== undefined && (
               <div className="flex items-center gap-2 text-xs text-slate-600">
                 <span className="bg-slate-100 px-2 py-1 rounded font-mono">
-                  Chunk #{reference.chunkIndex + 1}
+                  {reference.chunkIndex >= 0 ? `Chunk #${reference.chunkIndex + 1}` : 'Documento Completo'}
                 </span>
                 {reference.metadata?.tokenCount && (
                   <span className="text-slate-500">
-                    • {reference.metadata.tokenCount} tokens
+                    • {reference.metadata.tokenCount.toLocaleString()} tokens
+                  </span>
+                )}
+                {reference.metadata?.isFullDocument && (
+                  <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-semibold">
+                    📝 Full-Text Mode
                   </span>
                 )}
               </div>
@@ -128,10 +133,12 @@ export default function ReferencePanel({
             </div>
           )}
 
-          {/* Extracto completo del chunk */}
+          {/* Extracto completo del chunk o documento */}
           <div className="space-y-3">
             <h4 className="text-sm font-semibold text-slate-700">
-              Texto del chunk utilizado:
+              {reference.chunkIndex !== undefined && reference.chunkIndex >= 0
+                ? 'Texto del chunk utilizado:' 
+                : 'Contenido del documento:'}
             </h4>
             
             <div className="bg-slate-50 rounded-lg p-4 space-y-2 text-sm max-h-96 overflow-y-auto">
@@ -161,8 +168,10 @@ export default function ReferencePanel({
           {/* Información adicional */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-xs text-blue-800">
-              <span className="font-semibold">💡 Nota:</span> Este extracto fue utilizado por el AI para generar la respuesta. 
-              El texto destacado es la cita exacta del documento fuente.
+              <span className="font-semibold">💡 Nota:</span> 
+              {reference.chunkIndex !== undefined && reference.chunkIndex >= 0
+                ? ' Este fragmento específico fue identificado como relevante por el sistema RAG y utilizado por el AI para generar la respuesta.'
+                : ' El AI tuvo acceso al documento completo para generar la respuesta (modo Full-Text).'}
             </p>
           </div>
 
