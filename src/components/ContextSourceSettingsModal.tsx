@@ -3,6 +3,33 @@ import { X, RefreshCw, FileText, Clock, HardDrive, Zap, Info, Settings, CheckCir
 import type { ContextSource, WorkflowConfig } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 
+interface ChunkData {
+  id: string;
+  chunkIndex: number;
+  text: string;
+  embedding: number[];
+  metadata: {
+    startChar?: number;
+    endChar?: number;
+    tokenCount?: number;
+    startPage?: number;
+    endPage?: number;
+  };
+  createdAt: Date;
+}
+
+interface ChunksResponse {
+  chunks: ChunkData[];
+  stats: {
+    totalChunks: number;
+    totalTokens: number;
+    avgChunkSize: number;
+    embeddingDimensions: number;
+  };
+  sourceId: string;
+  sourceName: string;
+}
+
 interface ContextSourceSettingsModalProps {
   source: ContextSource | null;
   isOpen: boolean;
@@ -25,6 +52,12 @@ export default function ContextSourceSettingsModal({
   const [showModelTooltip, setShowModelTooltip] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [isSavingTags, setIsSavingTags] = useState(false);
+  
+  // Chunks display
+  const [chunks, setChunks] = useState<ChunkData[]>([]);
+  const [loadingChunks, setLoadingChunks] = useState(false);
+  const [chunksError, setChunksError] = useState<string | null>(null);
+  const [selectedChunk, setSelectedChunk] = useState<ChunkData | null>(null);
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(isOpen, onClose);
@@ -38,7 +71,40 @@ export default function ContextSourceSettingsModal({
     } else {
       setTags([]);
     }
+    
+    // Load chunks if RAG is enabled
+    if (source?.ragMetadata && source.ragEnabled) {
+      loadChunks();
+    } else {
+      setChunks([]);
+      setChunksError(null);
+    }
   }, [source]);
+  
+  const loadChunks = async () => {
+    if (!source?.id) return;
+    
+    setLoadingChunks(true);
+    setChunksError(null);
+    
+    try {
+      const response = await fetch(`/api/context-sources/${source.id}/chunks`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load chunks');
+      }
+      
+      const data: ChunksResponse = await response.json();
+      setChunks(data.chunks || []);
+      console.log(`✅ Loaded ${data.chunks?.length || 0} chunks for ${source.name}`);
+    } catch (error) {
+      console.error('❌ Error loading chunks:', error);
+      setChunksError(error instanceof Error ? error.message : 'Error desconocido');
+      setChunks([]);
+    } finally {
+      setLoadingChunks(false);
+    }
+  };
 
   if (!isOpen || !source) return null;
 
@@ -462,6 +528,92 @@ export default function ContextSourceSettingsModal({
                       </>
                     )}
                   </button>
+                  
+                  {/* Chunks Display Section */}
+                  <div className="mt-3 border-t border-slate-200 pt-3">
+                    <h4 className="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                      Fragmentos (Chunks) del Último Índice
+                    </h4>
+                    
+                    {loadingChunks ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Clock className="w-5 h-5 animate-spin text-indigo-600" />
+                        <span className="ml-2 text-xs text-slate-600">Cargando chunks...</span>
+                      </div>
+                    ) : chunksError ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
+                        <AlertCircle className="w-4 h-4 text-red-600 mx-auto mb-1" />
+                        <p className="text-xs text-red-700">{chunksError}</p>
+                      </div>
+                    ) : chunks.length > 0 ? (
+                      <div className="space-y-2">
+                        {/* Stats Summary */}
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-2 grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <p className="text-[10px] text-slate-500">Total</p>
+                            <p className="text-sm font-bold text-indigo-700">{chunks.length}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500">Tokens</p>
+                            <p className="text-sm font-bold text-indigo-700">
+                              {chunks.reduce((sum, c) => sum + (c.metadata.tokenCount || 0), 0).toLocaleString()}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500">Promedio</p>
+                            <p className="text-sm font-bold text-indigo-700">
+                              {Math.round(chunks.reduce((sum, c) => sum + (c.metadata.tokenCount || 0), 0) / chunks.length)}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Chunks List - Scrollable */}
+                        <div className="max-h-64 overflow-y-auto space-y-1.5">
+                          {chunks.map((chunk, idx) => (
+                            <button
+                              key={chunk.id}
+                              onClick={() => setSelectedChunk(chunk)}
+                              className="w-full text-left bg-white border border-slate-200 rounded-lg p-2.5 hover:border-indigo-300 hover:shadow-md transition-all group"
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-1.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[10px] font-bold">
+                                    #{idx}
+                                  </span>
+                                  {chunk.metadata.startPage && (
+                                    <span className="text-[9px] text-slate-500">
+                                      Pág {chunk.metadata.startPage}{chunk.metadata.endPage && chunk.metadata.endPage !== chunk.metadata.startPage ? `-${chunk.metadata.endPage}` : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-mono text-slate-500">
+                                  {chunk.metadata.tokenCount || 0} tokens
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-700 leading-relaxed line-clamp-3 group-hover:text-slate-900">
+                                {chunk.text}
+                              </p>
+                              <div className="mt-1.5 text-[9px] text-slate-400 flex items-center justify-between">
+                                <span>Chars: {chunk.text.length.toLocaleString()}</span>
+                                <span className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  Click para ver completo →
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                        <AlertCircle className="w-5 h-5 text-slate-400 mx-auto mb-2" />
+                        <p className="text-xs text-slate-600">No hay chunks disponibles</p>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Re-indexa el documento para generar chunks
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
@@ -500,50 +652,99 @@ export default function ContextSourceSettingsModal({
                 Archivo Original
               </h3>
               
-              {source.originalFile ? (
+              {/* Check for GCS path (CLI uploads) OR blob in memory (webapp uploads) */}
+              {(source.metadata as any)?.gcsPath || source.originalFile ? (
                 <div className="space-y-2">
                   {/* File info */}
-                  <div className="bg-white rounded-lg p-2 border border-slate-200 text-xs">
+                  <div className="bg-white rounded-lg p-2 border border-slate-200 text-xs space-y-1">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Archivo:</span>
                       <span className="font-medium text-slate-800 truncate ml-2">
                         {source.metadata?.originalFileName || source.name}
                       </span>
                     </div>
-                    <div className="flex justify-between mt-1">
+                    <div className="flex justify-between">
                       <span className="text-slate-500">Tipo:</span>
                       <span className="font-medium text-slate-800">{getSourceTypeLabel(source.type)}</span>
                     </div>
+                    
+                    {/* GCS Path for CLI uploads */}
+                    {(source.metadata as any)?.gcsPath && (
+                      <>
+                        <div className="flex justify-between items-start pt-1 border-t border-slate-100">
+                          <span className="text-slate-500">Origen:</span>
+                          <span className="text-[10px] text-green-700 font-semibold">CLI Upload</span>
+                        </div>
+                        <div className="flex flex-col gap-1 pt-1">
+                          <span className="text-slate-500">Ubicación GCS:</span>
+                          <a
+                            href={`https://console.cloud.google.com/storage/browser/_details/${(source.metadata as any).gcsPath.replace('gs://', '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-[9px] text-blue-600 hover:text-blue-800 hover:underline break-all"
+                            title="Click para abrir en Google Cloud Console"
+                          >
+                            {(source.metadata as any).gcsPath}
+                          </a>
+                        </div>
+                        {source.metadata?.uploadedVia && (
+                          <div className="flex justify-between pt-1 border-t border-slate-100">
+                            <span className="text-slate-500">Vía:</span>
+                            <span className="font-medium text-slate-700">{source.metadata.uploadedVia}</span>
+                          </div>
+                        )}
+                        {source.metadata?.cliVersion && (
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">CLI Version:</span>
+                            <span className="font-mono text-slate-700">{source.metadata.cliVersion}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   {/* View/Download buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        const url = URL.createObjectURL(source.originalFile!);
-                        window.open(url, '_blank');
-                      }}
-                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      Ver archivo
-                    </button>
-                    <a
-                      href={URL.createObjectURL(source.originalFile)}
-                      download={source.metadata?.originalFileName || source.name}
-                      className="flex-1 px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Descargar
-                    </a>
-                  </div>
+                  {source.originalFile ? (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const url = URL.createObjectURL(source.originalFile!);
+                          window.open(url, '_blank');
+                        }}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver archivo
+                      </button>
+                      <a
+                        href={URL.createObjectURL(source.originalFile)}
+                        download={source.metadata?.originalFileName || source.name}
+                        className="flex-1 px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Descargar
+                      </a>
+                    </div>
+                  ) : (source.metadata as any)?.gcsPath ? (
+                    <div className="flex gap-2">
+                      <a
+                        href={`https://console.cloud.google.com/storage/browser/_details/${(source.metadata as any).gcsPath.replace('gs://', '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver en GCS
+                      </a>
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                   <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
                   <p className="text-xs text-amber-700 font-medium">Archivo no disponible</p>
                   <p className="text-[10px] text-amber-600 mt-1">
-                    El archivo original no está guardado en memoria
+                    El archivo original no está en memoria ni en Cloud Storage
                   </p>
                 </div>
               )}
@@ -561,6 +762,129 @@ export default function ContextSourceSettingsModal({
           </button>
         </div>
       </div>
+      
+      {/* Chunk Detail Modal */}
+      {selectedChunk && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[1000]"
+          onClick={() => setSelectedChunk(null)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col m-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="px-3 py-1.5 bg-white/20 rounded-lg">
+                  <span className="text-sm font-bold">Chunk #{selectedChunk.chunkIndex}</span>
+                </div>
+                <div className="text-sm">
+                  <p className="font-semibold">{source.name}</p>
+                  <p className="text-xs text-indigo-100">
+                    {selectedChunk.metadata.tokenCount || 0} tokens · {selectedChunk.text.length.toLocaleString()} caracteres
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedChunk(null)}
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-4">
+                {/* Metadata */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                  <h4 className="text-xs font-bold text-slate-700 mb-2">Metadata</h4>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-500">Índice:</p>
+                      <p className="font-semibold text-slate-800">#{selectedChunk.chunkIndex}</p>
+                    </div>
+                    {selectedChunk.metadata.startPage && (
+                      <div>
+                        <p className="text-slate-500">Páginas:</p>
+                        <p className="font-semibold text-slate-800">
+                          {selectedChunk.metadata.startPage}
+                          {selectedChunk.metadata.endPage && selectedChunk.metadata.endPage !== selectedChunk.metadata.startPage 
+                            ? ` - ${selectedChunk.metadata.endPage}` 
+                            : ''}
+                        </p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-slate-500">Posición en texto:</p>
+                      <p className="font-mono text-slate-800">
+                        {selectedChunk.metadata.startChar?.toLocaleString() || 0} - {selectedChunk.metadata.endChar?.toLocaleString() || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Tokens:</p>
+                      <p className="font-semibold text-slate-800">{selectedChunk.metadata.tokenCount || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Dimensiones embedding:</p>
+                      <p className="font-mono text-slate-800">{selectedChunk.embedding?.length || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">Creado:</p>
+                      <p className="text-slate-800">{formatDate(selectedChunk.createdAt)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Full Text */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 mb-2">Texto Completo</h4>
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                    <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap font-mono">
+                      {selectedChunk.text}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Embedding Preview */}
+                {selectedChunk.embedding && selectedChunk.embedding.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700 mb-2">
+                      Embedding Vector (Primeros 20 valores)
+                    </h4>
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <div className="grid grid-cols-5 gap-2 text-[10px] font-mono">
+                        {selectedChunk.embedding.slice(0, 20).map((val, idx) => (
+                          <div key={idx} className="text-center">
+                            <p className="text-slate-400">[{idx}]</p>
+                            <p className="text-slate-700 font-semibold">{val.toFixed(4)}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedChunk.embedding.length > 20 && (
+                        <p className="text-center text-[10px] text-slate-500 mt-2">
+                          ... y {selectedChunk.embedding.length - 20} valores más
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div className="border-t border-slate-200 p-4 bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setSelectedChunk(null)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
