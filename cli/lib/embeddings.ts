@@ -176,7 +176,9 @@ export async function generateEmbeddings(
       // Generate embedding using Gemini Embedding API
       const result = await genAI.models.embedContent({
         model: model,
-        content: chunk.text,
+        content: {
+          parts: [{ text: chunk.text }],
+        },
       });
       
       // Extract embedding vector (768 dimensions)
