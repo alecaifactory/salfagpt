@@ -6,7 +6,6 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { ExternalLink, FileText, CheckCircle, Image as ImageIcon, Video } from 'lucide-react';
 import type { SourceReference } from '../lib/gemini';
-import ReferencePanel from './ReferencePanel';
 
 interface MessageRendererProps {
   content: string;
@@ -16,6 +15,7 @@ interface MessageRendererProps {
     validated?: boolean;
   }>;
   references?: SourceReference[];
+  onReferenceClick?: (reference: SourceReference) => void;
   onSourceClick?: (sourceId: string) => void;
 }
 
@@ -23,9 +23,9 @@ export default function MessageRenderer({
   content, 
   contextSources = [],
   references = [],
+  onReferenceClick,
   onSourceClick 
 }: MessageRendererProps) {
-  const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   
   // Debug: Log references received
   React.useEffect(() => {
@@ -97,7 +97,10 @@ export default function MessageRenderer({
         
         if (reference) {
           console.log('🔍 Referencia clicada:', refId);
-          setSelectedReference(reference);
+          // Use the callback to open reference panel in parent component
+          if (onReferenceClick) {
+            onReferenceClick(reference);
+          }
         }
       }
     };
@@ -107,7 +110,7 @@ export default function MessageRenderer({
     return () => {
       document.removeEventListener('click', handleReferenceClick);
     };
-  }, [references]);
+  }, [references, onReferenceClick]);
 
   return (
     <>
@@ -315,7 +318,7 @@ export default function MessageRenderer({
             {references.map(ref => (
               <button
                 key={ref.id}
-                onClick={() => setSelectedReference(ref)}
+                onClick={() => onReferenceClick?.(ref)}
                 className="w-full text-left bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-lg p-3 transition-all group"
               >
                 <div className="flex items-start gap-3">
@@ -354,15 +357,6 @@ export default function MessageRenderer({
         </div>
       )}
     </div>
-    
-    {/* Reference Panel */}
-    {selectedReference && (
-      <ReferencePanel
-        reference={selectedReference}
-        onClose={() => setSelectedReference(null)}
-        onViewFullDocument={onSourceClick}
-      />
-    )}
   </>
   );
 }

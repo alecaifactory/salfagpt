@@ -17,10 +17,12 @@ import ProviderManagementDashboard from './ProviderManagementDashboard';
 import RAGConfigPanel from './RAGConfigPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
+import ReferencePanel from './ReferencePanel';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
 import type { AgentConfiguration } from '../types/agent-config';
+import type { SourceReference } from '../lib/gemini';
 
 interface Message {
   id: string;
@@ -100,6 +102,23 @@ interface ContextLog {
       }>;
     };
   };
+  // NEW: Chunk references used in response
+  references?: Array<{
+    id: number;
+    sourceId: string;
+    sourceName: string;
+    chunkIndex: number;
+    similarity: number;
+    snippet: string;
+    fullText?: string;
+    metadata?: {
+      startChar?: number;
+      endChar?: number;
+      tokenCount?: number;
+      startPage?: number;
+      endPage?: number;
+    };
+  }>;
 }
 
 interface Conversation {
@@ -125,15 +144,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [input, setInput] = useState('');
   const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
-  const [selectedReference, setSelectedReference] = useState<{
-    sourceId: string;
-    sourceName: string;
-    chunkIndex: number;
-    similarity: number;
-    snippet: string;
-    fullText: string;
-    metadata?: any;
-  } | null>(null);
+  const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   
   // Per-agent processing state
   const [agentProcessing, setAgentProcessing] = useState<Record<string, {
@@ -381,21 +392,75 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             ...source.metadata,
             extractionDate: source.metadata.extractionDate ? new Date(source.metadata.extractionDate) : undefined,
             validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
-          } : undefined
+          } : undefined,
+          // ✅ FIX: Explicitly preserve ragEnabled and ragMetadata with proper date conversion
+          // ragEnabled should come from Firestore as-is (true/false/undefined)
+          ragEnabled: source.ragEnabled,
+          ragMetadata: source.ragMetadata ? {
+            ...source.ragMetadata,
+            indexedAt: source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt) : undefined,
+          } : undefined,
         }));
       
-      // ONLY set state after filtering - prevents flash of wrong content
-      setContextSources(filteredSources);
+      // ✅ NUEVO: Verificar existencia de chunks (sin cargarlos todos) para mostrar estado correcto
+      // Solo cargamos los stats, NO los chunks completos
+      console.log('🔄 Verificando estado RAG de fuentes...');
+      const sourcesWithVerifiedRAG = await Promise.all(
+        filteredSources.map(async (source: any) => {
+          // Si ya tiene ragMetadata con chunkCount, confiar en eso
+          if (source.ragMetadata?.chunkCount > 0) {
+            return {
+              ...source,
+              ragEnabled: true, // Si tiene chunks, RAG está habilitado
+            };
+          }
+          
+          // Si no tiene ragMetadata, verificar rápidamente con HEAD request o stats
+          try {
+            const chunksResponse = await fetch(`/api/context-sources/${source.id}/chunks`);
+            if (chunksResponse.ok) {
+              const chunksData = await chunksResponse.json();
+              const hasChunks = chunksData.stats && chunksData.stats.totalChunks > 0;
+              
+              return {
+                ...source,
+                ragEnabled: hasChunks,
+                ragMetadata: hasChunks ? {
+                  chunkCount: chunksData.stats.totalChunks,
+                  avgChunkSize: chunksData.stats.avgChunkSize,
+                  indexedAt: source.ragMetadata?.indexedAt || new Date(),
+                  embeddingModel: 'text-embedding-004',
+                } : source.ragMetadata,
+              };
+            }
+            return source;
+          } catch (error) {
+            // En caso de error, mantener datos originales
+            return source;
+          }
+        })
+      );
+      
+      // ONLY set state after filtering AND verification
+      setContextSources(sourcesWithVerifiedRAG);
+      
+      // ✅ DEBUG: Log RAG status
+      console.log('📊 RAG Status:', sourcesWithVerifiedRAG.map((s: any) => ({
+        name: s.name,
+        ragEnabled: s.ragEnabled,
+        chunkCount: s.ragMetadata?.chunkCount || 0
+      })));
       
       // Log filtering details
-      const publicSources = filteredSources.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
-      const assignedSources = filteredSources.filter((s: any) => s.assignedToAgents?.includes(conversationId));
+      const publicSources = sourcesWithVerifiedRAG.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
+      const assignedSources = sourcesWithVerifiedRAG.filter((s: any) => s.assignedToAgents?.includes(conversationId));
       
       console.log(`✅ Context sources for agent ${conversationId}:`, {
-        total: filteredSources.length,
+        total: sourcesWithVerifiedRAG.length,
         public: publicSources.length,
         assigned: assignedSources.length,
         active: activeIds.length,
+        withRAG: sourcesWithVerifiedRAG.filter((s: any) => s.ragEnabled).length,
       });
     } catch (error) {
       console.error('Error loading context:', error);
@@ -1014,7 +1079,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                           id: finalMessageId,
                           isStreaming: false,
                           content: accumulatedContent,
-                          references: data.references,
+                          references: data.references, // RAG chunk references
                           thinkingSteps: undefined
                         }
                       : msg
@@ -1040,6 +1105,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
                   // Play sound notification
                   playNotificationSound();
+
+                  // Log references for debugging
+                  if (data.references && data.references.length > 0) {
+                    console.log('📚 Message saved with references:', data.references.length);
+                    data.references.forEach((ref: any) => {
+                      console.log(`  [${ref.id}] ${ref.sourceName} - Chunk #${ref.chunkIndex + 1} - ${(ref.similarity * 100).toFixed(1)}%`);
+                    });
+                  }
 
                   // NEW: Create context log with ACTUAL RAG configuration used
                   const ragConfig = data.ragConfiguration;
@@ -1091,6 +1164,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     aiResponse: accumulatedContent,
                     // NEW: Complete RAG audit trail
                     ragConfiguration: ragConfig,
+                    references: data.references, // Add chunk references to log
                   };
                   setContextLogs(prev => [...prev, log]);
 
@@ -1155,20 +1229,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   };
 
   const toggleContext = async (sourceId: string) => {
+    console.log('🔄 Toggle context called for source:', sourceId);
+    console.log('📚 Current sources state:', contextSources.map(s => ({ id: s.id, name: s.name, enabled: s.enabled })));
+    
     // Get current enabled state
     const source = contextSources.find(s => s.id === sourceId);
-    if (!source) return;
+    if (!source) {
+      console.warn('⚠️ Source not found:', sourceId);
+      return;
+    }
     
     const newEnabledState = !source.enabled;
+    console.log(`📝 Toggling ${source.name} (ID: ${sourceId}): ${source.enabled} → ${newEnabledState}`);
+    
+    // Calculate new state immediately
+    const updatedSources = contextSources.map(s => 
+      s.id === sourceId 
+        ? { ...s, enabled: newEnabledState }
+        : s
+    );
     
     // Update local state
-    setContextSources(prev => 
-      prev.map(s => 
-        s.id === sourceId 
-          ? { ...s, enabled: newEnabledState }
-          : s
-      )
-    );
+    setContextSources(updatedSources);
 
     // Update enabled state in Firestore
     try {
@@ -1182,12 +1264,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       console.error('❌ Error updating context source enabled state:', error);
     }
 
-    // Save active sources for current conversation
+    // Save active sources for current conversation using updated state
     if (currentConversation) {
-      const newActiveIds = contextSources
-        .map(s => s.id === sourceId ? { ...s, enabled: newEnabledState } : s)
+      const newActiveIds = updatedSources
         .filter(s => s.enabled)
         .map(s => s.id);
+      console.log('💾 Saving active IDs for conversation:', newActiveIds);
       saveContextForConversation(currentConversation, newActiveIds);
     }
   };
@@ -2700,6 +2782,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                               }))
                             }
                             references={msg.references} // Pass references for this message
+                            onReferenceClick={(reference) => {
+                              console.log('🔍 Opening reference panel:', reference);
+                              setSelectedReference(reference);
+                            }}
                             onSourceClick={(sourceId) => {
                               const source = contextSources.find(s => s.id === sourceId);
                               if (source) {
@@ -3340,6 +3426,54 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                                   {log.aiResponse}
                                 </p>
                               </div>
+                              
+                              {/* NEW: Display chunk references used in response */}
+                              {log.references && log.references.length > 0 && (
+                                <div className="mt-2 text-[10px]">
+                                  <p className="text-slate-600 font-semibold mb-1">
+                                    📚 Referencias utilizadas ({log.references.length} chunks):
+                                  </p>
+                                  <div className="space-y-1">
+                                    {log.references.map(ref => (
+                                      <button
+                                        key={ref.id}
+                                        onClick={() => {
+                                          console.log('🔍 Opening reference from context log:', ref);
+                                          setSelectedReference(ref);
+                                        }}
+                                        className="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 hover:bg-blue-100 transition-colors"
+                                      >
+                                        <div className="flex items-start gap-2">
+                                          <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-bold text-[9px] border border-blue-300 flex-shrink-0">
+                                            [{ref.id}]
+                                          </span>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                                              <p className="text-[9px] font-semibold text-slate-800 truncate">
+                                                {ref.sourceName}
+                                              </p>
+                                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                ref.similarity >= 0.8 ? 'bg-green-100 text-green-700' :
+                                                ref.similarity >= 0.6 ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-orange-100 text-orange-700'
+                                              }`}>
+                                                {(ref.similarity * 100).toFixed(1)}%
+                                              </span>
+                                            </div>
+                                            <p className="text-[9px] text-slate-600 line-clamp-2">
+                                              {ref.snippet}
+                                            </p>
+                                            <p className="text-[8px] text-slate-500 mt-0.5">
+                                              Chunk #{ref.chunkIndex + 1}
+                                              {ref.metadata?.tokenCount && ` • ${ref.metadata.tokenCount} tokens`}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3623,27 +3757,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         userEmail={userEmail}
         conversations={conversations}
         onSourcesUpdated={() => {
-          // Reload context sources when changes are made
-          const loadContextSources = async () => {
-            try {
-              const response = await fetch(`/api/context-sources?userId=${userId}`);
-              if (response.ok) {
-                const data = await response.json();
-                setContextSources(data.sources.map((s: any) => ({
-                  ...s,
-                  addedAt: new Date(s.addedAt),
-                  metadata: {
-                    ...s.metadata,
-                    extractionDate: s.metadata?.extractionDate ? new Date(s.metadata.extractionDate) : undefined,
-                    validatedAt: s.metadata?.validatedAt ? new Date(s.metadata.validatedAt) : undefined,
-                  },
-                })));
-              }
-            } catch (error) {
-              console.error('Error reloading context sources:', error);
-            }
-          };
-          loadContextSources();
+          // ✅ FIX 2025-10-20: Reload context with proper agent filtering
+          // Don't directly load all sources - use the proper filtering logic
+          if (currentConversation) {
+            console.log('🔄 Reloading context for current agent after assignment:', currentConversation);
+            loadContextForConversation(currentConversation);
+          } else {
+            console.warn('⚠️ No current conversation - skipping context reload');
+          }
         }}
       />
       
@@ -3749,6 +3870,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             Detener Impersonación
           </button>
         </div>
+      )}
+
+      {/* Reference Panel - Opens when clicking on reference badges in messages */}
+      {selectedReference && (
+        <ReferencePanel
+          reference={selectedReference}
+          onClose={() => setSelectedReference(null)}
+          onViewFullDocument={(sourceId) => {
+            const source = contextSources.find(s => s.id === sourceId);
+            if (source) {
+              setSettingsSource(source);
+              setSelectedReference(null); // Close reference panel when opening full document
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -174,15 +174,16 @@ export async function generateEmbeddings(
       }
       
       // Generate embedding using Gemini Embedding API
+      // Correct format: contents (plural), not content
       const result = await genAI.models.embedContent({
         model: model,
-        content: {
+        contents: {
           parts: [{ text: chunk.text }],
         },
       });
       
       // Extract embedding vector (768 dimensions)
-      const embedding = result.embedding?.values || [];
+      const embedding = result.embeddings?.[0]?.values || [];
       
       embeddings.push({
         chunkIndex: chunk.chunkIndex,
@@ -225,19 +226,25 @@ export async function storeEmbeddings(
   const batch = firestore.batch();
   
   for (const embedding of embeddings) {
-    const docRef = firestore.collection('document_embeddings').doc();
+    const docRef = firestore.collection('document_chunks').doc();
     
     batch.set(docRef, {
-      // Document reference
-      documentId,
+      // Document reference (API expects sourceId)
+      sourceId: documentId,  // Use sourceId for API compatibility
+      documentId,            // Keep for backward compat
       fileName,
       userId,
       agentId,
       
-      // Chunk info
+      // Chunk info (API expects text, not chunkText)
       chunkIndex: embedding.chunkIndex,
-      chunkText: embedding.text,
-      tokenCount: embedding.tokenCount,
+      text: embedding.text,              // API expects 'text'
+      chunkText: embedding.text,         // Keep for backward compat
+      metadata: {
+        tokenCount: embedding.tokenCount,
+        startChar: 0,  // Calculated during chunking if needed
+        endChar: embedding.text.length,
+      },
       
       // Vector embedding (768 dimensions)
       embedding: embedding.embedding,
@@ -257,8 +264,8 @@ export async function storeEmbeddings(
   
   await batch.commit();
   
-  console.log(`   ✅ Stored ${embeddings.length} chunks in collection 'document_embeddings'`);
-  console.log(`   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_embeddings`);
+  console.log(`   ✅ Stored ${embeddings.length} chunks in collection 'document_chunks'`);
+  console.log(`   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks`);
 }
 
 /**

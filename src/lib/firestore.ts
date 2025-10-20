@@ -1579,9 +1579,9 @@ export async function getContextSource(sourceId: string): Promise<ContextSource 
     }
     
     const data = doc.data();
-    return {
-      id: doc.id,
+    const source: any = {
       ...data,
+      id: doc.id, // ✅ CRITICAL: Document ID from Firestore (overwrites data.id if exists)
       addedAt: data?.addedAt?.toDate() || new Date(),
       metadata: data?.metadata ? {
         ...data.metadata,
@@ -1599,7 +1599,8 @@ export async function getContextSource(sourceId: string): Promise<ContextSource 
         ...data.ragMetadata,
         indexedAt: data.ragMetadata.indexedAt?.toDate(),
       } : undefined,
-    } as ContextSource;
+    };
+    return source as ContextSource;
   } catch (error) {
     console.error('❌ Error getting context source:', error);
     return null;
@@ -1616,10 +1617,12 @@ export async function getContextSources(userId: string): Promise<ContextSource[]
 
     return snapshot.docs.map(doc => {
       const data = doc.data();
-      return {
+      const source: any = {
         ...data,
+        id: doc.id, // ✅ CRITICAL: Always include the document ID (overwrites data.id if exists)
         addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
-      } as ContextSource;
+      };
+      return source as ContextSource;
     });
   } catch (error) {
     console.error('❌ Error fetching context sources:', error);

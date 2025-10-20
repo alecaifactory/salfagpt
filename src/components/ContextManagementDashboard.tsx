@@ -125,14 +125,31 @@ export default function ContextManagementDashboard({
       if (source) {
         const currentAgents = source.assignedToAgents || [];
         const currentIds = currentAgents.map((a: any) => typeof a === 'string' ? a : a.id);
-        setPendingAgentIds(currentIds);
+        
+        // 🔧 FIX: Filter out CLI placeholder assignments ("cli-upload")
+        // These are default values from CLI and should not be pre-selected
+        const actualAgentIds = currentIds.filter(id => 
+          id !== 'cli-upload' && // Remove CLI placeholder
+          conversations.some(conv => conv.id === id) // Only include actual conversation IDs
+        );
+        
+        console.log('🔍 Initializing agent selection for source:', source.name);
+        console.log('   All assignedToAgents:', currentIds);
+        console.log('   Filtered (actual agents only):', actualAgentIds);
+        
+        setPendingAgentIds(actualAgentIds);
       }
     } else if (selectedSourceIds.length > 1) {
       // Multiple sources - find common agents
       const allSources = sources.filter(s => selectedSourceIds.includes(s.id));
       const agentSets = allSources.map(s => {
         const agents = s.assignedToAgents || [];
-        return agents.map((a: any) => typeof a === 'string' ? a : a.id);
+        const agentIds = agents.map((a: any) => typeof a === 'string' ? a : a.id);
+        // Filter out CLI placeholders
+        return agentIds.filter(id => 
+          id !== 'cli-upload' &&
+          conversations.some(conv => conv.id === id)
+        );
       });
       
       // Find agents common to ALL selected sources
@@ -145,7 +162,7 @@ export default function ContextManagementDashboard({
     } else {
       setPendingAgentIds([]);
     }
-  }, [selectedSourceIds, sources]);
+  }, [selectedSourceIds, sources, conversations]);
 
   const loadAllSources = async () => {
     setLoading(true);
@@ -614,23 +631,51 @@ export default function ContextManagementDashboard({
 
   const handleBulkAssign = async (sourceId: string, agentIds: string[]) => {
     setIsAssigning(true);
+    
+    console.log('🎯 Frontend: Bulk assign requested');
+    console.log('   Source ID:', sourceId);
+    console.log('   Agent IDs:', agentIds);
+    
+    // Find the source to log its name
+    const sourceToAssign = sources.find(s => s.id === sourceId);
+    console.log('   Source name:', sourceToAssign?.name);
+    console.log('   Current assignedToAgents:', sourceToAssign?.assignedToAgents);
+    
     try {
+      const requestBody = { sourceId, agentIds };
+      console.log('📤 Sending request:', JSON.stringify(requestBody, null, 2));
+      
       const response = await fetch('/api/context-sources/bulk-assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceId, agentIds }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
-        console.log('✅ Bulk assignment successful');
+        const result = await response.json();
+        console.log('✅ Bulk assignment successful:', result);
+        console.log('   Updated source ID:', result.sourceId);
+        console.log('   Assigned to', result.assignedCount, 'agents');
+        
+        // Reload sources from backend
+        console.log('🔄 Reloading all sources after assignment...');
         await loadAllSources();
         onSourcesUpdated();
+        
+        console.log('✅ Sources reloaded. Verifying assignment...');
+        // After reload, check if the assignment stuck
+        setTimeout(() => {
+          const updatedSource = sources.find(s => s.id === sourceId);
+          console.log('🔍 Verification - Source after reload:', updatedSource?.name);
+          console.log('   assignedToAgents:', updatedSource?.assignedToAgents);
+        }, 500);
       } else {
-        console.error('Bulk assignment failed');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Bulk assignment failed:', errorData);
         alert('Error al asignar a agentes');
       }
     } catch (error) {
-      console.error('Error in bulk assignment:', error);
+      console.error('❌ Error in bulk assignment:', error);
       alert('Error al asignar a agentes');
     } finally {
       setIsAssigning(false);
@@ -1511,10 +1556,10 @@ export default function ContextManagementDashboard({
                     <h4 className="text-xs font-semibold text-gray-900">Asignar a Agentes</h4>
                     <button
                       onClick={handleAssignClick}
-                      disabled={isAssigning || pendingAgentIds.length === 0}
+                      disabled={isAssigning || pendingAgentIds.length < 1 || selectedSourceIds.length < 1}
                       className="px-2 py-1 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-xs font-medium"
                     >
-                      {isAssigning ? 'Assigning...' : `Assign (${pendingAgentIds.length})`}
+                      {isAssigning ? 'Asignando...' : `Asignar (${selectedSourceIds.length})`}
                     </button>
                   </div>
                   

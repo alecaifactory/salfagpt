@@ -26,65 +26,12 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // Build additional context from active sources
-    let additionalContext = '';
-    let ragUsed = false;
-    let ragStats = null;
-    let ragHadFallback = false;
-    let ragResults: any[] = []; // Store RAG results for references
-    
-    // NEW: Track RAG configuration used
+    // NEW: Track RAG configuration used (before doing any work)
     const ragTopK = body.ragTopK || 5;
     const ragMinSimilarity = body.ragMinSimilarity || 0.5;
     const ragEnabled = body.ragEnabled !== false; // Default: enabled
 
-    if (contextSources && contextSources.length > 0) {
-      const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
-      
-      // Try RAG search if enabled
-      if (ragEnabled && activeSourceIds.length > 0) {
-        try {
-          console.log('🔍 [Streaming] Attempting RAG search...');
-          console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
-          const { searchRelevantChunks, buildRAGContext, getRAGStats } = await import('../../../../lib/rag-search.js');
-          
-          ragResults = await searchRelevantChunks(userId, message, {
-            topK: ragTopK,
-            minSimilarity: ragMinSimilarity,
-            activeSourceIds
-          });
-          
-          if (ragResults.length > 0) {
-            additionalContext = buildRAGContext(ragResults);
-            ragUsed = true;
-            ragStats = getRAGStats(ragResults);
-            console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
-            console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
-          } else {
-            console.log('⚠️ RAG: No results above similarity threshold, falling back to full documents');
-            ragHadFallback = true;
-            // Fall back to full documents
-            additionalContext = contextSources
-              .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-              .join('\n');
-          }
-        } catch (error) {
-          console.error('⚠️ RAG search failed, using full documents:', error);
-          ragHadFallback = true;
-          additionalContext = contextSources
-            .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-            .join('\n');
-        }
-      } else {
-        // RAG disabled - use full documents
-        console.log('📎 [Streaming] Including full context from', contextSources.length, 'active sources (full-text mode)');
-        additionalContext = contextSources
-          .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-          .join('\n');
-      }
-    }
-
-    // Get conversation history for temp conversations
+    // Get conversation history for temp conversations (can do this early)
     let conversationHistory: Array<{ role: string; content: string }> = [];
     
     if (conversationId.startsWith('temp-')) {
@@ -115,18 +62,110 @@ export const POST: APIRoute = async ({ params, request }) => {
             controller.enqueue(encoder.encode(data));
           };
 
-          // Step 1: Pensando...
+          // Step 1: Pensando... (3 seconds with progressive dots)
           sendStatus('thinking', 'active');
-          await new Promise(resolve => setTimeout(resolve, 300)); // Short delay for UX
+          await new Promise(resolve => setTimeout(resolve, 3000));
           sendStatus('thinking', 'complete');
 
-          // Step 2: Buscando Contexto Relevante...
+          // Build context DURING streaming (not before)
+          let additionalContext = '';
+          let ragUsed = false;
+          let ragStats = null;
+          let ragHadFallback = false;
+          let ragResults: any[] = [];
+
+          // Step 2: Buscando Contexto Relevante... (3 seconds)
           if (contextSources && contextSources.length > 0) {
             sendStatus('searching', 'active');
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
+            
+            // Try RAG search if enabled
+            if (ragEnabled && activeSourceIds.length > 0) {
+              try {
+                console.log('🔍 [Streaming] Attempting RAG search...');
+                console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
+                const { searchRelevantChunks, buildRAGContext, getRAGStats } = await import('../../../../lib/rag-search.js');
+                
+                ragResults = await searchRelevantChunks(userId, message, {
+                  topK: ragTopK,
+                  minSimilarity: ragMinSimilarity,
+                  activeSourceIds
+                });
+                
+                if (ragResults.length > 0) {
+                  // SUCCESS: Use RAG chunks
+                  additionalContext = buildRAGContext(ragResults);
+                  ragUsed = true;
+                  ragStats = getRAGStats(ragResults);
+                  console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
+                  console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
+                } else {
+                  // NO chunks found - check if documents exist at all
+                  console.warn('⚠️ RAG: No chunks found above similarity threshold');
+                  console.log('  Checking if documents have chunks available...');
+                  
+                  // Load chunks directly to check if they exist
+                  const { firestore } = await import('../../../../lib/firestore.js');
+                  const chunksSnapshot = await firestore
+                    .collection('document_chunks')
+                    .where('userId', '==', userId)
+                    .where('sourceId', 'in', activeSourceIds.slice(0, 10)) // Firestore 'in' limit
+                    .limit(1)
+                    .get();
+                  
+                  if (chunksSnapshot.empty) {
+                    // No chunks exist - documents need indexing
+                    console.warn('⚠️ No chunks exist - using full documents as fallback');
+                    ragHadFallback = true;
+                    additionalContext = contextSources
+                      .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                      .join('\n');
+                  } else {
+                    // Chunks exist but similarity too low - lower threshold and retry
+                    console.log('  Chunks exist, retrying with lower similarity threshold (0.3)...');
+                    const retryResults = await searchRelevantChunks(userId, message, {
+                      topK: ragTopK * 2, // Double topK
+                      minSimilarity: 0.3, // Lower threshold
+                      activeSourceIds
+                    });
+                    
+                    if (retryResults.length > 0) {
+                      // SUCCESS with lower threshold
+                      additionalContext = buildRAGContext(retryResults);
+                      ragUsed = true;
+                      ragResults = retryResults;
+                      ragStats = getRAGStats(retryResults);
+                      console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
+                    } else {
+                      // Still no results - use full documents
+                      console.warn('⚠️ No relevant chunks even with lower threshold - using full documents');
+                      ragHadFallback = true;
+                      additionalContext = contextSources
+                        .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                        .join('\n');
+                    }
+                  }
+                }
+              } catch (error) {
+                console.error('⚠️ RAG search failed, using full documents:', error);
+                ragHadFallback = true;
+                additionalContext = contextSources
+                  .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                  .join('\n');
+              }
+            } else {
+              // RAG disabled - use full documents
+              console.log('📎 [Streaming] Including full context from', contextSources.length, 'active sources (full-text mode)');
+              additionalContext = contextSources
+                .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                .join('\n');
+            }
+            
             sendStatus('searching', 'complete');
 
-            // Step 3: Seleccionando Chunks... (only if RAG is used)
+            // Step 3: Seleccionando Chunks... (3 seconds, only if RAG is used)
             if (ragUsed) {
               sendStatus('selecting', 'active');
               
@@ -144,12 +183,12 @@ export const POST: APIRoute = async ({ params, request }) => {
                 controller.enqueue(encoder.encode(chunkData));
               }
               
-              await new Promise(resolve => setTimeout(resolve, 200));
+              await new Promise(resolve => setTimeout(resolve, 3000)); // 3 seconds to show chunks
               sendStatus('selecting', 'complete');
             }
           }
 
-          // Step 4: Generando Respuesta...
+          // Step 4: Generando Respuesta... (streaming happens here)
           sendStatus('generating', 'active');
           
           // Store user message first (for persistent conversations)
@@ -202,20 +241,27 @@ export const POST: APIRoute = async ({ params, request }) => {
           if (!conversationId.startsWith('temp-')) {
             try {
               // Build references from RAG results BEFORE saving message
+              // Map RAG chunks to reference format that matches what AI will cite
               const references = ragResults.map((result, index) => ({
-                id: index + 1,
+                id: index + 1, // Sequential numbering [1], [2], etc.
                 sourceId: result.sourceId,
                 sourceName: result.sourceName,
                 chunkIndex: result.chunkIndex,
                 similarity: result.similarity,
-                snippet: result.text.substring(0, 200), // First 200 chars
-                fullText: result.text,
-                metadata: result.metadata
+                snippet: result.text.substring(0, 300), // Longer snippet for better preview
+                fullText: result.text, // Complete chunk text
+                metadata: {
+                  startChar: result.metadata.startChar,
+                  endChar: result.metadata.endChar,
+                  tokenCount: result.metadata.tokenCount,
+                  startPage: result.metadata.startPage,
+                  endPage: result.metadata.endPage,
+                }
               }));
 
               console.log('📚 Built references for message:', references.length);
               references.forEach(ref => {
-                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - Chunk #${ref.chunkIndex}`);
+                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - Chunk #${ref.chunkIndex + 1}`);
               });
 
               // Save message with references

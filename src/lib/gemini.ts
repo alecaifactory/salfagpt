@@ -380,8 +380,21 @@ export async function* streamAIResponse(
 
     // Add user context if provided
     let fullUserMessage = userMessage;
+    let enhancedSystemInstruction = systemInstruction;
+    
     if (userContext) {
       fullUserMessage = `Context:\n${userContext}\n\nUser Message:\n${userMessage}`;
+      
+      // Enhance system instruction to request inline citations
+      enhancedSystemInstruction = `${systemInstruction}
+
+IMPORTANTE: Cuando uses información de los documentos de contexto:
+- Incluye referencias numeradas inline usando el formato [1], [2], etc.
+- Coloca la referencia INMEDIATAMENTE después de la información que uses
+- Sé específico: cada dato del documento debe tener su referencia
+
+Ejemplo:
+"Las construcciones en subterráneo deben cumplir con distanciamientos[1]. La DDU 189 establece zonas inexcavables[2]."`;
     }
 
     // Add current user message
@@ -395,7 +408,7 @@ export async function* streamAIResponse(
       model: model,
       contents: contents,
       config: {
-        systemInstruction: systemInstruction,
+        systemInstruction: enhancedSystemInstruction,
         temperature: temperature,
         maxOutputTokens: maxTokens,
       }

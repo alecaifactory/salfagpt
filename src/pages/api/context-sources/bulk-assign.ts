@@ -13,16 +13,18 @@ import { firestore, COLLECTIONS } from '../../../lib/firestore';
  * 
  * Security: Only superadmin can bulk assign
  */
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async (context) => {
   try {
     // 1. Verify authentication
-    const session = getSession({ cookies });
+    const session = getSession(context);
     if (!session) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Please login' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    const { request } = context;
 
     // 2. SECURITY: Only superadmin can bulk assign
     if (session.email !== 'alec@getaifactory.com') {
@@ -52,26 +54,61 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     console.log('🔄 Bulk assigning source', sourceId, 'to', agentIds.length, 'agents');
+    console.log('📋 Source ID:', sourceId);
+    console.log('📋 Agent IDs:', agentIds);
 
-    // 4. Update the source document
+    // 4. Update the source document - ONLY this specific sourceId
     const sourceRef = firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc(sourceId);
     
     // Verify source exists
     const sourceDoc = await sourceRef.get();
     if (!sourceDoc.exists) {
+      console.error('❌ Source not found:', sourceId);
       return new Response(
         JSON.stringify({ error: 'Context source not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // 5. Update assignedToAgents field
-    await sourceRef.update({
+    const sourceData = sourceDoc.data();
+    console.log('📄 Source to update:', sourceData?.name);
+    console.log('   Document ID:', sourceId);
+    console.log('   Current assignedToAgents:', sourceData?.assignedToAgents);
+    console.log('   NEW assignedToAgents:', agentIds);
+
+    // 🚨 CRITICAL: Update assignedToAgents field - ONLY for this specific document by ID
+    const updateData = {
       assignedToAgents: agentIds,
       updatedAt: new Date(),
-    });
+    };
+    
+    console.log('💾 Firestore update operation:');
+    console.log('   Collection: context_sources');
+    console.log('   Document ID:', sourceId);
+    console.log('   Update data:', JSON.stringify(updateData, null, 2));
+    
+    await sourceRef.update(updateData);
 
-    console.log('✅ Source', sourceId, 'assigned to', agentIds.length, 'agents');
+    // Verify the update
+    const updatedDoc = await sourceRef.get();
+    const updatedData = updatedDoc.data();
+    console.log('✅ Source', sourceId, '(', sourceData?.name, ') assigned to', agentIds.length, 'agents');
+    console.log('   Updated document ID:', sourceId);
+    console.log('   Verified assignedToAgents after update:', updatedData?.assignedToAgents);
+    
+    // 🔍 VERIFICATION: Query to confirm no other documents were affected
+    const otherDocsQuery = await firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .where('metadata.uploadedVia', '==', 'cli')
+      .limit(5)
+      .get();
+    
+    console.log('🔍 Sample of other CLI documents after update:');
+    otherDocsQuery.docs.slice(0, 3).forEach(doc => {
+      if (doc.id !== sourceId) {
+        console.log(`   - ${doc.data().name}: assignedToAgents =`, doc.data().assignedToAgents);
+      }
+    });
 
     // 6. Return success
     return new Response(

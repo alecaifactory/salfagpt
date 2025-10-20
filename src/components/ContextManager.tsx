@@ -37,6 +37,27 @@ export default function ContextManager({
     return labels[type];
   };
 
+  // Debug: Log sources being rendered
+  React.useEffect(() => {
+    console.log('🔍 ContextManager rendering with', sources.length, 'sources:');
+    sources.forEach((s, idx) => {
+      console.log(`  [${idx}] ${s.name}:`, {
+        id: s.id,
+        enabled: s.enabled,
+        type: s.type,
+        uploadedVia: s.metadata?.uploadedVia,
+        gcsPath: s.metadata?.gcsPath?.substring(0, 50),
+      });
+    });
+    
+    // Check for duplicate IDs
+    const ids = sources.map(s => s.id);
+    const duplicates = ids.filter((id, idx) => ids.indexOf(id) !== idx);
+    if (duplicates.length > 0) {
+      console.error('❌ DUPLICATE IDs FOUND:', duplicates);
+    }
+  }, [sources]);
+
   return (
     <div className="border-t border-slate-200 bg-slate-50">
       <div className="p-4">
@@ -65,8 +86,7 @@ export default function ContextManager({
               return (
                 <div
                   key={source.id}
-                  onClick={() => onSourceClick(source.id)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all cursor-pointer ${
+                  className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
                     source.enabled
                       ? isValidated
                         ? 'bg-green-50 border-green-300 shadow-sm hover:shadow-md'
@@ -74,29 +94,43 @@ export default function ContextManager({
                       : 'bg-slate-100 border-slate-200 opacity-60 hover:opacity-80'
                   }`}
                 >
-                  <button
+                  {/* Toggle Switch - Isolated from other clicks */}
+                  <div 
+                    className="flex-shrink-0 relative inline-flex items-center"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
+                      console.log('🎯 Toggle area clicked for:', source.name, 'ID:', source.id);
                       onToggleSource(source.id);
                     }}
-                    className="flex-shrink-0 relative inline-flex items-center"
-                    title={source.enabled ? 'Desactivar fuente' : 'Activar fuente'}
                   >
-                    {/* Toggle Switch */}
-                    <div
-                      className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-                        source.enabled ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
+                    <button
+                      type="button"
+                      className="cursor-pointer focus:outline-none"
+                      title={source.enabled ? 'Desactivar fuente' : 'Activar fuente'}
+                      aria-label={source.enabled ? `Desactivar ${source.name}` : `Activar ${source.name}`}
                     >
                       <div
-                        className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                          source.enabled ? 'translate-x-5' : 'translate-x-0.5'
-                        } mt-0.5`}
-                      />
-                    </div>
-                  </button>
+                        className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                          source.enabled ? 'bg-green-500' : 'bg-gray-300'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                            source.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                          } mt-0.5`}
+                        />
+                      </div>
+                    </button>
+                  </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSourceClick(source.id);
+                    }}
+                  >
                     {/* File Name - Prominent */}
                     <div className="flex items-center gap-2 mb-1.5">
                       <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
@@ -138,7 +172,7 @@ export default function ContextManager({
                       {source.ragEnabled && source.ragMetadata && source.status === 'active' && (
                         <span 
                           className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-0.5"
-                          title={`RAG: ${source.ragMetadata.totalChunks} chunks indexados`}
+                          title={`RAG: ${source.ragMetadata.chunkCount || 0} chunks indexados`}
                         >
                           🔍 RAG
                         </span>
@@ -249,6 +283,23 @@ export default function ContextManager({
                         {(source.metadata as any).totalTokens && (
                           <p className="font-mono">
                             💰 {(source.metadata as any).costFormatted || '$0.000'} • {((source.metadata as any).totalTokens || 0).toLocaleString()} tokens
+                          </p>
+                        )}
+                        {/* CLI Upload indicator with GCS link */}
+                        {source.metadata.uploadedVia === 'cli' && (source.metadata as any)?.gcsPath && (
+                          <p className="flex items-center gap-1">
+                            <span className="text-[10px] font-semibold text-green-700">🖥️ CLI</span>
+                            <span className="text-slate-400">•</span>
+                            <a
+                              href={`https://console.cloud.google.com/storage/browser/_details/${(source.metadata as any).gcsPath.replace('gs://', '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[10px] text-blue-600 hover:text-blue-800 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                              title="Ver archivo original en GCS"
+                            >
+                              Ver en GCS
+                            </a>
                           </p>
                         )}
                       </div>
