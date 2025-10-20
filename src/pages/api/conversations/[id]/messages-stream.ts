@@ -275,11 +275,11 @@ export const POST: APIRoute = async ({ params, request }) => {
                   snippet: result.text.substring(0, 300),
                   fullText: result.text,
                   metadata: {
-                    startChar: result.metadata.startChar,
-                    endChar: result.metadata.endChar,
-                    tokenCount: result.metadata.tokenCount,
-                    startPage: result.metadata.startPage,
-                    endPage: result.metadata.endPage,
+                    startChar: result.metadata.startChar || 0,
+                    endChar: result.metadata.endChar || result.text.length,
+                    tokenCount: result.metadata.tokenCount || Math.ceil(result.text.length / 4),
+                    ...(result.metadata.startPage !== undefined && { startPage: result.metadata.startPage }),
+                    ...(result.metadata.endPage !== undefined && { endPage: result.metadata.endPage }),
                     isRAGChunk: true, // NEW: Explicitly mark as RAG chunk
                   }
                 }));
