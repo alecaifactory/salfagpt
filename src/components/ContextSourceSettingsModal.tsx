@@ -230,380 +230,335 @@ export default function ContextSourceSettingsModal({
           </div>
         )}
 
-        {/* Content - Compact 2-Column Layout */}
+        {/* Content - New Layout: Top-left: extracted text, below: extraction info, top-right: chunking history, below: original file */}
         <div className="p-4 flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
           {/* Left Column */}
-          <div className="space-y-3">
-            {/* Original Source Info - Compact */}
-            <section className="bg-slate-50 rounded-lg p-3">
+          <div className="space-y-3 flex flex-col">
+            {/* Extracted Text Preview - Top Priority */}
+            <section className="bg-white rounded-lg border border-slate-300 p-3 flex-1 flex flex-col">
               <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
                 <FileText className="w-4 h-4 text-blue-600" />
-                Fuente Original
+                Texto Extraído
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Archivo:</span>
-                  <span className="font-medium text-slate-800 truncate ml-2">
-                    {source.metadata?.originalFileName || source.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tipo:</span>
-                  <span className="font-medium text-slate-800">{getSourceTypeLabel(source.type)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tamaño:</span>
-                  <span className="font-medium text-slate-800">{formatFileSize(source.metadata?.originalFileSize)}</span>
-                </div>
-                
-                {/* File Preview/Download */}
-                {source.originalFile && (
-                  <div className="pt-2 border-t border-slate-200 mt-2">
-                    {source.type === 'pdf' ? (
-                      <div className="space-y-2">
-                        <p className="text-slate-600 font-medium">Vista Previa:</p>
-                        <div className="border border-slate-300 rounded-lg overflow-hidden bg-white">
-                          <iframe
-                            src={URL.createObjectURL(source.originalFile)}
-                            className="w-full h-64"
-                            title="PDF Preview"
-                          />
-                        </div>
-                        <a
-                          href={URL.createObjectURL(source.originalFile)}
-                          download={source.metadata?.originalFileName || source.name}
-                          className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          Descargar PDF Original
-                        </a>
-                      </div>
-                    ) : (
-                      <a
-                        href={URL.createObjectURL(source.originalFile)}
-                        download={source.metadata?.originalFileName || source.name}
-                        className="flex items-center justify-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium w-full"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Descargar Archivo Original
-                      </a>
-                    )}
+              <div className="flex-1 overflow-y-auto">
+                {source.extractedData ? (
+                  <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-700 font-mono leading-relaxed whitespace-pre-wrap">
+                    {source.extractedData.length > 2000 
+                      ? source.extractedData.substring(0, 2000) + '\n\n... (texto truncado, total: ' + source.extractedData.length.toLocaleString() + ' caracteres)'
+                      : source.extractedData}
                   </div>
-                )}
-              </div>
-            </section>
-
-            {/* Extraction Details - Compact */}
-            <section className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-lg p-3">
-              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-yellow-600" />
-                Extracción
-              </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Modelo:</span>
-                  <span className="font-medium text-slate-800">
-                    {source.metadata?.modelUsed || config.model || 'gemini-2.5-flash'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tiempo:</span>
-                  <span className="font-medium text-slate-800">
-                    {source.metadata?.extractionTime 
-                      ? `${(source.metadata.extractionTime / 1000).toFixed(2)}s`
-                      : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Caracteres:</span>
-                  <span className="font-medium text-slate-800">
-                    {source.metadata?.charactersExtracted?.toLocaleString() || 
-                     source.extractedData?.length.toLocaleString() || 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Tokens:</span>
-                  <span className="font-medium text-slate-800">
-                    {source.metadata?.tokensEstimate?.toLocaleString() ||
-                     (source.extractedData ? Math.ceil(source.extractedData.length / 4).toLocaleString() : 'N/A')}
-                  </span>
-                </div>
-              </div>
-            </section>
-
-            {/* Info about automatic extraction - Compact */}
-            {source.type === 'pdf' && (
-              <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-slate-700">
-                    <p className="font-semibold mb-1">✨ Extracción Automática</p>
-                    <p className="text-[10px] leading-tight">
-                      Gemini extrae texto, tablas e imágenes descritas automáticamente.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Validation Status - New Section */}
-            <section className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
-              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                {source.metadata?.validated ? (
-                  <CheckCircle className="w-4 h-4 text-green-600" />
                 ) : (
-                  <AlertCircle className="w-4 h-4 text-yellow-600" />
+                  <div className="h-full flex items-center justify-center text-slate-400">
+                    <p className="text-xs">No hay texto extraído disponible</p>
+                  </div>
                 )}
-                Estado de Validación
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
+                <span>
+                  {source.extractedData 
+                    ? `${source.extractedData.length.toLocaleString()} caracteres` 
+                    : 'N/A'}
+                </span>
+                <span>
+                  {source.extractedData 
+                    ? `≈ ${Math.ceil(source.extractedData.length / 4).toLocaleString()} tokens` 
+                    : 'N/A'}
+                </span>
+              </div>
+            </section>
+
+            {/* Extraction Information - Below extracted text */}
+            <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-200">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-blue-600" />
+                Información de Extracción
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Estado:</span>
-                  {source.metadata?.validated ? (
-                    <span className="px-2 py-0.5 bg-green-600 text-white rounded-full text-[10px] font-semibold">
-                      ✓ Validado
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Modelo:</p>
+                  {source.metadata?.model === 'gemini-2.5-pro' ? (
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-[10px] font-semibold inline-flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      Pro
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 bg-yellow-500 text-white rounded-full text-[10px] font-semibold">
-                      ⏳ Pendiente
+                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-[10px] font-semibold inline-flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      Flash
                     </span>
                   )}
                 </div>
                 
-                {source.metadata?.validated && source.metadata?.validatedBy && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Validado por:</span>
-                      <span className="font-medium text-slate-800 flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {source.metadata.validatedBy}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Fecha:</span>
-                      <span className="font-medium text-slate-800">
-                        {formatDate(source.metadata.validatedAt)}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                <div className="mt-2 pt-2 border-t border-green-200">
-                  <p className="text-[10px] text-slate-600 mb-1">
-                    <strong>Permisos para validar:</strong>
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {['admin', 'context_signoff', 'context_owner', 'context_reviewer'].map(role => (
-                      <span 
-                        key={role}
-                        className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-medium"
-                      >
-                        {role}
-                      </span>
-                    ))}
-                  </div>
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Tamaño:</p>
+                  <p className="font-medium text-slate-800">{formatFileSize(source.metadata?.originalFileSize)}</p>
                 </div>
 
-                {!source.metadata?.validated && (
-                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-[10px] text-yellow-800">
-                      <strong>ℹ️ Nota:</strong> Este contexto debe ser validado por un experto del dominio antes de ser considerado oficial.
-                    </p>
-                  </div>
-                )}
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Caracteres extraídos:</p>
+                  <p className="font-medium text-slate-800">
+                    {source.extractedData?.length.toLocaleString() || 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Tokens estimados:</p>
+                  <p className="font-medium text-slate-800">
+                    {source.extractedData 
+                      ? Math.ceil(source.extractedData.length / 4).toLocaleString() 
+                      : 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Tiempo de extracción:</p>
+                  <p className="font-medium text-slate-800">
+                    {source.metadata?.extractionTime 
+                      ? `${(source.metadata.extractionTime / 1000).toFixed(2)}s`
+                      : 'N/A'}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg p-2 border border-slate-200">
+                  <p className="text-slate-500 mb-1">Costo de extracción:</p>
+                  <p className="font-medium text-green-600">
+                    {source.metadata?.totalCost 
+                      ? `$${source.metadata.totalCost.toFixed(4)}`
+                      : 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              {/* File info */}
+              <div className="mt-3 pt-3 border-t border-blue-200 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Archivo original:</span>
+                  <span className="font-medium text-slate-800 truncate ml-2">
+                    {source.metadata?.originalFileName || source.name}
+                  </span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-slate-500">Tipo:</span>
+                  <span className="font-medium text-slate-800">{getSourceTypeLabel(source.type)}</span>
+                </div>
               </div>
             </section>
           </div>
 
           {/* Right Column */}
-          <div className="space-y-3">
-            {/* Extraction Details - Historical Info Only */}
-            <section className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-              <h3 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-1.5">
-                <Info className="w-4 h-4" />
-                Detalles de la Extracción
+          <div className="space-y-3 flex flex-col">
+            {/* Indexación RAG - Chunking History */}
+            <section className="bg-white rounded-lg border border-slate-300 p-3 flex-1 flex flex-col">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                <HardDrive className="w-4 h-4 text-indigo-600" />
+                Indexación RAG
               </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded-lg p-3 border border-blue-200">
-                  <p className="text-xs font-semibold text-slate-700 mb-2">Modelo Utilizado:</p>
-                  <div className="flex items-center gap-2">
-                    {source.metadata?.model === 'gemini-2.5-pro' ? (
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        Gemini 2.5 Pro
+              
+              {/* RAG Status */}
+              {source.ragMetadata ? (
+                <div className="space-y-2">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                        <span className="text-xs font-semibold text-green-700">RAG Indexado</span>
+                      </div>
+                      <span className="text-[10px] text-slate-500">
+                        {source.ragMetadata.chunkCount} chunks
                       </span>
-                    ) : (
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-semibold flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        Gemini 2.5 Flash
-                      </span>
-                    )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                      <div>
+                        <p className="text-slate-500">Tamaño promedio:</p>
+                        <p className="font-medium text-slate-800">
+                          {source.ragMetadata.avgChunkSize?.toLocaleString() || 'N/A'} caracteres
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500">Indexado:</p>
+                        <p className="font-medium text-slate-800">
+                          {formatDate(source.ragMetadata.indexedAt)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-slate-500 mt-2 italic">
-                    Este fue el modelo utilizado para esta extracción
-                  </p>
+
+                  {/* Chunking History Table */}
+                  {source.metadata?.chunkingHistory && source.metadata.chunkingHistory.length > 0 && (
+                    <div className="flex-1 overflow-y-auto">
+                      <p className="text-xs font-semibold text-slate-700 mb-2">Historial de Procesamiento:</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[10px]">
+                          <thead className="bg-slate-100 border-b border-slate-200">
+                            <tr>
+                              <th className="px-2 py-1.5 text-left font-semibold text-slate-700">Fecha</th>
+                              <th className="px-2 py-1.5 text-left font-semibold text-slate-700">Método</th>
+                              <th className="px-2 py-1.5 text-right font-semibold text-slate-700">Chunks</th>
+                              <th className="px-2 py-1.5 text-right font-semibold text-slate-700">Modelo</th>
+                              <th className="px-2 py-1.5 text-right font-semibold text-slate-700">Duración</th>
+                              <th className="px-2 py-1.5 text-center font-semibold text-slate-700">Estado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {source.metadata.chunkingHistory.map((entry, idx) => (
+                              <tr 
+                                key={idx}
+                                className={`border-b border-slate-100 hover:bg-slate-50 ${
+                                  idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                                }`}
+                              >
+                                <td className="px-2 py-2 text-slate-600">
+                                  {formatDate(entry.timestamp)}
+                                </td>
+                                <td className="px-2 py-2">
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                                    entry.method === 'initial' ? 'bg-blue-100 text-blue-700' :
+                                    entry.method === 'reindex' ? 'bg-purple-100 text-purple-700' :
+                                    'bg-slate-100 text-slate-700'
+                                  }`}>
+                                    {entry.method === 'initial' ? 'Inicial' :
+                                     entry.method === 'reindex' ? 'Re-index' : 'Auto'}
+                                  </span>
+                                </td>
+                                <td className="px-2 py-2 text-right font-mono font-semibold text-slate-800">
+                                  {entry.chunksCreated}
+                                </td>
+                                <td className="px-2 py-2 text-right text-slate-600">
+                                  {entry.embeddingModel?.includes('pro') ? 'Pro' : 'Flash'}
+                                </td>
+                                <td className="px-2 py-2 text-right font-mono text-slate-600">
+                                  {(entry.duration / 1000).toFixed(2)}s
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  {entry.success ? (
+                                    <CheckCircle className="w-3.5 h-3.5 text-green-600 inline" />
+                                  ) : (
+                                    <AlertCircle className="w-3.5 h-3.5 text-red-600 inline" />
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Re-index Button */}
+                  <button
+                    onClick={handleReExtract}
+                    disabled={isReExtracting}
+                    className="w-full px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 text-xs font-semibold"
+                  >
+                    {isReExtracting ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        Re-indexando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Re-indexar con RAG
+                      </>
+                    )}
+                  </button>
                 </div>
-                
-                <div className="bg-white rounded-lg p-3 border border-blue-200">
-                  <p className="text-xs font-semibold text-slate-700 mb-2">Documento Fuente:</p>
-                  {source.originalFile ? (
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-2">
+                    <AlertCircle className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <p className="text-xs font-semibold text-slate-600 mb-1">RAG no indexado</p>
+                  <p className="text-[10px] text-slate-500 mb-3 max-w-xs">
+                    Este documento aún no tiene indexación RAG. Re-indexa para habilitar búsqueda inteligente y ahorrar tokens.
+                  </p>
+                  <button
+                    onClick={handleReExtract}
+                    disabled={isReExtracting}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 text-xs font-semibold"
+                  >
+                    {isReExtracting ? (
+                      <>
+                        <Clock className="w-4 h-4 animate-spin" />
+                        Indexando...
+                      </>
+                    ) : (
+                      <>
+                        <HardDrive className="w-4 h-4" />
+                        Indexar con RAG
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {/* Original File Viewer - Below RAG section */}
+            <section className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
+                <Eye className="w-4 h-4 text-blue-600" />
+                Archivo Original
+              </h3>
+              
+              {source.originalFile ? (
+                <div className="space-y-2">
+                  {/* File info */}
+                  <div className="bg-white rounded-lg p-2 border border-slate-200 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Archivo:</span>
+                      <span className="font-medium text-slate-800 truncate ml-2">
+                        {source.metadata?.originalFileName || source.name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-slate-500">Tipo:</span>
+                      <span className="font-medium text-slate-800">{getSourceTypeLabel(source.type)}</span>
+                    </div>
+                  </div>
+
+                  {/* View/Download buttons */}
+                  <div className="flex gap-2">
                     <button
                       onClick={() => {
                         const url = URL.createObjectURL(source.originalFile!);
                         window.open(url, '_blank');
                       }}
-                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      Ver Documento Original
+                      Ver archivo
                     </button>
-                  ) : (
-                    <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2 text-center">
-                      ⚠️ Archivo no disponible
-                    </div>
-                  )}
-                  <p className="text-[10px] text-slate-500 mt-2 italic">
-                    Usa el botón Re-extraer para cambiar configuración
+                    <a
+                      href={URL.createObjectURL(source.originalFile)}
+                      download={source.metadata?.originalFileName || source.name}
+                      className="flex-1 px-3 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      Descargar
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
+                  <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
+                  <p className="text-xs text-amber-700 font-medium">Archivo no disponible</p>
+                  <p className="text-[10px] text-amber-600 mt-1">
+                    El archivo original no está guardado en memoria
                   </p>
                 </div>
-              </div>
+              )}
             </section>
-
-            {/* Tags Management Section */}
-            <section className="bg-slate-50 rounded-lg p-3">
-              <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-1.5">
-                <Tag className="w-4 h-4 text-blue-600" />
-                Tags del Contexto
-              </h3>
-              
-              <div className="space-y-2">
-                {/* PUBLIC Tag Checkbox */}
-                <button
-                  onClick={() => toggleTag('PUBLIC')}
-                  className={`w-full p-2 rounded-lg border transition-all ${
-                    tags.includes('PUBLIC')
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                      tags.includes('PUBLIC')
-                        ? 'border-blue-600 bg-blue-600'
-                        : 'border-slate-300'
-                    }`}>
-                      {tags.includes('PUBLIC') && (
-                        <CheckCircle className="w-3 h-3 text-white" />
-                      )}
-                    </div>
-                    <div className="flex-1 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <Globe className="w-3.5 h-3.5 text-blue-600" />
-                        <span className="text-xs font-bold text-blue-700">PUBLIC</span>
-                      </div>
-                      <p className="text-[10px] text-slate-600 mt-0.5">
-                        Se asigna automáticamente a nuevos agentes
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Info about PUBLIC tag */}
-                {tags.includes('PUBLIC') && (
-                  <div className="p-2 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-800">
-                    <p className="font-semibold mb-1">ℹ️ Contexto Público</p>
-                    <p className="leading-tight">
-                      Este contexto se asignará automáticamente a todos los nuevos agentes. 
-                      Ideal para: información general de la empresa, misión, visión, valores, KPIs, datos de industria, políticas, etc.
-                    </p>
-                  </div>
-                )}
-                
-                {isSavingTags && (
-                  <div className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    Tags guardados
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Re-extraction Notice - Compact */}
-            {source.originalFile ? (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-700">
-                  <p className="font-semibold mb-0.5">💡 Re-extracción disponible</p>
-                  <p className="text-[10px] leading-tight">
-                    Archivo guardado. Puedes re-procesar con nueva configuración.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2.5 flex items-start gap-2">
-                <Info className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-700">
-                  <p className="font-semibold mb-0.5">⚠️ Archivo no guardado</p>
-                  <p className="text-[10px] leading-tight">
-                    Necesitarás subir el archivo nuevamente para re-procesar.
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Footer - Compact */}
-        <div className="border-t border-slate-200 p-2.5 bg-slate-50 flex items-center justify-between gap-2">
+        <div className="border-t border-slate-200 p-2.5 bg-slate-50 flex items-center justify-end gap-2">
           <button
             onClick={onClose}
             className="px-4 py-1.5 text-sm text-slate-700 hover:bg-slate-200 rounded transition-colors font-medium"
           >
-            Cancelar
+            Cerrar
           </button>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                await handleSaveTags();
-                onClose();
-              }}
-              disabled={isSavingTags}
-              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-1.5 font-medium"
-            >
-              {isSavingTags ? (
-                <>
-                  <Clock className="w-4 h-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  Guardar
-                </>
-              )}
-            </button>
-
-            {source.originalFile && (
-              <button
-                onClick={handleReExtract}
-                disabled={isReExtracting}
-                className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 font-medium"
-              >
-                {isReExtracting ? (
-                  <>
-                    <Clock className="w-4 h-4 animate-spin" />
-                    Procesando...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4" />
-                    Re-extraer
-                  </>
-                )}
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

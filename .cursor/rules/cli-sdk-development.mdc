@@ -1,0 +1,802 @@
+# CLI & SDK Development Rules - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the development guidelines, architecture, and best practices for the SalfaGPT CLI and SDK tools. These developer tools automate context document management workflows.
+
+---
+
+## 🌟 Core Principles
+
+### 1. Developer Experience First
+
+**Principle:** The CLI should feel intuitive, fast, and helpful. Errors should guide users to solutions.
+
+**Why:** Developers have zero tolerance for confusing tools. Great DX = adoption.
+
+**Implementation:**
+```bash
+# ✅ GOOD: Clear, helpful output
+✅ Found 3 documents to process
+📄 Processing: manual.pdf (1.24 MB)
+   ⏳ Uploading... 
+   ✅ Uploaded in 2.3s
+   ⏳ Extracting with Gemini Flash...
+   ✅ Extracted: 15,234 characters (12 pages) in 8.7s
+
+# ❌ BAD: Cryptic output
+Processing...
+Done.
+```
+
+**Error Messages:**
+```bash
+# ✅ GOOD: Actionable error
+❌ Error: GOOGLE_CLOUD_PROJECT not set
+
+💡 Fix:
+   1. Create .env file in project root
+   2. Add: GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+   3. Run: source .env
+   4. Retry: npx salfagpt upload <folder>
+
+# ❌ BAD: Unhelpful error
+Error: undefined
+```
+
+---
+
+### 2. Reuse Existing Code
+
+**Principle:** Don't reinvent the wheel. Use proven webapp extraction/storage logic.
+
+**Why:** Code reuse = consistency, less bugs, faster development.
+
+**Reusable Modules:**
+```typescript
+// ✅ Reuse extraction logic
+import { extractDocumentText } from '../src/lib/gemini';
+
+// ✅ Reuse storage operations
+import { createContextSource } from '../src/lib/firestore';
+
+// ✅ Reuse GCP clients
+import { storage } from '../src/lib/gcp';
+```
+
+**Don't Duplicate:**
+- Gemini AI client initialization
+- Firestore operations
+- Storage bucket configuration
+- Error handling patterns
+
+---
+
+### 3. Progressive Enhancement
+
+**Principle:** Each version should be production-ready. No "beta" features in CLI.
+
+**Why:** Developers depend on tools. Broken CLI = blocked workflow.
+
+**Version Strategy:**
+```
+v0.1.0: Scan + Log (works perfectly)
+v0.2.0: + Upload + Extract (works perfectly)
+v0.3.0: + Embeddings + Search (works perfectly)
+v0.4.0: + Git automation (works perfectly)
+v0.5.0: + Full SDK (works perfectly)
+```
+
+**Never:**
+- Release half-working features
+- Rely on "it's just a CLI" excuse
+- Skip error handling
+- Ignore edge cases
+
+---
+
+### 4. Backward Compatibility Always
+
+**Principle:** New CLI versions must not break existing scripts/workflows.
+
+**Why:** Breaking CLI changes destroy trust and productivity.
+
+**Safe Changes:**
+```bash
+# ✅ Add new commands
+npx salfagpt upload <folder>        # v0.1
+npx salfagpt search <query>         # v0.3 - NEW
+
+# ✅ Add optional flags
+npx salfagpt upload <folder>        # v0.2
+npx salfagpt upload <folder> --model pro  # v0.2.1 - NEW flag
+
+# ❌ Breaking changes require major version
+npx salfagpt upload <folder>        # v0.2
+npx salfagpt process <folder>       # v1.0 - BREAKING (command renamed)
+```
+
+**Deprecation Path:**
+```bash
+# v0.9: Deprecate old command (but keep working)
+npx salfagpt upload <folder>
+# Warning: "upload" is deprecated, use "process" in v1.0
+
+# v1.0: Remove old command (after 3-month notice)
+npx salfagpt process <folder>
+```
+
+---
+
+### 5. Local-First, Cloud-Optional
+
+**Principle:** CLI should work offline for basic operations, sync to cloud when available.
+
+**Why:** Developers work in various network conditions.
+
+**Implementation:**
+```typescript
+// Local operations (always work)
+- Scan folders ✅
+- Validate files ✅
+- Generate metadata ✅
+- Log operations ✅
+
+// Cloud operations (graceful degradation)
+- Upload to GCS ⚠️ Queue if offline
+- Extract with Gemini ⚠️ Queue if offline
+- Save to Firestore ⚠️ Queue if offline
+
+// Queue system (v0.4+)
+- Local queue: salfagpt-queue.json
+- Retry on network restore
+- Manual sync: npx salfagpt sync
+```
+
+---
+
+## 🏗️ CLI Architecture
+
+### Command Structure
+
+```
+salfagpt <command> [subcommand] [options]
+
+Commands:
+  upload <folder>           # Upload documents
+  search <query>            # Semantic search (v0.3+)
+  index <action>            # Index management (v0.3+)
+  config <action>           # Configuration (v0.4+)
+  status                    # Show CLI status
+  help                      # Show help
+
+Options (global):
+  --user <userId>           # Target user (default: from .env)
+  --agent <agentId>         # Target agent
+  --model <flash|pro>       # AI model (default: flash)
+  --verbose                 # Verbose output
+  --dry-run                 # Simulate without changes
+```
+
+### Example Commands
+
+```bash
+# v0.1 - Basic upload (simulation)
+npx salfagpt upload contextos/pdf/agentes/M001
+
+# v0.2 - Real upload with user/agent
+npx salfagpt upload contextos/pdf/agentes/M001 \
+  --user user-123 \
+  --agent agent-M001
+
+# v0.2 - Choose model
+npx salfagpt upload contextos/pdf/agentes/M001 --model pro
+
+# v0.3 - Search
+npx salfagpt search "política de devoluciones" --agent M001
+
+# v0.3 - Index operations
+npx salfagpt index rebuild --agent M001
+npx salfagpt index stats --agent M001
+
+# v0.4 - Git automation
+npx salfagpt upload contextos/pdf/agentes/M001 \
+  --commit "Add M001 training documents" \
+  --push
+
+# v0.4 - Batch processing
+npx salfagpt batch upload contextos/pdf/agentes/*
+
+# v0.4 - Watch mode
+npx salfagpt watch contextos/pdf/agentes/M001
+```
+
+---
+
+## 📝 Logging System
+
+### Log File Format
+
+**File:** `salfagpt-cli-log.md`
+
+**Structure:**
+```markdown
+# SalfaGPT CLI - Operation Log
+
+---
+
+## Upload Session - 2025-10-19T10:30:00.000Z
+
+**Folder:** `contextos/pdf/agentes/M001`  
+**User:** user-123  
+**Agent:** agent-M001  
+**CLI Version:** 0.2.0  
+**Total Files:** 3  
+**Success:** 3  
+**Failed:** 0  
+**Duration:** 45.3s  
+
+### Files Processed
+
+| File | Size (KB) | Status | Extraction Model | Characters | Pages | Time (s) |
+|------|-----------|--------|------------------|------------|-------|----------|
+| manual-producto.pdf | 1,270 | ✅ Success | gemini-2.5-flash | 15,234 | 12 | 8.7 |
+| politicas-atencion.pdf | 854 | ✅ Success | gemini-2.5-flash | 8,456 | 6 | 6.2 |
+| faq-cliente.pdf | 432 | ✅ Success | gemini-2.5-flash | 4,123 | 3 | 4.1 |
+
+### GCP Resources Created
+
+- **Storage:** `gs://project-id/user-123/agent-M001/` (3 files, 2.51 MB)
+- **Firestore:** 3 documents in `context_sources` collection
+  - source-abc123 (manual-producto.pdf)
+  - source-def456 (politicas-atencion.pdf)
+  - source-ghi789 (faq-cliente.pdf)
+
+### Models Used
+
+| Model | Input Tokens | Output Tokens | Cost (USD) |
+|-------|--------------|---------------|------------|
+| gemini-2.5-flash | 18,450 | 12,234 | $0.0041 |
+
+### Total Costs
+- Upload: $0.00001
+- Extraction: $0.0041
+- Storage: $0.00002/month
+- **Total:** $0.0041
+
+---
+```
+
+---
+
+## 🛡️ Error Handling
+
+### Error Categories
+
+**1. User Errors** (400-level)
+```typescript
+// Missing arguments
+❌ Error: Missing folder path
+💡 Usage: npx salfagpt upload <folder-path>
+
+// Invalid path
+❌ Error: Folder does not exist: /invalid/path
+💡 Check the path and try again
+
+// Unsupported file
+⚠️  Skipping: document.txt (unsupported format)
+💡 Supported: PDF, Word, Excel, CSV
+```
+
+**2. Configuration Errors** (500-level)
+```typescript
+// Missing API key
+❌ Error: GOOGLE_AI_API_KEY not configured
+💡 Add to .env file:
+   GOOGLE_AI_API_KEY=your-key-here
+
+// Wrong project
+❌ Error: Wrong GCP project configured
+💡 Expected: gen-lang-client-0986191192
+   Current: other-project-id
+   Update GOOGLE_CLOUD_PROJECT in .env
+```
+
+**3. Service Errors** (503-level)
+```typescript
+// Network error
+❌ Error: Failed to upload to GCP Storage
+💡 Check internet connection and retry
+
+// API error
+❌ Error: Gemini API rate limit exceeded
+💡 Wait 60 seconds and retry
+   Or use --model flash for lower quotas
+```
+
+### Retry Logic
+
+```typescript
+async function uploadWithRetry(
+  file: string,
+  maxRetries = 3
+): Promise<UploadResult> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await uploadFile(file);
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      
+      log(`⚠️  Attempt ${attempt} failed, retrying in ${attempt * 2}s...`, 'yellow');
+      await sleep(attempt * 2000);
+    }
+  }
+  
+  throw new Error('Upload failed after all retries');
+}
+```
+
+---
+
+## 🔐 Security
+
+### API Keys
+
+**Storage:**
+```bash
+# .env (never commit)
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=your-key-here
+
+# Load in CLI
+import { config } from 'dotenv';
+config();
+```
+
+**Validation:**
+```typescript
+// Check required env vars
+const requiredVars = [
+  'GOOGLE_CLOUD_PROJECT',
+  'GOOGLE_AI_API_KEY'
+];
+
+for (const varName of requiredVars) {
+  if (!process.env[varName]) {
+    log(`❌ Error: ${varName} not set`, 'red');
+    log(`💡 Add to .env file`, 'yellow');
+    process.exit(1);
+  }
+}
+```
+
+### File Access
+
+**Restrictions:**
+```typescript
+// Only allow reading from project directory
+const projectRoot = process.cwd();
+
+function validatePath(inputPath: string): string {
+  const absolutePath = resolve(inputPath);
+  
+  if (!absolutePath.startsWith(projectRoot)) {
+    throw new Error('Path must be within project directory');
+  }
+  
+  return absolutePath;
+}
+```
+
+---
+
+## 📊 Roadmap Tracking
+
+### Current Status (2025-10-19)
+
+| Version | Features | Status | ETA |
+|---------|----------|--------|-----|
+| v0.1.0 | Foundation + Scan | 🔨 In Progress | 2025-10-19 |
+| v0.2.0 | Upload + Extraction | 📋 Planned | 2025-10-26 |
+| v0.3.0 | Embeddings + Search | 📋 Planned | 2025-11-02 |
+| v0.4.0 | Git Automation | 📋 Planned | 2025-11-09 |
+| v0.5.0 | Full SDK | 📋 Planned | 2025-11-16 |
+
+### Priorities
+
+**P0 (Must Have for v0.2):**
+- Upload to GCP Storage
+- Text extraction with Gemini
+- Save to Firestore
+- Basic error handling
+
+**P1 (Should Have for v0.3):**
+- Embedding generation
+- Vector storage
+- Semantic search
+- Performance optimization
+
+**P2 (Nice to Have for v0.4):**
+- Git automation
+- Batch processing
+- Watch mode
+- Webhooks
+
+**P3 (Future):**
+- Full SDK
+- NPM package
+- Web dashboard
+- Enterprise features
+
+---
+
+## 🧪 Testing Strategy
+
+### Unit Tests
+```typescript
+// cli/lib/__tests__/scanner.test.ts
+describe('Document Scanner', () => {
+  it('should find PDF files', async () => {
+    const files = await scanFolder('contextos/pdf/test');
+    expect(files).toContain('test.pdf');
+  });
+  
+  it('should filter unsupported types', async () => {
+    const files = await scanFolder('contextos/mixed');
+    expect(files).not.toContain('test.txt');
+  });
+});
+```
+
+### Integration Tests
+```typescript
+// cli/__tests__/upload.integration.test.ts
+describe('Upload Command', () => {
+  it('should upload to GCP Storage', async () => {
+    const result = await uploadFolder('test-folder', {
+      userId: 'test-user',
+      agentId: 'test-agent',
+    });
+    
+    expect(result.success).toBe(true);
+    expect(result.filesUploaded).toBe(3);
+  });
+});
+```
+
+### Manual Testing Checklist
+- [ ] Works on macOS
+- [ ] Works on Linux
+- [ ] Works on Windows
+- [ ] Works with absolute paths
+- [ ] Works with relative paths
+- [ ] Handles large files (>100MB)
+- [ ] Handles many files (>100)
+- [ ] Error recovery works
+- [ ] Log file creates correctly
+
+---
+
+## 📚 Documentation Requirements
+
+### For Each Version
+
+**Must Have:**
+1. **README.md** - Quick start + basic examples
+2. **CHANGELOG.md** - What's new in this version
+3. **API Reference** - All commands + flags documented
+4. **Troubleshooting Guide** - Common errors + solutions
+
+**Nice to Have:**
+1. Video walkthrough
+2. Interactive examples
+3. Integration guides (CI/CD, Slack, etc.)
+4. Performance benchmarks
+
+### Documentation Standards
+
+**Code Examples:**
+```bash
+# ✅ GOOD: Complete, runnable example
+npx salfagpt upload contextos/pdf/agentes/M001 \
+  --user user-123 \
+  --agent agent-M001 \
+  --model flash
+
+# ❌ BAD: Incomplete, can't run
+npx salfagpt upload ...
+```
+
+**Error Documentation:**
+```markdown
+### Error: "Folder not found"
+
+**Cause:** The specified folder path does not exist.
+
+**Solution:**
+1. Check the path: `ls contextos/pdf/agentes/M001`
+2. Create folder: `mkdir -p contextos/pdf/agentes/M001`
+3. Add documents to the folder
+4. Retry upload
+```
+
+---
+
+## 🔄 Git Integration (v0.4+)
+
+### Auto-Commit Pattern
+
+```typescript
+async function autoCommit(
+  files: string[],
+  message: string
+): Promise<void> {
+  const { execSync } = await import('child_process');
+  
+  // Stage log file
+  execSync('git add salfagpt-cli-log.md');
+  
+  // Commit
+  execSync(`git commit -m "${message}"`);
+  
+  log('✅ Git commit created', 'green');
+}
+```
+
+### Commit Message Template
+
+```bash
+# Format
+docs: Upload {count} documents to agent {agentId}
+
+- Files: {file1}, {file2}, {file3}
+- Total size: {totalSize}
+- Extraction: {model}
+- Status: All successful
+
+# Example
+docs: Upload 3 documents to agent M001
+
+- Files: manual-producto.pdf, politicas-atencion.pdf, faq-cliente.pdf  
+- Total size: 2.51 MB
+- Extraction: gemini-2.5-flash
+- Status: All successful
+```
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ ALWAYS Validate Paths
+
+**Rule:** Never trust user input. Always validate and sanitize paths.
+
+```typescript
+// ✅ CORRECT
+const safePath = validatePath(userInput);
+
+// ❌ WRONG
+const files = await readdir(userInput); // Potential security issue
+```
+
+### 2. ✅ ALWAYS Use Existing GCP Configuration
+
+**Rule:** Reuse project ID, credentials, and clients from main webapp.
+
+```typescript
+// ✅ CORRECT - Use same project
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT; // gen-lang-client-0986191192
+
+// ❌ WRONG - Hardcode different project
+const PROJECT_ID = 'cli-specific-project'; // Creates separate resources
+```
+
+### 3. ✅ ALWAYS Log Operations
+
+**Rule:** Every operation must be logged to `salfagpt-cli-log.md`.
+
+**Why:** Debugging, audit trail, cost tracking.
+
+### 4. ✅ NEVER Modify User Files
+
+**Rule:** CLI reads files, never modifies them.
+
+**Why:** Users expect their local files to remain unchanged.
+
+### 5. ✅ ALWAYS Show Progress
+
+**Rule:** Long operations (>2s) must show progress.
+
+```typescript
+// ✅ GOOD
+⏳ Uploading... 23% (1.2 MB / 5.2 MB)
+
+// ❌ BAD
+Uploading... (no indication of progress)
+```
+
+---
+
+## 🎯 Success Metrics
+
+### v0.1.0
+- [ ] Can run without errors
+- [ ] Scans folders correctly
+- [ ] Validates file types
+- [ ] Creates log file
+- [ ] Help system works
+
+### v0.2.0
+- [ ] 100% upload success rate
+- [ ] <10% extraction error rate (acceptable)
+- [ ] <30s average per document
+- [ ] All uploaded docs visible in webapp
+
+### v0.3.0
+- [ ] <1s search response time (p95)
+- [ ] >80% search relevance (user feedback)
+- [ ] Supports 10,000+ chunks per agent
+
+### v0.4.0
+- [ ] 100% git commit success
+- [ ] No merge conflicts caused by CLI
+- [ ] Batch <5min for 100 docs
+- [ ] Watch mode <1s latency
+
+### v0.5.0
+- [ ] NPM downloads >100/week
+- [ ] GitHub stars >50
+- [ ] <5 issues/week
+- [ ] >90% test coverage
+
+---
+
+## 📋 Development Checklist (Per Version)
+
+### Before Starting
+- [ ] Read complete roadmap
+- [ ] Review existing webapp code to reuse
+- [ ] Set up development environment
+- [ ] Create test data
+
+### During Development
+- [ ] Write TypeScript with strict mode
+- [ ] Add error handling for every operation
+- [ ] Log all operations
+- [ ] Update documentation
+- [ ] Write tests
+
+### Before Release
+- [ ] All tests pass
+- [ ] Manual testing complete
+- [ ] Documentation reviewed
+- [ ] Changelog updated
+- [ ] Version bumped
+- [ ] Git tag created
+
+---
+
+## 🔗 Integration Points
+
+### With Webapp
+
+**Shared Code:**
+- `src/lib/gemini.ts` - Extraction logic
+- `src/lib/firestore.ts` - Database operations
+- `src/lib/gcp.ts` - GCP client configuration
+- `src/types/` - TypeScript interfaces
+
+**CLI-Specific:**
+- `cli/index.ts` - CLI entry point
+- `cli/commands/` - Command handlers
+- `cli/lib/` - CLI utilities
+
+### With GCP Services
+
+**Storage:**
+```typescript
+import { Storage } from '@google-cloud/storage';
+
+const storage = new Storage({
+  projectId: process.env.GOOGLE_CLOUD_PROJECT,
+});
+
+const bucket = storage.bucket('gen-lang-client-0986191192-context-documents');
+```
+
+**Firestore:**
+```typescript
+import { firestore } from '../src/lib/firestore';
+
+await firestore.collection('context_sources').add({
+  userId,
+  agentId,
+  name: fileName,
+  type: 'pdf',
+  gcsPath: `gs://bucket/${filePath}`,
+  status: 'processing',
+  metadata: {
+    uploadedVia: 'cli',
+    cliVersion: '0.2.0',
+  },
+});
+```
+
+---
+
+## 🚀 Deployment
+
+### NPM Publishing
+
+```bash
+# 1. Build CLI
+npm run build:cli
+
+# 2. Test locally
+npm link
+salfagpt help
+
+# 3. Publish to NPM
+npm publish
+
+# 4. Verify
+npx salfagpt@latest help
+```
+
+### Version Bumping
+
+```bash
+# Patch (bug fixes)
+npm version patch  # 0.2.0 → 0.2.1
+
+# Minor (new features)
+npm version minor  # 0.2.1 → 0.3.0
+
+# Major (breaking changes)
+npm version major  # 0.3.0 → 1.0.0
+```
+
+---
+
+## 📖 Related Documentation
+
+### Internal
+- `.cursor/rules/alignment.mdc` - Core principles
+- `.cursor/rules/data.mdc` - Firestore schema
+- `.cursor/rules/backend.mdc` - GCP integration
+- `docs/features/salfagpt-cli-roadmap.md` - Complete roadmap
+
+### External
+- [Node.js CLI Best Practices](https://github.com/lirantal/nodejs-cli-apps-best-practices)
+- [Google Cloud Node.js](https://cloud.google.com/nodejs/docs)
+- [Commander.js](https://github.com/tj/commander.js) (CLI framework)
+
+---
+
+## ✅ Acceptance Criteria
+
+### v0.1.0 (Current)
+- [x] Folder structure created
+- [x] CLI scaffolding done
+- [ ] Scan command works
+- [ ] Validates files
+- [ ] Logs operations
+- [ ] Help system
+- [ ] Zero errors
+
+---
+
+**Last Updated:** 2025-10-19  
+**Version:** 0.1.0  
+**Status:** 🔨 Active Development  
+**Next:** v0.2.0 (Upload & Extraction)  
+**Project:** Flow (gen-lang-client-0986191192)
+
+---
+
+**Remember:** 
+- Developer tools must be rock-solid
+- Error messages must guide to solutions
+- Performance matters (developers are impatient)
+- Documentation is not optional
+- Start simple, enhance progressively

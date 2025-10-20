@@ -1,0 +1,17 @@
+# Agent M001 - Context Documents
+
+Place documents for Agent M001 here.
+
+The CLI will process all supported documents in this folder:
+- PDF files (.pdf)
+- Word documents (.docx, .doc)
+- Excel files (.xlsx, .xls)
+- CSV files (.csv)
+
+**Usage:**
+```bash
+npx salfagpt upload contextos/pdf/agentes/M001
+```
+
+**Current Status:** Empty (awaiting documents)
+
