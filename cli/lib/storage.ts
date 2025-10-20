@@ -6,6 +6,10 @@
 import { Storage } from '@google-cloud/storage';
 import { createReadStream } from 'fs';
 import { basename } from 'path';
+import { config } from 'dotenv';
+
+// Load environment variables from .env
+config();
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192';
 const BUCKET_NAME = `${PROJECT_ID}-context-documents`;

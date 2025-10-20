@@ -13,6 +13,7 @@
 import { readdir, readFile, stat } from 'fs/promises';
 import { join, basename, extname } from 'path';
 import { existsSync } from 'fs';
+import { config } from 'dotenv';
 import { 
   generateSessionId, 
   getCLIUser, 
@@ -24,6 +25,9 @@ import {
 import { uploadFileToGCS, ensureBucketExists } from './lib/storage';
 import { extractDocument } from './lib/extraction';
 import { firestore } from '../src/lib/firestore';
+
+// Load environment variables from .env file
+config();
 
 // Colors for CLI output
 const colors = {
@@ -410,6 +414,7 @@ async function logToFile(
   const successResults = results.filter(r => r.success);
   const totalChars = successResults.reduce((sum, r) => sum + (r.extractedChars || 0), 0);
   const totalCost = successResults.reduce((sum, r) => sum + (r.extractionCost || 0), 0);
+  const extractionModel = successResults.length > 0 ? (successResults[0].extractionModel || 'gemini-2.5-flash') : 'gemini-2.5-flash';
   
   const logEntry = `
 ## Upload Session - ${timestamp}
