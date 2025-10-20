@@ -42,8 +42,8 @@ function getAPIKey(): string | undefined {
   return undefined;
 }
 
-export const EMBEDDING_MODEL = 'text-embedding-004'; // Gemini embedding model
-export const EMBEDDING_DIMENSIONS = 768;
+export const EMBEDDING_MODEL = 'gemini-embedding-001'; // Latest stable Gemini embedding model
+export const EMBEDDING_DIMENSIONS = 768; // Recommended dimension (768, 1536, or 3072)
 
 /**
  * Generate REAL semantic embedding vector for text using Vertex AI
@@ -71,23 +71,24 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   try {
     console.log(`🧮 [Gemini AI] Generating semantic embedding (${text.substring(0, 50)}...)`);
     
-    // Gemini AI Embeddings REST API
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${API_KEY}`;
+    // Gemini AI Embeddings REST API - Official endpoint
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`;
     
-    // Request body - Gemini format
+    // Request body - Official Gemini API format for embeddings
     const requestBody = {
       model: `models/${EMBEDDING_MODEL}`,
       content: {
         parts: [{ text }]
       },
-      taskType: 'RETRIEVAL_DOCUMENT', // For document storage
-      title: 'Document chunk for RAG', // Optional but helps quality
+      taskType: 'RETRIEVAL_DOCUMENT', // Optimize for document indexing
+      outputDimensionality: 768, // Use 768 dims (recommended for quality/performance balance)
     };
     
-    // Call Gemini API
+    // Call Gemini API with x-goog-api-key header (official format)
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
+        'x-goog-api-key': API_KEY, // Official header name
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
@@ -100,7 +101,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     
     const result = await response.json();
     
-    // Extract embedding from response
+    // Extract embedding from response - official format
     const embedding = result.embedding?.values;
     
     if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
