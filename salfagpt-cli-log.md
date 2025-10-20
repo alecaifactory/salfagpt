@@ -68,3 +68,48 @@ All operations tracked in Firestore:
 
 ---
 
+
+## Upload Session - 2025-10-20T00:16:10.296Z
+
+**Session ID:** `cli-session-1760919348501-sinfvs`  
+**User:** alec@getaifactory.com (`114671162830729001607`)  
+**Source:** CLI v0.2.0  
+**Folder:** `contextos/pdf/agentes/M001-test`  
+**Total Files:** 1  
+**Success:** 1  
+**Failed:** 0  
+
+### Files Processed
+
+| File | Size (KB) | GCS Path | Firestore ID | Chars | Model | Cost | Status |
+|------|-----------|----------|--------------|-------|-------|------|--------|
+| CIR-182.pdf | 541.29 | `gs://gen-lang-client-0986191192-context-documents/114671162830729001607/cli-upload/CIR-182.pdf` | `HN3DfhwALQXATFDZvgNe` | 7,458 | gemini-2.5-flash | $0.000606 | ✅ |
+
+### Extracción de Texto
+
+- **Caracteres Totales:** 7,458
+- **Modelo Usado:** gemini-2.5-flash
+- **Costo Total:** $0.000606
+
+### Recursos en GCP
+
+
+#### CIR-182.pdf
+- **GCS:** gs://gen-lang-client-0986191192-context-documents/114671162830729001607/cli-upload/CIR-182.pdf
+- **Firestore:** `context_sources/HN3DfhwALQXATFDZvgNe`
+- **Texto Extraído:** 7,458 caracteres
+- **Preview:** Ver en Firestore
+
+
+
+
+### Traceability
+
+All operations tracked in Firestore:
+- **Collection:** `cli_events`
+- **Session Collection:** `cli_sessions`
+- **User Attribution:** All events linked to `alec@getaifactory.com`
+- **Origin Tracking:** Source field = `cli` (distinguishes from webapp)
+
+---
+
