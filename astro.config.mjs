@@ -47,5 +47,15 @@ export default defineConfig({
       'process.env.JWT_SECRET': JSON.stringify(process.env.JWT_SECRET),
       'process.env.GOOGLE_AI_API_KEY': JSON.stringify(process.env.GOOGLE_AI_API_KEY),
     },
+    ssr: {
+      // Don't bundle Google Cloud packages - they should be external
+      external: [
+        '@google-cloud/firestore',
+        '@google-cloud/bigquery',
+        '@google-cloud/storage',
+        '@google-cloud/logging',
+        '@google-cloud/error-reporting',
+      ],
+    },
   },
 });
