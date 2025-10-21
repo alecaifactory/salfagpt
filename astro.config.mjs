@@ -4,45 +4,25 @@ import node from '@astrojs/node';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import { loadEnv } from 'vite';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 
-// First, load base .env to get CURRENT_PROJECT
-const baseEnv = loadEnv('', process.cwd(), '');
+// NOTE: Environment loading is handled by scripts/load-env.js
+// which runs before this config via "npm run dev"
+// It reads .env.project and copies the correct env file to .env
 
-// Determine which env file to use
-let envFile = '.env';
-if (baseEnv.CURRENT_PROJECT === 'SALFACORP' && baseEnv.ENV_SALFACORP) {
-  envFile = baseEnv.ENV_SALFACORP;
-} else if (baseEnv.CURRENT_PROJECT === 'AIFACTORY' && baseEnv.ENV_AIFACTORY) {
-  envFile = baseEnv.ENV_AIFACTORY;
-}
+// Load environment variables
+const env = loadEnv('', process.cwd(), '');
 
-// Load the selected env file
-let env = baseEnv;
-try {
-  const envPath = resolve(process.cwd(), envFile);
-  const envContent = readFileSync(envPath, 'utf-8');
-  
-  // Parse env file manually
-  envContent.split('\n').forEach(line => {
-    line = line.trim();
-    if (!line || line.startsWith('#')) return;
-    
-    const match = line.match(/^([^=]+)=(.*)$/);
-    if (match) {
-      const key = match[1].trim();
-      const value = match[2].trim();
-      env[key] = value;
-    }
-  });
-  
-  console.log(`✅ Loaded environment from: ${envFile}`);
-  console.log(`📦 Project: ${env.GOOGLE_CLOUD_PROJECT}`);
-  console.log(`🔌 Port: ${env.DEV_PORT || 3000}`);
-} catch (error) {
-  console.warn(`⚠️ Could not load ${envFile}, using base .env`);
-}
+// Inject into process.env for runtime access
+Object.keys(env).forEach(key => {
+  if (process.env[key] === undefined) {
+    process.env[key] = env[key];
+  }
+});
+
+console.log('🔧 Config loaded:');
+console.log(`   Project: ${process.env.GOOGLE_CLOUD_PROJECT}`);
+console.log(`   Port: ${process.env.DEV_PORT}`);
+console.log(`   Base URL: ${process.env.PUBLIC_BASE_URL}`);
 
 // https://astro.build/config
 export default defineConfig({
@@ -51,13 +31,21 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    // Port from loaded environment
-    // AI Factory: 3000 (OAuth configured)
-    // Salfacorp: 3001
-    port: parseInt(env.DEV_PORT || '3000', 10)
+    port: parseInt(process.env.DEV_PORT || '3000', 10),
   },
   integrations: [
     react(),
     tailwind(),
   ],
+  vite: {
+    // Make all env vars available to server-side code
+    define: {
+      'process.env.GOOGLE_CLOUD_PROJECT': JSON.stringify(process.env.GOOGLE_CLOUD_PROJECT),
+      'process.env.PUBLIC_BASE_URL': JSON.stringify(process.env.PUBLIC_BASE_URL),
+      'process.env.GOOGLE_CLIENT_ID': JSON.stringify(process.env.GOOGLE_CLIENT_ID),
+      'process.env.GOOGLE_CLIENT_SECRET': JSON.stringify(process.env.GOOGLE_CLIENT_SECRET),
+      'process.env.JWT_SECRET': JSON.stringify(process.env.JWT_SECRET),
+      'process.env.GOOGLE_AI_API_KEY': JSON.stringify(process.env.GOOGLE_AI_API_KEY),
+    },
+  },
 });

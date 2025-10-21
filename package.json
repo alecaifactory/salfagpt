@@ -17,8 +17,9 @@
     "salfagpt": "./dist/cli/index.js"
   },
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "load-env": "node scripts/load-env.js",
+    "dev": "npm run load-env && astro dev",
+    "build": "npm run load-env && astro build",
     "preview": "astro preview",
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx,.astro",

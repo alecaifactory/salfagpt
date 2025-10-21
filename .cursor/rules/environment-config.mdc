@@ -1,0 +1,584 @@
+# Environment Configuration Management - SalfaGPT Project
+
+## 🎯 Purpose
+
+This rule manages multiple environment configurations for the SalfaGPT project, allowing seamless switching between Salfacorp (client) and AIFactory (development) environments.
+
+---
+
+## 🏢 Environment Profiles
+
+### Profile 1: SALFACORP (Client/Production)
+
+**GCP Project:** `salfagpt`  
+**Use Case:** Client-specific deployment, Salfacorp data  
+**Environment File:** `.env.salfacorp`
+
+**Configuration:**
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt
+GOOGLE_AI_API_KEY=AIzaSyALvlJm5pl5Ygp_P-nM1ey7vWP7E6O4mV0
+GOOGLE_CLIENT_ID=1030147139179-20gjd3cru9jhgmhlkj88majubn2130ic.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+JWT_SECRET=df45d920393b23177f56675c5bac8d99058b3388be154b620ef2e8eb7ad58dfdaeaa76514fd268837c60bfd616cbf28be65a736818fed62f8a0a90b766e6542f
+PUBLIC_BASE_URL=http://localhost:3000
+DEV_PORT=3000
+```
+
+**When to Use:**
+- Working with Salfacorp client data
+- Testing Salfacorp-specific features
+- Deploying to Salfacorp production
+- Client demonstrations
+
+---
+
+### Profile 2: AIFACTORY (Development/General)
+
+**GCP Project:** `gen-lang-client-0986191192`  
+**Use Case:** General development, AIFactory data  
+**Environment File:** `.env.aifactory`
+
+**Configuration:**
+```bash
+GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+GOOGLE_AI_API_KEY=AIzaSyAh8S-2GR6trqOFFuPuuF6Z9ZoDVz_KC6Q
+GOOGLE_CLIENT_ID=1030147139179-20gjd3cru9jhgmhlkj88majubn2130ic.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+JWT_SECRET=3b9c1fe3aa8c5ce6d69e07a7d17053a614236777222a6dc103831151b9aa882371afed85483df1c2a0465da3e26d6f74e6f599acb74aed2aec9d4615e7a18e04
+PUBLIC_BASE_URL=http://localhost:3000
+DEV_PORT=3000
+```
+
+**When to Use:**
+- General platform development
+- Testing new features
+- Working with AIFactory data
+- Internal development
+
+---
+
+## 🔄 Switching Environments
+
+### Automatic Detection
+
+The system automatically detects which environment to use based on `.env.project`:
+
+```bash
+# Check current environment
+cat .env.project
+# Output: CURRENT_PROJECT=SALFACORP or CURRENT_PROJECT=AIFACTORY
+```
+
+### Manual Switch
+
+**Switch to Salfacorp:**
+```bash
+# Method 1: Using project identifier
+echo "CURRENT_PROJECT=SALFACORP" > .env.project
+cp .env.salfacorp .env
+
+# Method 2: Direct copy
+cp .env.salfacorp .env
+echo "CURRENT_PROJECT=SALFACORP" > .env.project
+```
+
+**Switch to AIFactory:**
+```bash
+# Method 1: Using project identifier
+echo "CURRENT_PROJECT=AIFACTORY" > .env.project
+cp .env.aifactory .env
+
+# Method 2: Direct copy
+cp .env.aifactory .env
+echo "CURRENT_PROJECT=AIFACTORY" > .env.project
+```
+
+### Helper Script
+
+Create `scripts/switch-env.sh`:
+
+```bash
+#!/bin/bash
+# Environment Switcher for SalfaGPT
+
+if [ "$1" != "salfacorp" ] && [ "$1" != "aifactory" ]; then
+  echo "Usage: $0 [salfacorp|aifactory]"
+  exit 1
+fi
+
+PROJECT=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+
+echo "🔄 Switching to $PROJECT environment..."
+
+# Copy environment file
+cp ".env.$1" .env
+
+# Update project identifier
+echo "CURRENT_PROJECT=$PROJECT" > .env.project
+
+# Set gcloud project
+if [ "$1" = "salfacorp" ]; then
+  gcloud config set project salfagpt
+  echo "✅ Switched to Salfacorp (salfagpt)"
+elif [ "$1" = "aifactory" ]; then
+  gcloud config set project gen-lang-client-0986191192
+  echo "✅ Switched to AIFactory (gen-lang-client-0986191192)"
+fi
+
+# Verify
+echo ""
+echo "Current configuration:"
+cat .env | grep GOOGLE_CLOUD_PROJECT
+cat .env.project
+
+echo ""
+echo "⚠️  IMPORTANT: Restart your dev server for changes to take effect"
+echo "   Run: npm run dev"
+```
+
+**Usage:**
+```bash
+# Switch to Salfacorp
+./scripts/switch-env.sh salfacorp
+
+# Switch to AIFactory
+./scripts/switch-env.sh aifactory
+```
+
+---
+
+## 🔐 Authentication per Environment
+
+### Salfacorp Authentication
+
+```bash
+# 1. Switch to Salfacorp
+./scripts/switch-env.sh salfacorp
+
+# 2. Authenticate with gcloud
+gcloud auth application-default login
+
+# 3. Verify project
+gcloud config get-value project
+# Expected: salfagpt
+
+# 4. Test Firestore
+npm run dev
+# Then visit: http://localhost:3000/api/health/firestore
+```
+
+### AIFactory Authentication
+
+```bash
+# 1. Switch to AIFactory
+./scripts/switch-env.sh aifactory
+
+# 2. Authenticate with gcloud
+gcloud auth application-default login
+
+# 3. Verify project
+gcloud config get-value project
+# Expected: gen-lang-client-0986191192
+
+# 4. Test Firestore
+npm run dev
+# Then visit: http://localhost:3000/api/health/firestore
+```
+
+---
+
+## 📝 Quick Reference Card
+
+### Current Environment
+
+```bash
+# Check which environment you're using
+cat .env.project
+# Output: CURRENT_PROJECT=SALFACORP or CURRENT_PROJECT=AIFACTORY
+
+# Verify .env matches
+grep GOOGLE_CLOUD_PROJECT .env
+# Salfacorp: GOOGLE_CLOUD_PROJECT=salfagpt
+# AIFactory: GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
+```
+
+### Switch Commands
+
+```bash
+# To Salfacorp (client)
+./scripts/switch-env.sh salfacorp
+
+# To AIFactory (development)
+./scripts/switch-env.sh aifactory
+```
+
+### After Switching
+
+```bash
+# 1. Restart dev server
+pkill -f "astro dev"
+npm run dev
+
+# 2. Verify in browser
+open http://localhost:3000/chat
+
+# 3. Check Firestore connection
+curl http://localhost:3000/api/health/firestore
+```
+
+---
+
+## 🚨 Troubleshooting
+
+### Issue 1: Permission Denied
+
+**Symptom:**
+```
+ERROR: User does not have permission to access project
+```
+
+**Solution:**
+- Verify you're using the correct Google account
+- Check you have access to the GCP project
+- Run: `gcloud auth application-default login` again
+
+### Issue 2: Wrong Data Appears
+
+**Symptom:** See data from wrong environment
+
+**Solution:**
+```bash
+# 1. Verify environment
+cat .env.project
+
+# 2. Check .env file
+grep GOOGLE_CLOUD_PROJECT .env
+
+# 3. If mismatch, run switch script again
+./scripts/switch-env.sh salfacorp  # or aifactory
+
+# 4. Clear browser cache and restart server
+pkill -f "astro dev"
+npm run dev
+```
+
+### Issue 3: Dev Server Cached Old Config
+
+**Symptom:** Changes not taking effect
+
+**Solution:**
+```bash
+# 1. Kill server
+pkill -f "astro dev"
+
+# 2. Clear build cache
+rm -rf .astro dist node_modules/.vite
+
+# 3. Restart
+npm run dev
+```
+
+---
+
+## ✅ Pre-Flight Checklist
+
+Before starting work, verify:
+
+- [ ] Checked `.env.project` - know which environment you're in
+- [ ] `.env` matches `.env.salfacorp` or `.env.aifactory`
+- [ ] `gcloud config get-value project` matches expected project
+- [ ] Authenticated with `gcloud auth application-default login`
+- [ ] Dev server started successfully
+- [ ] Firestore health check passes
+
+---
+
+## 📚 Related Rules
+
+- `.cursor/rules/alignment.mdc` - Core principles
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP configuration (extended by this rule)
+- `.cursor/rules/env.mdc` - Environment variables
+- `.cursor/rules/deployment.mdc` - Deployment rules
+
+---
+
+**Last Updated**: 2025-10-21  
+**Version**: 1.0.0  
+**Status**: ✅ Active  
+**Environments**: 2 (Salfacorp, AIFactory)  
+**Always Apply**: Yes
+
+---
+
+**Remember:** 
+- Always know which environment you're working in
+- Switch explicitly using the helper script
+- Restart dev server after switching
+- Verify configuration before making changes
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ ALWAYS Match .env with .env.project
+
+**Rule:** The active `.env` file MUST match the `CURRENT_PROJECT` in `.env.project`
+
+**Verification:**
+```bash
+# Check current project
+CURRENT_PROJECT=$(cat .env.project | cut -d'=' -f2)
+
+# Check .env content
+if [ "$CURRENT_PROJECT" = "SALFACORP" ]; then
+  diff .env .env.salfacorp || echo "⚠️  Mismatch!"
+elif [ "$CURRENT_PROJECT" = "AIFACTORY" ]; then
+  diff .env .env.aifactory || echo "⚠️  Mismatch!"
+fi
+```
+
+### 2. ✅ NEVER Commit Active .env File
+
+**Rule:** `.env` is gitignored and should never be committed. Only `.env.salfacorp` and `.env.aifactory` templates are tracked.
+
+**Protection:**
+```bash
+# Verify .env is in .gitignore
+grep "^\.env$" .gitignore
+```
+
+### 3. ✅ ALWAYS Re-authenticate After Switching
+
+**Rule:** After switching environments, re-authenticate with gcloud for the new project.
+
+**Procedure:**
+```bash
+# After switching to salfacorp
+gcloud auth application-default login
+gcloud config set project salfagpt
+
+# OR after switching to aifactory
+gcloud auth application-default login
+gcloud config set project gen-lang-client-0986191192
+```
+
+### 4. ✅ ALWAYS Restart Dev Server After Switch
+
+**Rule:** Environment variables are loaded at startup. You MUST restart the dev server.
+
+```bash
+# Kill existing server
+pkill -f "astro dev"
+
+# Start with new environment
+npm run dev
+```
+
+---
+
+## 📋 Environment-Specific Settings
+
+### Salfacorp Environment
+
+**GCP Project:** `salfagpt`  
+**Firestore Database:** `salfagpt` project Firestore  
+**BigQuery Dataset:** `salfagpt:flow_analytics` (if exists)  
+**Cloud Storage:** `gs://salfagpt-*` buckets  
+**API Keys:** Salfacorp-specific Gemini API key  
+
+**Use For:**
+- Client-facing features
+- Salfacorp user data
+- Production deployments for Salfacorp
+- Client demos
+
+---
+
+### AIFactory Environment
+
+**GCP Project:** `gen-lang-client-0986191192`  
+**Firestore Database:** `gen-lang-client-0986191192` project Firestore  
+**BigQuery Dataset:** `gen-lang-client-0986191192:flow_analytics`  
+**Cloud Storage:** `gs://gen-lang-client-0986191192-*` buckets  
+**API Keys:** AIFactory-specific Gemini API key  
+
+**Use For:**
+- General platform development
+- Internal testing
+- Feature development
+- AIFactory data
+
+---
+
+## 🔍 Environment Detection in Code
+
+### Runtime Detection
+
+```typescript
+// src/lib/env.ts
+export function getCurrentEnvironment(): 'salfacorp' | 'aifactory' {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT || 
+    (typeof import.meta !== 'undefined' && import.meta.env 
+      ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+      : undefined);
+  
+  if (projectId === 'salfagpt') {
+    return 'salfacorp';
+  } else if (projectId === 'gen-lang-client-0986191192') {
+    return 'aifactory';
+  }
+  
+  // Default to aifactory
+  console.warn('⚠️ Unknown project ID, defaulting to aifactory');
+  return 'aifactory';
+}
+
+// Usage in code
+const env = getCurrentEnvironment();
+
+if (env === 'salfacorp') {
+  console.log('🏢 Running in Salfacorp environment');
+} else {
+  console.log('🏭 Running in AIFactory environment');
+}
+```
+
+### Build-Time Detection
+
+```typescript
+// astro.config.mjs
+const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192';
+const isSalfacorp = projectId === 'salfagpt';
+
+console.log(`🔧 Building for: ${isSalfacorp ? 'Salfacorp' : 'AIFactory'}`);
+```
+
+---
+
+## 📊 Environment Comparison
+
+| Aspect | Salfacorp | AIFactory |
+|--------|-----------|-----------|
+| **GCP Project** | `salfagpt` | `gen-lang-client-0986191192` |
+| **Firestore** | salfagpt database | gen-lang-client database |
+| **Purpose** | Client production | Internal development |
+| **Data** | Client-specific | Development/testing |
+| **API Keys** | Salfacorp keys | AIFactory keys |
+| **OAuth** | Same (shared) | Same (shared) |
+| **Deployment** | Client production | Internal staging |
+
+---
+
+## 🛡️ Safety Checks
+
+### Before Switching
+
+**Checklist:**
+- [ ] No uncommitted changes (or commit them first)
+- [ ] Dev server stopped (`pkill -f "astro dev"`)
+- [ ] Know which environment you need
+- [ ] Have access to target GCP project
+
+### After Switching
+
+**Verification:**
+```bash
+# 1. Check .env matches .env.project
+CURRENT=$(cat .env.project | cut -d'=' -f2)
+echo "Current project: $CURRENT"
+
+# 2. Check GOOGLE_CLOUD_PROJECT value
+grep GOOGLE_CLOUD_PROJECT .env
+
+# 3. Check gcloud project
+gcloud config get-value project
+
+# 4. Verify authentication
+gcloud auth list
+
+# 5. Test Firestore connection
+curl http://localhost:3000/api/health/firestore
+```
+
+---
+
+## 🔧 Helper Scripts
+
+### Create scripts/switch-env.sh
+
+```bash
+#!/bin/bash
+# Environment Switcher for SalfaGPT
+# Usage: ./scripts/switch-env.sh [salfacorp|aifactory]
+
+set -e
+
+if [ "$1" != "salfacorp" ] && [ "$1" != "aifactory" ]; then
+  echo "❌ Error: Invalid environment"
+  echo ""
+  echo "Usage: $0 [salfacorp|aifactory]"
+  echo ""
+  echo "Available environments:"
+  echo "  salfacorp  - Salfacorp client environment (salfagpt)"
+  echo "  aifactory  - AIFactory development environment (gen-lang-client-0986191192)"
+  exit 1
+fi
+
+PROJECT_UPPER=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+ENV_FILE=".env.$1"
+
+# Check if env file exists
+if [ ! -f "$ENV_FILE" ]; then
+  echo "❌ Error: $ENV_FILE not found"
+  exit 1
+fi
+
+echo "🔄 Switching to $PROJECT_UPPER environment..."
+echo ""
+
+# Stop dev server if running
+echo "1️⃣ Stopping dev server (if running)..."
+pkill -f "astro dev" 2>/dev/null || echo "   No dev server running"
+
+# Copy environment file
+echo "2️⃣ Copying $ENV_FILE to .env..."
+cp "$ENV_FILE" .env
+
+# Update project identifier
+echo "3️⃣ Updating .env.project..."
+echo "CURRENT_PROJECT=$PROJECT_UPPER" > .env.project
+
+# Set gcloud project
+echo "4️⃣ Setting gcloud project..."
+if [ "$1" = "salfacorp" ]; then
+  gcloud config set project salfagpt
+  GCP_PROJECT="salfagpt"
+elif [ "$1" = "aifactory" ]; then
+  gcloud config set project gen-lang-client-0986191192
+  GCP_PROJECT="gen-lang-client-0986191192"
+fi
+
+# Re-authenticate (optional but recommended)
+echo "5️⃣ Re-authenticating with gcloud..."
+read -p "   Run gcloud auth application-default login? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  gcloud auth application-default login
+fi
+
+echo ""
+echo "✅ Environment switched successfully!"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Current Configuration:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+cat .env.project
+echo ""
+grep GOOGLE_CLOUD_PROJECT .env
+echo "gcloud project: $(gcloud config get-value project)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "⚠️  IMPORTANT: Restart your dev server"
+echo "   Run: npm run dev"
+echo ""

@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+If .env says that the current project is SALFACORP, then use .env.salfacorp variables, if it is AIFACTORY, then use .env.aifactory instead.
