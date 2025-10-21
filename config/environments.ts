@@ -54,18 +54,18 @@ const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
   'local': {
     name: 'local',
     displayName: 'Local Development',
-    projectId: 'gen-lang-client-0986191192',
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192',
     region: 'us-central1',
     serviceName: 'local-dev',
     baseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
     
     oauth: {
       clientId: process.env.GOOGLE_CLIENT_ID || '',
-      redirectUri: 'http://localhost:3000/auth/callback',
+      redirectUri: (process.env.PUBLIC_BASE_URL || 'http://localhost:3000') + '/auth/callback',
     },
     
     firestore: {
-      projectId: 'gen-lang-client-0986191192',
+      projectId: process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192',
       locationId: 'us-central1',
       databaseId: '(default)',
     },
@@ -250,6 +250,8 @@ export function isLocal(): boolean {
 
 // Export singleton config (BACKWARD COMPATIBLE)
 export const ENV_CONFIG = getEnvironmentConfig();
+
+
 
 
 

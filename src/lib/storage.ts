@@ -17,7 +17,10 @@ const storage = new Storage({
 });
 
 // Bucket configuration
-export const BUCKET_NAME = 'gen-lang-client-0986191192-uploads';
+// Use bucket name based on current project
+export const BUCKET_NAME = PROJECT_ID === 'salfagpt' 
+  ? 'salfagpt-uploads' 
+  : 'gen-lang-client-0986191192-uploads';
 export const DOCUMENTS_FOLDER = 'documents';
 
 /**

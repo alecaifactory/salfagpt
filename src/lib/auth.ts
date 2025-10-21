@@ -18,9 +18,10 @@ try {
 }
 
 // Determine OAuth credentials (BACKWARD COMPATIBLE)
-// Priority: environment config > process.env > import.meta.env
-const GOOGLE_CLIENT_ID = ENV_CONFIG?.oauth?.clientId 
-  || process.env.GOOGLE_CLIENT_ID 
+// Priority: process.env > environment config > import.meta.env
+// This ensures .env files loaded by astro.config.mjs are used
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID 
+  || ENV_CONFIG?.oauth?.clientId 
   || import.meta.env.GOOGLE_CLIENT_ID;
 
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET 
@@ -29,17 +30,20 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const JWT_SECRET = process.env.JWT_SECRET 
   || import.meta.env.JWT_SECRET;
 
-const BASE_URL = ENV_CONFIG?.baseUrl 
-  || process.env.PUBLIC_BASE_URL 
+const BASE_URL = process.env.PUBLIC_BASE_URL 
+  || ENV_CONFIG?.baseUrl 
   || import.meta.env.PUBLIC_BASE_URL 
   || 'http://localhost:3000';
 
-const REDIRECT_URI = ENV_CONFIG?.oauth?.redirectUri 
-  || `${BASE_URL}/auth/callback`;
+const REDIRECT_URI = process.env.PUBLIC_BASE_URL 
+  ? `${process.env.PUBLIC_BASE_URL}/auth/callback`
+  : (ENV_CONFIG?.oauth?.redirectUri || `${BASE_URL}/auth/callback`);
 
 console.log('🔐 OAuth Configuration:');
 console.log(`  Environment: ${ENV_CONFIG?.name || 'local'}`);
+console.log(`  Project: ${process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET'}`);
 console.log(`  Client ID: ${GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET'}`);
+console.log(`  Base URL: ${BASE_URL}`);
 console.log(`  Redirect URI: ${REDIRECT_URI}`);
 
 // Initialize OAuth2 client
