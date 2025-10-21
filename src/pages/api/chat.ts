@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../lib/auth';
-import { generateAIResponse, insertChatMessage } from '../../lib/gcp';
+import { generateAIResponse } from '../../lib/gemini';
+import { insertChatMessage } from '../../lib/gcp';
 import { logger } from '../../lib/logger';
 import { reportError, ApplicationError } from '../../lib/error-reporting';
 
