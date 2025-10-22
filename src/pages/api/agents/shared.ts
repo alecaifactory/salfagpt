@@ -2,13 +2,14 @@ import type { APIRoute } from 'astro';
 import { getSharedAgents } from '../../../lib/firestore';
 
 /**
- * GET /api/agents/shared?userId={userId}
+ * GET /api/agents/shared?userId={userId}&userEmail={userEmail}
  * Get all agents shared with a user (via direct shares or group membership)
  */
 export const GET: APIRoute = async ({ request }) => {
   try {
     const url = new URL(request.url);
     const userId = url.searchParams.get('userId');
+    const userEmail = url.searchParams.get('userEmail'); // ✅ NEW: For ID format conversion
 
     if (!userId) {
       return new Response(
@@ -20,7 +21,8 @@ export const GET: APIRoute = async ({ request }) => {
       );
     }
 
-    const agents = await getSharedAgents(userId);
+    // ✅ Pass userEmail for backward compatibility with both ID formats
+    const agents = await getSharedAgents(userId, userEmail || undefined);
 
     return new Response(JSON.stringify({ agents }), {
       status: 200,

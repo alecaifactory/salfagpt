@@ -731,54 +731,46 @@ function getMergedPermissions(roles: UserRole[]): UserPermissions {
  * Called automatically when user logs in via OAuth
  */
 export async function upsertUserOnLogin(email: string, name: string, googleUserId?: string): Promise<User> {
-  const userId = email.replace(/[@.]/g, '_');
   const now = new Date();
   
   try {
-    const userDoc = await firestore.collection('users').doc(userId).get();
+    // ✅ First, try to find existing user by email
+    const existingUser = await getUserByEmail(email);
     
-    if (userDoc.exists) {
-      // User exists - update last login and userId if provided
+    if (existingUser) {
+      // User exists - update last login
       const updateData: any = {
         name, // Update name in case it changed
         lastLoginAt: now,
         updatedAt: now,
       };
       
-      // Store numeric userId for mapping context sources
+      // Store Google OAuth numeric ID (optional, for reference)
       if (googleUserId) {
-        updateData.userId = googleUserId;
+        updateData.googleUserId = googleUserId;
       }
       
-      await firestore.collection('users').doc(userId).update(updateData);
+      await firestore.collection('users').doc(existingUser.id).update(updateData);
       
-      console.log('✅ User login updated:', email);
+      console.log('✅ User login updated:', email, 'ID:', existingUser.id);
       
-      const data = userDoc.data();
       return {
-        id: userId,
-        email: data!.email,
-        name,
-        role: data!.role || 'user',
-        roles: data!.roles || [data!.role || 'user'],
-        company: data!.company || extractCompany(email),
-        department: data!.department,
-        permissions: data!.permissions || getMergedPermissions(['user']),
-        createdAt: data!.createdAt?.toDate?.() || now,
-        updatedAt: now,
+        ...existingUser,
+        name, // Updated name
         lastLoginAt: now,
-        isActive: data!.isActive ?? true,
-        createdBy: data!.createdBy,
+        updatedAt: now,
       };
     } else {
-      // User doesn't exist - create new
+      // User doesn't exist - create new with hash-based ID
       const company = extractCompany(email);
       const initialRoles = getInitialRoles(email);
+      const userId = generateUserId(); // ✅ Random hash ID (e.g., usr_k3n9x2m4p8q1w5z7y0)
+      
       const newUser = {
         id: userId,
         email,
         name,
-        userId: googleUserId, // Store Google OAuth numeric ID for mapping
+        googleUserId, // Store Google OAuth ID (optional, for reference)
         role: initialRoles[0] as UserRole, // Primary role
         roles: initialRoles,
         company,
@@ -789,17 +781,28 @@ export async function upsertUserOnLogin(email: string, name: string, googleUserI
         lastLoginAt: now,
         isActive: true,
         createdBy: 'oauth-system',
+        agentAccessCount: 0,
+        contextAccessCount: 0,
       };
       
       await firestore.collection('users').doc(userId).set({
-        ...newUser,
-        userId: googleUserId, // Store numeric ID
+        email: newUser.email,
+        name: newUser.name,
+        googleUserId: newUser.googleUserId,
+        role: newUser.role,
+        roles: newUser.roles,
+        permissions: newUser.permissions,
+        company: newUser.company,
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
+        isActive: newUser.isActive,
+        createdBy: newUser.createdBy,
+        agentAccessCount: newUser.agentAccessCount,
+        contextAccessCount: newUser.contextAccessCount,
       });
       
-      console.log(`✅ New user created: ${email} with roles: ${initialRoles.join(', ')}`);
+      console.log(`✅ New user created with hash ID: ${userId} (email: ${email}, roles: ${initialRoles.join(', ')})`);
       
       return newUser;
     }
@@ -844,6 +847,20 @@ function getInitialRoles(email: string): UserRole[] {
 }
 
 /**
+ * Generate a unique user ID (random hash)
+ * Format: usr_<random_20_chars>
+ * Example: usr_k3n9x2m4p8q1w5z7y0
+ */
+function generateUserId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = 'usr_';
+  for (let i = 0; i < 20; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+/**
  * Create a new user
  */
 export async function createUser(
@@ -855,7 +872,9 @@ export async function createUser(
   department?: string
 ): Promise<User> {
   const now = new Date();
-  const userId = email.replace(/[@.]/g, '_');
+  
+  // ✅ Generate unique hash-based ID (permanent, independent of email)
+  const userId = generateUserId(); // e.g., usr_k3n9x2m4p8q1w5z7y0
   
   const newUser: Omit<User, 'id'> = {
     email,
@@ -897,6 +916,8 @@ export async function createUser(
   }
 
   await firestore.collection(COLLECTIONS.USERS).doc(userId).set(firestoreData);
+  
+  console.log(`✅ User created with ID: ${userId} (email: ${email})`);
 
   return {
     id: userId,
@@ -906,36 +927,47 @@ export async function createUser(
 
 /**
  * Get user by email
+ * Searches by email field (not document ID) to support hash-based IDs
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const userId = email.replace(/[@.]/g, '_');
-  const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
-  
-  if (!doc.exists) {
+  try {
+    // ✅ Query by email field (works with hash-based document IDs)
+    const snapshot = await firestore
+      .collection(COLLECTIONS.USERS)
+      .where('email', '==', email)
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id, // Hash-based ID (e.g., usr_k3n9x2m4p8q1w5z7y0)
+      userId: data.userId, // Google OAuth ID (if set)
+      email: data.email,
+      name: data.name,
+      role: data.role,
+      roles: data.roles || [data.role],
+      permissions: data.permissions,
+      company: data.company,
+      createdBy: data.createdBy,
+      department: data.department,
+      createdAt: new Date(data.createdAt),
+      updatedAt: new Date(data.updatedAt),
+      lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+      isActive: data.isActive,
+      avatarUrl: data.avatarUrl,
+      agentAccessCount: data.agentAccessCount,
+      contextAccessCount: data.contextAccessCount,
+    };
+  } catch (error) {
+    console.error('Error getting user by email:', error);
     return null;
   }
-
-  const data = doc.data();
-  if (!data) return null;
-
-  return {
-    id: doc.id,
-    email: data.email,
-    name: data.name,
-    role: data.role,
-    roles: data.roles || [data.role], // Backward compat: default to single role array
-    permissions: data.permissions,
-    company: data.company,
-    createdBy: data.createdBy,
-    department: data.department,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
-    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
-    isActive: data.isActive,
-    avatarUrl: data.avatarUrl,
-    agentAccessCount: data.agentAccessCount,
-    contextAccessCount: data.contextAccessCount,
-  };
 }
 
 /**
@@ -980,7 +1012,8 @@ export async function getAllUsers(): Promise<User[]> {
   return snapshot.docs.map(doc => {
     const data = doc.data();
     return {
-      id: doc.id,
+      id: doc.id, // Email-based document ID (for Firestore lookups)
+      userId: data.userId, // ✅ Google OAuth numeric ID (permanent, for sharing)
       email: data.email,
       name: data.name,
       role: data.role,
@@ -2194,48 +2227,93 @@ export async function getAgentShares(agentId: string): Promise<AgentShare[]> {
 
 /**
  * Get all agents shared with a user (directly or via groups)
+ * Uses hash-based user ID for matching (supports pre-assignment)
  */
-export async function getSharedAgents(userId: string): Promise<Conversation[]> {
+export async function getSharedAgents(userId: string, userEmail?: string): Promise<Conversation[]> {
   try {
+    console.log('🔍 getSharedAgents called for userId:', userId, 'email:', userEmail);
+    
+    // ✅ Get user's actual hash-based ID by email lookup
+    // This works even if userId is numeric (from old JWT) or hash (from new JWT)
+    let userHashId = userId;
+    
+    if (userEmail) {
+      const user = await getUserByEmail(userEmail);
+      if (user) {
+        userHashId = user.id; // Hash-based ID (e.g., usr_k3n9x2m4p8q1w5z7y0)
+        console.log('   Resolved user hash ID from email:', userHashId);
+      } else {
+        console.warn('   User not found by email, using provided userId');
+      }
+    }
+    
     // 1. Get user's groups
-    const userGroups = await getUserGroups(userId);
+    const userGroups = await getUserGroups(userHashId);
     const groupIds = userGroups.map(g => g.id);
+    console.log('   User groups:', groupIds.length, groupIds);
 
     // 2. Find shares where user or their groups are included
     const snapshot = await firestore
       .collection(COLLECTIONS.AGENT_SHARES)
       .get();
+    
+    console.log('   Total shares in system:', snapshot.docs.length);
 
     const relevantShares = snapshot.docs
-      .map(doc => doc.data() as AgentShare)
+      .map(doc => {
+        const data = doc.data() as AgentShare;
+        console.log('   Examining share:', {
+          id: doc.id,
+          agentId: data.agentId,
+          sharedWith: data.sharedWith,
+        });
+        return data;
+      })
       .filter(share => {
         // Check if expired
         if (share.expiresAt && new Date(share.expiresAt) < new Date()) {
+          console.log('     ❌ Share expired');
           return false;
         }
 
-        // Check if shared with this user or their groups
-        return share.sharedWith.some(target => 
-          (target.type === 'user' && target.id === userId) ||
-          (target.type === 'group' && groupIds.includes(target.id))
-        );
+        // ✅ Match by hash-based user ID (supports pre-assignment)
+        const isMatch = share.sharedWith.some(target => {
+          const userMatch = target.type === 'user' && target.id === userHashId;
+          const groupMatch = target.type === 'group' && groupIds.includes(target.id);
+          
+          if (userMatch || groupMatch) {
+            console.log('     ✅ Match found:', target);
+          }
+          
+          return userMatch || groupMatch;
+        });
+        
+        return isMatch;
       });
+    
+    console.log('   Relevant shares found:', relevantShares.length);
 
     // 3. Load the actual conversations/agents
     const agentIds = relevantShares.map(share => share.agentId);
     
     if (agentIds.length === 0) {
+      console.log('   No shared agents for this user');
       return [];
     }
 
+    console.log('   Loading agents:', agentIds);
     const agents: Conversation[] = [];
     for (const agentId of agentIds) {
       const agent = await getConversation(agentId);
       if (agent) {
+        console.log('     ✅ Loaded agent:', agent.title);
         agents.push(agent);
+      } else {
+        console.warn('     ⚠️ Agent not found:', agentId);
       }
     }
 
+    console.log('✅ Returning', agents.length, 'shared agents');
     return agents;
   } catch (error) {
     console.error('❌ Error getting shared agents:', error);

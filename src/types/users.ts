@@ -42,7 +42,8 @@ export interface UserPermissions {
 }
 
 export interface User {
-  id: string;
+  id: string; // Email-based ID for Firestore document lookup
+  userId?: string; // ✅ Google OAuth numeric ID (permanent, for sharing)
   email: string;
   name: string;
   role: UserRole; // Primary role (for backward compatibility)
