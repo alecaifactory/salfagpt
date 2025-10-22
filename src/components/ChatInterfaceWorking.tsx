@@ -609,7 +609,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       // We don't load extractedData (heavy) - only metadata needed for references
       const minimalSources: ContextSource[] = (data.activeContextSourceIds || []).map((id: string) => ({
         id,
-        userId: session?.id || '',
+        userId: userId, // ✅ FIX: Use userId from component props, not undefined session
         name: `Source ${id.substring(0, 8)}`, // Placeholder name
         type: 'pdf' as const,
         enabled: true, // All returned IDs are active
