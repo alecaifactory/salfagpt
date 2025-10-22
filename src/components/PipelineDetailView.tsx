@@ -51,12 +51,12 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
   const [extractedData, setExtractedData] = useState<string | null>(source.extractedData || null);
   const [loadingExtractedData, setLoadingExtractedData] = useState(false);
 
-  // Load chunks when RAG tab is opened
+  // 🔧 FIX: Clear chunks when source changes
   useEffect(() => {
-    if (activeTab === 'chunks' && source.ragEnabled && chunks.length === 0) {
-      loadChunks();
-    }
-  }, [activeTab, source.ragEnabled]);
+    console.log('🔄 Source changed, clearing chunks for:', source.id);
+    setChunks([]);
+    setActiveTab('pipeline'); // Reset to pipeline tab
+  }, [source.id]);
   
   // Load extracted data when "Extracted Text" tab is opened
   useEffect(() => {
@@ -89,8 +89,14 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
   };
 
   const loadChunks = async () => {
+    console.log('🚀 loadChunks called');
+    console.log('   userId:', userId);
+    console.log('   source.id:', source.id);
+    console.log('   source.ragEnabled:', source.ragEnabled);
+    
     if (!userId) {
       console.error('❌ userId is required to load chunks');
+      alert('Error: userId no disponible. Recarga la página.');
       return;
     }
     
@@ -104,20 +110,30 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
       const url = `/api/context-sources/${source.id}/chunks?userId=${userId}`;
       console.log('🔍 Fetching chunks from:', url);
       
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        credentials: 'include' // Include cookies for authentication
+      });
       console.log('📥 Response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Chunks loaded:', data.chunks?.length || 0);
         console.log('   Stats:', data.stats);
+        console.log('   Data:', data);
         setChunks(data.chunks || []);
+        
+        if (!data.chunks || data.chunks.length === 0) {
+          console.warn('⚠️ No chunks returned from API');
+          alert('No se encontraron chunks para este documento. Verifica que RAG esté habilitado correctamente.');
+        }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Failed to load chunks:', errorData);
+        alert(`Error cargando chunks: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('❌ Error loading chunks:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoadingChunks(false);
     }
@@ -241,10 +257,22 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
           
           <button
             onClick={() => {
+              console.log('🔘 RAG Chunks tab clicked');
+              console.log('   Source ID:', source.id);
+              console.log('   RAG enabled:', source.ragEnabled);
+              console.log('   Current chunks loaded:', chunks.length);
+              
               setActiveTab('chunks');
-              // Reload chunks when tab is clicked
+              
+              // 🔧 FIX: Always reload chunks when tab is clicked (on-demand)
               if (source.ragEnabled && userId) {
-                setTimeout(() => loadChunks(), 100);
+                console.log('✅ Loading chunks on-demand for source:', source.id);
+                loadChunks();
+              } else {
+                console.warn('⚠️ Cannot load chunks:', {
+                  ragEnabled: source.ragEnabled,
+                  userId: !!userId
+                });
               }
             }}
             className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${

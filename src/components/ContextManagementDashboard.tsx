@@ -31,7 +31,12 @@ interface ContextManagementDashboardProps {
   onClose: () => void;
   userId: string;
   userEmail?: string;
-  conversations: Array<{ id: string; title: string }>;
+  conversations: Array<{ 
+    id: string; 
+    title: string;
+    isAgent?: boolean;  // true = agent, false = chat, undefined = legacy (treat as agent)
+    status?: 'active' | 'archived';  // Filter out archived agents
+  }>;
   onSourcesUpdated: () => void;
 }
 
@@ -1725,10 +1730,18 @@ export default function ContextManagementDashboard({
                         }),
                       });
                       
-                      // If marking as PUBLIC, assign to all agents
+                      // If marking as PUBLIC, assign to all agents (only active agents, not chats or archived)
                       if (newLabels.includes('PUBLIC')) {
-                        const allConversationIds = conversations.map(c => c.id);
-                        for (const agentId of allConversationIds) {
+                        const activeAgents = conversations.filter(conv => {
+                          // Exclude chats
+                          if (conv.isAgent === false) return false;
+                          // Exclude archived
+                          if (conv.status === 'archived') return false;
+                          // Include agents
+                          return true;
+                        });
+                        const allAgentIds = activeAgents.map(a => a.id);
+                        for (const agentId of allAgentIds) {
                           try {
                             await fetch(`/api/context-sources/${selectedSource.id}/assign-agent`, {
                               method: 'POST',
@@ -1740,7 +1753,7 @@ export default function ContextManagementDashboard({
                             console.warn('Failed to assign to agent:', agentId);
                           }
                         }
-                        console.log(`✅ PUBLIC: asignado a ${allConversationIds.length} agentes`);
+                        console.log(`✅ PUBLIC: asignado a ${allAgentIds.length} agentes`);
                       }
                       
                       // Reload
@@ -1783,26 +1796,50 @@ export default function ContextManagementDashboard({
                   </div>
                   
                   <div className="max-h-32 overflow-y-auto space-y-1">
-                    {conversations.slice(0, 5).map(agent => (
-                      <label
-                        key={agent.id}
-                        className="flex items-center gap-2 p-2 border border-gray-200 rounded hover:bg-gray-50 cursor-pointer transition-colors text-xs"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={pendingAgentIds.includes(agent.id)}
-                          onChange={() => toggleAgentSelection(agent.id)}
-                          className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                        />
-                        <MessageSquare className="w-3 h-3 text-gray-600" />
-                        <span className="font-medium text-gray-900 flex-1 truncate">{agent.title}</span>
-                      </label>
-                    ))}
-                    {conversations.length > 5 && (
-                      <p className="text-xs text-gray-500 text-center py-1">
-                        +{conversations.length - 5} más agentes
-                      </p>
-                    )}
+                    {(() => {
+                      // Filter to only show active agents (not chats, not archived)
+                      const activeAgents = conversations.filter(conv => {
+                        // Exclude chats
+                        if (conv.isAgent === false) return false;
+                        // Exclude archived
+                        if (conv.status === 'archived') return false;
+                        // Include agents (isAgent === true or undefined for legacy)
+                        return true;
+                      });
+                      
+                      if (activeAgents.length === 0) {
+                        return (
+                          <p className="text-xs text-gray-500 text-center py-3">
+                            No hay agentes activos. Crea un agente primero.
+                          </p>
+                        );
+                      }
+                      
+                      return (
+                        <>
+                          {activeAgents.slice(0, 5).map(agent => (
+                            <label
+                              key={agent.id}
+                              className="flex items-center gap-2 p-2 border border-gray-200 rounded hover:bg-gray-50 cursor-pointer transition-colors text-xs"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={pendingAgentIds.includes(agent.id)}
+                                onChange={() => toggleAgentSelection(agent.id)}
+                                className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                              />
+                              <MessageSquare className="w-3 h-3 text-gray-600" />
+                              <span className="font-medium text-gray-900 flex-1 truncate">{agent.title}</span>
+                            </label>
+                          ))}
+                          {activeAgents.length > 5 && (
+                            <p className="text-xs text-gray-500 text-center py-1">
+                              +{activeAgents.length - 5} más agentes
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1899,27 +1936,47 @@ export default function ContextManagementDashboard({
                   </div>
                   
                   <div className="max-h-48 overflow-y-auto space-y-2">
-                    {conversations.map(agent => {
-                      const isSelected = pendingAgentIds.includes(agent.id);
+                    {(() => {
+                      // Filter to only show active agents (not chats, not archived)
+                      const activeAgents = conversations.filter(conv => {
+                        // Exclude chats
+                        if (conv.isAgent === false) return false;
+                        // Exclude archived
+                        if (conv.status === 'archived') return false;
+                        // Include agents
+                        return true;
+                      });
                       
-                      return (
-                        <label
-                          key={agent.id}
-                          className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => toggleAgentSelection(agent.id)}
-                            className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                          />
-                          <MessageSquare className="w-4 h-4 text-gray-600" />
-                          <span className="text-sm font-medium text-gray-900 flex-1 truncate">
-                            {agent.title}
-                          </span>
-                        </label>
-                      );
-                    })}
+                      if (activeAgents.length === 0) {
+                        return (
+                          <p className="text-xs text-gray-500 text-center py-4">
+                            No hay agentes activos. Crea un agente primero.
+                          </p>
+                        );
+                      }
+                      
+                      return activeAgents.map(agent => {
+                        const isSelected = pendingAgentIds.includes(agent.id);
+                        
+                        return (
+                          <label
+                            key={agent.id}
+                            className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleAgentSelection(agent.id)}
+                              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                            />
+                            <MessageSquare className="w-4 h-4 text-gray-600" />
+                            <span className="text-sm font-medium text-gray-900 flex-1 truncate">
+                              {agent.title}
+                            </span>
+                          </label>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
 
@@ -1962,17 +2019,35 @@ export default function ContextManagementDashboard({
                           To {pendingAgentIds.length} agent{pendingAgentIds.length !== 1 ? 's' : ''}:
                         </p>
                         <ul className="space-y-1 text-xs text-gray-600">
-                          {conversations.filter(c => pendingAgentIds.includes(c.id)).slice(0, 3).map(agent => (
-                            <li key={agent.id} className="flex items-center gap-1">
-                              <span className="text-gray-400">•</span>
-                              <span className="truncate">{agent.title}</span>
-                            </li>
-                          ))}
-                          {pendingAgentIds.length > 3 && (
-                            <li className="text-gray-500 italic">
-                              ... and {pendingAgentIds.length - 3} more
-                            </li>
-                          )}
+                          {(() => {
+                            // Filter to only show active agents (not chats, not archived)
+                            const activeAgents = conversations.filter(conv => {
+                              // Only include if in pendingAgentIds
+                              if (!pendingAgentIds.includes(conv.id)) return false;
+                              // Exclude chats
+                              if (conv.isAgent === false) return false;
+                              // Exclude archived
+                              if (conv.status === 'archived') return false;
+                              // Include agents
+                              return true;
+                            });
+                            
+                            return (
+                              <>
+                                {activeAgents.slice(0, 3).map(agent => (
+                                  <li key={agent.id} className="flex items-center gap-1">
+                                    <span className="text-gray-400">•</span>
+                                    <span className="truncate">{agent.title}</span>
+                                  </li>
+                                ))}
+                                {pendingAgentIds.length > 3 && (
+                                  <li className="text-gray-500 italic">
+                                    ... and {pendingAgentIds.length - 3} more
+                                  </li>
+                                )}
+                              </>
+                            );
+                          })()}
                         </ul>
                       </div>
                     )}
