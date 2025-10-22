@@ -1666,6 +1666,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       // Just get active source IDs for RAG search
       const activeSources = contextSources.filter(source => source.enabled);
       
+      console.log(`📊 Context sources state check:`, {
+        totalSources: contextSources.length,
+        activeSources: activeSources.length,
+        contextSourcesLoaded: contextSources.length > 0,
+        agentId: currentConversation
+      });
+      
       // Update to "searching" status (now instant - no loading needed!)
       setCurrentThinkingSteps(prev => prev.map(step => 
         step.id === 'thinking' 
@@ -1680,6 +1687,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       const activeSourceIds = activeSources.map(source => source.id);
 
       console.log(`📤 Sending ${activeSourceIds.length} source IDs (not full text) - BigQuery will find relevant chunks`);
+      
+      if (activeSourceIds.length === 0) {
+        console.warn('⚠️ WARNING: No active sources! Context sources may still be loading.');
+        console.warn('   This message will be sent WITHOUT RAG context.');
+      }
 
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
@@ -1864,8 +1876,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   const ragActuallyUsed = ragConfig?.actuallyUsed || false;
                   
                   // Calculate tokens based on ACTUAL mode used
-                  const contextSourcesWithMode = activeContextSources.map(s => {
-                    const fullTextTokens = Math.ceil((s.content?.length || 0) / 4);
+                  const contextSourcesWithMode = activeSources.map(s => {
+                    const fullTextTokens = Math.ceil((s.extractedData?.length || 0) / 4);
                     
                     // Determine actual mode and tokens used
                     let mode: 'rag' | 'full-text';
