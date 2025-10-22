@@ -61,7 +61,7 @@ export interface AgentSearchOptions {
  */
 export async function searchByAgent(
   userId: string,
-  conversationId: string,
+  agentId: string,
   query: string,
   options: AgentSearchOptions = {}
 ): Promise<AgentVectorSearchResult[]> {
@@ -72,57 +72,40 @@ export async function searchByAgent(
 
   try {
     console.log('🔍 BigQuery Agent Search starting...');
-    console.log(`  Conversation: ${conversationId}`);
+    console.log(`  Agent: ${agentId}`);
     console.log(`  Query: "${query.substring(0, 100)}..."`);
     console.log(`  TopK: ${topK}, MinSimilarity: ${minSimilarity}`);
     
     const startTime = Date.now();
 
-    // 1. Determine effective agentId (for chats, use parent agent)
-    console.log('  1/5 Determining effective agent...');
-    const conversationDoc = await firestore
-      .collection(COLLECTIONS.CONVERSATIONS)
-      .doc(conversationId)
-      .get();
-
-    const conversation = conversationDoc.data();
-    const isChat = !!conversation?.agentId;
-    const effectiveAgentId = isChat ? conversation.agentId : conversationId;
-
-    if (isChat) {
-      console.log(`  ✓ Chat detected - using parent agent: ${effectiveAgentId}`);
-    } else {
-      console.log(`  ✓ Direct agent: ${effectiveAgentId}`);
-    }
-
-    // 2. Generate query embedding
-    console.log('  2/5 Generating query embedding...');
+    // 1. Generate query embedding
+    console.log('  1/4 Generating query embedding...');
     const startEmbed = Date.now();
     const queryEmbedding = await generateEmbedding(query);
     console.log(`  ✓ Query embedding generated (${Date.now() - startEmbed}ms)`);
 
-    // 3. Get source IDs assigned to effective agent (from Firestore)
-    console.log('  3/5 Getting sources assigned to agent...');
+    // 2. Get source IDs assigned to this agent (from Firestore)
+    console.log('  2/4 Getting sources assigned to agent...');
     const startSources = Date.now();
     
     const sourcesSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
       .where('userId', '==', userId)
-      .where('assignedToAgents', 'array-contains', effectiveAgentId)
+      .where('assignedToAgents', 'array-contains', agentId)
       .select('__name__') // Only get IDs, not full documents
       .get();
     
     const assignedSourceIds = sourcesSnapshot.docs.map(doc => doc.id);
     
-    console.log(`  ✓ Found ${assignedSourceIds.length} sources for ${isChat ? 'parent agent' : 'agent'} (${Date.now() - startSources}ms)`);
+    console.log(`  ✓ Found ${assignedSourceIds.length} sources for agent (${Date.now() - startSources}ms)`);
 
     if (assignedSourceIds.length === 0) {
       console.warn('  ⚠️ No sources assigned to this agent');
       return [];
     }
 
-    // 4. Vector search in BigQuery (filtered by assigned sources)
-    console.log('  4/5 Performing vector search in BigQuery...');
+    // 3. Vector search in BigQuery (filtered by assigned sources)
+    console.log('  3/4 Performing vector search in BigQuery...');
     const startSearch = Date.now();
     
     const sqlQuery = `
@@ -186,14 +169,14 @@ export async function searchByAgent(
     const startNames = Date.now();
     
     const uniqueSourceIds = Array.from(new Set(rows.map((r: any) => r.source_id)));
-    const sourcesSnapshot = await firestore
+    const sourceNamesSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
       .where('__name__', 'in', uniqueSourceIds)
       .select('name') // Only get names, not full documents
       .get();
     
     const sourcesMap = new Map(
-      sourcesSnapshot.docs.map(doc => [doc.id, doc.data().name || 'Unknown'])
+      sourceNamesSnapshot.docs.map(doc => [doc.id, doc.data().name || 'Unknown'])
     );
     
     console.log(`  ✓ Loaded ${uniqueSourceIds.length} source names (${Date.now() - startNames}ms)`);

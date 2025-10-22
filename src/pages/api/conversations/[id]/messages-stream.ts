@@ -263,12 +263,6 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
                 console.log(`📚 Emergency fallback: Loaded ${fullSources.length} full documents (${additionalContext.length} chars)`);
               }
-            } else {
-              // DISABLED: Full-text mode is no longer available
-              // RAG is the ONLY option now
-              console.warn('⚠️ No active sources provided. RAG mode requires active sources.');
-              additionalContext = '';
-            }
             
             // Ensure minimum 3 seconds for this step
             const searchElapsed = Date.now() - searchStartTime;
@@ -314,6 +308,11 @@ export const POST: APIRoute = async ({ params, request }) => {
             
             await new Promise(resolve => setTimeout(resolve, 3000)); // Always 3 seconds
             sendStatus('selecting', 'complete');
+          } else {
+            // DISABLED: Full-text mode is no longer available
+            // RAG is the ONLY option now
+            console.warn('⚠️ No active sources provided. RAG mode requires active sources.');
+            additionalContext = '';
           }
 
           // Step 4: Generando Respuesta... (streaming happens here)
