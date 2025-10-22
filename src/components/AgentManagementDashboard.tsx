@@ -18,6 +18,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface AgentSetupDoc {
   fileName: string;
@@ -125,6 +126,9 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
   const [selectedAgent, setSelectedAgent] = useState<AgentMetrics | null>(null);
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
+
+  // 🔑 Hook para cerrar con ESC (dashboard de pantalla completa)
+  const modalRef = useModalClose(true, onClose, false, true, false);
 
   useEffect(() => {
     loadAgents();
@@ -290,7 +294,7 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div className="flex items-center gap-3">

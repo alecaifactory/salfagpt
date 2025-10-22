@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, FileText, RefreshCw, Database, Sparkles, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Eye, Code, Hash, Target } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 import type { ContextSource } from '../types/context';
 import DocumentTestPanel from './DocumentTestPanel';
 
@@ -80,6 +81,9 @@ export default function ContextSourceSettingsModalSimple({
   const [selectedText, setSelectedText] = useState('');
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [testQuestion, setTestQuestion] = useState('');
+
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
   const [testResult, setTestResult] = useState<{
     question: string;
     response: string;
@@ -318,11 +322,10 @@ export default function ContextSourceSettingsModalSimple({
   return (
     <div 
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-[999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Compact */}
         <div className="border-b border-slate-200 p-3 flex items-center justify-between">

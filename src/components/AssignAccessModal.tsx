@@ -34,8 +34,8 @@ export default function AssignAccessModal({
   const [expirationDate, setExpirationDate] = useState('');
   const [duration, setDuration] = useState(30); // days
 
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
   if (!isOpen) return null;
 
@@ -90,11 +90,10 @@ export default function AssignAccessModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-green-600 to-emerald-600 sticky top-0">

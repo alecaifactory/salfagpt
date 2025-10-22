@@ -14,6 +14,7 @@ import {
   GitBranch,
   Activity
 } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 
 interface AgentAnalytics {
   agentId: string;

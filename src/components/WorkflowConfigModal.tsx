@@ -24,8 +24,8 @@ export default function WorkflowConfigModal({
   });
   const [showModelTooltip, setShowModelTooltip] = useState(false);
 
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
   // Reset config when workflow changes
   useEffect(() => {
@@ -52,11 +52,10 @@ export default function WorkflowConfigModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">

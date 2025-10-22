@@ -19,7 +19,6 @@ import RAGConfigPanel from './RAGConfigPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
-import { useModalClose } from '../hooks/useModalClose';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
@@ -276,14 +275,58 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Modal/Menu close handlers using custom hook
-  const userMenuRef = useModalClose(showUserMenu, () => setShowUserMenu(false));
-  const contextPanelRef = useModalClose(showContextPanel, () => setShowContextPanel(false), false); // Don't close on outside click for panels
+  // Global ESC key handler - closes any open modal/menu
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Close modals/menus in priority order (most specific to least specific)
+        if (showAddSourceModal) setShowAddSourceModal(false);
+        else if (showUserSettings) setShowUserSettings(false);
+        else if (showContextManagement) setShowContextManagement(false);
+        else if (showSalfaAnalytics) setShowSalfaAnalytics(false);
+        else if (showUserManagement) setShowUserManagement(false);
+        else if (showAgentManagement) setShowAgentManagement(false);
+        else if (showAgentConfiguration) setShowAgentConfiguration(false);
+        else if (showAgentEvaluation) setShowAgentEvaluation(false);
+        else if (showAnalytics) setShowAnalytics(false);
+        else if (showDomainManagement) setShowDomainManagement(false);
+        else if (showProviderManagement) setShowProviderManagement(false);
+        else if (showRAGConfig) setShowRAGConfig(false);
+        else if (showAgentContextModal) setShowAgentContextModal(false);
+        else if (showAgentSharingModal) setShowAgentSharingModal(false);
+        else if (showUserMenu) setShowUserMenu(false);
+        else if (showContextPanel) setShowContextPanel(false);
+        else if (settingsSource) setSettingsSource(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [
+    showAddSourceModal,
+    showUserSettings,
+    showContextManagement,
+    showSalfaAnalytics,
+    showUserManagement,
+    showAgentManagement,
+    showAgentConfiguration,
+    showAgentEvaluation,
+    showAnalytics,
+    showDomainManagement,
+    showProviderManagement,
+    showRAGConfig,
+    showAgentContextModal,
+    showAgentSharingModal,
+    showUserMenu,
+    showContextPanel,
+    settingsSource,
+  ]);
 
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
-  }, []);
+    loadFolders(); // Also load folders on mount
+  }, [userId]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -343,19 +386,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // NEW: Load folders from Firestore
   const loadFolders = async () => {
     try {
+      console.log('📥 Cargando proyectos desde Firestore...');
       const response = await fetch(`/api/folders?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
-        const foldersWithDates = (data.folders || []).map((f: any) => ({
+        const foldersWithDates = (data.folders || []).map((f: { id: string; name: string; createdAt: string | Date; conversationCount?: number }) => ({
           id: f.id,
           name: f.name,
           createdAt: new Date(f.createdAt),
           conversationCount: f.conversationCount || 0,
         }));
         setFolders(foldersWithDates);
-        console.log('✅ Folders loaded:', foldersWithDates.length);
+        
         if (foldersWithDates.length > 0) {
-          console.log('📁 First folder:', foldersWithDates[0]);
+          console.log(`✅ ${foldersWithDates.length} proyectos cargados desde Firestore`);
+          console.log('📁 Proyectos:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
+        } else {
+          console.log('ℹ️ No hay proyectos guardados');
         }
       }
     } catch (error) {
@@ -366,45 +413,86 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const loadConversations = async () => {
     try {
+      console.log('📥 Cargando conversaciones desde Firestore...');
       const response = await fetch(`/api/conversations?userId=${userId}`);
+      
       if (response.ok) {
         const data = await response.json();
-        const allConvs = (data.groups?.flatMap((g: any) => g.conversations) || []).map((conv: any) => ({
-          ...conv,
-          hasBeenRenamed: conv.hasBeenRenamed || false // Ensure hasBeenRenamed is loaded
-        }));
         
-        // NEW: Load shared agents
-        try {
-          const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
-          if (sharedResponse.ok) {
-            const sharedData = await sharedResponse.json();
-            const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
-              ...conv,
-              isShared: true, // Mark as shared
-              hasBeenRenamed: conv.hasBeenRenamed || false
-            }));
-            
-            // Combine own agents with shared agents
-            setConversations([...allConvs, ...sharedAgents]);
-          } else {
-            setConversations(allConvs);
+        if (data.groups && data.groups.length > 0) {
+          // Flatten all groups into a single conversation list
+          const allConversations: Conversation[] = [];
+          data.groups.forEach((group: any) => {
+            group.conversations.forEach((conv: any) => {
+              allConversations.push({
+                id: conv.id,
+                title: conv.title,
+                userId: conv.userId || userId,
+                createdAt: new Date(conv.createdAt || Date.now()),
+                updatedAt: new Date(conv.updatedAt || Date.now()),
+                lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+                messageCount: conv.messageCount || 0,
+                contextWindowUsage: conv.contextWindowUsage || 0,
+                agentModel: conv.agentModel || 'gemini-2.5-flash',
+                status: conv.status || 'active',
+                hasBeenRenamed: conv.hasBeenRenamed || false,
+                isAgent: conv.isAgent !== false,
+                agentId: conv.agentId,
+                folderId: conv.folderId,
+              });
+            });
+          });
+          
+          // NEW: Load shared agents
+          try {
+            const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
+            if (sharedResponse.ok) {
+              const sharedData = await sharedResponse.json();
+              const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
+                ...conv,
+                isShared: true,
+                hasBeenRenamed: conv.hasBeenRenamed || false,
+                createdAt: new Date(conv.createdAt || Date.now()),
+                updatedAt: new Date(conv.updatedAt || Date.now()),
+                lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+              }));
+              
+              // Combine own agents with shared agents
+              setConversations([...allConversations, ...sharedAgents]);
+              console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${allConversations.length + sharedAgents.length} total`);
+            } else {
+              setConversations(allConversations);
+            }
+          } catch (sharedError) {
+            console.warn('Could not load shared agents:', sharedError);
+            setConversations(allConversations);
           }
-        } catch (sharedError) {
-          console.warn('Could not load shared agents:', sharedError);
-          setConversations(allConvs);
+          
+          // Auto-select first agent if none selected
+          if (!selectedAgent && allConversations.length > 0) {
+            const firstAgent = allConversations.find(c => c.isAgent !== false && c.status !== 'archived');
+            if (firstAgent) {
+              setSelectedAgent(firstAgent.id);
+              setCurrentConversation(firstAgent.id);
+            }
+          }
+          
+          console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
+          console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
+          console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+        } else {
+          console.log('ℹ️ No hay conversaciones guardadas');
+          setConversations([]);
         }
         
-        // Auto-select first conversation or create one
-        if (allConvs.length > 0) {
-          setCurrentConversation(allConvs[0].id);
-        } else {
-          createNewConversation();
+        if (data.warning) {
+          console.warn('⚠️', data.warning);
         }
+      } else {
+        console.error('❌ Error al cargar conversaciones:', response.statusText);
       }
     } catch (error) {
-      console.error('Error loading conversations:', error);
-      // Fallback: do nothing if conversations can't be loaded, let user create one
+      console.error('❌ Error al cargar conversaciones:', error);
     }
   };
 
@@ -794,72 +882,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     window.location.href = '/chat'; // Reload as original user
   }
 
-  // Load conversations from Firestore on mount
-  useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        console.log('📥 Cargando conversaciones desde Firestore...');
-        const response = await fetch(`/api/conversations?userId=${userId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.groups && data.groups.length > 0) {
-            // Flatten all groups into a single conversation list
-            const allConversations: Conversation[] = [];
-            data.groups.forEach((group: any) => {
-              group.conversations.forEach((conv: any) => {
-                allConversations.push({
-                  id: conv.id,
-                  title: conv.title,
-                  userId: conv.userId || userId,
-                  createdAt: new Date(conv.createdAt || Date.now()),
-                  updatedAt: new Date(conv.updatedAt || Date.now()),
-                  lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
-                  messageCount: conv.messageCount || 0,
-                  contextWindowUsage: conv.contextWindowUsage || 0,
-                  agentModel: conv.agentModel || 'gemini-2.5-flash',
-                  status: conv.status || 'active', // Default to active if not set
-                  hasBeenRenamed: conv.hasBeenRenamed || false, // Track if user renamed manually
-                  isAgent: conv.isAgent !== false, // Default to true for backward compatibility
-                  agentId: conv.agentId, // Parent agent if this is a chat
-                  folderId: conv.folderId, // Project folder
-                });
-              });
-            });
-            
-            setConversations(allConversations);
-            
-            // Auto-select first agent if none selected
-            if (!selectedAgent && allConversations.length > 0) {
-              const firstAgent = allConversations.find(c => c.isAgent !== false);
-              if (firstAgent) {
-                setSelectedAgent(firstAgent.id);
-              }
-            }
-            
-            console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
-            console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
-            console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-            console.log(`🔍 Primera conversación:`, allConversations[0]);
-          } else {
-            console.log('ℹ️ No hay conversaciones guardadas');
-          }
-          
-          if (data.warning) {
-            console.warn('⚠️', data.warning);
-          }
-        } else {
-          console.error('❌ Error al cargar conversaciones:', response.statusText);
-        }
-      } catch (error) {
-        console.error('❌ Error al cargar conversaciones:', error);
-      }
-    };
-    
-    loadConversations();
-    loadFolders(); // Also load folders on mount
-  }, [userId]);
+  // REMOVED: Duplicate loadConversations useEffect
+  // The main loadConversations is already called in the useEffect at line ~284
 
   // NEW: Load user settings from Firestore on mount
   useEffect(() => {
@@ -1086,14 +1110,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
-        const newFolder = {
-          id: data.folder.id,
-          name: data.folder.name,
-          createdAt: new Date(data.folder.createdAt),
-          conversationCount: data.folder.conversationCount || 0,
-        };
-        setFolders(prev => [...prev, newFolder]);
-        console.log('✅ Folder created:', newFolder.id, 'Name:', newFolder.name);
+        console.log('✅ Proyecto creado en Firestore:', data.folder.id, 'Name:', data.folder.name);
+        
+        // CRITICAL: Reload from Firestore to ensure persistence
+        console.log('🔄 Recargando proyectos desde Firestore para verificar persistencia...');
+        await loadFolders();
+        console.log('✅ Proyecto creado y lista recargada desde Firestore');
       }
     } catch (error) {
       console.error('❌ Error creating folder:', error);
@@ -1178,25 +1200,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
-        const newChat: Conversation = {
-          id: data.conversation.id,
-          title: data.conversation.title,
-          userId: data.conversation.userId || userId,
-          createdAt: new Date(data.conversation.createdAt || Date.now()),
-          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
-          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
-          messageCount: data.conversation.messageCount || 0,
-          contextWindowUsage: data.conversation.contextWindowUsage || 0,
-          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
-          agentId,
-          isAgent: false,
-        };
+        const newChatId = data.conversation.id;
         
-        setConversations(prev => [newChat, ...prev]);
-        setCurrentConversation(newChat.id);
-        setMessages([]);
-        
-        console.log('✅ Chat created for agent:', agentId);
+        console.log('✅ Chat created for agent:', agentId, 'Chat ID:', newChatId);
         
         // Inherit agent's context - copy active context sources from agent
         try {
@@ -1215,7 +1221,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: newChat.id }),
+                    body: JSON.stringify({ agentId: newChatId }),
                   });
                 } catch (error) {
                   console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
@@ -1223,14 +1229,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               }
               
               // Save active sources to new chat's context
-              await fetch(`/api/conversations/${newChat.id}/context-sources`, {
+              await fetch(`/api/conversations/${newChatId}/context-sources`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
               });
-              
-              // Reload context for new chat
-              await loadContextForConversation(newChat.id, true);
               
               console.log('✅ Contexto del agente heredado al nuevo chat');
             } else {
@@ -1240,6 +1243,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         } catch (contextError) {
           console.warn('⚠️ Failed to inherit agent context:', contextError);
         }
+        
+        // CRITICAL: Reload all conversations from Firestore to ensure persistence
+        console.log('🔄 Recargando conversaciones desde Firestore para verificar persistencia...');
+        await loadConversations();
+        
+        // Select the new chat
+        setCurrentConversation(newChatId);
+        setMessages([]);
+        
+        // Reload context for new chat
+        await loadContextForConversation(newChatId, true);
+        
+        console.log('✅ Chat creado y lista recargada desde Firestore');
       }
     } catch (error) {
       console.error('❌ Error creating chat:', error);
@@ -1262,25 +1278,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
-        const newConv: Conversation = {
-          id: data.conversation.id,
-          title: data.conversation.title,
-          userId: data.conversation.userId || userId,
-          createdAt: new Date(data.conversation.createdAt || Date.now()),
-          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
-          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
-          messageCount: data.conversation.messageCount || 0,
-          contextWindowUsage: data.conversation.contextWindowUsage || 0,
-          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
-          isAgent: true,
-        };
+        const newConvId = data.conversation.id;
         
-        setConversations(prev => [newConv, ...prev]);
-        setCurrentConversation(newConv.id);
-        setSelectedAgent(newConv.id); // Set as selected agent
-        setMessages([]);
-        
-        console.log('✅ Agente creado en Firestore:', newConv.id);
+        console.log('✅ Agente creado en Firestore:', newConvId);
         
         // Save initial agent config
         const initialModel = 'gemini-2.5-flash';
@@ -1288,7 +1288,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            conversationId: newConv.id,
+            conversationId: newConvId,
             userId,
             model: initialModel,
             systemPrompt: globalUserSettings.systemPrompt,
@@ -1305,35 +1305,35 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: newConv.id }),
+                body: JSON.stringify({ agentId: newConvId }),
               });
             } catch (error) {
               console.warn('⚠️ Failed to auto-assign PUBLIC source:', sourceId, error);
             }
           }
           
-          setContextSources(prev => prev.map(s => {
-            if (s.tags?.includes('PUBLIC')) {
-              return {
-                ...s,
-                assignedToAgents: [...(s.assignedToAgents || []), newConv.id],
-                enabled: true,
-              };
-            }
-            return s;
-          }));
-          
-          await fetch(`/api/conversations/${newConv.id}/context-sources`, {
+          await fetch(`/api/conversations/${newConvId}/context-sources`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activeContextSourceIds: publicSourceIds }),
           });
         }
 
+        // CRITICAL: Reload all conversations from Firestore to ensure persistence
+        console.log('🔄 Recargando conversaciones desde Firestore para verificar persistencia...');
+        await loadConversations();
+        
+        // Select the new agent
+        setCurrentConversation(newConvId);
+        setSelectedAgent(newConvId);
+        setMessages([]);
+
         setCurrentAgentConfig({
           preferredModel: initialModel,
           systemPrompt: globalUserSettings.systemPrompt,
         });
+        
+        console.log('✅ Agente creado y lista recargada desde Firestore');
       }
     } catch (error) {
       console.error('❌ Error creating agent:', error);
@@ -3249,10 +3249,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             </button>
 
             {showUserMenu && (
-              <>
-                <div 
-                  ref={userMenuRef}
-                  className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
+              <div 
+                className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
                 {/* Context Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
@@ -3430,7 +3428,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   Cerrar Sesión
                 </button>
               </div>
-              </>
             )}
           </div>
         </div>

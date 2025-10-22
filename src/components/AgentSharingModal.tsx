@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, User as UserIcon, Lock, Eye, Edit, Shield, Calendar, Search } from 'lucide-react';
+import { useModalClose } from '../hooks/useModalClose';
 import type { Group, AgentShare, Conversation } from '../lib/firestore';
 import type { User } from '../types/users';
 
@@ -32,6 +33,9 @@ export function AgentSharingModal({
   // Determine if admin level is allowed (only for individual users, not groups)
   const isAdminAllowed = shareType === 'user';
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(true, onClose, true, true, true);
 
   useEffect(() => {
     loadData();
@@ -191,7 +195,7 @@ export function AgentSharingModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>

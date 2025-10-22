@@ -34,8 +34,8 @@ export default function UserSettingsModal({
   const [settings, setSettings] = useState<UserSettings>(currentSettings);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
 
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
   useEffect(() => {
     if (isOpen) {
@@ -68,11 +68,10 @@ export default function UserSettingsModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">

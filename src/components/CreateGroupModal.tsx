@@ -19,8 +19,8 @@ export default function CreateGroupModal({
   const [groupType, setGroupType] = useState<GroupType>('compras');
   const [description, setDescription] = useState('');
 
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
   if (!isOpen) return null;
 
@@ -47,11 +47,10 @@ export default function CreateGroupModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-600 to-indigo-600">

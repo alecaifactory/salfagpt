@@ -79,8 +79,9 @@ export default function ContextManagementDashboard({
   onSourcesUpdated
 }: ContextManagementDashboardProps) {
   
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC (dashboard de pantalla completa)
+  const modalRef = useModalClose(isOpen, onClose, false, true, false); // No close on outside click for dashboards
+  
   const [sources, setSources] = useState<EnrichedContextSource[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -183,7 +184,9 @@ export default function ContextManagementDashboard({
     
     try {
       // Load folder structure
-      const structureResponse = await fetch('/api/context-sources/folder-structure');
+      const structureResponse = await fetch('/api/context-sources/folder-structure', {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       if (structureResponse.ok) {
         const data = await structureResponse.json();
         setFolderStructure(data.folders || []);
@@ -195,10 +198,14 @@ export default function ContextManagementDashboard({
           if (folder.name) tagsSet.add(folder.name);
         });
         setAllTags(Array.from(tagsSet).sort());
+      } else {
+        console.error('❌ Failed to load folder structure:', structureResponse.status);
       }
       
       // Load first 10 documents
-      const response = await fetch('/api/context-sources/paginated?page=0&limit=10');
+      const response = await fetch('/api/context-sources/paginated?page=0&limit=10', {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       if (response.ok) {
         const data = await response.json();
         setSources(data.sources || []);
@@ -208,6 +215,8 @@ export default function ContextManagementDashboard({
         console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
         console.log('📊 Total count:', data.totalCount || 0);
         console.log('📁 Folders:', data.folders?.length || 0);
+      } else {
+        console.error('❌ Failed to load sources:', response.status);
       }
     } catch (error) {
       console.error('Error loading context sources:', error);
@@ -223,7 +232,9 @@ export default function ContextManagementDashboard({
     const nextPage = currentPage + 1;
     
     try {
-      const response = await fetch(`/api/context-sources/paginated?page=${nextPage}&limit=10`);
+      const response = await fetch(`/api/context-sources/paginated?page=${nextPage}&limit=10`, {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       if (response.ok) {
         const data = await response.json();
         setSources(prev => [...prev, ...(data.sources || [])]);
@@ -231,6 +242,8 @@ export default function ContextManagementDashboard({
         setCurrentPage(nextPage);
         
         console.log('✅ Loaded page', nextPage, ':', data.sources?.length || 0, 'sources');
+      } else {
+        console.error('❌ Failed to load page:', response.status);
       }
     } catch (error) {
       console.error('Error loading next page:', error);
@@ -446,6 +459,7 @@ export default function ContextManagementDashboard({
         const uploadResponse = await fetch('/api/extract-document', {
           method: 'POST',
           body: formData,
+          credentials: 'include', // ✅ FIX: Include cookies for authentication
         });
 
         if (!uploadResponse.ok) {
@@ -475,6 +489,7 @@ export default function ContextManagementDashboard({
         const createResponse = await fetch('/api/context-sources', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include', // ✅ FIX: Include cookies for authentication
           body: JSON.stringify({
             userId,
             name: item.file.name,
@@ -518,6 +533,7 @@ export default function ContextManagementDashboard({
             const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'include', // ✅ FIX: Include cookies for authentication
               body: JSON.stringify({
                 userId,
                 chunkSize: 500,
@@ -679,6 +695,7 @@ export default function ContextManagementDashboard({
       const response = await fetch('/api/context-sources/bulk-assign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
         body: JSON.stringify(requestBody),
       });
 
@@ -722,6 +739,7 @@ export default function ContextManagementDashboard({
       const response = await fetch('/api/context-sources/bulk-assign-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
         body: JSON.stringify({
           sourceIds: selectedSourceIds,
           agentIds: pendingAgentIds,
@@ -882,6 +900,7 @@ export default function ContextManagementDashboard({
     try {
       const response = await fetch(`/api/context-sources/${sourceId}`, {
         method: 'DELETE',
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
       });
 
       if (response.ok) {
@@ -938,11 +957,10 @@ export default function ContextManagementDashboard({
   return (
     <div 
       className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -1700,6 +1718,7 @@ export default function ContextManagementDashboard({
                       await fetch(`/api/context-sources/${selectedSource.id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include', // ✅ FIX: Include cookies for authentication
                         body: JSON.stringify({ 
                           labels: newLabels,
                           tags: newLabels,
@@ -1714,6 +1733,7 @@ export default function ContextManagementDashboard({
                             await fetch(`/api/context-sources/${selectedSource.id}/assign-agent`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include', // ✅ FIX: Include cookies for authentication
                               body: JSON.stringify({ agentId }),
                             });
                           } catch (error) {
