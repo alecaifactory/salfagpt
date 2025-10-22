@@ -3,6 +3,8 @@ import {
   saveConversationContext,
   loadConversationContext,
 } from '../../../../lib/firestore';
+import { syncAgentAssignments } from '../../../../lib/bigquery-agent-sync';
+import { getSession } from '../../../../lib/auth';
 
 // GET /api/conversations/:id/context-sources - Load conversation context sources
 export const GET: APIRoute = async ({ params }) => {
@@ -32,7 +34,7 @@ export const GET: APIRoute = async ({ params }) => {
 };
 
 // POST /api/conversations/:id/context-sources - Save conversation context sources
-export const POST: APIRoute = async ({ params, request }) => {
+export const POST: APIRoute = async ({ params, request, cookies }) => {
   try {
     const conversationId = params.id;
     const body = await request.json();
@@ -52,7 +54,21 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    // Get user session for BigQuery sync
+    const session = getSession({ cookies } as any);
+    const userId = session?.id || '';
+
+    // 1. Save to Firestore (primary persistence)
     await saveConversationContext(conversationId, activeContextSourceIds);
+
+    // 2. Sync to BigQuery (for agent-based search)
+    // This runs async - don't wait for it (non-blocking)
+    if (userId && activeContextSourceIds.length > 0) {
+      syncAgentAssignments(conversationId, activeContextSourceIds, userId, 'assign')
+        .catch(err => console.warn('⚠️ BigQuery sync failed (non-critical):', err));
+      
+      console.log(`💾 Saved context for conversation: ${conversationId}`, activeContextSourceIds);
+    }
 
     return new Response(
       JSON.stringify({ success: true }),

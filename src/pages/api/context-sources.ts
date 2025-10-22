@@ -6,6 +6,7 @@ import {
   deleteContextSource,
 } from '../../lib/firestore';
 import { getSession } from '../../lib/auth';
+import { syncAgentAssignments } from '../../lib/bigquery-agent-sync';
 
 // GET /api/context-sources - List user's context sources
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -83,6 +84,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const source = await createContextSource(userId, sourceData);
+
+    // ✅ Sync assignments to BigQuery (non-blocking)
+    if (source.assignedToAgents && source.assignedToAgents.length > 0) {
+      // Sync each agent assignment
+      source.assignedToAgents.forEach(agentId => {
+        syncAgentAssignments(agentId, [source.id], userId, 'assign')
+          .catch(err => console.warn(`⚠️ Failed to sync assignment to BigQuery:`, err));
+      });
+      
+      console.log(`🔗 Syncing source ${source.id} to ${source.assignedToAgents.length} agents in BigQuery`);
+    }
 
     return new Response(
       JSON.stringify({ source }),
