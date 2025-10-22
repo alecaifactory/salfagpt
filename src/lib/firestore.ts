@@ -504,16 +504,24 @@ export async function createFolder(userId: string, name: string): Promise<Folder
 }
 
 export async function getFolders(userId: string): Promise<Folder[]> {
+  // WORKAROUND: Query without orderBy to avoid index requirement
+  // TODO: Deploy firestore.indexes.json to enable orderBy in query
   const snapshot = await firestore
     .collection(COLLECTIONS.FOLDERS)
     .where('userId', '==', userId)
-    .orderBy('createdAt', 'desc')
+    // .orderBy('createdAt', 'desc')  // Requires composite index - temporarily disabled
     .get();
 
-  return snapshot.docs.map(doc => ({
+  // Sort in memory instead
+  const folders = snapshot.docs.map(doc => ({
     ...doc.data(),
     createdAt: doc.data().createdAt.toDate(),
   })) as Folder[];
+  
+  // Sort by createdAt descending (newest first)
+  folders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  
+  return folders;
 }
 
 export async function updateFolder(folderId: string, name: string): Promise<void> {

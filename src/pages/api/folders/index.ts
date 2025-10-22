@@ -25,8 +25,19 @@ export const GET: APIRoute = async ({ request }) => {
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
     } catch (firestoreError) {
-      // If Firestore fails (e.g., in dev mode), return empty folders
-      console.warn('⚠️ Firestore unavailable, returning empty folders');
+      // Log the actual error for debugging
+      console.error('❌ Firestore error in getFolders:', firestoreError);
+      console.error('Error details:', firestoreError instanceof Error ? firestoreError.message : String(firestoreError));
+      
+      // If it's an index error, provide helpful message
+      if (firestoreError instanceof Error && firestoreError.message.includes('index')) {
+        console.error('💡 This query requires a Firestore index. Run:');
+        console.error('   firebase deploy --only firestore:indexes --project gen-lang-client-0986191192');
+        console.error('   Or create manually in Firebase Console');
+      }
+      
+      // Return empty folders but log the error
+      console.warn('⚠️ Firestore query failed, returning empty folders');
       return new Response(
         JSON.stringify({ folders: [] }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }

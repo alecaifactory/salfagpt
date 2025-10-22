@@ -1102,23 +1102,37 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // NEW: Folder management functions
   const createNewFolder = async (name: string) => {
     try {
+      console.log('🚀 Starting createNewFolder with name:', name);
+      console.log('📋 userId:', userId);
+      
       const response = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, name }),
       });
 
+      console.log('📡 API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Proyecto creado en Firestore:', data.folder.id, 'Name:', data.folder.name);
+        console.log('📦 Folder data:', JSON.stringify(data.folder, null, 2));
+        
+        // Ensure Projects section is expanded
+        setShowProjectsSection(true);
         
         // CRITICAL: Reload from Firestore to ensure persistence
         console.log('🔄 Recargando proyectos desde Firestore para verificar persistencia...');
         await loadFolders();
         console.log('✅ Proyecto creado y lista recargada desde Firestore');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API error:', response.status, errorData);
+        alert(`Error al crear proyecto: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('❌ Error creating folder:', error);
+      alert(`Error al crear proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -2799,7 +2813,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 onClick={(e) => {
                   e.stopPropagation();
                   const name = prompt('Nombre del nuevo proyecto:');
-                  if (name) createNewFolder(name);
+                  if (name && name.trim()) {
+                    console.log('📝 Creating project with name:', name.trim());
+                    createNewFolder(name.trim());
+                  } else if (name !== null) {
+                    // User clicked OK but entered empty name
+                    alert('Por favor ingresa un nombre para el proyecto');
+                  }
                 }}
                 className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
                 title="Nuevo Proyecto"
