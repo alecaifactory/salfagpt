@@ -231,6 +231,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
+  const [contextStats, setContextStats] = useState<{
+    totalCount: number;
+    activeCount: number;
+  } | null>(null); // NEW: Minimal stats for display (no metadata needed!)
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   
@@ -595,15 +599,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       // Just show count in UI (no metadata, no loading 628 sources!)
       setContextSources([]); // Clear - not needed for RAG!
       
-      // TODO: Add minimal stats display in UI
-      // For now, context panel will show "Loading sources via BigQuery..."
+      // ✅ NEW: Set stats for UI display
+      setContextStats({
+        totalCount: data.totalCount || 0,
+        activeCount: data.activeCount || 0
+      });
       
       console.log(`✅ Minimal context stats loaded: ${data.totalCount} sources (${data.loadTime}ms)`);
       console.log(`   Agent-based search enabled - no source metadata needed!`);
+      console.log(`   UI will show: ${data.activeCount} activas / ${data.totalCount} asignadas`);
       
     } catch (error) {
       console.error('Error loading context:', error);
       setContextSources([]); // Clear on error
+      setContextStats(null); // Clear stats on error
     }
   };
 
@@ -4028,24 +4037,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
                       <span className="text-xs text-slate-500">
-                        {contextSources.filter(s => s.enabled).length} activas / {contextSources.length} asignadas • ~{(() => {
-                          // Calculate mixed-mode tokens (some RAG, some full-text)
-                          const totalTokens = contextSources.filter(s => s.enabled).reduce((sum, s) => {
-                            const fullTokens = Math.floor((s.extractedData?.length || 0) / 4);
-                            
-                            // Check if this source uses RAG mode
-                            const sourceUseRAG = (s as any).useRAGMode !== false && s.ragEnabled;
-                            if (sourceUseRAG && s.ragMetadata) {
-                              // Estimate: top 5 chunks @ ~500 tokens each = ~2500
-                              return sum + Math.min(2500, fullTokens);
-                            }
-                            
-                            // Otherwise full-text for this source
-                            return sum + fullTokens;
-                          }, 0);
-                          
-                          return Math.ceil(totalTokens);
-                        })()} tokens
+                        {contextStats ? (
+                          <>
+                            <span className="font-semibold text-green-600">{contextStats.activeCount} activas</span>
+                            {' / '}
+                            <span>{contextStats.totalCount} asignadas</span>
+                            {' • '}
+                            <span className="text-blue-600">BigQuery RAG</span>
+                          </>
+                        ) : (
+                          'Cargando...'
+                        )}
                       </span>
                     </div>
                     
@@ -4102,12 +4104,66 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                         </div>
                       </div>
                     )}
-                    {contextSources.length === 0 ? (
-                      <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
-                        No hay fuentes asignadas a este agente. Agrégalas desde "Configurar Agente".
+                    {/* ✅ NEW: Show stats-based display (no source list needed for BigQuery RAG) */}
+                    {contextStats && contextStats.activeCount > 0 ? (
+                      <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-green-600" />
+                          <span className="text-xs font-bold text-green-800">
+                            BigQuery RAG Activo
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-700 mb-2">
+                          <span className="font-bold text-green-600">{contextStats.activeCount} fuentes</span> indexadas con embeddings semánticos.
+                        </p>
+                        <div className="bg-white/50 rounded p-2 text-[10px] text-slate-600">
+                          <p className="flex items-center gap-1 mb-1">
+                            <span>⚡</span>
+                            <span>BigQuery busca fragmentos relevantes automáticamente</span>
+                          </p>
+                          <p className="flex items-center gap-1">
+                            <span>📊</span>
+                            <span>Referencias se cargan dinámicamente en cada respuesta</span>
+                          </p>
+                        </div>
+                      </div>
+                    ) : contextStats && contextStats.totalCount > 0 ? (
+                      <p className="text-xs text-slate-500 bg-yellow-50 border border-yellow-200 p-3 rounded text-center">
+                        <span className="font-semibold">{contextStats.totalCount} fuentes asignadas</span>, pero ninguna activa.
+                        <br />
+                        <button 
+                          onClick={() => {
+                            setShowAgentContextModal(true);
+                            setAgentForContextConfig(currentConversation);
+                          }}
+                          className="text-blue-600 hover:underline mt-2 inline-block font-medium"
+                        >
+                          → Activar fuentes
+                        </button>
+                      </p>
+                    ) : contextStats ? (
+                      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 p-3 rounded text-center">
+                        No hay fuentes asignadas a este agente.
+                        <br />
+                        <button 
+                          onClick={() => {
+                            setShowAgentContextModal(true);
+                            setAgentForContextConfig(currentConversation);
+                          }}
+                          className="text-blue-600 hover:underline mt-2 inline-block font-medium"
+                        >
+                          → Configurar fuentes
+                        </button>
                       </p>
                     ) : (
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                      <p className="text-xs text-slate-400 bg-slate-50 p-2 rounded text-center animate-pulse">
+                        Cargando estado de fuentes...
+                      </p>
+                    )}
+                    
+                    {/* OLD: Source list hidden - BigQuery handles RAG automatically */}
+                    {false && contextSources.length > 0 && (
+                      <div className="space-y-2 max-h-96 overflow-y-auto hidden">
                         {contextSources.map(source => {
                           // Calculate tokens for this source
                           const fullTextTokens = Math.floor((source.extractedData?.length || 0) / 4);
