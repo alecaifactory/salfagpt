@@ -7,6 +7,7 @@
 import { firestore } from './firestore';
 import { chunkText } from './chunking';
 import { generateEmbedding } from './embeddings';
+import { syncChunksBatchToBigQuery } from './bigquery-vector-search';
 
 export interface IndexingOptions {
   sourceId: string;
@@ -135,6 +136,27 @@ export async function chunkAndIndexDocument(
       // Save this batch to Firestore
       await batch.commit();
       console.log(`  ✓ Saved ${batchChunks.length} chunks (embeddings generated in parallel)`);
+      
+      // ✅ NEW: Sync to BigQuery for vector search (non-blocking)
+      const chunksForBigQuery = batchChunks.map((chunk, j) => ({
+        id: `${sourceId}_chunk_${chunk.chunkIndex}`, // Generate deterministic ID
+        sourceId,
+        userId,
+        chunkIndex: chunk.chunkIndex,
+        text: chunk.text,
+        embedding: embeddingsForBatch[j],
+        metadata: {
+          startChar: chunk.startChar,
+          endChar: chunk.endChar,
+          tokenCount: chunk.tokenCount,
+          startPage: chunk.metadata?.startPage,
+          endPage: chunk.metadata?.endPage,
+        }
+      }));
+      
+      syncChunksBatchToBigQuery(chunksForBigQuery).catch(err => {
+        console.warn('⚠️ BigQuery sync failed (non-critical):', err.message);
+      });
       
       // Reduced delay (was 100ms, now 50ms)
       if (i + firestoreBatchSize < chunks.length) {

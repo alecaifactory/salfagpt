@@ -224,7 +224,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
-  const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
+  // DISABLED FULL-TEXT MODE: RAG is now the ONLY option
+  // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
+  const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
   const [ragTopK, setRagTopK] = useState(5); // Top 5 chunks (optimal for context window)
   const [ragMinSimilarity, setRagMinSimilarity] = useState(0); // 0 = show all similarities for debugging
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -533,7 +535,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
-  const loadContextForConversation = async (conversationId: string, skipRAGVerification = false) => {
+  const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
       // ✅ PERFORMANCE: Use dedicated lightweight endpoint when skipping RAG verification
       if (skipRAGVerification) {
@@ -587,7 +589,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         return; // ⚠️ CRITICAL: Exit here to avoid heavy RAG verification
       }
       
-      // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation)
+      // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation - only use when explicitly needed)
       console.log('🔄 Full context load with RAG verification...');
       
       // Load metadata only (no extractedData) - 10-50x faster than full load!
@@ -1437,15 +1439,51 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setMessages(prev => [...prev, streamingMessage]);
 
     try {
-      // ✅ PERFORMANCE: Load full extractedData only for active sources (on-demand)
-      const activeSources = contextSources.filter(source => source.enabled);
-      const fullActiveSources = await loadFullContextSources(activeSources);
+      // ✅ SHOW STATUS IMMEDIATELY: Initialize thinking steps BEFORE heavy operations
+      const stepLabels = {
+        thinking: 'Pensando...',
+        searching: 'Buscando Contexto Relevante...',
+        selecting: 'Seleccionando Chunks...',
+        generating: 'Generando Respuesta...'
+      };
+
+      const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
+        id: key,
+        label,
+        status: key === 'thinking' ? 'active' as const : 'pending' as const,
+        timestamp: new Date(),
+        dots: 0
+      }));
+
+      setCurrentThinkingSteps(initialSteps);
       
-      const activeContextSources = fullActiveSources.map(source => ({
+      // Update streaming message with initial thinking steps
+      setMessages(prev => prev.map(msg => 
+        msg.id === streamingId 
+          ? { ...msg, thinkingSteps: initialSteps }
+          : msg
+      ));
+      
+      // ✅ RAG MODE: No need to load full extractedData - BigQuery will find relevant chunks
+      // Just get active source IDs for RAG search
+      const activeSources = contextSources.filter(source => source.enabled);
+      
+      // Update to "searching" status (now instant - no loading needed!)
+      setCurrentThinkingSteps(prev => prev.map(step => 
+        step.id === 'thinking' 
+          ? { ...step, status: 'complete' as const }
+          : step.id === 'searching'
+          ? { ...step, status: 'active' as const, timestamp: new Date() }
+          : step
+      ));
+      
+      // ✅ OPTIMIZED: Send only source IDs - API uses BigQuery for similarity search
+      // No need to transfer 50+ MB of full document text!
+      const activeContextSources = activeSources.map(source => ({
         id: source.id,
         name: source.name,
-        type: 'pdf',
-        content: source.extractedData
+        type: 'pdf'
+        // NO content field! BigQuery finds relevant chunks, not full documents
       }));
 
       // Use streaming endpoint
@@ -1458,7 +1496,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
           contextSources: activeContextSources,
-          ragEnabled: agentRAGMode === 'rag',
+          ragEnabled: true, // HARDCODED: RAG is now the ONLY option (was: agentRAGMode === 'rag')
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
         })
@@ -1476,25 +1514,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       let finalUserMessageId = '';
 
       if (reader) {
-        // Initialize thinking steps
-        const stepLabels = {
-          thinking: 'Pensando...',
-          searching: 'Buscando Contexto Relevante...',
-          selecting: 'Seleccionando Chunks...',
-          generating: 'Generando Respuesta...'
-        };
-
-        const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
-          id: key,
-          label,
-          status: 'pending' as const,
-          timestamp: new Date(),
-          dots: 0
-        }));
-
-        setCurrentThinkingSteps(initialSteps);
-
-        // Start ellipsis animation for thinking steps
+        // ✅ Thinking steps already initialized above (lines 1442-1478)
+        // Just start the ellipsis animation
         const dotsInterval = setInterval(() => {
           setCurrentThinkingSteps(prev => prev.map(step => ({
             ...step,
@@ -2051,9 +2072,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               const indexData = await indexResponse.json();
               console.log(`✅ RAG indexing complete: ${indexData.chunksCreated} chunks created`);
               
-              // Reload context sources to show RAG metadata
+              // Reload context sources to show RAG metadata (force verification since we just indexed)
               if (currentConversation) {
-                await loadContextForConversation(currentConversation);
+                await loadContextForConversation(currentConversation, false); // Force RAG verification
               }
             } else {
               console.warn('⚠️ RAG indexing failed, document still usable in full-text mode');

@@ -204,8 +204,8 @@ export async function generateEmbeddings(
 }
 
 /**
- * Store embeddings in Firestore
- * (In future: migrate to BigQuery or Vertex AI Vector Search for better performance)
+ * Store embeddings in Firestore AND BigQuery
+ * ✅ NEW: Now syncs to BigQuery for optimized vector search
  */
 export async function storeEmbeddings(
   documentId: string,
@@ -266,6 +266,31 @@ export async function storeEmbeddings(
   
   console.log(`   ✅ Stored ${embeddings.length} chunks in collection 'document_chunks'`);
   console.log(`   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks`);
+  
+  // ✅ NEW: Sync to BigQuery for vector search (non-blocking)
+  console.log(`   📊 Syncing to BigQuery for vector search...`);
+  try {
+    const { syncChunksBatchToBigQuery } = await import('../../src/lib/bigquery-vector-search.js');
+    
+    const chunksForBigQuery = embeddings.map(embedding => ({
+      id: `${documentId}_chunk_${embedding.chunkIndex}`,
+      sourceId: documentId,
+      userId,
+      chunkIndex: embedding.chunkIndex,
+      text: embedding.text,
+      embedding: embedding.embedding,
+      metadata: {
+        tokenCount: embedding.tokenCount,
+        startChar: 0,
+        endChar: embedding.text.length,
+      }
+    }));
+    
+    await syncChunksBatchToBigQuery(chunksForBigQuery);
+    console.log(`   ✅ Synced ${embeddings.length} chunks to BigQuery`);
+  } catch (error) {
+    console.warn('   ⚠️ BigQuery sync failed (non-critical):', error);
+  }
 }
 
 /**
