@@ -571,181 +571,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
-      // ✅ CACHE CHECK: Skip API if cached
-      const cached = getCachedSources(conversationId);
-      if (cached) {
-        setContextSources(cached.sources);
-        console.log(`✅ Loaded ${cached.sources.length} sources from CACHE (0ms)`);
+      // ✅ MINIMAL: For RAG with BigQuery, we only need COUNT (not full metadata!)
+      // BigQuery handles finding relevant chunks by agentId
+      console.log('⚡ Loading minimal context stats (count only - BigQuery handles search)...');
+      
+      const response = await fetch(`/api/agents/${conversationId}/context-stats`);
+      if (!response.ok) {
+        console.warn('⚠️ Could not load context stats');
+        setContextSources([]); // Clear sources - not needed for agent search
         return;
       }
       
-      // ✅ PERFORMANCE: Use dedicated lightweight endpoint when skipping RAG verification
-      if (skipRAGVerification) {
-        console.log('⚡ Using lightweight metadata endpoint (no RAG verification)...');
-        
-        const response = await fetch(`/api/conversations/${conversationId}/context-sources-metadata`);
-        if (!response.ok) {
-          console.warn('⚠️ No se pudieron cargar fuentes de contexto');
-          return;
-        }
-        
-        const data = await response.json();
-        const sources = data.sources || [];
-        
-        // Convert dates
-        const sourcesWithDates = sources.map((source: any) => ({
-          ...source,
-          addedAt: new Date(source.addedAt),
-          metadata: source.metadata ? {
-            ...source.metadata,
-            validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
-          } : undefined,
-          ragMetadata: source.ragMetadata ? {
-            ...source.ragMetadata,
-            indexedAt: source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt) : undefined,
-          } : undefined,
-        }));
-        
-        // Log filtering results BEFORE setting state
-        const publicSources = sourcesWithDates.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
-        const assignedSources = sourcesWithDates.filter((s: any) => s.assignedToAgents?.includes(conversationId));
-        
-        console.log('✅ Lightweight context refresh complete:');
-        console.log(`   Total sources returned by API: ${sourcesWithDates.length}`);
-        console.log(`   Agent/Conversation ID: ${conversationId}`);
-        console.log(`   - PUBLIC sources: ${publicSources.length}`);
-        console.log(`   - Assigned to this agent: ${assignedSources.length}`);
-        console.log(`   - Active (toggled ON): ${sourcesWithDates.filter((s: any) => s.enabled).length}`);
-        
-        // Sample to debug
-        if (sourcesWithDates.length > 0) {
-          const sample = sourcesWithDates[0];
-          console.log('   📄 Sample source:', sample.name);
-          console.log('      - assignedToAgents:', sample.assignedToAgents);
-          console.log('      - includes agentId?:', sample.assignedToAgents?.includes(conversationId));
-        }
-        
-        setContextSources(sourcesWithDates);
-        
-        // ✅ CACHE: Save to cache after successful load
-        setCachedSources(conversationId, sourcesWithDates, data.activeContextSourceIds || []);
-        
-        console.log('✅ Lightweight load complete - SKIPPING RAG verification');
-        return; // ⚠️ CRITICAL: Exit here to avoid heavy RAG verification
-      }
+      const data = await response.json();
       
-      // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation - only use when explicitly needed)
-      console.log('🔄 Full context load with RAG verification...');
-      
-      // Load metadata only (no extractedData) - 10-50x faster than full load!
-      const sourcesResponse = await fetch(`/api/context-sources-metadata?userId=${userId}`);
-      if (!sourcesResponse.ok) {
-        console.warn('⚠️ No se pudieron cargar fuentes de contexto');
-        return;
-      }
-      
-      const sourcesData = await sourcesResponse.json();
-      const allSources = sourcesData.sources || [];
-      console.log('⚡ Loaded context sources metadata (optimized, no extractedData):', allSources.length);
-      
-      // Get active source IDs for this conversation
-      const contextResponse = await fetch(`/api/conversations/${conversationId}/context-sources`);
-      const contextData = contextResponse.ok ? await contextResponse.json() : { activeContextSourceIds: [] };
-      const activeIds = contextData.activeContextSourceIds || [];
-      
-      // Filter sources assigned to this agent BEFORE setting state
-      // This prevents showing all sources momentarily before filtering
-      const filteredSources = allSources
-        .filter((source: any) => {
-          // Show if:
-          // 1. Source has PUBLIC tag/label (visible to all agents)
-          // 2. Assigned to this agent specifically
-          // Note: Removed backward compat to prevent private docs from appearing in new agents
-          const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
-          const isAssignedToThisAgent = source.assignedToAgents?.includes(conversationId);
-          
-          return hasPublicTag || isAssignedToThisAgent;
-        })
-        .map((source: any) => ({
-          ...source,
-          enabled: activeIds.includes(source.id),
-          addedAt: new Date(source.addedAt),
-          metadata: source.metadata ? {
-            ...source.metadata,
-            extractionDate: source.metadata.extractionDate ? new Date(source.metadata.extractionDate) : undefined,
-            validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
-          } : undefined,
-          // ✅ FIX: Explicitly preserve ragEnabled and ragMetadata with proper date conversion
-          // ragEnabled should come from Firestore as-is (true/false/undefined)
-          ragEnabled: source.ragEnabled,
-          ragMetadata: source.ragMetadata ? {
-            ...source.ragMetadata,
-            indexedAt: source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt) : undefined,
-          } : undefined,
-        }));
-      
-      // ✅ HEAVY OPERATION: Verificar existencia de chunks (solo cuando es necesario)
-      // Solo cargamos los stats, NO los chunks completos
-      console.log('🔄 Verificando estado RAG de fuentes...');
-      const sourcesWithVerifiedRAG = await Promise.all(
-        filteredSources.map(async (source: any) => {
-          // Si ya tiene ragMetadata con chunkCount, confiar en eso
-          if (source.ragMetadata?.chunkCount > 0) {
-            return {
-              ...source,
-              ragEnabled: true, // Si tiene chunks, RAG está habilitado
-            };
-          }
-          
-          // Si no tiene ragMetadata, verificar rápidamente con HEAD request o stats
-          try {
-            const chunksResponse = await fetch(`/api/context-sources/${source.id}/chunks`);
-            if (chunksResponse.ok) {
-              const chunksData = await chunksResponse.json();
-              const hasChunks = chunksData.stats && chunksData.stats.totalChunks > 0;
-              
-              return {
-                ...source,
-                ragEnabled: hasChunks,
-                ragMetadata: hasChunks ? {
-                  chunkCount: chunksData.stats.totalChunks,
-                  avgChunkSize: chunksData.stats.avgChunkSize,
-                  indexedAt: source.ragMetadata?.indexedAt || new Date(),
-                  embeddingModel: 'text-embedding-004',
-                } : source.ragMetadata,
-              };
-            }
-            return source;
-          } catch (error) {
-            // En caso de error, mantener datos originales
-            return source;
-          }
-        })
-      );
-      
-      // ONLY set state after filtering AND verification
-      setContextSources(sourcesWithVerifiedRAG);
-      
-      // ✅ DEBUG: Log RAG status
-      console.log('📊 RAG Status:', sourcesWithVerifiedRAG.map((s: any) => ({
-        name: s.name,
-        ragEnabled: s.ragEnabled,
-        chunkCount: s.ragMetadata?.chunkCount || 0
-      })));
-      
-      // Log filtering details
-      const publicSources = sourcesWithVerifiedRAG.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
-      const assignedSources = sourcesWithVerifiedRAG.filter((s: any) => s.assignedToAgents?.includes(conversationId));
-      
-      console.log(`✅ Context sources for agent ${conversationId}:`, {
-        total: sourcesWithVerifiedRAG.length,
-        public: publicSources.length,
-        assigned: assignedSources.length,
-        active: activeIds.length,
-        withRAG: sourcesWithVerifiedRAG.filter((s: any) => s.ragEnabled).length,
+      console.log(`✅ Context stats loaded:`, {
+        totalCount: data.totalCount,
+        activeCount: data.activeCount,
+        loadTime: data.loadTime + 'ms',
+        agentId: conversationId
       });
+      
+      // ✅ MINIMAL STATE: We don't need full sources array for agent-based search
+      // Just show count in UI (no metadata, no loading 628 sources!)
+      setContextSources([]); // Clear - not needed for RAG!
+      
+      // TODO: Add minimal stats display in UI
+      // For now, context panel will show "Loading sources via BigQuery..."
+      
+      console.log(`✅ Minimal context stats loaded: ${data.totalCount} sources (${data.loadTime}ms)`);
+      console.log(`   Agent-based search enabled - no source metadata needed!`);
+      
     } catch (error) {
       console.error('Error loading context:', error);
+      setContextSources([]); // Clear on error
     }
   };
 
@@ -1662,15 +1520,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           : msg
       ));
       
-      // ✅ RAG MODE: No need to load full extractedData - BigQuery will find relevant chunks
-      // Just get active source IDs for RAG search
-      const activeSources = contextSources.filter(source => source.enabled);
+      // ✅ OPTIMAL: Use agent-based search - NO need to load or send source IDs!
+      // BigQuery queries by agentId directly and finds relevant chunks
       
-      console.log(`📊 Context sources state check:`, {
-        totalSources: contextSources.length,
-        activeSources: activeSources.length,
-        contextSourcesLoaded: contextSources.length > 0,
-        agentId: currentConversation
+      console.log(`📊 Sending message with agent-based RAG search:`, {
+        agentId: currentConversation,
+        useAgentSearch: true,
+        note: 'Backend queries BigQuery by agentId - no source loading needed!'
       });
       
       // Update to "searching" status (now instant - no loading needed!)
@@ -1681,17 +1537,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           ? { ...step, status: 'active' as const, timestamp: new Date() }
           : step
       ));
-      
-      // ✅ OPTIMIZED: Send only source IDs - API uses BigQuery/Firestore for vector search
-      // No need to transfer 50+ MB of full document text!
-      const activeSourceIds = activeSources.map(source => source.id);
-
-      console.log(`📤 Sending ${activeSourceIds.length} source IDs (not full text) - BigQuery will find relevant chunks`);
-      
-      if (activeSourceIds.length === 0) {
-        console.warn('⚠️ WARNING: No active sources! Context sources may still be loading.');
-        console.warn('   This message will be sent WITHOUT RAG context.');
-      }
 
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
@@ -1702,10 +1547,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
-          activeSourceIds: activeSourceIds, // ✅ Just IDs! Backend does vector search
-          ragEnabled: true, // HARDCODED: RAG is now the ONLY option
+          useAgentSearch: true, // ✅ OPTIMAL: Backend queries BigQuery by agentId!
+          ragEnabled: true,
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
+          // NO activeSourceIds needed! Backend handles it!
         })
       });
 

@@ -14,6 +14,7 @@ import {
 import { streamAIResponse } from '../../../../lib/gemini';
 import { searchRelevantChunksOptimized, buildRAGContext, getRAGStats } from 
   '../../../../lib/rag-search-optimized';
+import { searchByAgent } from '../../../../lib/bigquery-agent-search';
 
 export const POST: APIRoute = async ({ params, request }) => {
   try {
@@ -28,14 +29,22 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // ✅ BACKWARD COMPATIBLE: Support both old and new formats
-    // Old format: contextSources = [{id, name, type, content}] (with full text)
-    // New format: activeSourceIds = ['id1', 'id2', ...] (just IDs)
+    // ✅ BACKWARD COMPATIBLE: Support three formats
+    // Format 1 (NEW - OPTIMAL): agentId only - BigQuery queries by agent
+    // Format 2 (OPTIMIZED): activeSourceIds = ['id1', 'id2', ...] (just IDs)
+    // Format 3 (OLD): contextSources = [{id, name, type, content}] (with full text)
+    const useAgentSearch = body.useAgentSearch !== false; // Default: true
+    const agentId = conversationId; // Agent ID is the conversation ID
     const activeSourceIds = body.activeSourceIds || 
       (body.contextSources && body.contextSources.map((s: any) => s.id).filter(Boolean)) || 
       [];
     
-    console.log(`📋 Active sources for RAG: ${activeSourceIds.length} IDs`);
+    console.log(`📋 RAG Configuration:`, {
+      useAgentSearch,
+      agentId,
+      activeSourceIdsCount: activeSourceIds.length,
+      approach: useAgentSearch ? 'AGENT_SEARCH (optimal)' : 'SOURCE_IDS (legacy)'
+    });
 
     // RAG configuration (RAG is now the ONLY option)
     const ragTopK = body.ragTopK || 5;
@@ -86,17 +95,47 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragResults: any[] = [];
 
           // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
-          if (activeSourceIds && activeSourceIds.length > 0) {
+          // Try agent-based search first if enabled (OPTIMAL - no source loading needed!)
+          if (useAgentSearch || (activeSourceIds && activeSourceIds.length > 0)) {
             sendStatus('searching', 'active');
             const searchStartTime = Date.now();
             
             // RAG ONLY MODE: Always try RAG search (full-text is disabled)
-            if (activeSourceIds.length > 0) {
-              try {
-                console.log('🔍 [Streaming] Attempting RAG search...');
-                console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
+            try {
+              console.log('🔍 [Streaming] Attempting RAG search...');
+              console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
+              
+              let searchResults: any[] = [];
+              let searchMethod = 'unknown';
+              
+              // ✅ OPTIMAL: Agent-based search (no source loading needed!)
+              if (useAgentSearch) {
+                console.log('  🚀 Using agent-based BigQuery search (OPTIMAL)...');
+                searchResults = await searchByAgent(userId, agentId, message, {
+                  topK: ragTopK,
+                  minSimilarity: ragMinSimilarity
+                });
                 
-                // ✅ NEW: Use optimized search (BigQuery first, Firestore fallback)
+                if (searchResults.length > 0) {
+                  searchMethod = 'agent-bigquery';
+                  ragResults = searchResults.map(r => ({
+                    id: r.chunk_id,
+                    text: r.text,
+                    sourceId: r.source_id,
+                    sourceName: r.source_name,
+                    chunkIndex: r.chunk_index,
+                    similarity: r.similarity,
+                    metadata: r.metadata
+                  }));
+                  console.log(`  ✅ Agent search: ${ragResults.length} chunks found`);
+                } else {
+                  console.log('  ⚠️ Agent search returned 0 results, trying legacy method...');
+                }
+              }
+              
+              // ✅ LEGACY: Source IDs-based search (if agent search disabled or failed)
+              if (ragResults.length === 0 && activeSourceIds.length > 0) {
+                console.log('  🔍 Using source IDs-based search (LEGACY)...');
                 const searchResult = await searchRelevantChunksOptimized(userId, message, {
                   topK: ragTopK,
                   minSimilarity: ragMinSimilarity,
@@ -105,16 +144,19 @@ export const POST: APIRoute = async ({ params, request }) => {
                 });
                 
                 ragResults = searchResult.results;
+                searchMethod = searchResult.searchMethod;
                 console.log(`  Search method: ${searchResult.searchMethod.toUpperCase()} (${searchResult.searchTime}ms)`);
+              }
                 
-                if (ragResults.length > 0) {
-                  // SUCCESS: Use RAG chunks
-                  additionalContext = buildRAGContext(ragResults);
-                  ragUsed = true;
-                  ragStats = getRAGStats(ragResults);
-                  console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
-                  console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
-                } else {
+              if (ragResults.length > 0) {
+                // SUCCESS: Use RAG chunks
+                additionalContext = buildRAGContext(ragResults);
+                ragUsed = true;
+                ragStats = getRAGStats(ragResults);
+                console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
+                console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
+                console.log(`  Search method: ${searchMethod}`);
+              } else {
                   // NO chunks found - check if documents exist at all
                   console.warn('⚠️ RAG: No chunks found above similarity threshold');
                   console.log('  Checking if documents have chunks available...');

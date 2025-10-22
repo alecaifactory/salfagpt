@@ -13,6 +13,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import { AgentSharingModal } from './AgentSharingModal';
 import SalfaAnalyticsDashboard from './SalfaAnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
+import AgentContextModal from './AgentContextModal';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
 import RAGConfigPanel from './RAGConfigPanel';
@@ -24,6 +25,40 @@ import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
 import type { AgentConfiguration } from '../types/agent-config';
 import type { SourceReference } from '../lib/gemini';
+
+// ===== PERFORMANCE: Context Sources Cache =====
+// Cache fuentes de contexto por agente para evitar queries repetidos de 16s
+interface AgentSourcesCache {
+  sources: ContextSource[];
+  activeIds: string[];
+  timestamp: number;
+}
+
+const agentSourcesCache = new Map<string, AgentSourcesCache>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+function getCachedSources(agentId: string): AgentSourcesCache | null {
+  const cached = agentSourcesCache.get(agentId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`⚡⚡⚡ CACHE HIT for agent ${agentId} - NO API call needed`);
+    return cached;
+  }
+  return null;
+}
+
+function setCachedSources(agentId: string, sources: ContextSource[], activeIds: string[]) {
+  agentSourcesCache.set(agentId, {
+    sources,
+    activeIds,
+    timestamp: Date.now(),
+  });
+  console.log(`💾 Cached ${sources.length} sources for agent ${agentId}`);
+}
+
+function invalidateCache(agentId: string) {
+  agentSourcesCache.delete(agentId);
+  console.log(`🗑️ Cache invalidated for agent: ${agentId}`);
+}
 
 interface Message {
   id: string;
@@ -223,7 +258,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
-  const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
+  // DISABLED FULL-TEXT MODE: RAG is now the ONLY option
+  // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
+  const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
   const [ragTopK, setRagTopK] = useState(5); // Top 5 chunks (optimal for context window)
   const [ragMinSimilarity, setRagMinSimilarity] = useState(0); // 0 = show all similarities for debugging
   const [isImpersonating, setIsImpersonating] = useState(false);
@@ -275,10 +312,58 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Global ESC key handler - closes any open modal/menu
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Close modals/menus in priority order (most specific to least specific)
+        if (showAddSourceModal) setShowAddSourceModal(false);
+        else if (showUserSettings) setShowUserSettings(false);
+        else if (showContextManagement) setShowContextManagement(false);
+        else if (showSalfaAnalytics) setShowSalfaAnalytics(false);
+        else if (showUserManagement) setShowUserManagement(false);
+        else if (showAgentManagement) setShowAgentManagement(false);
+        else if (showAgentConfiguration) setShowAgentConfiguration(false);
+        else if (showAgentEvaluation) setShowAgentEvaluation(false);
+        else if (showAnalytics) setShowAnalytics(false);
+        else if (showDomainManagement) setShowDomainManagement(false);
+        else if (showProviderManagement) setShowProviderManagement(false);
+        else if (showRAGConfig) setShowRAGConfig(false);
+        else if (showAgentContextModal) setShowAgentContextModal(false);
+        else if (showAgentSharingModal) setShowAgentSharingModal(false);
+        else if (showUserMenu) setShowUserMenu(false);
+        else if (showContextPanel) setShowContextPanel(false);
+        else if (settingsSource) setSettingsSource(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [
+    showAddSourceModal,
+    showUserSettings,
+    showContextManagement,
+    showSalfaAnalytics,
+    showUserManagement,
+    showAgentManagement,
+    showAgentConfiguration,
+    showAgentEvaluation,
+    showAnalytics,
+    showDomainManagement,
+    showProviderManagement,
+    showRAGConfig,
+    showAgentContextModal,
+    showAgentSharingModal,
+    showUserMenu,
+    showContextPanel,
+    settingsSource,
+  ]);
+
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
-  }, []);
+    loadFolders(); // Also load folders on mount
+  }, [userId]);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -287,6 +372,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       loadContextForConversation(currentConversation);
     }
   }, [currentConversation]);
+
+  // AgentContextModal handles its own data loading with pagination
+  // No need to pre-load context sources here
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -301,18 +389,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     
     return () => clearInterval(interval);
   }, []);
-
-  // Close user menu with ESC key
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showUserMenu) {
-        setShowUserMenu(false);
-      }
-    };
-    
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [showUserMenu]);
 
   // Handle panel resizing
   useEffect(() => {
@@ -350,19 +426,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // NEW: Load folders from Firestore
   const loadFolders = async () => {
     try {
+      console.log('📥 Cargando proyectos desde Firestore...');
       const response = await fetch(`/api/folders?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
-        const foldersWithDates = (data.folders || []).map((f: any) => ({
+        const foldersWithDates = (data.folders || []).map((f: { id: string; name: string; createdAt: string | Date; conversationCount?: number }) => ({
           id: f.id,
           name: f.name,
           createdAt: new Date(f.createdAt),
           conversationCount: f.conversationCount || 0,
         }));
         setFolders(foldersWithDates);
-        console.log('✅ Folders loaded:', foldersWithDates.length);
+        
         if (foldersWithDates.length > 0) {
-          console.log('📁 First folder:', foldersWithDates[0]);
+          console.log(`✅ ${foldersWithDates.length} proyectos cargados desde Firestore`);
+          console.log('📁 Proyectos:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
+        } else {
+          console.log('ℹ️ No hay proyectos guardados');
         }
       }
     } catch (error) {
@@ -373,45 +453,86 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const loadConversations = async () => {
     try {
+      console.log('📥 Cargando conversaciones desde Firestore...');
       const response = await fetch(`/api/conversations?userId=${userId}`);
+      
       if (response.ok) {
         const data = await response.json();
-        const allConvs = (data.groups?.flatMap((g: any) => g.conversations) || []).map((conv: any) => ({
-          ...conv,
-          hasBeenRenamed: conv.hasBeenRenamed || false // Ensure hasBeenRenamed is loaded
-        }));
         
-        // NEW: Load shared agents
-        try {
-          const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
-          if (sharedResponse.ok) {
-            const sharedData = await sharedResponse.json();
-            const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
-              ...conv,
-              isShared: true, // Mark as shared
-              hasBeenRenamed: conv.hasBeenRenamed || false
-            }));
-            
-            // Combine own agents with shared agents
-            setConversations([...allConvs, ...sharedAgents]);
-          } else {
-            setConversations(allConvs);
+        if (data.groups && data.groups.length > 0) {
+          // Flatten all groups into a single conversation list
+          const allConversations: Conversation[] = [];
+          data.groups.forEach((group: any) => {
+            group.conversations.forEach((conv: any) => {
+              allConversations.push({
+                id: conv.id,
+                title: conv.title,
+                userId: conv.userId || userId,
+                createdAt: new Date(conv.createdAt || Date.now()),
+                updatedAt: new Date(conv.updatedAt || Date.now()),
+                lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+                messageCount: conv.messageCount || 0,
+                contextWindowUsage: conv.contextWindowUsage || 0,
+                agentModel: conv.agentModel || 'gemini-2.5-flash',
+                status: conv.status || 'active',
+                hasBeenRenamed: conv.hasBeenRenamed || false,
+                isAgent: conv.isAgent !== false,
+                agentId: conv.agentId,
+                folderId: conv.folderId,
+              });
+            });
+          });
+          
+          // NEW: Load shared agents
+          try {
+            const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
+            if (sharedResponse.ok) {
+              const sharedData = await sharedResponse.json();
+              const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
+                ...conv,
+                isShared: true,
+                hasBeenRenamed: conv.hasBeenRenamed || false,
+                createdAt: new Date(conv.createdAt || Date.now()),
+                updatedAt: new Date(conv.updatedAt || Date.now()),
+                lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+              }));
+              
+              // Combine own agents with shared agents
+              setConversations([...allConversations, ...sharedAgents]);
+              console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${allConversations.length + sharedAgents.length} total`);
+            } else {
+              setConversations(allConversations);
+            }
+          } catch (sharedError) {
+            console.warn('Could not load shared agents:', sharedError);
+            setConversations(allConversations);
           }
-        } catch (sharedError) {
-          console.warn('Could not load shared agents:', sharedError);
-          setConversations(allConvs);
+          
+          // Auto-select first agent if none selected
+          if (!selectedAgent && allConversations.length > 0) {
+            const firstAgent = allConversations.find(c => c.isAgent !== false && c.status !== 'archived');
+            if (firstAgent) {
+              setSelectedAgent(firstAgent.id);
+              setCurrentConversation(firstAgent.id);
+            }
+          }
+          
+          console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
+          console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
+          console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+        } else {
+          console.log('ℹ️ No hay conversaciones guardadas');
+          setConversations([]);
         }
         
-        // Auto-select first conversation or create one
-        if (allConvs.length > 0) {
-          setCurrentConversation(allConvs[0].id);
-        } else {
-          createNewConversation();
+        if (data.warning) {
+          console.warn('⚠️', data.warning);
         }
+      } else {
+        console.error('❌ Error al cargar conversaciones:', response.statusText);
       }
     } catch (error) {
-      console.error('Error loading conversations:', error);
-      // Fallback: do nothing if conversations can't be loaded, let user create one
+      console.error('❌ Error al cargar conversaciones:', error);
     }
   };
 
@@ -448,68 +569,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
-  const loadContextForConversation = async (conversationId: string, skipRAGVerification = false) => {
+  const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
-      // ✅ PERFORMANCE: Use dedicated lightweight endpoint when skipping RAG verification
-      if (skipRAGVerification) {
-        console.log('⚡ Using lightweight metadata endpoint (no RAG verification)...');
-        
-        const response = await fetch(`/api/conversations/${conversationId}/context-sources-metadata`);
-        if (!response.ok) {
-          console.warn('⚠️ No se pudieron cargar fuentes de contexto');
-          return;
-        }
-        
-        const data = await response.json();
-        const sources = data.sources || [];
-        
-        // Convert dates
-        const sourcesWithDates = sources.map((source: any) => ({
-          ...source,
-          addedAt: new Date(source.addedAt),
-          metadata: source.metadata ? {
-            ...source.metadata,
-            validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
-          } : undefined,
-          ragMetadata: source.ragMetadata ? {
-            ...source.ragMetadata,
-            indexedAt: source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt) : undefined,
-          } : undefined,
-        }));
-        
-        setContextSources(sourcesWithDates);
-        
-        // Log filtering results
-        const publicSources = sourcesWithDates.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
-        const assignedSources = sourcesWithDates.filter((s: any) => s.assignedToAgents?.includes(conversationId));
-        
-        console.log('✅ Lightweight context refresh complete:');
-        console.log(`   Total sources for this agent: ${sourcesWithDates.length}`);
-        console.log(`   - PUBLIC sources: ${publicSources.length}`);
-        console.log(`   - Assigned to this agent: ${assignedSources.length}`);
-        console.log(`   - Active (toggled ON): ${sourcesWithDates.filter((s: any) => s.enabled).length}`);
-        
+      // ✅ MINIMAL: For RAG with BigQuery, we only need COUNT (not full metadata!)
+      // BigQuery handles finding relevant chunks by agentId
+      console.log('⚡ Loading minimal context stats (count only - BigQuery handles search)...');
+      
+      const response = await fetch(`/api/agents/${conversationId}/context-stats`);
+      if (!response.ok) {
+        console.warn('⚠️ Could not load context stats');
+        setContextSources([]); // Clear sources - not needed for agent search
         return;
       }
       
-      // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation)
-      console.log('🔄 Full context load with RAG verification...');
+      const data = await response.json();
       
-      // Load metadata only (no extractedData) - 10-50x faster than full load!
-      const sourcesResponse = await fetch(`/api/context-sources-metadata?userId=${userId}`);
-      if (!sourcesResponse.ok) {
-        console.warn('⚠️ No se pudieron cargar fuentes de contexto');
-        return;
-      }
+      console.log(`✅ Context stats loaded:`, {
+        totalCount: data.totalCount,
+        activeCount: data.activeCount,
+        loadTime: data.loadTime + 'ms',
+        agentId: conversationId
+      });
       
-      const sourcesData = await sourcesResponse.json();
-      const allSources = sourcesData.sources || [];
-      console.log('⚡ Loaded context sources metadata (optimized, no extractedData):', allSources.length);
+      // ✅ MINIMAL STATE: We don't need full sources array for agent-based search
+      // Just show count in UI (no metadata, no loading 628 sources!)
+      setContextSources([]); // Clear - not needed for RAG!
       
-      // Get active source IDs for this conversation
-      const contextResponse = await fetch(`/api/conversations/${conversationId}/context-sources`);
-      const contextData = contextResponse.ok ? await contextResponse.json() : { activeContextSourceIds: [] };
-      const activeIds = contextData.activeContextSourceIds || [];
+      // TODO: Add minimal stats display in UI
+      // For now, context panel will show "Loading sources via BigQuery..."
+      
+      console.log(`✅ Minimal context stats loaded: ${data.totalCount} sources (${data.loadTime}ms)`);
+      console.log(`   Agent-based search enabled - no source metadata needed!`);
+      
+      return;
       
       // Filter sources assigned to this agent BEFORE setting state
       // This prevents showing all sources momentarily before filtering
@@ -801,72 +893,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     window.location.href = '/chat'; // Reload as original user
   }
 
-  // Load conversations from Firestore on mount
-  useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        console.log('📥 Cargando conversaciones desde Firestore...');
-        const response = await fetch(`/api/conversations?userId=${userId}`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          
-          if (data.groups && data.groups.length > 0) {
-            // Flatten all groups into a single conversation list
-            const allConversations: Conversation[] = [];
-            data.groups.forEach((group: any) => {
-              group.conversations.forEach((conv: any) => {
-                allConversations.push({
-                  id: conv.id,
-                  title: conv.title,
-                  userId: conv.userId || userId,
-                  createdAt: new Date(conv.createdAt || Date.now()),
-                  updatedAt: new Date(conv.updatedAt || Date.now()),
-                  lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
-                  messageCount: conv.messageCount || 0,
-                  contextWindowUsage: conv.contextWindowUsage || 0,
-                  agentModel: conv.agentModel || 'gemini-2.5-flash',
-                  status: conv.status || 'active', // Default to active if not set
-                  hasBeenRenamed: conv.hasBeenRenamed || false, // Track if user renamed manually
-                  isAgent: conv.isAgent !== false, // Default to true for backward compatibility
-                  agentId: conv.agentId, // Parent agent if this is a chat
-                  folderId: conv.folderId, // Project folder
-                });
-              });
-            });
-            
-            setConversations(allConversations);
-            
-            // Auto-select first agent if none selected
-            if (!selectedAgent && allConversations.length > 0) {
-              const firstAgent = allConversations.find(c => c.isAgent !== false);
-              if (firstAgent) {
-                setSelectedAgent(firstAgent.id);
-              }
-            }
-            
-            console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
-            console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
-            console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-            console.log(`🔍 Primera conversación:`, allConversations[0]);
-          } else {
-            console.log('ℹ️ No hay conversaciones guardadas');
-          }
-          
-          if (data.warning) {
-            console.warn('⚠️', data.warning);
-          }
-        } else {
-          console.error('❌ Error al cargar conversaciones:', response.statusText);
-        }
-      } catch (error) {
-        console.error('❌ Error al cargar conversaciones:', error);
-      }
-    };
-    
-    loadConversations();
-    loadFolders(); // Also load folders on mount
-  }, [userId]);
+  // REMOVED: Duplicate loadConversations useEffect
+  // The main loadConversations is already called in the useEffect at line ~284
 
   // NEW: Load user settings from Firestore on mount
   useEffect(() => {
@@ -930,67 +958,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     if (currentConv?.agentId) {
       console.log(`🔗 Este es un chat del agente ${currentConv.agentId}, cargando contexto del agente padre`);
       
-      // Load parent agent's context
+      // ✅ OPTIMIZED: Load parent agent's context (uses cache if available)
       loadContextForConversation(currentConv.agentId);
       
-      // Auto-fix: If chat doesn't have context assigned, inherit from parent agent
-      (async () => {
-        try {
-          const chatContextResponse = await fetch(`/api/conversations/${currentConversation}/context-sources`);
-          if (chatContextResponse.ok) {
-            const chatContextData = await chatContextResponse.json();
-            const chatActiveSourceIds = chatContextData.activeContextSourceIds || [];
-            
-            // If chat has no context sources, inherit from parent agent
-            if (chatActiveSourceIds.length === 0) {
-              console.log('🔧 Chat sin contexto detectado, heredando del agente padre...');
-              
-              const agentContextResponse = await fetch(`/api/conversations/${currentConv.agentId}/context-sources`);
-              if (agentContextResponse.ok) {
-                const agentContextData = await agentContextResponse.json();
-                const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
-                
-                if (agentActiveSourceIds.length > 0) {
-                  // Assign agent's sources to this chat
-                  for (const sourceId of agentActiveSourceIds) {
-                    try {
-                      await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ agentId: currentConversation }),
-                      });
-                    } catch (error) {
-                      console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
-                    }
-                  }
-                  
-                  // Save active sources to chat's context
-                  await fetch(`/api/conversations/${currentConversation}/context-sources`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
-                  });
-                  
-                  // Reload context - force full reload to update UI
-                  if (currentConv.agentId) {
-                    // Force a full context reload with RAG verification
-                    await loadContextForConversation(currentConv.agentId, false);
-                    
-                    console.log(`✅ Auto-fix: ${agentActiveSourceIds.length} fuentes heredadas del agente al chat`);
-                    console.log('🔄 Recargando contexto completo para mostrar fuentes en UI...');
-                  }
-                }
-              }
-            } else {
-              console.log(`✅ Chat ya tiene ${chatActiveSourceIds.length} fuentes de contexto asignadas`);
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ Error en auto-fix de contexto:', error);
-        }
-      })();
+      // ✅ REMOVED: Auto-fix loop that assigned sources one by one (caused 90s delay)
+      // New architecture: Chat inherits sources via agentId link in backend
+      // Backend's context-sources-metadata endpoint uses effectiveAgentId = conv.agentId || convId
+      // This means chat automatically sees parent agent's sources WITHOUT needing assignments
     } else {
-      loadContextForConversation(currentConversation); // Load own context
+      // Agent (no parent) - load own context
+      loadContextForConversation(currentConversation);
     }
     
     // NEW: Load agent config for this conversation
@@ -1085,25 +1062,37 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   // NEW: Folder management functions
   const createNewFolder = async (name: string) => {
     try {
+      console.log('🚀 Starting createNewFolder with name:', name);
+      console.log('📋 userId:', userId);
+      
       const response = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, name }),
       });
 
+      console.log('📡 API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        const newFolder = {
-          id: data.folder.id,
-          name: data.folder.name,
-          createdAt: new Date(data.folder.createdAt),
-          conversationCount: data.folder.conversationCount || 0,
-        };
-        setFolders(prev => [...prev, newFolder]);
-        console.log('✅ Folder created:', newFolder.id, 'Name:', newFolder.name);
+        console.log('✅ Proyecto creado en Firestore:', data.folder.id, 'Name:', data.folder.name);
+        console.log('📦 Folder data:', JSON.stringify(data.folder, null, 2));
+        
+        // Ensure Projects section is expanded
+        setShowProjectsSection(true);
+        
+        // CRITICAL: Reload from Firestore to ensure persistence
+        console.log('🔄 Recargando proyectos desde Firestore para verificar persistencia...');
+        await loadFolders();
+        console.log('✅ Proyecto creado y lista recargada desde Firestore');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ API error:', response.status, errorData);
+        alert(`Error al crear proyecto: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('❌ Error creating folder:', error);
+      alert(`Error al crear proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -1170,7 +1159,36 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const createNewChatForAgent = async (agentId: string) => {
     try {
       const agent = conversations.find(c => c.id === agentId);
-      if (!agent) return;
+      if (!agent) {
+        console.error('❌ Agent not found:', agentId);
+        return;
+      }
+
+      // Optimistic UI: Create chat placeholder immediately
+      const optimisticId = `optimistic-chat-${Date.now()}`;
+      const now = new Date();
+      const optimisticChat: Conversation = {
+        id: optimisticId,
+        title: 'Nuevo Chat',
+        userId: userId,
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: agent.agentModel || 'gemini-2.5-flash',
+        isAgent: false,
+        agentId: agentId,
+        status: 'active',
+        hasBeenRenamed: false,
+      };
+      
+      // Add optimistic chat to list immediately
+      setConversations(prev => [optimisticChat, ...prev]);
+      setCurrentConversation(optimisticId);
+      setMessages([]);
+      
+      console.log('⚡ Chat optimista creado para agente:', agentId);
 
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -1185,77 +1203,195 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
-        const newChat: Conversation = {
-          id: data.conversation.id,
-          title: data.conversation.title,
-          userId: data.conversation.userId || userId,
-          createdAt: new Date(data.conversation.createdAt || Date.now()),
-          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
-          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
-          messageCount: data.conversation.messageCount || 0,
-          contextWindowUsage: data.conversation.contextWindowUsage || 0,
-          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
-          agentId,
-          isAgent: false,
-        };
+        const newChatId = data.conversation.id;
         
-        setConversations(prev => [newChat, ...prev]);
-        setCurrentConversation(newChat.id);
-        setMessages([]);
+        console.log('✅ Chat creado en Firestore:', newChatId, 'para agente:', agentId);
         
-        console.log('✅ Chat created for agent:', agentId);
+        // ✅ CRITICAL FIX: Update currentConversation IMMEDIATELY to prevent race condition
+        // This ensures any pending messages use the real ID, not optimistic ID
+        setCurrentConversation(newChatId);
         
-        // Inherit agent's context - copy active context sources from agent
+        // ✅ OPTIMIZED INHERITANCE: Just copy activeContextSourceIds from agent to chat
+        // NO need to re-assign sources - chat inherits them from parent agent via agentId link
         try {
-          // Get agent's active context sources
+          console.log('🔄 Heredando contexto del agente:', agentId);
+          
+          // Get agent's active sources (which ones are toggled ON)
           const agentContextResponse = await fetch(`/api/conversations/${agentId}/context-sources`);
-          if (agentContextResponse.ok) {
-            const agentContextData = await agentContextResponse.json();
-            const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+          const agentContextData = agentContextResponse.ok 
+            ? await agentContextResponse.json() 
+            : { activeContextSourceIds: [] };
+          
+          const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+          
+          console.log(`🎯 Fuentes activas en el agente: ${agentActiveSourceIds.length}`);
+          
+          // Determine which sources to activate in the new chat
+          let sourcesToActivate: string[];
+          
+          if (agentActiveSourceIds.length > 0) {
+            // Agent has sources active → inherit those
+            sourcesToActivate = agentActiveSourceIds;
+            console.log(`📋 Heredando ${sourcesToActivate.length} fuentes ACTIVAS del agente`);
+          } else if (contextSources.length > 0) {
+            // Agent has NO active sources but has assigned sources → auto-activate all
+            sourcesToActivate = contextSources.map(s => s.id);
+            console.log(`⚡ Auto-activando ${sourcesToActivate.length} fuentes del agente`);
+          } else {
+            sourcesToActivate = [];
+            console.log('ℹ️ Agente sin fuentes asignadas');
+          }
+          
+          if (sourcesToActivate.length > 0) {
+            // ✅ INSTANT: Just save activeContextSourceIds (NO assignments needed)
+            await fetch(`/api/conversations/${newChatId}/context-sources`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ activeContextSourceIds: sourcesToActivate }),
+            });
             
-            if (agentActiveSourceIds.length > 0) {
-              console.log(`📋 Heredando ${agentActiveSourceIds.length} fuentes de contexto del agente`);
-              
-              // Assign same sources to new chat
-              for (const sourceId of agentActiveSourceIds) {
-                try {
-                  await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: newChat.id }),
-                  });
-                } catch (error) {
-                  console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
-                }
-              }
-              
-              // Save active sources to new chat's context
-              await fetch(`/api/conversations/${newChat.id}/context-sources`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
-              });
-              
-              // Reload context for new chat
-              await loadContextForConversation(newChat.id, true);
-              
-              console.log('✅ Contexto del agente heredado al nuevo chat');
-            } else {
-              console.log('ℹ️ Agente no tiene contexto activo para heredar');
-            }
+            console.log(`✅ ${sourcesToActivate.length} fuentes activadas (heredadas del agente)`);
+            
+            // ✅ Update local state immediately
+            setContextSources(prev => prev.map(source => ({
+              ...source,
+              enabled: sourcesToActivate.includes(source.id)
+            })));
+            
+            console.log('🔄 Listo para enviar mensajes con contexto');
           }
         } catch (contextError) {
-          console.warn('⚠️ Failed to inherit agent context:', contextError);
+          console.warn('⚠️ Error heredando contexto:', contextError);
         }
+        
+        // Get the current optimistic chat (may have been edited by user)
+        const optimisticChat = conversations.find(c => c.id === optimisticId);
+        const userEditedTitle = optimisticChat?.title !== 'Nuevo Chat';
+        const editedTitle = optimisticChat?.title || 'Nuevo Chat';
+        
+        // Replace optimistic chat with real one from Firestore
+        setConversations(prev => 
+          prev.map(conv => conv.id === optimisticId 
+            ? { ...data.conversation, 
+                createdAt: new Date(data.conversation.createdAt),
+                updatedAt: new Date(data.conversation.updatedAt),
+                lastMessageAt: new Date(data.conversation.lastMessageAt),
+                isAgent: false,
+                agentId: agentId,
+                title: editedTitle, // Use edited title if user changed it
+                hasBeenRenamed: userEditedTitle, // Mark if user renamed
+              }
+            : conv
+          )
+        );
+        
+        // If user edited the title while optimistic, save it to Firestore
+        if (userEditedTitle) {
+          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          try {
+            await fetch(`/api/conversations/${newChatId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                title: editedTitle,
+                hasBeenRenamed: true
+              })
+            });
+            console.log('✅ Título editado guardado en Firestore');
+          } catch (titleError) {
+            console.warn('⚠️ Failed to save edited title:', titleError);
+          }
+        }
+        
+        // ℹ️ currentConversation already updated at the top (line 1268) to prevent race condition
+        
+        // ✅ PERFORMANCE: Don't reload context - we already have it from parent agent
+        // Just update cache with new chatId pointing to same sources
+        const agentCache = getCachedSources(agentId);
+        if (agentCache) {
+          // Chat inherits agent's sources - copy cache entry
+          // Use agentCache.activeIds since we inherited those from parent
+          setCachedSources(newChatId, agentCache.sources, agentCache.activeIds);
+          console.log(`⚡ Chat ${newChatId} heredó cache del agente ${agentId} (${agentCache.sources.length} fuentes)`);
+        }
+        
+        console.log('✅ Chat confirmado y actualizado con ID real:', newChatId);
+      } else {
+        // Handle API error response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al crear chat (API):', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Remove optimistic chat since creation failed
+        setConversations(prev => prev.filter(conv => conv.id !== optimisticId));
+        
+        // If authentication error, show user-friendly message
+        if (response.status === 401) {
+          alert('Sesión expirada. Por favor, recarga la página y vuelve a iniciar sesión.');
+          return;
+        }
+        
+        // For other errors, convert optimistic to temporary
+        const tempId = `temp-chat-${Date.now()}`;
+        const tempChat: Conversation = {
+          id: tempId,
+          title: 'Nuevo Chat',
+          userId: userId,
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: agent.agentModel || 'gemini-2.5-flash',
+          isAgent: false,
+          agentId: agentId,
+          status: 'active',
+          hasBeenRenamed: false,
+        };
+        
+        setConversations(prev => [tempChat, ...prev]);
+        setCurrentConversation(tempId);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Error creating chat:', error);
+      console.warn('⚠️ Chat temporal creado (no persistente)');
     }
   };
 
   // NEW: Create new agent (root conversation) - Complete implementation
   const createNewAgent = async () => {
     try {
+      // Optimistic UI: Create a placeholder immediately
+      const optimisticId = `optimistic-${Date.now()}`;
+      const now = new Date();
+      const optimisticAgent: Conversation = {
+        id: optimisticId,
+        title: 'Nuevo Agente',
+        userId: userId,
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: 'gemini-2.5-flash',
+        isAgent: true,
+        status: 'active',
+        hasBeenRenamed: false,
+      };
+      
+      // Add optimistic agent to list immediately
+      setConversations(prev => [optimisticAgent, ...prev]);
+      setCurrentConversation(optimisticId);
+      setSelectedAgent(optimisticId);
+      setMessages([]);
+      
+      console.log('⚡ Agente optimista creado (esperando confirmación de Firestore)');
+      
       // Call API to create conversation in Firestore
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -1269,25 +1405,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
       if (response.ok) {
         const data = await response.json();
-        const newConv: Conversation = {
-          id: data.conversation.id,
-          title: data.conversation.title,
-          userId: data.conversation.userId || userId,
-          createdAt: new Date(data.conversation.createdAt || Date.now()),
-          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
-          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
-          messageCount: data.conversation.messageCount || 0,
-          contextWindowUsage: data.conversation.contextWindowUsage || 0,
-          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
-          isAgent: true,
-        };
+        const newConvId = data.conversation.id;
         
-        setConversations(prev => [newConv, ...prev]);
-        setCurrentConversation(newConv.id);
-        setSelectedAgent(newConv.id); // Set as selected agent
-        setMessages([]);
-        
-        console.log('✅ Agente creado en Firestore:', newConv.id);
+        console.log('✅ Agente creado en Firestore:', newConvId);
         
         // Save initial agent config
         const initialModel = 'gemini-2.5-flash';
@@ -1295,7 +1415,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            conversationId: newConv.id,
+            conversationId: newConvId,
             userId,
             model: initialModel,
             systemPrompt: globalUserSettings.systemPrompt,
@@ -1312,60 +1432,111 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: newConv.id }),
+                body: JSON.stringify({ agentId: newConvId }),
               });
             } catch (error) {
               console.warn('⚠️ Failed to auto-assign PUBLIC source:', sourceId, error);
             }
           }
           
-          setContextSources(prev => prev.map(s => {
-            if (s.tags?.includes('PUBLIC')) {
-              return {
-                ...s,
-                assignedToAgents: [...(s.assignedToAgents || []), newConv.id],
-                enabled: true,
-              };
-            }
-            return s;
-          }));
-          
-          await fetch(`/api/conversations/${newConv.id}/context-sources`, {
+          await fetch(`/api/conversations/${newConvId}/context-sources`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activeContextSourceIds: publicSourceIds }),
           });
         }
 
+        // Get the current optimistic agent (may have been edited by user)
+        const optimisticAgent = conversations.find(c => c.id === optimisticId);
+        const userEditedTitle = optimisticAgent?.title !== 'Nuevo Agente';
+        const editedTitle = optimisticAgent?.title || 'Nuevo Agente';
+        
+        // Replace optimistic agent with real one from Firestore
+        setConversations(prev => 
+          prev.map(conv => conv.id === optimisticId 
+            ? { ...data.conversation, 
+                createdAt: new Date(data.conversation.createdAt),
+                updatedAt: new Date(data.conversation.updatedAt),
+                lastMessageAt: new Date(data.conversation.lastMessageAt),
+                isAgent: true,
+                title: editedTitle, // Use edited title if user changed it
+                hasBeenRenamed: userEditedTitle, // Mark if user renamed
+              }
+            : conv
+          )
+        );
+        
+        // If user edited the title while optimistic, save it to Firestore
+        if (userEditedTitle) {
+          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          try {
+            await fetch(`/api/conversations/${newConvId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                title: editedTitle,
+                hasBeenRenamed: true
+              })
+            });
+            console.log('✅ Título editado guardado en Firestore');
+          } catch (titleError) {
+            console.warn('⚠️ Failed to save edited title:', titleError);
+          }
+        }
+        
+        // Update references to use real ID
+        setCurrentConversation(newConvId);
+        setSelectedAgent(newConvId);
+
         setCurrentAgentConfig({
           preferredModel: initialModel,
           systemPrompt: globalUserSettings.systemPrompt,
         });
+        
+        console.log('✅ Agente confirmado y actualizado con ID real:', newConvId);
+      } else {
+        // Handle API error response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al crear agente (API):', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Remove optimistic agent since creation failed
+        setConversations(prev => prev.filter(conv => conv.id !== optimisticId));
+        
+        // If authentication error, show user-friendly message
+        if (response.status === 401) {
+          alert('Sesión expirada. Por favor, recarga la página y vuelve a iniciar sesión.');
+          return;
+        }
+        
+        // For other errors, convert optimistic to temporary
+        const tempId = `temp-${Date.now()}`;
+        const tempConv: Conversation = {
+          id: tempId,
+          title: 'Nuevo Agente',
+          userId: userId,
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: 'gemini-2.5-flash',
+          isAgent: true,
+          status: 'active',
+          hasBeenRenamed: false,
+        };
+        
+        setConversations(prev => [tempConv, ...prev]);
+        setCurrentConversation(tempId);
+        setSelectedAgent(tempId);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Error creating agent:', error);
-      
-      // Fallback: create temporary conversation
-      const tempId = `temp-${Date.now()}`;
-      const now = new Date();
-      const newConv: Conversation = {
-        id: tempId,
-        title: 'Nuevo Agente',
-        userId: userId,
-        createdAt: now,
-        updatedAt: now,
-        lastMessageAt: now,
-        messageCount: 0,
-        contextWindowUsage: 0,
-        agentModel: 'gemini-2.5-flash',
-        isAgent: true,
-      };
-      
-      setConversations(prev => [newConv, ...prev]);
-      setCurrentConversation(tempId);
-      setSelectedAgent(tempId);
-      setMessages([]);
-      
       console.warn('⚠️ Agente temporal creado (no persistente)');
     }
   };
@@ -1416,16 +1587,48 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setMessages(prev => [...prev, streamingMessage]);
 
     try {
-      // ✅ PERFORMANCE: Load full extractedData only for active sources (on-demand)
-      const activeSources = contextSources.filter(source => source.enabled);
-      const fullActiveSources = await loadFullContextSources(activeSources);
-      
-      const activeContextSources = fullActiveSources.map(source => ({
-        id: source.id,
-        name: source.name,
-        type: 'pdf',
-        content: source.extractedData
+      // ✅ SHOW STATUS IMMEDIATELY: Initialize thinking steps BEFORE heavy operations
+      const stepLabels = {
+        thinking: 'Pensando...',
+        searching: 'Buscando Contexto Relevante...',
+        selecting: 'Seleccionando Chunks...',
+        generating: 'Generando Respuesta...'
+      };
+
+      const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
+        id: key,
+        label,
+        status: key === 'thinking' ? 'active' as const : 'pending' as const,
+        timestamp: new Date(),
+        dots: 0
       }));
+
+      setCurrentThinkingSteps(initialSteps);
+      
+      // Update streaming message with initial thinking steps
+      setMessages(prev => prev.map(msg => 
+        msg.id === streamingId 
+          ? { ...msg, thinkingSteps: initialSteps }
+          : msg
+      ));
+      
+      // ✅ OPTIMAL: Use agent-based search - NO need to load or send source IDs!
+      // BigQuery queries by agentId directly and finds relevant chunks
+      
+      console.log(`📊 Sending message with agent-based RAG search:`, {
+        agentId: currentConversation,
+        useAgentSearch: true,
+        note: 'Backend queries BigQuery by agentId - no source loading needed!'
+      });
+      
+      // Update to "searching" status (now instant - no loading needed!)
+      setCurrentThinkingSteps(prev => prev.map(step => 
+        step.id === 'thinking' 
+          ? { ...step, status: 'complete' as const }
+          : step.id === 'searching'
+          ? { ...step, status: 'active' as const, timestamp: new Date() }
+          : step
+      ));
 
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
@@ -1436,10 +1639,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
-          contextSources: activeContextSources,
-          ragEnabled: agentRAGMode === 'rag',
+          useAgentSearch: true, // ✅ OPTIMAL: Backend queries BigQuery by agentId!
+          ragEnabled: true,
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
+          // NO activeSourceIds needed! Backend handles it!
         })
       });
 
@@ -1455,25 +1659,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       let finalUserMessageId = '';
 
       if (reader) {
-        // Initialize thinking steps
-        const stepLabels = {
-          thinking: 'Pensando...',
-          searching: 'Buscando Contexto Relevante...',
-          selecting: 'Seleccionando Chunks...',
-          generating: 'Generando Respuesta...'
-        };
-
-        const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
-          id: key,
-          label,
-          status: 'pending' as const,
-          timestamp: new Date(),
-          dots: 0
-        }));
-
-        setCurrentThinkingSteps(initialSteps);
-
-        // Start ellipsis animation for thinking steps
+        // ✅ Thinking steps already initialized above (lines 1442-1478)
+        // Just start the ellipsis animation
         const dotsInterval = setInterval(() => {
           setCurrentThinkingSteps(prev => prev.map(step => ({
             ...step,
@@ -1627,8 +1814,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   const ragActuallyUsed = ragConfig?.actuallyUsed || false;
                   
                   // Calculate tokens based on ACTUAL mode used
-                  const contextSourcesWithMode = activeContextSources.map(s => {
-                    const fullTextTokens = Math.ceil((s.content?.length || 0) / 4);
+                  const contextSourcesWithMode = activeSources.map(s => {
+                    const fullTextTokens = Math.ceil((s.extractedData?.length || 0) / 4);
                     
                     // Determine actual mode and tokens used
                     let mode: 'rag' | 'full-text';
@@ -1789,6 +1976,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         .map(s => s.id);
       console.log('💾 Saving active IDs for conversation:', newActiveIds);
       saveContextForConversation(currentConversation, newActiveIds);
+      
+      // ✅ CACHE: Update cache with new toggle state
+      setCachedSources(currentConversation, updatedSources, newActiveIds);
     }
   };
 
@@ -2030,9 +2220,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               const indexData = await indexResponse.json();
               console.log(`✅ RAG indexing complete: ${indexData.chunksCreated} chunks created`);
               
-              // Reload context sources to show RAG metadata
+              // Reload context sources to show RAG metadata (force verification since we just indexed)
               if (currentConversation) {
-                await loadContextForConversation(currentConversation);
+                await loadContextForConversation(currentConversation, false); // Force RAG verification
               }
             } else {
               console.warn('⚠️ RAG indexing failed, document still usable in full-text mode');
@@ -2358,8 +2548,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       return;
     }
 
+    // Check if this is an optimistic ID (not yet confirmed by Firestore)
+    const isOptimistic = conversationId.startsWith('optimistic-');
+    const isTemporary = conversationId.startsWith('temp-');
+
     try {
-      // Update in Firestore
+      // Optimistic UI: Update local state immediately for better UX
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId 
+          ? { ...c, title: newTitle.trim(), hasBeenRenamed: isManualRename } 
+          : c
+      ));
+      
+      console.log(`⚡ Título actualizado localmente: "${newTitle.trim()}" (${conversationId})`);
+      cancelEditingConversation();
+
+      // If optimistic or temporary, only update locally (don't call API yet)
+      if (isOptimistic || isTemporary) {
+        console.log(`ℹ️ Chat ${isOptimistic ? 'optimista' : 'temporal'} - título se guardará cuando se confirme en Firestore`);
+        return;
+      }
+
+      // For confirmed chats, update in Firestore
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -2370,21 +2580,32 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update conversation title');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al actualizar título en API:', {
+          conversationId,
+          status: response.status,
+          error: errorData
+        });
+        
+        // Revert local state if API fails
+        const conversation = conversations.find(c => c.id === conversationId);
+        if (conversation) {
+          setConversations(prev => prev.map(c => 
+            c.id === conversationId 
+              ? { ...c, title: conversation.title } // Revert to old title
+              : c
+          ));
+        }
+        
+        throw new Error(errorData.error || 'Failed to update title');
       }
 
-      // Update local state
-      setConversations(prev => prev.map(c => 
-        c.id === conversationId 
-          ? { ...c, title: newTitle.trim(), hasBeenRenamed: isManualRename } 
-          : c
-      ));
-
       const renameType = isManualRename ? 'manual' : 'auto';
-      console.log(`✅ Título del agente actualizado en Firestore (${renameType}):`, conversationId);
-      cancelEditingConversation();
+      console.log(`✅ Título actualizado en Firestore (${renameType}):`, conversationId, '→', newTitle.trim());
+      
     } catch (error) {
-      console.error('❌ Error al actualizar título del agente:', error);
+      console.error('❌ Error al actualizar título:', error);
+      alert('Error al guardar el título. Por favor, intenta de nuevo.');
     }
   };
 
@@ -2788,11 +3009,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           
           {/* 2. PROYECTOS Section - Collapsible */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
-            <button
-              onClick={() => setShowProjectsSection(!showProjectsSection)}
-              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <div className="flex items-center gap-2">
+            <div className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <button
+                onClick={() => setShowProjectsSection(!showProjectsSection)}
+                className="flex-1 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors py-1 -my-1 rounded-lg"
+              >
                 <span className={`transform transition-transform ${showProjectsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
@@ -2801,19 +3022,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
                   {folders.length}
                 </span>
-              </div>
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   const name = prompt('Nombre del nuevo proyecto:');
-                  if (name) createNewFolder(name);
+                  if (name && name.trim()) {
+                    console.log('📝 Creating project with name:', name.trim());
+                    createNewFolder(name.trim());
+                  } else if (name !== null) {
+                    // User clicked OK but entered empty name
+                    alert('Por favor ingresa un nombre para el proyecto');
+                  }
                 }}
                 className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
                 title="Nuevo Proyecto"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
-            </button>
+            </div>
             
             {showProjectsSection && (
               <div className="px-2 pb-2 space-y-1">
@@ -3256,13 +3483,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             </button>
 
             {showUserMenu && (
-              <>
-                {/* Backdrop to close menu when clicking outside */}
-                <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowUserMenu(false)}
-                />
-                <div className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
+              <div 
+                className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
                 {/* Context Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
@@ -3440,7 +3662,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   Cerrar Sesión
                 </button>
               </div>
-              </>
             )}
           </div>
         </div>
@@ -3899,7 +4120,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
                       <span className="text-xs text-slate-500">
-                        {contextSources.filter(s => s.enabled).length} activas • ~{(() => {
+                        {contextSources.filter(s => s.enabled).length} activas / {contextSources.length} asignadas • ~{(() => {
                           // Calculate mixed-mode tokens (some RAG, some full-text)
                           const totalTokens = contextSources.filter(s => s.enabled).reduce((sum, s) => {
                             const fullTokens = Math.floor((s.extractedData?.length || 0) / 4);
@@ -3973,13 +4194,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                         </div>
                       </div>
                     )}
-                    {contextSources.filter(s => s.enabled).length === 0 ? (
+                    {contextSources.length === 0 ? (
                       <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
-                        No hay fuentes activas. Actívalas desde el panel izquierdo.
+                        No hay fuentes asignadas a este agente. Agrégalas desde "Configurar Agente".
                       </p>
                     ) : (
-                      <div className="space-y-2">
-                        {contextSources.filter(s => s.enabled).map(source => {
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {contextSources.map(source => {
                           // Calculate tokens for this source
                           const fullTextTokens = Math.floor((source.extractedData?.length || 0) / 4);
                           const ragTokens = source.ragEnabled && source.ragMetadata 
@@ -3992,19 +4213,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                           return (
                           <div
                             key={source.id}
-                            className={`w-full border rounded p-2 ${
+                            className={`w-full border rounded p-2 transition-all ${
                               source.enabled 
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-slate-50 border-slate-300 opacity-60'
+                                ? 'bg-green-50 border-green-200 shadow-sm'
+                                : 'bg-slate-50 border-slate-200 opacity-50'
                             }`}
                           >
                             {/* Header: Name and badges only (NO toggle here - está en sidebar) */}
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-                                <FileText className="w-3.5 h-3.5 flex-shrink-0 text-green-600" />
-                                <p className="text-xs font-semibold truncate text-slate-800">
+                                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${source.enabled ? 'text-green-600' : 'text-slate-400'}`} />
+                                <p className={`text-xs font-semibold truncate ${source.enabled ? 'text-slate-800' : 'text-slate-500'}`}>
                                   {source.name}
                                 </p>
+                                {/* Estado de activación badge */}
+                                {!source.enabled && (
+                                  <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[9px] rounded-full font-semibold flex-shrink-0">
+                                    ○ Inactiva
+                                  </span>
+                                )}
                                 {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
                                   <span className="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
                                     🌐 PUBLIC
@@ -4604,276 +4831,24 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
       )}
 
-      {/* Agent Context Configuration Modal */}
+      {/* Agent Context Configuration Modal - Optimized with Pagination */}
       {showAgentContextModal && agentForContextConfig && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <SettingsIcon className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                  Configuración de Contexto
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAgentContextModal(false);
-                  setAgentForContextConfig(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-              >
-                <XIcon className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Agent Name & ID */}
-            <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-slate-200 dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-400">Agente:</p>
-              <p className="text-lg font-semibold text-slate-800 dark:text-white">
-                {conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
-                ID: {agentForContextConfig}
-              </p>
-            </div>
-
-            {/* Content - Context Sources */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Fuentes de Contexto
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {contextSources.filter(s => 
-                        s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                      ).length} documentos asignados
-                      {selectedContextIds.length > 0 && ` • ${selectedContextIds.length} seleccionados`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowAddSourceModal(true);
-                      setSelectedContextIds([]); // Clear selection when adding
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Agregar Fuente
-                  </button>
-                </div>
-                
-                {/* Multi-select controls */}
-                {contextSources.filter(s => 
-                  s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                ).length > 0 && (
-                  <div className="flex items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const agentSources = contextSources.filter(s => 
-                            s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                          );
-                          setSelectedContextIds(agentSources.map(s => s.id));
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 hover:bg-blue-50 rounded"
-                      >
-                        Select All
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        onClick={() => setSelectedContextIds([])}
-                        className="text-xs text-gray-600 hover:text-gray-900 font-medium px-2 py-1 hover:bg-gray-100 rounded"
-                        disabled={selectedContextIds.length === 0}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                    
-                    {selectedContextIds.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={async () => {
-                            // Enable selected sources
-                            for (const sourceId of selectedContextIds) {
-                              const source = contextSources.find(s => s.id === sourceId);
-                              if (source && !source.enabled) {
-                                await toggleContext(sourceId);
-                              }
-                            }
-                            setSelectedContextIds([]);
-                          }}
-                          className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-medium"
-                        >
-                          Enable ({selectedContextIds.length})
-                        </button>
-                        <button
-                          onClick={async () => {
-                            // Disable selected sources
-                            for (const sourceId of selectedContextIds) {
-                              const source = contextSources.find(s => s.id === sourceId);
-                              if (source && source.enabled) {
-                                await toggleContext(sourceId);
-                              }
-                            }
-                            setSelectedContextIds([]);
-                          }}
-                          className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 font-medium"
-                        >
-                          Disable ({selectedContextIds.length})
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* List of context sources for this agent */}
-              <div className="space-y-2">
-                {contextSources
-                  .filter(s => 
-                    !s.assignedToAgents || 
-                    s.assignedToAgents.length === 0 || 
-                    s.assignedToAgents.includes(agentForContextConfig)
-                  )
-                  .map(source => {
-                    const isSelected = selectedContextIds.includes(source.id);
-                    
-                    return (
-                    <div
-                      key={source.id}
-                      onClick={() => {
-                        setSelectedContextIds(prev => 
-                          prev.includes(source.id)
-                            ? prev.filter(id => id !== source.id)
-                            : [...prev, source.id]
-                        );
-                      }}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : source.enabled
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-                          : 'bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedContextIds(prev => 
-                                prev.includes(source.id)
-                                  ? prev.filter(id => id !== source.id)
-                                  : [...prev, source.id]
-                              );
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
-                          />
-                          <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <span className="text-sm font-semibold truncate text-slate-800 dark:text-white">
-                            {source.name}
-                          </span>
-                          {source.metadata?.validated && (
-                            <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
-                              ✓ Validado
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Toggle Switch */}
-                        <label className="relative inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={source.enabled}
-                            onChange={() => toggleContext(source.id)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-green-300 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-green-600"></div>
-                        </label>
-                      </div>
-
-                      {/* Source preview */}
-                      {source.extractedData && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
-                          {source.extractedData.substring(0, 150)}...
-                        </p>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                        {source.metadata?.pageCount && (
-                          <span>{source.metadata.pageCount} págs</span>
-                        )}
-                        {source.metadata?.charactersExtracted && (
-                          <span>{(source.metadata.charactersExtracted / 1000).toFixed(1)}k caracteres</span>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => handleSourceSettings(source.id)}
-                          className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Ver Detalles
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm('¿Quitar esta fuente del agente?')) {
-                              try {
-                                const response = await fetch(`/api/context-sources/${source.id}/remove-agent`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ agentId: agentForContextConfig }),
-                                });
-                                if (response.ok) {
-                                  setContextSources(prev => prev.filter(s => s.id !== source.id));
-                                }
-                              } catch (error) {
-                                console.error('Error removing source:', error);
-                              }
-                            }
-                          }}
-                          className="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                {contextSources.filter(s => 
-                  !s.assignedToAgents || 
-                  s.assignedToAgents.length === 0 || 
-                  s.assignedToAgents.includes(agentForContextConfig)
-                ).length === 0 && (
-                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-sm">
-                    <p>No hay fuentes de contexto para este agente</p>
-                    <p className="text-xs mt-1">Haz click en "Agregar Fuente" para empezar</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowAgentContextModal(false);
-                  setAgentForContextConfig(null);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
+        <AgentContextModal
+          isOpen={showAgentContextModal}
+          onClose={() => {
+            setShowAgentContextModal(false);
+            setAgentForContextConfig(null);
+            // Refresh context after modal closes
+            if (currentConversation) {
+              loadContextForConversation(currentConversation, true);
+            }
+          }}
+          agentId={agentForContextConfig}
+          agentName={conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
+          userId={userId}
+        />
       )}
+
 
       <AddSourceModal
         isOpen={showAddSourceModal}
