@@ -230,21 +230,28 @@ This document describes the design and content of the SalfaGPT landing page (`sr
 ### Color Palette
 
 **Background:**
-- Gradient: `from-slate-900 via-blue-900 to-slate-900`
+- Gradient: `from-slate-50 via-blue-50 to-slate-50` (light, subtle)
 - Effect: Diagonal gradient (bottom-right)
+- Overall feel: Clean, professional white background
 
-**Text Colors:**
-- Hero title: Gradient blue-400 → purple-400
-- Primary text: `slate-200`
-- Secondary text: `slate-300`
-- Call to action: `slate-100` (brightest)
-- Muted text: `slate-400`
+**Text Colors (High Contrast for Accessibility):**
+- Hero title: Gradient `blue-600 → purple-600` (dark on light)
+- Primary text: `slate-700` (WCAG AAA compliant)
+- Secondary text: `slate-600` (WCAG AA compliant)
+- Call to action: `slate-800` with `font-semibold` (highest emphasis)
+- Muted text: `slate-500`
 
 **Interactive Elements:**
-- Primary button: White background
-- Links: `blue-400` with `blue-300` hover
-- Success: Green-500 variants
-- Error: Red-500 variants
+- Primary button: White background (unchanged)
+- Links: `blue-600` with `blue-700` hover (high contrast)
+- Success messages: `green-50` bg with `green-600/700/800` text
+- Error messages: `red-50` bg with `red-600/700/800` text
+
+**Login Card:**
+- Background: Solid white (`bg-white`)
+- Border: `slate-200` (subtle outline)
+- Shadow: Extra large for depth
+- No backdrop blur (clean, solid design)
 
 ---
 
@@ -504,6 +511,29 @@ const logoutParam = Astro.url.searchParams.get('logout');
 ---
 
 ## 🔄 Change History
+
+### 2025-10-22: White Background Theme Update
+
+**Changed:**
+- Background: Dark gradient → Light gradient (`slate-50` via `blue-50`)
+- Hero title gradient: `blue-400/purple-400` → `blue-600/purple-600`
+- Primary text: `slate-200` → `slate-700`
+- Secondary text: `slate-300/200` → `slate-600`
+- Call to action: `slate-100` → `slate-800` with semibold
+- Login card: Semi-transparent blur → Solid white
+- Success messages: Dark theme → Light theme (green-50 bg)
+- Error messages: Dark theme → Light theme (red-50 bg)
+- All links: `blue-400` → `blue-600`
+
+**Rationale:** Improve readability and accessibility with high-contrast design on white background
+
+**Impact:**
+- WCAG AAA compliance for primary text
+- WCAG AA compliance for all text
+- Cleaner, more professional appearance
+- Better printability
+- Reduced eye strain
+- Maintains all functionality
 
 ### 2025-10-22: Spanish Content Update
 
