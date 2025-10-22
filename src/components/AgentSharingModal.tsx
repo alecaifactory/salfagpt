@@ -25,9 +25,9 @@ export function AgentSharingModal({
   const [success, setSuccess] = useState<string | null>(null);
   
   // Form states
-  const [shareType, setShareType] = useState<'user' | 'group'>('group');
+  const [shareType, setShareType] = useState<'user' | 'group'>('user');
   const [selectedTargets, setSelectedTargets] = useState<Array<{ type: 'user' | 'group'; id: string }>>([]);
-  const [accessLevel, setAccessLevel] = useState<'view' | 'use' | 'admin'>('view');
+  const [accessLevel, setAccessLevel] = useState<'view' | 'use' | 'admin'>('use');
   const [expiresAt, setExpiresAt] = useState<string>('');
   
   // Determine if admin level is allowed (only for individual users, not groups)
@@ -55,22 +55,38 @@ export function AgentSharingModal({
     try {
       // Load groups
       const groupsRes = await fetch('/api/groups');
-      if (!groupsRes.ok) throw new Error('Failed to load groups');
-      const groupsData = await groupsRes.json();
-      setGroups(groupsData.groups || []);
+      if (groupsRes.ok) {
+        const groupsData = await groupsRes.json();
+        setGroups(groupsData.groups || []);
+      } else {
+        console.warn('Groups API failed (non-critical):', await groupsRes.text());
+        setGroups([]); // Continue without groups
+      }
 
-      // Load users
-      const usersRes = await fetch('/api/users');
-      if (!usersRes.ok) throw new Error('Failed to load users');
-      const usersData = await usersRes.json();
-      setAllUsers(usersData.users || []);
+      // Load users - ADD REQUIRED PARAMETER
+      const usersRes = await fetch(`/api/users?requesterEmail=${encodeURIComponent(currentUser.email)}`);
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        console.log('📋 Users loaded from API:', usersData.users);
+        console.log('   First user:', usersData.users?.[0]);
+        console.log('   First user has userId?', usersData.users?.[0]?.userId);
+        setAllUsers(usersData.users || []);
+      } else {
+        console.warn('Users API failed:', await usersRes.text());
+        setAllUsers([]);
+      }
 
       // Load existing shares
       const sharesRes = await fetch(`/api/agents/${agent.id}/share`);
-      if (!sharesRes.ok) throw new Error('Failed to load shares');
-      const sharesData = await sharesRes.json();
-      setExistingShares(sharesData.shares || []);
+      if (sharesRes.ok) {
+        const sharesData = await sharesRes.json();
+        setExistingShares(sharesData.shares || []);
+      } else {
+        console.warn('Shares API failed (non-critical):', await sharesRes.text());
+        setExistingShares([]);
+      }
     } catch (err) {
+      console.error('Error loading data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
@@ -84,6 +100,14 @@ export function AgentSharingModal({
     }
 
     try {
+      console.log('🔗 Sharing agent:', {
+        agentId: agent.id,
+        agentTitle: agent.title,
+        ownerId: currentUser.id,
+        selectedTargets,
+        accessLevel,
+      });
+      
       const response = await fetch(`/api/agents/${agent.id}/share`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,9 +119,15 @@ export function AgentSharingModal({
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to share agent');
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Share failed:', errorData);
+        throw new Error(errorData.error || 'Failed to share agent');
+      }
 
       const { share } = await response.json();
+      console.log('✅ Agent shared successfully:', share);
+      
       setExistingShares([...existingShares, share]);
       setSelectedTargets([]);
       setSuccess('¡Agente compartido exitosamente!');
@@ -108,6 +138,7 @@ export function AgentSharingModal({
       
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
+      console.error('Share error:', err);
       setError(err instanceof Error ? err.message : 'Failed to share agent');
     }
   }
@@ -137,13 +168,17 @@ export function AgentSharingModal({
     }
   }
 
-  const toggleTarget = (type: 'user' | 'group', id: string) => {
+  const toggleTarget = (type: 'user' | 'group', id: string, user?: User) => {
     const exists = selectedTargets.some(t => t.type === type && t.id === id);
     
     if (exists) {
       setSelectedTargets(selectedTargets.filter(t => !(t.type === type && t.id === id)));
     } else {
+      // ✅ CRITICAL: Use Firestore document ID (email-based) for pre-assignment
+      // This allows assigning agents to users BEFORE they log in for the first time
+      // Format: email.replace(/[@.]/g, '_') → alec_salfacloud_cl
       setSelectedTargets([...selectedTargets, { type, id }]);
+      console.log('✅ Sharing with:', { type, id, email: user?.email });
     }
   };
 
@@ -271,36 +306,37 @@ export function AgentSharingModal({
                   </div>
                 ) : (
                   <div className="p-2 space-y-1">
-                    {shareType === 'group' ? (
-                      groups.filter(g => 
-                        g.name.toLowerCase().includes(searchTerm.toLowerCase())
-                      ).map(group => (
-                        <label
-                          key={group.id}
-                          className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedTargets.some(t => t.type === 'group' && t.id === group.id)}
-                            onChange={() => toggleTarget('group', group.id)}
-                            className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-800">
-                              {group.name}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {group.members.length} miembros
-                            </p>
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      allUsers.filter(u => 
-                        u.id !== currentUser.id &&
-                        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         u.email.toLowerCase().includes(searchTerm.toLowerCase()))
-                      ).map(user => (
+                    {filteredItems.map((item) => {
+                      // Render groups
+                      if (shareType === 'group') {
+                        const group = item as Group;
+                        return (
+                          <label
+                            key={group.id}
+                            className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedTargets.some(t => t.type === 'group' && t.id === group.id)}
+                              onChange={() => toggleTarget('group', group.id)}
+                              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800">
+                                {group.name}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {group.members?.length || 0} miembros
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      } 
+                      
+                      // Render users
+                      const user = item as User;
+                      // ✅ Use email-based ID for consistency and pre-assignment support
+                      return (
                         <label
                           key={user.id}
                           className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded cursor-pointer"
@@ -308,7 +344,7 @@ export function AgentSharingModal({
                           <input
                             type="checkbox"
                             checked={selectedTargets.some(t => t.type === 'user' && t.id === user.id)}
-                            onChange={() => toggleTarget('user', user.id)}
+                            onChange={() => toggleTarget('user', user.id, user)}
                             className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                           />
                           <div className="flex-1 min-w-0">
@@ -320,8 +356,8 @@ export function AgentSharingModal({
                             </p>
                           </div>
                         </label>
-                      ))
-                    )}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -376,8 +412,8 @@ export function AgentSharingModal({
                   </button>
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  {accessLevel === 'view' && '👁️ Pueden ver mensajes pero no enviar nuevos'}
-                  {accessLevel === 'use' && '✏️ Pueden ver y usar el agente (enviar mensajes)'}
+                  {accessLevel === 'view' && '👁️ Pueden ver la configuración y contexto (solo lectura)'}
+                  {accessLevel === 'use' && '✏️ Pueden crear conversaciones privadas con este agente. No pueden modificar configuración ni contexto.'}
                   {accessLevel === 'admin' && '🛡️ Control total: ver, usar, configurar, compartir, eliminar'}
                 </p>
               </div>

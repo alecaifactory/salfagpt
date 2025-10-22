@@ -10,6 +10,7 @@ import {
   getMessages,
   getConversation,
   updateConversation,
+  firestore,
 } from '../../../../lib/firestore';
 import { streamAIResponse } from '../../../../lib/gemini';
 import { searchRelevantChunksOptimized, buildRAGContext, getRAGStats } from 
@@ -161,61 +162,24 @@ export const POST: APIRoute = async ({ params, request }) => {
                   console.warn('⚠️ RAG: No chunks found above similarity threshold');
                   console.log('  Checking if documents have chunks available...');
                   
-                  // Load chunks directly to check if they exist
-                  const { firestore } = await import('../../../../lib/firestore.js');
-                  const chunksSnapshot = await firestore
-                    .collection('document_chunks')
-                    .where('userId', '==', userId)
-                    .where('sourceId', 'in', activeSourceIds.slice(0, 10)) // Firestore 'in' limit
-                    .limit(1)
-                    .get();
-                  
-                  if (chunksSnapshot.empty) {
-                    // GRACEFUL DEGRADATION: Documents need indexing
-                    // Load full text from Firestore only if needed
-                    console.warn('⚠️ No chunks exist - loading full documents from Firestore as EMERGENCY FALLBACK');
-                    console.warn('   (This is rare - documents should be indexed)');
-                    ragHadFallback = true;
-                    
-                    // Load full extractedData from Firestore for active sources only
-                    const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
-                    const sourcesSnapshot = await firestore
-                      .collection('context_sources')
-                      .where('__name__', 'in', sourceIds)
+                  // If using agent search with no activeSourceIds, skip Firestore fallback
+                  if (activeSourceIds.length === 0) {
+                    console.warn('⚠️ No activeSourceIds provided (agent search mode) - no context to load');
+                    additionalContext = '';
+                  } else {
+                    // Load chunks directly to check if they exist
+                    const chunksSnapshot = await firestore
+                      .collection('document_chunks')
+                      .where('userId', '==', userId)
+                      .where('sourceId', 'in', activeSourceIds.slice(0, 10)) // Firestore 'in' limit
+                      .limit(1)
                       .get();
                     
-                    const fullSources = sourcesSnapshot.docs.map(doc => ({
-                      name: doc.data().name,
-                      type: doc.data().type,
-                      content: doc.data().extractedData || ''
-                    }));
-                    
-                    additionalContext = fullSources
-                      .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-                      .join('\n');
-                    
-                    console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
-                  } else {
-                    // Chunks exist but similarity too low - lower threshold and retry
-                    console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
-                    const retrySearchResult = await searchRelevantChunksOptimized(userId, message, {
-                      topK: ragTopK * 2, // Double topK
-                      minSimilarity: 0.2, // Lower threshold (more permissive)
-                      activeSourceIds,
-                      preferBigQuery: true
-                    });
-                    const retryResults = retrySearchResult.results;
-                    
-                    if (retryResults.length > 0) {
-                      // SUCCESS with lower threshold
-                      additionalContext = buildRAGContext(retryResults);
-                      ragUsed = true;
-                      ragResults = retryResults;
-                      ragStats = getRAGStats(retryResults);
-                      console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
-                    } else {
-                      // GRACEFUL DEGRADATION: Still no results - load full documents from Firestore
-                      console.warn('⚠️ No relevant chunks even with lower threshold - loading full documents as EMERGENCY FALLBACK');
+                    if (chunksSnapshot.empty) {
+                      // GRACEFUL DEGRADATION: Documents need indexing
+                      // Load full text from Firestore only if needed
+                      console.warn('⚠️ No chunks exist - loading full documents from Firestore as EMERGENCY FALLBACK');
+                      console.warn('   (This is rare - documents should be indexed)');
                       ragHadFallback = true;
                       
                       // Load full extractedData from Firestore for active sources only
@@ -236,32 +200,81 @@ export const POST: APIRoute = async ({ params, request }) => {
                         .join('\n');
                       
                       console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
+                    } else {
+                      // Chunks exist but similarity too low - lower threshold and retry
+                      console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
+                      const retrySearchResult = await searchRelevantChunksOptimized(userId, message, {
+                        topK: ragTopK * 2, // Double topK
+                        minSimilarity: 0.2, // Lower threshold (more permissive)
+                        activeSourceIds,
+                        preferBigQuery: true
+                      });
+                      const retryResults = retrySearchResult.results;
+                      
+                      if (retryResults.length > 0) {
+                        // SUCCESS with lower threshold
+                        additionalContext = buildRAGContext(retryResults);
+                        ragUsed = true;
+                        ragResults = retryResults;
+                        ragStats = getRAGStats(retryResults);
+                        console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
+                      } else {
+                        // GRACEFUL DEGRADATION: Still no results - load full documents from Firestore
+                        console.warn('⚠️ No relevant chunks even with lower threshold - loading full documents as EMERGENCY FALLBACK');
+                        ragHadFallback = true;
+                        
+                        // Load full extractedData from Firestore for active sources only
+                        const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
+                        const sourcesSnapshot = await firestore
+                          .collection('context_sources')
+                          .where('__name__', 'in', sourceIds)
+                          .get();
+                        
+                        const fullSources = sourcesSnapshot.docs.map(doc => ({
+                          name: doc.data().name,
+                          type: doc.data().type,
+                          content: doc.data().extractedData || ''
+                        }));
+                        
+                        additionalContext = fullSources
+                          .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                          .join('\n');
+                        
+                        console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
+                      }
                     }
                   }
                 }
               } catch (error) {
                 // GRACEFUL DEGRADATION: RAG search error - load full documents from Firestore
                 console.error('⚠️ RAG search failed, loading full documents as EMERGENCY FALLBACK:', error);
-                ragHadFallback = true;
                 
-                // Load full extractedData from Firestore for active sources only
-                const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
-                const sourcesSnapshot = await firestore
-                  .collection('context_sources')
-                  .where('__name__', 'in', sourceIds)
-                  .get();
-                
-                const fullSources = sourcesSnapshot.docs.map(doc => ({
-                  name: doc.data().name,
-                  type: doc.data().type,
-                  content: doc.data().extractedData || ''
-                }));
-                
-                additionalContext = fullSources
-                  .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-                  .join('\n');
-                
-                console.log(`📚 Emergency fallback: Loaded ${fullSources.length} full documents (${additionalContext.length} chars)`);
+                // If using agent search with no activeSourceIds, skip Firestore fallback
+                if (activeSourceIds.length === 0) {
+                  console.warn('⚠️ No activeSourceIds provided (agent search mode) - no context to load');
+                  additionalContext = '';
+                } else {
+                  ragHadFallback = true;
+                  
+                  // Load full extractedData from Firestore for active sources only
+                  const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
+                  const sourcesSnapshot = await firestore
+                    .collection('context_sources')
+                    .where('__name__', 'in', sourceIds)
+                    .get();
+                  
+                  const fullSources = sourcesSnapshot.docs.map(doc => ({
+                    name: doc.data().name,
+                    type: doc.data().type,
+                    content: doc.data().extractedData || ''
+                  }));
+                  
+                  additionalContext = fullSources
+                    .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                    .join('\n');
+                  
+                  console.log(`📚 Emergency fallback: Loaded ${fullSources.length} full documents (${additionalContext.length} chars)`);
+                }
               }
             
             // Ensure minimum 3 seconds for this step

@@ -81,8 +81,9 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
     }
 
     // Prepare user data for session - INCLUDE ROLE from Firestore
+    // ✅ CRITICAL: Use Google OAuth numeric ID as primary identifier (permanent, won't change)
     const userData = {
-      id: userInfo.id,
+      id: userInfo.id, // Google OAuth numeric ID (permanent, unique)
       email: userInfo.email,
       name: userInfo.name,
       picture: userInfo.picture,
