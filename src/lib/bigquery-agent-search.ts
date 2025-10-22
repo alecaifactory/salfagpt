@@ -84,20 +84,49 @@ export async function searchByAgent(
     const queryEmbedding = await generateEmbedding(query);
     console.log(`  ✓ Query embedding generated (${Date.now() - startEmbed}ms)`);
 
-    // 2. Get source IDs assigned to this agent (from Firestore)
+    // 2. Get source IDs assigned to this agent
+    // Try BigQuery first (faster), fallback to Firestore
     console.log('  2/4 Getting sources assigned to agent...');
     const startSources = Date.now();
     
-    const sourcesSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('userId', '==', userId)
-      .where('assignedToAgents', 'array-contains', agentId)
-      .select('__name__') // Only get IDs, not full documents
-      .get();
+    let assignedSourceIds: string[] = [];
     
-    const assignedSourceIds = sourcesSnapshot.docs.map(doc => doc.id);
+    // Try BigQuery assignments table first (if in production)
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const query = `
+          SELECT DISTINCT sourceId
+          FROM \`${PROJECT_ID}.${DATASET_ID}.agent_source_assignments\`
+          WHERE agentId = @agentId
+            AND userId = @userId
+            AND isActive = true
+          ORDER BY assignedAt DESC
+        `;
+        
+        const [rows] = await bigquery.query({
+          query,
+          params: { agentId, userId }
+        });
+        
+        assignedSourceIds = rows.map((row: any) => row.sourceId);
+        console.log(`  ✓ Found ${assignedSourceIds.length} sources from BigQuery assignments table (${Date.now() - startSources}ms)`);
+      } catch (error) {
+        console.warn('  ⚠️ BigQuery assignments query failed, falling back to Firestore:', error);
+      }
+    }
     
-    console.log(`  ✓ Found ${assignedSourceIds.length} sources for agent (${Date.now() - startSources}ms)`);
+    // Fallback to Firestore (always for dev, or if BigQuery failed)
+    if (assignedSourceIds.length === 0) {
+      const sourcesSnapshot = await firestore
+        .collection(COLLECTIONS.CONTEXT_SOURCES)
+        .where('userId', '==', userId)
+        .where('assignedToAgents', 'array-contains', agentId)
+        .select('__name__') // Only get IDs, not full documents
+        .get();
+      
+      assignedSourceIds = sourcesSnapshot.docs.map(doc => doc.id);
+      console.log(`  ✓ Found ${assignedSourceIds.length} sources from Firestore (${Date.now() - startSources}ms)`);
+    }
 
     if (assignedSourceIds.length === 0) {
       console.warn('  ⚠️ No sources assigned to this agent');
