@@ -13,6 +13,7 @@ import AnalyticsDashboard from './AnalyticsDashboard';
 import { AgentSharingModal } from './AgentSharingModal';
 import SalfaAnalyticsDashboard from './SalfaAnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
+import AgentContextModal from './AgentContextModal';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
 import RAGConfigPanel from './RAGConfigPanel';
@@ -336,6 +337,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   }, [currentConversation]);
 
+  // AgentContextModal handles its own data loading with pagination
+  // No need to pre-load context sources here
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -558,19 +562,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           } : undefined,
         }));
         
-        setContextSources(sourcesWithDates);
-        
-        // Log filtering results
+        // Log filtering results BEFORE setting state
         const publicSources = sourcesWithDates.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
         const assignedSources = sourcesWithDates.filter((s: any) => s.assignedToAgents?.includes(conversationId));
         
         console.log('✅ Lightweight context refresh complete:');
-        console.log(`   Total sources for this agent: ${sourcesWithDates.length}`);
+        console.log(`   Total sources returned by API: ${sourcesWithDates.length}`);
+        console.log(`   Agent/Conversation ID: ${conversationId}`);
         console.log(`   - PUBLIC sources: ${publicSources.length}`);
         console.log(`   - Assigned to this agent: ${assignedSources.length}`);
         console.log(`   - Active (toggled ON): ${sourcesWithDates.filter((s: any) => s.enabled).length}`);
         
-        return;
+        // Sample to debug
+        if (sourcesWithDates.length > 0) {
+          const sample = sourcesWithDates[0];
+          console.log('   📄 Sample source:', sample.name);
+          console.log('      - assignedToAgents:', sample.assignedToAgents);
+          console.log('      - includes agentId?:', sample.assignedToAgents?.includes(conversationId));
+        }
+        
+        setContextSources(sourcesWithDates);
+        
+        console.log('✅ Lightweight load complete - SKIPPING RAG verification');
+        return; // ⚠️ CRITICAL: Exit here to avoid heavy RAG verification
       }
       
       // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation)
@@ -4611,277 +4625,24 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
       )}
 
-      {/* Agent Context Configuration Modal */}
+      {/* Agent Context Configuration Modal - Optimized with Pagination */}
       {showAgentContextModal && agentForContextConfig && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <SettingsIcon className="w-6 h-6 text-blue-600" />
-                <h2 className="text-xl font-bold text-slate-800 dark:text-white">
-                  Configuración de Contexto
-                </h2>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAgentContextModal(false);
-                  setAgentForContextConfig(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
-              >
-                <XIcon className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Agent Name & ID */}
-            <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-slate-200 dark:border-slate-700">
-              <p className="text-sm text-slate-600 dark:text-slate-400">Agente:</p>
-              <p className="text-lg font-semibold text-slate-800 dark:text-white">
-                {conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
-                ID: {agentForContextConfig}
-              </p>
-            </div>
-
-            {/* Content - Context Sources */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-3 mb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Fuentes de Contexto
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {contextSources.filter(s => 
-                        s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                      ).length} documentos asignados
-                      {selectedContextIds.length > 0 && ` • ${selectedContextIds.length} seleccionados`}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowAddSourceModal(true);
-                      setSelectedContextIds([]); // Clear selection when adding
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Agregar Fuente
-                  </button>
-                </div>
-                
-                {/* Multi-select controls */}
-                {contextSources.filter(s => 
-                  s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                ).length > 0 && (
-                  <div className="flex items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          const agentSources = contextSources.filter(s => 
-                            s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
-                          );
-                          setSelectedContextIds(agentSources.map(s => s.id));
-                        }}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 hover:bg-blue-50 rounded"
-                      >
-                        Select All
-                      </button>
-                      <span className="text-slate-300">|</span>
-                      <button
-                        onClick={() => setSelectedContextIds([])}
-                        className="text-xs text-gray-600 hover:text-gray-900 font-medium px-2 py-1 hover:bg-gray-100 rounded"
-                        disabled={selectedContextIds.length === 0}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                    
-                    {selectedContextIds.length > 0 && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={async () => {
-                            // Enable selected sources
-                            for (const sourceId of selectedContextIds) {
-                              const source = contextSources.find(s => s.id === sourceId);
-                              if (source && !source.enabled) {
-                                await toggleContext(sourceId);
-                              }
-                            }
-                            setSelectedContextIds([]);
-                          }}
-                          className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-medium"
-                        >
-                          Enable ({selectedContextIds.length})
-                        </button>
-                        <button
-                          onClick={async () => {
-                            // Disable selected sources
-                            for (const sourceId of selectedContextIds) {
-                              const source = contextSources.find(s => s.id === sourceId);
-                              if (source && source.enabled) {
-                                await toggleContext(sourceId);
-                              }
-                            }
-                            setSelectedContextIds([]);
-                          }}
-                          className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 font-medium"
-                        >
-                          Disable ({selectedContextIds.length})
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* List of context sources for this agent */}
-              <div className="space-y-2">
-                {contextSources
-                  .filter(s => 
-                    !s.assignedToAgents || 
-                    s.assignedToAgents.length === 0 || 
-                    s.assignedToAgents.includes(agentForContextConfig)
-                  )
-                  .map(source => {
-                    const isSelected = selectedContextIds.includes(source.id);
-                    
-                    return (
-                    <div
-                      key={source.id}
-                      onClick={() => {
-                        setSelectedContextIds(prev => 
-                          prev.includes(source.id)
-                            ? prev.filter(id => id !== source.id)
-                            : [...prev, source.id]
-                        );
-                      }}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : source.enabled
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
-                          : 'bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-600 hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedContextIds(prev => 
-                                prev.includes(source.id)
-                                  ? prev.filter(id => id !== source.id)
-                                  : [...prev, source.id]
-                              );
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
-                          />
-                          <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
-                          <span className="text-sm font-semibold truncate text-slate-800 dark:text-white">
-                            {source.name}
-                          </span>
-                          {source.metadata?.validated && (
-                            <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
-                              ✓ Validado
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Toggle Switch */}
-                        <label className="relative inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={source.enabled}
-                            onChange={() => toggleContext(source.id)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-green-300 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-green-600"></div>
-                        </label>
-                      </div>
-
-                      {/* Source preview */}
-                      {source.extractedData && (
-                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
-                          {source.extractedData.substring(0, 150)}...
-                        </p>
-                      )}
-
-                      {/* Metadata */}
-                      <div className="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                        {source.metadata?.pageCount && (
-                          <span>{source.metadata.pageCount} págs</span>
-                        )}
-                        {source.metadata?.charactersExtracted && (
-                          <span>{(source.metadata.charactersExtracted / 1000).toFixed(1)}k caracteres</span>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          onClick={() => handleSourceSettings(source.id)}
-                          className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-                        >
-                          Ver Detalles
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm('¿Quitar esta fuente del agente?')) {
-                              try {
-                                const response = await fetch(`/api/context-sources/${source.id}/remove-agent`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ agentId: agentForContextConfig }),
-                                });
-                                if (response.ok) {
-                                  setContextSources(prev => prev.filter(s => s.id !== source.id));
-                                }
-                              } catch (error) {
-                                console.error('Error removing source:', error);
-                              }
-                            }
-                          }}
-                          className="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    </div>
-                  );
-                  })}
-                {contextSources.filter(s => 
-                  !s.assignedToAgents || 
-                  s.assignedToAgents.length === 0 || 
-                  s.assignedToAgents.includes(agentForContextConfig)
-                ).length === 0 && (
-                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-sm">
-                    <p>No hay fuentes de contexto para este agente</p>
-                    <p className="text-xs mt-1">Haz click en "Agregar Fuente" para empezar</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
-              <button
-                onClick={() => {
-                  setShowAgentContextModal(false);
-                  setAgentForContextConfig(null);
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
+        <AgentContextModal
+          isOpen={showAgentContextModal}
+          onClose={() => {
+            setShowAgentContextModal(false);
+            setAgentForContextConfig(null);
+            // Refresh context after modal closes
+            if (currentConversation) {
+              loadContextForConversation(currentConversation, true);
+            }
+          }}
+          agentId={agentForContextConfig}
+          agentName={conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
+          userId={userId}
+        />
       )}
+
 
       <AddSourceModal
         isOpen={showAddSourceModal}

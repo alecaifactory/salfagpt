@@ -5,14 +5,18 @@
 El botón de "RAG Chunks" en la sección de Context Management no funcionaba correctamente:
 
 **Síntomas:**
-- Al hacer clic en el tab "RAG Chunks", no cargaba los chunks del documento seleccionado
+- Al hacer clic en el tab "RAG Chunks", aparecía un alert: "RAG no está habilitado para este documento"
+- Esto ocurría incluso cuando el documento SÍ tenía chunks en Firestore
 - Los chunks de un documento anterior se mostraban cuando se seleccionaba un documento diferente
 - La carga de chunks no era on-demand (solo cuando se hace clic)
 
 **Causa Raíz:**
-1. El `useEffect` solo cargaba chunks si `chunks.length === 0`
-2. Al cambiar de documento, el estado `chunks` no se limpiaba
-3. Esto causaba que documentos nuevos mostraran chunks viejos o no cargaran nada
+1. El botón validaba `if (!source.ragEnabled)` pero este campo era `undefined` en documentos legacy
+2. `undefined` se evalúa como falsy, entonces el código pensaba que RAG no estaba habilitado
+3. En realidad, los chunks SÍ existían en Firestore (colección `document_chunks`)
+4. El `useEffect` solo cargaba chunks si `chunks.length === 0`
+5. Al cambiar de documento, el estado `chunks` no se limpiaba
+6. Esto causaba que documentos nuevos mostraran chunks viejos o no cargaran nada
 
 ---
 
@@ -38,39 +42,131 @@ useEffect(() => {
 
 ---
 
-### 2. Cargar Chunks On-Demand al Hacer Clic
+### 2. Cargar Chunks On-Demand al Hacer Clic (Sin Validar ragEnabled)
 
 ```typescript
-// PipelineDetailView.tsx - Líneas 242-273
+// PipelineDetailView.tsx - Líneas 258-293
 <button
   onClick={() => {
     console.log('🔘 RAG Chunks tab clicked');
     console.log('   Source ID:', source.id);
+    console.log('   Source name:', source.name);
     console.log('   RAG enabled:', source.ragEnabled);
+    console.log('   RAG metadata:', source.ragMetadata);
     console.log('   Current chunks loaded:', chunks.length);
+    console.log('   userId available:', !!userId);
     
+    // Always set active tab first
     setActiveTab('chunks');
     
-    // 🔧 FIX: Always reload chunks when tab is clicked (on-demand)
-    if (source.ragEnabled && userId) {
-      console.log('✅ Loading chunks on-demand for source:', source.id);
-      loadChunks();
-    } else {
-      console.warn('⚠️ Cannot load chunks:', {
-        ragEnabled: source.ragEnabled,
-        userId: !!userId
-      });
+    // 🔧 FIX: Check userId first (more critical)
+    if (!userId) {
+      console.error('❌ userId is missing');
+      alert('Error: userId no disponible. Recarga la página.');
+      return;
     }
+    
+    // ✅ IMPORTANT: Don't check ragEnabled - let the API determine if chunks exist
+    // Some sources may have chunks but ragEnabled field is undefined (legacy data)
+    console.log('✅ Loading chunks for source:', source.id);
+    loadChunks();
   }}
   // ... rest of button
 >
 ```
 
 **Por qué funciona:**
-- `loadChunks()` se llama SIEMPRE al hacer clic en el tab
-- No depende de `chunks.length === 0`
-- Carga los chunks del documento correcto cada vez
-- Logs detallados para debugging
+- ✅ NO valida `source.ragEnabled` (puede ser `undefined` en datos legacy)
+- ✅ Solo valida que `userId` esté disponible
+- ✅ Deja que el API determine si hay chunks o no
+- ✅ `loadChunks()` se llama SIEMPRE al hacer clic en el tab
+- ✅ No depende de `chunks.length === 0`
+- ✅ Carga los chunks del documento correcto cada vez
+- ✅ Logs detallados para debugging
+
+---
+
+### 3. Eliminar Validación Redundante en Vista de Chunks
+
+```typescript
+// PipelineDetailView.tsx - Líneas 690-696
+// ANTES:
+{!source.ragEnabled ? (
+  <div>RAG no está habilitado...</div>
+) : loadingChunks ? (
+  <Loader2 />
+) : chunks.length === 0 ? (
+  // ...
+) : (
+  // Show chunks
+)}
+
+// DESPUÉS:
+{loadingChunks ? (
+  <Loader2 />
+) : chunks.length === 0 ? (
+  // ...
+) : (
+  // Show chunks
+)}
+```
+
+**Por qué funciona:**
+- ✅ No verifica `source.ragEnabled` antes de mostrar chunks
+- ✅ Si no hay chunks, lo manejará el caso `chunks.length === 0`
+- ✅ Deja que el API determine si hay chunks disponibles
+
+---
+
+## 🔍 Problema de Datos Legacy
+
+**Descubierto durante el fix:**
+
+Algunos documentos en Firestore tienen chunks en la colección `document_chunks` pero el campo `ragEnabled` es `undefined` en lugar de `true`.
+
+**Ejemplo del documento afectado:**
+```
+Source: DDU-398-con-numero-Modificada-por-DDU-440-AVC.pdf
+- ragEnabled: undefined
+- ragMetadata: undefined
+- Pero SÍ tiene chunks en Firestore ✅
+```
+
+**Solución aplicada:**
+- No validar `ragEnabled` en el frontend
+- Dejar que el API cargue chunks si existen
+- Si no hay chunks, mostrar mensaje apropiado
+
+**Fix permanente (futuro):**
+```typescript
+// Script para actualizar documentos legacy
+async function fixLegacyRagData() {
+  const sources = await firestore.collection('context_sources').get();
+  
+  for (const doc of sources.docs) {
+    const sourceId = doc.id;
+    
+    // Check if chunks exist
+    const chunks = await firestore
+      .collection('document_chunks')
+      .where('sourceId', '==', sourceId)
+      .limit(1)
+      .get();
+    
+    if (!chunks.empty && !doc.data().ragEnabled) {
+      // Has chunks but ragEnabled is missing
+      await doc.ref.update({
+        ragEnabled: true,
+        ragMetadata: {
+          chunkCount: chunks.size,
+          // ... other metadata
+        }
+      });
+      console.log('✅ Fixed:', doc.data().name);
+    }
+  }
+}
+```
 
 ---
 
@@ -144,12 +240,17 @@ useEffect(() => {
 **Cambios:**
 
 1. **Eliminado:** `useEffect` antiguo que cargaba chunks automáticamente
-2. **Agregado:** `useEffect` que limpia chunks al cambiar de source
-3. **Modificado:** Button onClick para cargar chunks siempre que se haga clic
+2. **Agregado:** `useEffect` que limpia chunks al cambiar de source (líneas 54-59)
+3. **Modificado:** Button onClick para cargar chunks siempre que se haga clic (líneas 258-301)
+4. **Mejorado:** Función `loadChunks()` con logging detallado y alertas (líneas 91-140)
+5. **Removido:** Atributo `disabled` del botón (ahora maneja validación en onClick)
 
-**Líneas afectadas:**
-- Líneas 54-59: Nuevo useEffect para limpiar chunks
-- Líneas 243-260: Modificado onClick para carga on-demand
+**Mejoras Clave:**
+- ✅ El botón SIEMPRE responde al click (no está deshabilitado)
+- ✅ Validaciones dentro del onClick con mensajes claros
+- ✅ Logging extensivo para debugging
+- ✅ Alertas al usuario si algo falla
+- ✅ `credentials: 'include'` para autenticación
 
 ---
 
@@ -289,9 +390,29 @@ Para verificar que funciona correctamente, revisa la consola:
 **Autor**: Alec  
 **Status**: ✅ Implementado y Verificado  
 **Breaking Changes**: Ninguno  
-**Testing**: Manual testing requerido
+**Testing**: Manual testing completado
 
 ---
 
-**Remember:** Los chunks ahora solo se cargan cuando el usuario hace clic explícitamente en el tab "RAG Chunks", garantizando que siempre se muestren los chunks del documento correcto.
+## 🎯 Resumen Ejecutivo
+
+**Problema:** El botón "RAG Chunks" mostraba alert "RAG no está habilitado" aunque los chunks SÍ existían en Firestore.
+
+**Causa:** Validación incorrecta de `source.ragEnabled` (puede ser `undefined` en datos legacy).
+
+**Solución:** 
+1. ✅ Removida validación de `ragEnabled` antes de cargar
+2. ✅ Dejar que el API determine si hay chunks
+3. ✅ Limpiar chunks al cambiar de documento
+4. ✅ Logging extensivo para debugging
+
+**Resultado:** 
+- ✅ Ahora se cargan chunks para TODOS los documentos que los tengan
+- ✅ No importa si `ragEnabled` es `true`, `false`, o `undefined`
+- ✅ El API consulta Firestore y retorna los chunks que existan
+- ✅ Si no hay chunks, mensaje claro al usuario
+
+---
+
+**Remember:** Los chunks ahora se cargan on-demand basándose en la existencia real en Firestore, no en metadatos que pueden estar desactualizados. El campo `ragEnabled` ya no bloquea la visualización de chunks existentes.
 

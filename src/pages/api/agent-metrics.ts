@@ -105,15 +105,27 @@ export const GET: APIRoute = async (context) => {
 
     console.log('📊 Loading agent metrics for user:', userId);
 
-    // Load all conversations (agents) for this user
+    // Load all conversations for this user, then filter for agents in memory
+    // NOTE: Once Firestore index is ready, we can use a compound query
+    // For now, filter client-side to avoid index requirement
     const conversationsSnapshot = await firestore
       .collection('conversations')
       .where('userId', '==', userId)
       .orderBy('lastMessageAt', 'desc')
       .get();
+    
+    // Filter to ONLY agents (isAgent: true) in memory
+    const agentDocs = conversationsSnapshot.docs.filter(doc => {
+      const data = doc.data();
+      // Include if explicitly marked as agent, or if not marked (legacy behavior)
+      // Exclude if explicitly marked as conversation (isAgent: false)
+      return data.isAgent !== false;
+    });
+
+    console.log(`📊 Found ${conversationsSnapshot.docs.length} total, ${agentDocs.length} agents (isAgent !== false)`);
 
     const agentMetrics = await Promise.all(
-      conversationsSnapshot.docs.map(async (convDoc) => {
+      agentDocs.map(async (convDoc) => {
         const conv = convDoc.data();
         const agentId = convDoc.id;
 

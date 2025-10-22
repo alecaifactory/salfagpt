@@ -41,6 +41,7 @@ export const GET: APIRoute = async (context) => {
     const limit = parseInt(url.searchParams.get('limit') || '10');
 
     console.log(`📄 Loading context sources for agent ${agentId}: page ${page}, limit ${limit}`);
+    console.log('   Query: assignedToAgents array-contains', agentId);
 
     // 2. Query sources assigned to this agent
     let query: any = firestore
@@ -62,6 +63,40 @@ export const GET: APIRoute = async (context) => {
 
     // 4. Execute query
     const snapshot = await query.get();
+    
+    // 4.5. Get accurate total count (only on first page)
+    let totalCount: number | undefined = undefined;
+    if (page === 0) {
+      try {
+        console.log('📊 Counting total sources for agent...');
+        const countSnapshot = await firestore
+          .collection(COLLECTIONS.CONTEXT_SOURCES)
+          .where('assignedToAgents', 'array-contains', agentId)
+          .select('name', 'assignedToAgents') // Fetch minimal fields for verification
+          .get();
+        totalCount = countSnapshot.size;
+        console.log(`📊 Total sources for agent ${agentId}: ${totalCount}`);
+        
+        // Sample to verify data structure
+        if (countSnapshot.size > 0) {
+          const sampleDoc = countSnapshot.docs[0];
+          const sampleData = sampleDoc.data();
+          console.log('   ✅ Sample source:', sampleData.name);
+          console.log('   - assignedToAgents:', sampleData.assignedToAgents);
+          console.log('   - agentId in array:', sampleData.assignedToAgents?.includes(agentId));
+        } else {
+          console.warn('   ⚠️ Count query returned 0 documents');
+          console.warn('   This could mean:');
+          console.warn('   1. No sources are assigned to this agent yet');
+          console.warn('   2. The bulk assignment did not save correctly');
+          console.warn('   3. There is an index missing for assignedToAgents');
+        }
+      } catch (countError) {
+        console.error('❌ Error counting sources:', countError);
+        console.error('   This might be a missing Firestore index');
+        totalCount = undefined; // Will use approximate count from query results
+      }
+    }
 
     // 5. Build MINIMAL source objects
     const sources = snapshot.docs.map((doc: any) => {
@@ -106,7 +141,7 @@ export const GET: APIRoute = async (context) => {
         page,
         limit,
         hasMore,
-        total: page === 0 && sources.length < limit ? sources.length : undefined, // Approximate
+        total: totalCount, // ✅ Accurate total count (from count query on page 0)
         responseTime: elapsed,
       }),
       {

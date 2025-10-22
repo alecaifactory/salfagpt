@@ -58,7 +58,9 @@ export const POST: APIRoute = async (context) => {
 
     console.log('🚀 BULK ASSIGN MULTIPLE:');
     console.log('   Sources:', sourceIds.length);
+    console.log('   Source IDs (first 5):', sourceIds.slice(0, 5));
     console.log('   Agents:', agentIds.length);
+    console.log('   Agent IDs:', agentIds);
     console.log('   Total assignments:', sourceIds.length * agentIds.length);
 
     // 4. Use Firestore batch for efficient bulk update
@@ -108,6 +110,19 @@ export const POST: APIRoute = async (context) => {
     console.log('   Batch time:', batchElapsed, 'ms');
     console.log('   Total time:', totalElapsed, 'ms');
     console.log('   Avg per source:', Math.round(totalElapsed / sourceIds.length), 'ms');
+    
+    // Verify a sample document was actually updated
+    if (sourceIds.length > 0) {
+      const sampleId = sourceIds[0];
+      const sampleDoc = await firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc(sampleId).get();
+      const sampleData = sampleDoc.data();
+      console.log('🔍 VERIFICATION - Sample document after update:');
+      console.log('   ID:', sampleId);
+      console.log('   Name:', sampleData?.name);
+      console.log('   assignedToAgents:', sampleData?.assignedToAgents);
+      console.log('   Expected agentIds:', agentIds);
+      console.log('   Match:', JSON.stringify(sampleData?.assignedToAgents) === JSON.stringify(agentIds));
+    }
 
     // 6. Return success
     return new Response(

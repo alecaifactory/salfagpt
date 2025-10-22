@@ -25,7 +25,9 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx,.astro",
     "build:cli": "tsc cli/index.ts --outDir dist/cli --module esnext --target es2022 --moduleResolution bundler",
-    "prepublishOnly": "npm run build:cli"
+    "prepublishOnly": "npm run build:cli",
+    "verify:agents": "tsx scripts/verify-agents.ts",
+    "fix:mark-agents": "tsx scripts/fix-mark-agents.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
@@ -61,6 +63,7 @@
     "@types/react-dom": "^18.3.5",
     "@types/react-syntax-highlighter": "^15.5.13",
     "dotenv": "^17.2.3",
+    "firebase-admin": "^12.7.0",
     "typescript": "^5.7.2"
   },
   "files": [
