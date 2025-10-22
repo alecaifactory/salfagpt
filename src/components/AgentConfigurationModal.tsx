@@ -66,7 +66,8 @@ export default function AgentConfigurationModal({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
   
   // Load existing configuration when modal opens
   useEffect(() => {
@@ -476,11 +477,10 @@ export default function AgentConfigurationModal({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">

@@ -58,8 +58,8 @@ export default function DomainManagementModal({
   // Selected domain for details
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
 
-  // 🔑 Hook para cerrar con ESC
-  useModalClose(isOpen, onClose);
+  // 🔑 Hook para cerrar con ESC y click fuera
+  const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
   // Load domains
   useEffect(() => {
@@ -225,11 +225,10 @@ export default function DomainManagementModal({
   return (
     <div 
       className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center"
-      onClick={onClose}
     >
       <div 
+        ref={modalRef}
         className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
