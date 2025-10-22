@@ -621,14 +621,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       setContextSources(minimalSources); // Minimal objects for sendMessage
       
       // ✅ NEW: Set stats for UI display
-      setContextStats({
+      const newStats = {
         totalCount: data.totalCount || 0,
         activeCount: data.activeCount || 0
-      });
+      };
+      setContextStats(newStats);
       
       console.log(`✅ Minimal context loaded: ${minimalSources.length} active sources (${data.loadTime}ms)`);
       console.log(`   IDs ready for references, BigQuery handles chunk search`);
       console.log(`   UI will show: ${data.activeCount} activas / ${data.totalCount} asignadas`);
+      console.log(`   🎯 contextStats setState called with:`, newStats);
       
     } catch (error) {
       console.error('Error loading context:', error);
@@ -3893,7 +3895,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
                 </span>
                 <span className="text-slate-400">•</span>
-                <span className="text-blue-600">
+                <span className="text-blue-600" title={`contextStats: ${contextStats ? JSON.stringify(contextStats) : 'null'}`}>
                   {contextStats ? contextStats.activeCount : 0} fuentes
                 </span>
               </button>
