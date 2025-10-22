@@ -39,22 +39,37 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       );
     }
 
-    console.log(`📊 Getting context stats for agent: ${agentId}`);
+    console.log(`📊 Getting context stats for agent/conversation: ${agentId}`);
 
-    // 2. Count sources assigned to this agent (fast count query)
+    // 2. Check if this is a chat (has parent agent) or direct agent
+    const conversationDoc = await firestore
+      .collection(COLLECTIONS.CONVERSATIONS)
+      .doc(agentId)
+      .get();
+
+    const conversation = conversationDoc.data();
+    const isChat = !!conversation?.agentId;
+    const effectiveAgentId = isChat ? conversation.agentId : agentId;
+
+    if (isChat) {
+      console.log(`  🔗 Chat detected - inheriting from parent agent: ${effectiveAgentId}`);
+    }
+
+    // 3. Count sources assigned to the effective agent (fast count query)
     const assignedCountSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
       .where('userId', '==', session.id)
-      .where('assignedToAgents', 'array-contains', agentId)
+      .where('assignedToAgents', 'array-contains', effectiveAgentId)
       .count()
       .get();
 
     const totalCount = assignedCountSnapshot.data().count;
 
-    // 3. Get active source IDs from conversation_context (tiny document)
+    // 4. Get active source IDs from conversation_context (tiny document)
+    // For chats, check parent agent's context
     const contextDoc = await firestore
       .collection('conversation_context')
-      .doc(agentId)
+      .doc(effectiveAgentId)
       .get();
 
     const activeContextSourceIds = contextDoc.exists 
@@ -65,9 +80,10 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     const elapsed = Date.now() - startTime;
 
-    console.log(`✅ Context stats for agent ${agentId}:`, {
+    console.log(`✅ Context stats for ${isChat ? 'chat' : 'agent'} ${agentId}:`, {
       totalCount,
       activeCount,
+      effectiveAgentId: isChat ? effectiveAgentId : undefined,
       elapsed: `${elapsed}ms`
     });
 
@@ -77,6 +93,8 @@ export const GET: APIRoute = async ({ params, cookies }) => {
         activeCount,
         activeContextSourceIds, // Return IDs for toggling if needed
         agentId,
+        effectiveAgentId: isChat ? effectiveAgentId : agentId, // Return effective agent for reference
+        isChat,
         loadTime: elapsed
       }),
       {
