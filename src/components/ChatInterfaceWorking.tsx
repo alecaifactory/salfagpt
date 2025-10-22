@@ -512,14 +512,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             setConversations(allConversations);
           }
           
-          // Auto-select first agent if none selected
-          if (!selectedAgent && allConversations.length > 0) {
-            const firstAgent = allConversations.find(c => c.isAgent !== false && c.status !== 'archived');
-            if (firstAgent) {
-              setSelectedAgent(firstAgent.id);
-              setCurrentConversation(firstAgent.id);
-            }
-          }
+          // ✅ REMOVED: Don't auto-select - keep canvas clean on first load
+          // Let user choose which agent/conversation to start with
           
           console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
           console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
