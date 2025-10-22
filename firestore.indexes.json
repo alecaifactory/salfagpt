@@ -79,6 +79,20 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "assignedToAgents",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "addedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "context_sources",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "userId",
           "order": "ASCENDING"
         },

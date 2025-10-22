@@ -736,11 +736,21 @@ export default function ContextManagementDashboard({
   };
 
   const handleAssignClick = async () => {
-    if (selectedSourceIds.length === 0 || pendingAgentIds.length === 0) return;
+    console.log('🎯 ASSIGN BUTTON CLICKED!');
+    console.log('   Selected sources:', selectedSourceIds.length);
+    console.log('   Selected agents:', pendingAgentIds.length);
+    console.log('   Source IDs:', selectedSourceIds.slice(0, 5));
+    console.log('   Agent IDs:', pendingAgentIds);
+    
+    if (selectedSourceIds.length === 0 || pendingAgentIds.length === 0) {
+      console.warn('⚠️ Assignment blocked - missing sources or agents');
+      return;
+    }
     
     setIsAssigning(true);
     
     try {
+      console.log('📤 Sending bulk assignment request...');
       const response = await fetch('/api/context-sources/bulk-assign-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -751,11 +761,15 @@ export default function ContextManagementDashboard({
         }),
       });
 
+      console.log('📥 Response status:', response.status);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('✅ Assignment successful:', result);
         alert(`✅ ${result.sourcesUpdated} documentos asignados en ${(result.responseTime / 1000).toFixed(1)}s`);
         
         // Update local state
+        console.log('🔄 Updating local state...');
         setSources(prev => prev.map(s => 
           selectedSourceIds.includes(s.id)
             ? { ...s, assignedToAgents: pendingAgentIds }
@@ -763,9 +777,13 @@ export default function ContextManagementDashboard({
         ));
         
         // Clear selection
+        console.log('🧹 Clearing selection...');
         setSelectedSourceIds([]);
         setPendingAgentIds([]);
+        console.log('✅ Assignment flow complete');
       } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Assignment failed:', response.status, errorData);
         alert('Error al asignar documentos');
       }
     } catch (error) {
@@ -792,9 +810,40 @@ export default function ContextManagementDashboard({
     );
   };
 
-  const selectAllFilteredSources = () => {
-    const filteredIds = filteredSources.map(s => s.id);
-    setSelectedSourceIds(filteredIds);
+  const selectAllFilteredSources = async () => {
+    // If tag filter is active, load ALL matching source IDs from backend
+    if (selectedTags.length > 0) {
+      setLoading(true);
+      try {
+        const tagsParam = selectedTags.join(',');
+        const response = await fetch(`/api/context-sources/ids-by-tags?tags=${tagsParam}`, {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const allMatchingIds = data.sourceIds || [];
+          console.log(`✅ Selecting ALL ${allMatchingIds.length} sources matching tags:`, selectedTags);
+          setSelectedSourceIds(allMatchingIds);
+        } else {
+          console.error('❌ Failed to load all source IDs:', response.status);
+          // Fallback to current loaded sources
+          const filteredIds = filteredSources.map(s => s.id);
+          setSelectedSourceIds(filteredIds);
+        }
+      } catch (error) {
+        console.error('Error loading all source IDs:', error);
+        // Fallback to current loaded sources
+        const filteredIds = filteredSources.map(s => s.id);
+        setSelectedSourceIds(filteredIds);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      // No filter active - select all currently loaded sources
+      const filteredIds = filteredSources.map(s => s.id);
+      setSelectedSourceIds(filteredIds);
+    }
   };
 
   const clearSourceSelection = () => {
@@ -875,14 +924,48 @@ export default function ContextManagementDashboard({
     setExpandedFolders(new Set());
   };
 
-  const selectAllInFolder = (folderName: string, event: React.MouseEvent) => {
+  const selectAllInFolder = async (folderName: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent folder toggle
-    const folderSources = sourcesByTag.get(folderName) || [];
-    const folderIds = folderSources.map(s => s.id);
-    setSelectedSourceIds(prev => {
-      const combined = new Set([...prev, ...folderIds]);
-      return Array.from(combined);
-    });
+    
+    // Fetch ALL source IDs for this folder/tag from backend
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/context-sources/ids-by-tags?tags=${folderName}`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const allFolderIds = data.sourceIds || [];
+        console.log(`✅ Selecting ALL ${allFolderIds.length} sources in folder "${folderName}"`);
+        
+        // Add to existing selection
+        setSelectedSourceIds(prev => {
+          const combined = new Set([...prev, ...allFolderIds]);
+          return Array.from(combined);
+        });
+      } else {
+        console.error('❌ Failed to load folder source IDs:', response.status);
+        // Fallback to currently loaded sources in folder
+        const folderSources = sourcesByTag.get(folderName) || [];
+        const folderIds = folderSources.map(s => s.id);
+        setSelectedSourceIds(prev => {
+          const combined = new Set([...prev, ...folderIds]);
+          return Array.from(combined);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading folder source IDs:', error);
+      // Fallback to currently loaded sources in folder
+      const folderSources = sourcesByTag.get(folderName) || [];
+      const folderIds = folderSources.map(s => s.id);
+      setSelectedSourceIds(prev => {
+        const combined = new Set([...prev, ...folderIds]);
+        return Array.from(combined);
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReupload = (queueItemId: string) => {
@@ -1443,9 +1526,16 @@ export default function ContextManagementDashboard({
                       ) : (
                         <button
                           onClick={selectAllFilteredSources}
-                          className="text-gray-600 hover:text-gray-900 text-xs transition-colors"
+                          disabled={loading}
+                          className="text-gray-600 hover:text-gray-900 text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                         >
+                          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
                           Select All
+                          {selectedTags.length > 0 && (
+                            <span className="text-blue-600 font-semibold">
+                              ({folderStructure.find(f => selectedTags.includes(f.name))?.count || '?'})
+                            </span>
+                          )}
                         </button>
                       )}
                     </>
@@ -1541,8 +1631,10 @@ export default function ContextManagementDashboard({
                             </div>
                             <button
                               onClick={(e) => selectAllInFolder(folderName, e)}
-                              className="px-3 py-1 text-xs font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+                              disabled={loading}
+                              className="px-3 py-1 text-xs font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                             >
+                              {loading && <Loader2 className="w-3 h-3 animate-spin" />}
                               Select All
                             </button>
                           </div>

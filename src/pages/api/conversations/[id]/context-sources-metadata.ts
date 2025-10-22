@@ -107,6 +107,22 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
       
       return hasPublicTag || isAssignedToThisAgent;
     });
+    
+    console.log('🔍 FILTERING CONTEXT SOURCES:');
+    console.log('   All sources:', allSources.length);
+    console.log('   Conversation/Agent ID:', conversationId);
+    console.log('   Filtered sources:', filteredSources.length);
+    console.log('   PUBLIC sources:', allSources.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public')).length);
+    console.log('   Assigned sources:', allSources.filter((s: any) => s.assignedToAgents?.includes(conversationId)).length);
+    
+    // Sample to verify
+    if (allSources.length > 0) {
+      const sample = allSources[0];
+      console.log('   Sample source:', sample.name);
+      console.log('   - assignedToAgents:', sample.assignedToAgents);
+      console.log('   - labels:', sample.labels);
+      console.log('   - isAssignedToThisAgent:', sample.assignedToAgents?.includes(conversationId));
+    }
 
     // 5. Get toggle state (activeContextSourceIds)
     const contextDoc = await firestore

@@ -92,6 +92,7 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
     console.log('🚀 loadChunks called');
     console.log('   userId:', userId);
     console.log('   source.id:', source.id);
+    console.log('   source.name:', source.name);
     console.log('   source.ragEnabled:', source.ragEnabled);
     
     if (!userId) {
@@ -114,26 +115,39 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
         credentials: 'include' // Include cookies for authentication
       });
       console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Chunks loaded:', data.chunks?.length || 0);
+        console.log('✅ API Response received');
+        console.log('   Chunks count:', data.chunks?.length || 0);
         console.log('   Stats:', data.stats);
-        console.log('   Data:', data);
-        setChunks(data.chunks || []);
+        console.log('   Source ID in response:', data.sourceId);
+        console.log('   Source name in response:', data.sourceName);
         
-        if (!data.chunks || data.chunks.length === 0) {
-          console.warn('⚠️ No chunks returned from API');
-          alert('No se encontraron chunks para este documento. Verifica que RAG esté habilitado correctamente.');
+        if (data.chunks && data.chunks.length > 0) {
+          console.log('✅ Setting', data.chunks.length, 'chunks to state');
+          console.log('   First chunk preview:', {
+            id: data.chunks[0].id,
+            chunkIndex: data.chunks[0].chunkIndex,
+            textLength: data.chunks[0].text?.length,
+            hasEmbedding: !!data.chunks[0].embedding
+          });
+          setChunks(data.chunks);
+        } else {
+          console.warn('⚠️ API returned 0 chunks for source:', source.name);
+          setChunks([]);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Failed to load chunks:', errorData);
-        alert(`Error cargando chunks: ${errorData.error || 'Unknown error'}`);
+        alert(`Error cargando chunks (${response.status}): ${errorData.error || 'Unknown error'}`);
+        setChunks([]);
       }
     } catch (error) {
-      console.error('❌ Error loading chunks:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Exception loading chunks:', error);
+      alert(`Error de red: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setChunks([]);
     } finally {
       setLoadingChunks(false);
     }
@@ -259,28 +273,32 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
             onClick={() => {
               console.log('🔘 RAG Chunks tab clicked');
               console.log('   Source ID:', source.id);
+              console.log('   Source name:', source.name);
               console.log('   RAG enabled:', source.ragEnabled);
+              console.log('   RAG metadata:', source.ragMetadata);
               console.log('   Current chunks loaded:', chunks.length);
+              console.log('   userId available:', !!userId);
               
+              // Always set active tab first
               setActiveTab('chunks');
               
-              // 🔧 FIX: Always reload chunks when tab is clicked (on-demand)
-              if (source.ragEnabled && userId) {
-                console.log('✅ Loading chunks on-demand for source:', source.id);
-                loadChunks();
-              } else {
-                console.warn('⚠️ Cannot load chunks:', {
-                  ragEnabled: source.ragEnabled,
-                  userId: !!userId
-                });
+              // 🔧 FIX: Check userId first (more critical)
+              if (!userId) {
+                console.error('❌ userId is missing');
+                alert('Error: userId no disponible. Recarga la página.');
+                return;
               }
+              
+              // ✅ IMPORTANT: Don't check ragEnabled - let the API determine if chunks exist
+              // Some sources may have chunks but ragEnabled field is undefined (legacy data)
+              console.log('✅ Loading chunks for source:', source.id);
+              loadChunks();
             }}
             className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === 'chunks'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                 : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
             }`}
-            disabled={!source.ragEnabled}
           >
             <div className="flex items-center justify-center gap-2">
               <Grid className="w-4 h-4" />
@@ -685,15 +703,7 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
         {/* RAG Chunks Tab */}
         {activeTab === 'chunks' && (
           <div className="p-6">
-            {!source.ragEnabled ? (
-              <div className="text-center py-12">
-                <Grid className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm text-gray-600 mb-2">RAG no está habilitado para este documento</p>
-                <p className="text-xs text-gray-500">
-                  Habilita RAG para fragmentar el documento y generar embeddings
-                </p>
-              </div>
-            ) : loadingChunks ? (
+            {loadingChunks ? (
               <div className="text-center py-12">
                 <Loader2 className="w-8 h-8 mx-auto mb-3 text-blue-600 animate-spin" />
                 <p className="text-sm text-gray-600">Cargando chunks...</p>
@@ -701,11 +711,20 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
             ) : chunks.length === 0 ? (
               <div className="text-center py-12">
                 <AlertCircle className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm text-gray-600 mb-2">No hay chunks disponibles</p>
+                <p className="text-sm text-gray-600 mb-2">No se encontraron chunks para este documento</p>
+                <p className="text-xs text-gray-500 mb-4">
+                  {source.ragEnabled === false 
+                    ? 'RAG no está habilitado para este documento'
+                    : 'Es posible que el documento no haya sido procesado con RAG aún'}
+                </p>
                 <button
-                  onClick={loadChunks}
-                  className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                  onClick={() => {
+                    console.log('🔄 Manual reload requested');
+                    loadChunks();
+                  }}
+                  className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium inline-flex items-center gap-2"
                 >
+                  <Loader2 className="w-4 h-4" />
                   Reintentar Carga
                 </button>
               </div>

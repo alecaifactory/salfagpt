@@ -62,24 +62,68 @@ export default function AgentContextModal({
     
     try {
       console.log('📥 Loading context sources for agent:', agentId);
+      console.log('   Fetching:', `/api/agents/${agentId}/context-sources?page=0&limit=10`);
       
       // Load ONLY metadata, no extractedData, no chunks
-      const response = await fetch(`/api/agents/${agentId}/context-sources?page=0&limit=10`);
+      const response = await fetch(`/api/agents/${agentId}/context-sources?page=0&limit=10`, {
+        credentials: 'include', // ✅ Include cookies for authentication
+      });
+      
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response ok:', response.ok);
       
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 Response data:', data);
+        
         setSources(data.sources || []);
         setTotalCount(data.total || 0);
         setHasMore(data.hasMore || false);
         
         console.log('✅ Loaded page 0:', data.sources?.length || 0, 'of', data.total || 0, 'sources');
+        
+        // Auto-enable all assigned sources by default
+        if (data.total > 0) {
+          console.log('⚡ Auto-enabling all assigned sources for agent...');
+          enableAllAssignedSources();
+        } else {
+          console.warn('⚠️ No sources found for agent - total is 0 or undefined');
+        }
       } else {
-        console.error('Failed to load context sources');
+        const errorText = await response.text();
+        console.error('❌ Failed to load context sources:', response.status, errorText);
       }
     } catch (error) {
       console.error('Error loading context sources:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const enableAllAssignedSources = async () => {
+    try {
+      // Get ALL source IDs assigned to this agent (using the same query as the page load)
+      const allIdsResponse = await fetch(`/api/agents/${agentId}/context-sources/all-ids`);
+      if (!allIdsResponse.ok) {
+        console.warn('⚠️ Could not fetch all source IDs, skipping auto-enable');
+        return;
+      }
+      
+      const allIdsData = await allIdsResponse.json();
+      const allSourceIds = allIdsData.sourceIds || [];
+      
+      if (allSourceIds.length === 0) return;
+      
+      // Enable all assigned sources at once
+      await fetch(`/api/conversations/${agentId}/context-sources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeContextSourceIds: allSourceIds })
+      });
+      
+      console.log(`✅ Auto-enabled ${allSourceIds.length} sources for agent`);
+    } catch (error) {
+      console.warn('⚠️ Auto-enable failed (non-critical):', error);
     }
   };
   
@@ -90,7 +134,9 @@ export default function AgentContextModal({
     const nextPage = currentPage + 1;
     
     try {
-      const response = await fetch(`/api/agents/${agentId}/context-sources?page=${nextPage}&limit=10`);
+      const response = await fetch(`/api/agents/${agentId}/context-sources?page=${nextPage}&limit=10`, {
+        credentials: 'include', // ✅ Include cookies
+      });
       
       if (response.ok) {
         const data = await response.json();
