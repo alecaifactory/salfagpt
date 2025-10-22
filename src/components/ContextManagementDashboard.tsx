@@ -1373,7 +1373,8 @@ export default function ContextManagementDashboard({
                 <div className="flex flex-wrap gap-2">
                   {allTags.map(tag => {
                     const isSelected = selectedTags.includes(tag);
-                    const count = sources.filter(s => s.labels?.includes(tag)).length;
+                    // ✅ Get ACTUAL count from folderStructure (from Firestore total count)
+                    const totalCount = folderStructure.find(f => f.name === tag)?.count || 0;
                     
                     return (
                       <button
@@ -1385,7 +1386,7 @@ export default function ContextManagementDashboard({
                             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
                       >
-                        {tag} ({count})
+                        {tag} ({totalCount})
                       </button>
                     );
                   })}
@@ -1398,7 +1399,7 @@ export default function ContextManagementDashboard({
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-lg font-semibold text-gray-900">
-                    All Context Sources ({filteredSources.length}{selectedTags.length > 0 ? ` of ${sources.length}` : ''})
+                    All Context Sources ({totalCount})
                   </h3>
                   {selectedSourceIds.length > 0 && (
                     <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-full">
@@ -1491,6 +1492,9 @@ export default function ContextManagementDashboard({
                     const hasMore = folderSources.length > 3;
                     const selectedInFolder = folderSources.filter(s => selectedSourceIds.includes(s.id)).length;
                     
+                    // ✅ Get ACTUAL count from folderStructure (from Firestore total count)
+                    const totalCountInFolder = folderStructure.find(f => f.name === folderName)?.count || folderSources.length;
+                    
                     return (
                       <div key={folderName} className="border border-gray-200 rounded-lg overflow-hidden">
                         {/* Folder Header */}
@@ -1506,7 +1510,7 @@ export default function ContextManagementDashboard({
                               <Folder className="w-4 h-4 text-gray-700" />
                               <span className="text-sm font-semibold text-gray-900">{folderName}</span>
                               <span className="text-xs text-gray-600">
-                                {folderSources.length} documento{folderSources.length !== 1 ? 's' : ''}
+                                {totalCountInFolder} documento{totalCountInFolder !== 1 ? 's' : ''}
                                 {selectedInFolder > 0 && (
                                   <> • <span className="text-blue-600 font-medium">{selectedInFolder} seleccionado{selectedInFolder !== 1 ? 's' : ''}</span></>
                                 )}

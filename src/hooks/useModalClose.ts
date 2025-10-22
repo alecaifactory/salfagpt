@@ -1,48 +1,55 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 /**
- * Hook to handle modal closing with ESC key and click outside
- * Usage:
- *   useModalClose(isOpen, onClose);
+ * Hook for handling modal close on ESC key and click outside
+ * @param isOpen - Whether the modal is currently open
+ * @param onClose - Callback to close the modal
+ * @param closeOnOutsideClick - Whether to close on outside click (default: true)
+ * @param closeOnEscape - Whether to close on ESC key (default: true)
  */
-export function useModalClose(isOpen: boolean, onClose: () => void) {
+export function useModalClose(
+  isOpen: boolean,
+  onClose: () => void,
+  closeOnOutsideClick: boolean = true,
+  closeOnEscape: boolean = true
+) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!isOpen) return;
 
     // Handle ESC key
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        console.log('🔑 ESC pressed - closing modal');
+    const handleEscape = (e: KeyboardEvent) => {
+      if (closeOnEscape && e.key === 'Escape') {
+        e.preventDefault();
         onClose();
       }
     };
 
-    // Add event listener
+    // Handle click outside
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!closeOnOutsideClick) return;
+      
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    // Add event listeners
     document.addEventListener('keydown', handleEscape);
+    document.addEventListener('mousedown', handleClickOutside);
+
+    // Prevent body scroll when modal is open
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     // Cleanup
     return () => {
       document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = originalOverflow;
     };
-  }, [isOpen, onClose]);
-}
+  }, [isOpen, onClose, closeOnOutsideClick, closeOnEscape]);
 
-/**
- * Helper function to handle backdrop click
- * Usage:
- *   <div onClick={handleBackdropClick(onClose)}>
- *     <div onClick={(e) => e.stopPropagation()}>
- *       Modal content
- *     </div>
- *   </div>
- */
-export function handleBackdropClick(onClose: () => void) {
-  return (event: React.MouseEvent) => {
-    // Only close if clicking the backdrop itself
-    if (event.target === event.currentTarget) {
-      console.log('🖱️ Click outside modal - closing');
-      onClose();
-    }
-  };
+  return modalRef;
 }
-
