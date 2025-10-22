@@ -2915,7 +2915,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     </div>
                   )}
                 </div>
-                </div>
               )}
             </div>
           ))}
@@ -4040,7 +4039,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     </div>
                   )}
 
-                  {/* Context Sources with RAG Controls */}
+                  {/* Context Sources with RAG Controls - HIDDEN FOR USER ROLE */}
+                  {currentUser?.role !== 'user' && (
                   <div className="border border-slate-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
@@ -4329,6 +4329,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                       </div>
                     )}
                   </div>
+                  )}
 
                   {/* Context Logs - New Section */}
                   {contextLogs.length > 0 && (

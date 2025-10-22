@@ -444,13 +444,32 @@ export const POST: APIRoute = async ({ params, request }) => {
               });
 
               // Send completion event with message ID, RAG configuration, and references
+              // ✅ FIX: Send minimal references to avoid JSON size limit (>64KB causes SSE truncation)
               const data = `data: ${JSON.stringify({ 
                 type: 'complete', 
                 messageId: aiMsg.id,
                 userMessageId: userMessageId,
                 ragUsed,
                 ragStats,
-                references: references.length > 0 ? references : undefined,
+                references: references.length > 0 ? references.map(ref => ({
+                  id: ref.id,
+                  sourceId: ref.sourceId,
+                  sourceName: ref.sourceName,
+                  snippet: ref.snippet?.substring(0, 200) || '', // Limit snippet to 200 chars
+                  chunkIndex: ref.chunkIndex,
+                  similarity: ref.similarity,
+                  location: ref.location,
+                  metadata: {
+                    startChar: ref.metadata?.startChar,
+                    endChar: ref.metadata?.endChar,
+                    tokenCount: ref.metadata?.tokenCount,
+                    startPage: ref.metadata?.startPage,
+                    endPage: ref.metadata?.endPage,
+                    isRAGChunk: ref.metadata?.isRAGChunk,
+                  },
+                  // ❌ Removed: fullText (saved in Firestore at line 437, fetch on demand)
+                  // ❌ Removed: context.before/after (not needed for citation display)
+                })) : undefined,
                 // NEW: Complete RAG configuration audit trail
                 ragConfiguration: {
                   enabled: ragEnabled,
