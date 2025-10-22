@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     const conversationId = params.id;
     const body = await request.json();
-    const { userId, message, model, systemPrompt, contextSources } = body;
+    const { userId, message, model, systemPrompt } = body;
 
     if (!conversationId || !userId || !message) {
       return new Response(
@@ -27,6 +27,15 @@ export const POST: APIRoute = async ({ params, request }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    // ✅ BACKWARD COMPATIBLE: Support both old and new formats
+    // Old format: contextSources = [{id, name, type, content}] (with full text)
+    // New format: activeSourceIds = ['id1', 'id2', ...] (just IDs)
+    const activeSourceIds = body.activeSourceIds || 
+      (body.contextSources && body.contextSources.map((s: any) => s.id).filter(Boolean)) || 
+      [];
+    
+    console.log(`📋 Active sources for RAG: ${activeSourceIds.length} IDs`);
 
     // RAG configuration (RAG is now the ONLY option)
     const ragTopK = body.ragTopK || 5;
@@ -77,11 +86,9 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragResults: any[] = [];
 
           // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
-          if (contextSources && contextSources.length > 0) {
+          if (activeSourceIds && activeSourceIds.length > 0) {
             sendStatus('searching', 'active');
             const searchStartTime = Date.now();
-            
-            const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
             
             // RAG ONLY MODE: Always try RAG search (full-text is disabled)
             if (activeSourceIds.length > 0) {
@@ -123,14 +130,29 @@ export const POST: APIRoute = async ({ params, request }) => {
                   
                   if (chunksSnapshot.empty) {
                     // GRACEFUL DEGRADATION: Documents need indexing
-                    // Full-text is DISABLED as user option, but we use it as emergency fallback
-                    // to ensure the system never breaks completely
-                    console.warn('⚠️ No chunks exist - using full documents as EMERGENCY FALLBACK');
-                    console.warn('   (Full-text mode is disabled as user option)');
+                    // Load full text from Firestore only if needed
+                    console.warn('⚠️ No chunks exist - loading full documents from Firestore as EMERGENCY FALLBACK');
+                    console.warn('   (This is rare - documents should be indexed)');
                     ragHadFallback = true;
-                    additionalContext = contextSources
-                      .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                    
+                    // Load full extractedData from Firestore for active sources only
+                    const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
+                    const sourcesSnapshot = await firestore
+                      .collection('context_sources')
+                      .where('__name__', 'in', sourceIds)
+                      .get();
+                    
+                    const fullSources = sourcesSnapshot.docs.map(doc => ({
+                      name: doc.data().name,
+                      type: doc.data().type,
+                      content: doc.data().extractedData || ''
+                    }));
+                    
+                    additionalContext = fullSources
+                      .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
                       .join('\n');
+                    
+                    console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
                   } else {
                     // Chunks exist but similarity too low - lower threshold and retry
                     console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
@@ -150,24 +172,54 @@ export const POST: APIRoute = async ({ params, request }) => {
                       ragStats = getRAGStats(retryResults);
                       console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
                     } else {
-                      // GRACEFUL DEGRADATION: Still no results - use full documents as emergency fallback
-                      console.warn('⚠️ No relevant chunks even with lower threshold - using full documents as EMERGENCY FALLBACK');
-                      console.warn('   (Full-text mode is disabled as user option)');
+                      // GRACEFUL DEGRADATION: Still no results - load full documents from Firestore
+                      console.warn('⚠️ No relevant chunks even with lower threshold - loading full documents as EMERGENCY FALLBACK');
                       ragHadFallback = true;
-                      additionalContext = contextSources
-                        .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                      
+                      // Load full extractedData from Firestore for active sources only
+                      const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
+                      const sourcesSnapshot = await firestore
+                        .collection('context_sources')
+                        .where('__name__', 'in', sourceIds)
+                        .get();
+                      
+                      const fullSources = sourcesSnapshot.docs.map(doc => ({
+                        name: doc.data().name,
+                        type: doc.data().type,
+                        content: doc.data().extractedData || ''
+                      }));
+                      
+                      additionalContext = fullSources
+                        .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
                         .join('\n');
+                      
+                      console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
                     }
                   }
                 }
               } catch (error) {
-                // GRACEFUL DEGRADATION: RAG search error - use full documents as emergency fallback
-                console.error('⚠️ RAG search failed, using full documents as EMERGENCY FALLBACK:', error);
-                console.warn('   (Full-text mode is disabled as user option)');
+                // GRACEFUL DEGRADATION: RAG search error - load full documents from Firestore
+                console.error('⚠️ RAG search failed, loading full documents as EMERGENCY FALLBACK:', error);
                 ragHadFallback = true;
-                additionalContext = contextSources
-                  .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
+                
+                // Load full extractedData from Firestore for active sources only
+                const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
+                const sourcesSnapshot = await firestore
+                  .collection('context_sources')
+                  .where('__name__', 'in', sourceIds)
+                  .get();
+                
+                const fullSources = sourcesSnapshot.docs.map(doc => ({
+                  name: doc.data().name,
+                  type: doc.data().type,
+                  content: doc.data().extractedData || ''
+                }));
+                
+                additionalContext = fullSources
+                  .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
                   .join('\n');
+                
+                console.log(`📚 Emergency fallback: Loaded ${fullSources.length} full documents (${additionalContext.length} chars)`);
               }
             } else {
               // DISABLED: Full-text mode is no longer available
@@ -301,9 +353,18 @@ export const POST: APIRoute = async ({ params, request }) => {
                 references.forEach(ref => {
                   console.log(`  [${ref.id}] Fragmento ${ref.chunkIndex} de ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% similar - ${ref.metadata.tokenCount} tokens`);
                 });
-              } else if (contextSources && contextSources.length > 0) {
-                // Full-text mode: Create references from complete documents
-                references = contextSources.map((source: any, index: number) => ({
+              } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
+                // Emergency fallback mode: Create references from full documents
+                // This only happens if RAG failed completely (very rare)
+                console.warn('⚠️ Creating references for emergency fallback mode');
+                references = []; // Will be populated if we loaded fullSources above
+                // Note: In emergency fallback, we don't have individual chunks,
+                // so references will be minimal or empty
+              } else {
+                // OLD CODE PATH (legacy): Should not execute anymore
+                // Keeping for absolute backward compatibility
+                const legacyContextSources = body.contextSources || [];
+                references = legacyContextSources.map((source: any, index: number) => ({
                   id: index + 1,
                   sourceId: source.id,
                   sourceName: source.name,

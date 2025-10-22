@@ -54,7 +54,7 @@ const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
   'local': {
     name: 'local',
     displayName: 'Local Development',
-    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192',
+    projectId: process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt',
     region: 'us-central1',
     serviceName: 'local-dev',
     baseUrl: process.env.PUBLIC_BASE_URL || 'http://localhost:3000',
@@ -65,7 +65,7 @@ const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
     },
     
     firestore: {
-      projectId: process.env.GOOGLE_CLOUD_PROJECT || 'gen-lang-client-0986191192',
+      projectId: process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt',
       locationId: 'us-central1',
       databaseId: '(default)',
     },
@@ -88,7 +88,7 @@ const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
   'staging-internal': {
     name: 'staging-internal',
     displayName: 'Staging Internal (GetAI Factory)',
-    projectId: 'gen-lang-client-0986191192',
+    projectId: 'salfagpt',
     region: 'us-central1',
     serviceName: 'flow-staging-internal',
     baseUrl: process.env.PUBLIC_BASE_URL || 'https://flow-staging-internal-xxx.run.app',
@@ -99,7 +99,7 @@ const ENVIRONMENTS: Record<Environment, EnvironmentConfig> = {
     },
     
     firestore: {
-      projectId: 'gen-lang-client-0986191192',
+      projectId: 'salfagpt',
       locationId: 'us-central1',
       databaseId: '(default)',
     },

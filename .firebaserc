@@ -1,7 +1,8 @@
 {
   "projects": {
-    "default": "salfagpt-dev"
-  }
+    "default": "salfagpt-dev",
+    "staging": "salfagpt"
+  },
+  "targets": {},
+  "etags": {}
 }
-
-
