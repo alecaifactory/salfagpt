@@ -3854,7 +3854,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
                 </span>
                 <span className="text-slate-400">•</span>
-                <span className="text-blue-600">{contextSources.filter(s => s.enabled).length} fuentes</span>
+                <span className="text-blue-600">
+                  {contextStats ? contextStats.activeCount : 0} fuentes
+                </span>
               </button>
             </div>
 
