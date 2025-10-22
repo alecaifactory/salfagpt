@@ -2756,14 +2756,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             />
           </div>
           
-          {/* New Agent Button */}
-          <button
-            onClick={createNewConversation}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            <Plus className="w-5 h-5" />
-            Nuevo Agente
-          </button>
+          {/* New Agent Button - HIDDEN FOR USER ROLE */}
+          {currentUser?.role !== 'user' && (
+            <button
+              onClick={createNewConversation}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-5 h-5" />
+              Nuevo Agente
+            </button>
+          )}
         </div>
 
         {/* NEW: Reorganized Sidebar with Collapsible Sections */}
@@ -2853,63 +2855,66 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     )}
                   </div>
                   
-                  {/* Agent actions */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Settings icon - opens context configuration modal */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAgentForContextConfig(agent.id);
-                        setShowAgentContextModal(true);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
-                      title="Configurar Contexto"
-                    >
-                      <SettingsIcon className="w-3.5 h-3.5" />
-                    </button>
-                    
-                    {/* NEW: Share icon - opens sharing modal */}
-                    {!agent.isShared && (
+                  {/* Agent actions - HIDDEN FOR USER ROLE */}
+                  {currentUser?.role !== 'user' && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Settings icon - opens context configuration modal */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setAgentToShare(agent);
-                          setShowAgentSharingModal(true);
+                          setAgentForContextConfig(agent.id);
+                          setShowAgentContextModal(true);
                         }}
-                        className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
-                        title="Compartir Agente"
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        title="Configurar Contexto"
                       >
-                        <Share2 className="w-3.5 h-3.5" />
+                        <SettingsIcon className="w-3.5 h-3.5" />
                       </button>
-                    )}
-                    
-                    {/* Edit icon */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(agent);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
-                      title="Editar nombre"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    
-                    {/* NEW: New chat icon - creates a chat for this agent (LAST position) */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        createNewChatForAgent(agent.id);
-                      }}
-                      className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
-                      title="Nuevo chat"
-                    >
-                      <div className="relative">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        <Plus className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-white dark:bg-slate-800 rounded-full" />
-                      </div>
-                    </button>
-                  </div>
+                      
+                      {/* NEW: Share icon - opens sharing modal */}
+                      {!agent.isShared && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAgentToShare(agent);
+                            setShowAgentSharingModal(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
+                          title="Compartir Agente"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      
+                      {/* Edit icon */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditingConversation(agent);
+                        }}
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        title="Editar nombre"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      
+                      {/* NEW: New chat icon - creates a chat for this agent (LAST position) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          createNewChatForAgent(agent.id);
+                        }}
+                        className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        title="Nuevo chat"
+                      >
+                        <div className="relative">
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <Plus className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-white dark:bg-slate-800 rounded-full" />
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
                 </div>
               )}
             </div>
