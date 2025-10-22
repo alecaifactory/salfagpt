@@ -583,9 +583,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
-      // ✅ MINIMAL: For RAG with BigQuery, we only need COUNT (not full metadata!)
+      // ✅ MINIMAL: For RAG with BigQuery, we only need IDs (not full metadata!)
       // BigQuery handles finding relevant chunks by agentId
-      console.log('⚡ Loading minimal context stats (count only - BigQuery handles search)...');
+      console.log('⚡ Loading minimal context stats (IDs only - BigQuery handles search)...');
       
       const response = await fetch(`/api/agents/${conversationId}/context-stats`);
       if (!response.ok) {
@@ -599,13 +599,26 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       console.log(`✅ Context stats loaded:`, {
         totalCount: data.totalCount,
         activeCount: data.activeCount,
+        activeSourceIds: data.activeContextSourceIds?.length || 0,
         loadTime: data.loadTime + 'ms',
         agentId: conversationId
       });
       
-      // ✅ MINIMAL STATE: We don't need full sources array for agent-based search
-      // Just show count in UI (no metadata, no loading 628 sources!)
-      setContextSources([]); // Clear - not needed for RAG!
+      // ✅ FIX: Create minimal ContextSource objects with just IDs and enabled flag
+      // This is needed for sendMessage to build activeSourceIds array
+      // We don't load extractedData (heavy) - only metadata needed for references
+      const minimalSources: ContextSource[] = (data.activeContextSourceIds || []).map((id: string) => ({
+        id,
+        userId: session?.id || '',
+        name: `Source ${id.substring(0, 8)}`, // Placeholder name
+        type: 'pdf' as const,
+        enabled: true, // All returned IDs are active
+        status: 'active' as const,
+        addedAt: new Date(),
+        // NO extractedData - not needed for RAG references!
+      }));
+      
+      setContextSources(minimalSources); // Minimal objects for sendMessage
       
       // ✅ NEW: Set stats for UI display
       setContextStats({
@@ -613,8 +626,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         activeCount: data.activeCount || 0
       });
       
-      console.log(`✅ Minimal context stats loaded: ${data.totalCount} sources (${data.loadTime}ms)`);
-      console.log(`   Agent-based search enabled - no source metadata needed!`);
+      console.log(`✅ Minimal context loaded: ${minimalSources.length} active sources (${data.loadTime}ms)`);
+      console.log(`   IDs ready for references, BigQuery handles chunk search`);
       console.log(`   UI will show: ${data.activeCount} activas / ${data.totalCount} asignadas`);
       
     } catch (error) {
@@ -1555,6 +1568,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           : step
       ));
 
+      // ✅ FIX: Get active source IDs for this agent (needed for references)
+      const activeSourceIds = contextSources
+        .filter(s => s.enabled)
+        .map(s => s.id);
+      
+      console.log(`📊 Active sources for this agent:`, {
+        count: activeSourceIds.length,
+        sources: contextSources.filter(s => s.enabled).map(s => s.name)
+      });
+      
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
         method: 'POST',
@@ -1565,10 +1588,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
           useAgentSearch: true, // ✅ OPTIMAL: Backend queries BigQuery by agentId!
+          activeSourceIds: activeSourceIds, // ✅ FIX: Send for reference creation & legacy fallback
           ragEnabled: true,
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
-          // NO activeSourceIds needed! Backend handles it!
         })
       });
 
@@ -1738,36 +1761,26 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   const ragConfig = data.ragConfiguration;
                   const ragActuallyUsed = ragConfig?.actuallyUsed || false;
                   
-                  // Calculate tokens based on ACTUAL mode used
-                  const contextSourcesWithMode = activeSources.map(s => {
-                    const fullTextTokens = Math.ceil((s.extractedData?.length || 0) / 4);
-                    
-                    // Determine actual mode and tokens used
-                    let mode: 'rag' | 'full-text';
-                    let tokensUsed: number;
-                    
-                    if (ragActuallyUsed && ragConfig?.stats) {
-                      // Check if this source was in RAG results
-                      const sourceInRAG = ragConfig.stats.sources?.find((rs: any) => rs.id === s.id);
-                      if (sourceInRAG) {
-                        mode = 'rag';
-                        tokensUsed = sourceInRAG.tokens; // ACTUAL tokens from RAG chunks
-                      } else {
-                        mode = 'full-text';
-                        tokensUsed = fullTextTokens;
-                      }
-                    } else {
-                      // Full-text mode or RAG fallback
-                      mode = 'full-text';
-                      tokensUsed = fullTextTokens;
-                    }
-                    
-                    return {
-                      name: s.name,
-                      tokens: tokensUsed, // REAL tokens, not estimate
-                      mode,
-                    };
-                  });
+                  // ✅ FIX: Build context sources for log from RAG stats (backend knows the truth)
+                  let contextSourcesWithMode: Array<{ name: string; tokens: number; mode: 'rag' | 'full-text' }> = [];
+                  
+                  if (ragActuallyUsed && ragConfig?.stats?.sources) {
+                    // Use actual RAG stats from backend (source of truth)
+                    contextSourcesWithMode = ragConfig.stats.sources.map((sourceStats: any) => ({
+                      name: sourceStats.name || `Source ${sourceStats.id?.substring(0, 8)}`,
+                      tokens: sourceStats.tokens, // REAL tokens from RAG chunks
+                      mode: 'rag' as const,
+                    }));
+                  } else if (contextSources.length > 0) {
+                    // Fallback: Use contextSources if available (should have minimal metadata)
+                    contextSourcesWithMode = contextSources
+                      .filter(s => s.enabled)
+                      .map(s => ({
+                        name: s.name,
+                        tokens: Math.ceil((s.extractedData?.length || 0) / 4), // Estimate if no extractedData
+                        mode: 'full-text' as const,
+                      }));
+                  }
                   
                   const log: ContextLog = {
                     id: `log-${Date.now()}`,
