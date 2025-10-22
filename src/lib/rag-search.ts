@@ -54,8 +54,8 @@ export async function searchRelevantChunks(
     const queryEmbedding = await generateEmbedding(query);
     console.log(`  ✓ Query embedding generated (${Date.now() - startEmbed}ms)`);
 
-    // 2. Load all chunks for user (with optional source filter)
-    console.log('  2/4 Loading document chunks...');
+    // 2. Load embeddings only (not full text yet - saves bandwidth!)
+    console.log('  2/4 Loading chunk embeddings...');
     const startLoad = Date.now();
     
     let chunksQuery = firestore
@@ -71,16 +71,19 @@ export async function searchRelevantChunks(
       }
     }
     
-    const chunksSnapshot = await chunksQuery.get();
+    // ✅ OPTIMIZATION: Only load fields needed for similarity calculation
+    const chunksSnapshot = await chunksQuery
+      .select('sourceId', 'chunkIndex', 'embedding')
+      .get();
     
     let chunks = chunksSnapshot.docs.map(doc => ({
       id: doc.id,
       sourceId: doc.data().sourceId,
-      userId: doc.data().userId,
+      userId: userId, // We know this from query
       chunkIndex: doc.data().chunkIndex,
-      text: doc.data().text,
+      text: '', // Will load later for top K only
       embedding: doc.data().embedding as number[],
-      metadata: doc.data().metadata || {}
+      metadata: {} // Will load later for top K only
     }));
 
     // Filter in memory if >10 active sources
@@ -88,14 +91,14 @@ export async function searchRelevantChunks(
       chunks = chunks.filter(c => activeSourceIds.includes(c.sourceId));
     }
 
-    console.log(`  ✓ Loaded ${chunks.length} chunks (${Date.now() - startLoad}ms)`);
+    console.log(`  ✓ Loaded ${chunks.length} chunk embeddings (${Date.now() - startLoad}ms)`);
 
     if (chunks.length === 0) {
       console.log('  ⚠️ No chunks found - documents may not be indexed for RAG');
       return [];
     }
 
-    // 3. Find top K similar chunks
+    // 3. Find top K similar chunks (using embeddings only)
     console.log('  3/4 Calculating similarities...');
     const startSearch = Date.now();
     const topChunks = findTopKSimilar(queryEmbedding, chunks, topK, minSimilarity);
@@ -106,15 +109,28 @@ export async function searchRelevantChunks(
       return [];
     }
 
-    // 4. Load source metadata
-    console.log('  4/4 Loading source metadata...');
+    // 4. ✅ NOW load full data for ONLY the top K chunks
+    console.log('  4/4 Loading full data for top chunks...');
     const startMeta = Date.now();
     const results: RAGSearchResult[] = [];
     
-    // Get unique source IDs
-    const uniqueSourceIds = [...new Set(topChunks.map(tc => tc.chunk.sourceId))];
+    // Get chunk IDs for top K
+    const topChunkIds = topChunks.map(tc => tc.chunk.id);
     
-    // Load all sources at once (more efficient)
+    // Load full chunk data for top K only (not all chunks!)
+    const fullChunksSnapshot = await firestore
+      .collection('document_chunks')
+      .where('__name__', 'in', topChunkIds)
+      .get();
+    
+    const fullChunksMap = new Map(
+      fullChunksSnapshot.docs.map(doc => [doc.id, doc.data()])
+    );
+    
+    // Get unique source IDs
+    const uniqueSourceIds = Array.from(new Set(topChunks.map(tc => tc.chunk.sourceId)));
+    
+    // Load source metadata
     const sourcesSnapshot = await firestore
       .collection('context_sources')
       .where('__name__', 'in', uniqueSourceIds)
@@ -125,17 +141,18 @@ export async function searchRelevantChunks(
     );
     
     for (const { chunk, similarity } of topChunks) {
+      const fullChunkData = fullChunksMap.get(chunk.id);
       const sourceData = sourcesMap.get(chunk.sourceId);
       const sourceName = sourceData?.name || 'Unknown Source';
       
       results.push({
         id: chunk.id,
-        text: chunk.text,
+        text: fullChunkData?.text || '',
         sourceId: chunk.sourceId,
         sourceName,
         chunkIndex: chunk.chunkIndex,
         similarity,
-        metadata: chunk.metadata
+        metadata: fullChunkData?.metadata || {}
       });
     }
 

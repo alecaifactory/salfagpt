@@ -422,8 +422,14 @@ FORMATO REQUERIDO DE RESPUESTA:
 comunidades de copropietarios que estaban acogidas a la ley anterior[2]. Las construcciones 
 en subterráneo deben cumplir con distanciamientos[3]."
 
+Al FINAL de tu respuesta, SIEMPRE incluye una sección de referencias con este formato EXACTO:
+
+---
+### Referencias
+${fragmentNumbers.map((num, idx) => `[${num}] Fragmento de [Nombre del documento] (similitud: XX%)`).join('\n')}
+
 Fragmentos disponibles para citar: ${fragmentNumbers.join(', ')}
-RECUERDA: Cada dato del documento DEBE llevar su número de fragmento entre corchetes.`;
+RECUERDA: Cada dato del documento DEBE llevar su número de fragmento entre corchetes Y debes incluir la sección de referencias al final.`;
       } else {
         // Modo Full-Text (documento completo)
         fullUserMessage = `DOCUMENTO COMPLETO:

@@ -81,60 +81,45 @@ export default function RAGModeControl({
         )}
       </div>
 
-      {/* Mode Toggle */}
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      {/* Mode Display - Full-Text DISABLED, RAG is ONLY option */}
+      <div className="mb-2">
+        {/* DISABLED: Full-text toggle - keeping code for reference but hiding UI
         <button
           onClick={() => onModeChange('full-text')}
-          className={`p-2 rounded-lg border-2 transition-all ${
-            currentMode === 'full-text'
-              ? 'border-blue-500 bg-blue-50 shadow-sm'
-              : 'border-slate-200 bg-white hover:border-blue-300'
-          }`}
+          className="p-2 rounded-lg border-2 border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
+          disabled
         >
           <div className="flex items-center gap-1.5 mb-1">
-            <FileText className={`w-4 h-4 ${
-              currentMode === 'full-text' ? 'text-blue-600' : 'text-slate-400'
-            }`} />
-            <span className={`text-xs font-semibold ${
-              currentMode === 'full-text' ? 'text-blue-700' : 'text-slate-600'
-            }`}>
-              Documento Completo
+            <FileText className="w-4 h-4 text-slate-400" />
+            <span className="text-xs font-semibold text-slate-600 line-through">
+              Documento Completo (Deshabilitado)
             </span>
           </div>
           <p className="text-[10px] text-slate-600">
             {fullTextTokens.toLocaleString()} tokens
           </p>
         </button>
+        */}
 
-        <button
-          onClick={() => hasRAGSources ? onModeChange('rag') : null}
-          disabled={!hasRAGSources}
-          className={`p-2 rounded-lg border-2 transition-all ${
-            currentMode === 'rag'
-              ? 'border-green-500 bg-green-50 shadow-sm'
-              : hasRAGSources
-                ? 'border-slate-200 bg-white hover:border-green-300'
-                : 'border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed'
-          }`}
-        >
+        {/* RAG Mode - Always active (only option) */}
+        <div className="p-2 rounded-lg border-2 border-green-500 bg-green-50 shadow-sm">
           <div className="flex items-center gap-1.5 mb-1">
-            <Search className={`w-4 h-4 ${
-              currentMode === 'rag' ? 'text-green-600' : hasRAGSources ? 'text-slate-400' : 'text-slate-300'
-            }`} />
-            <span className={`text-xs font-semibold ${
-              currentMode === 'rag' ? 'text-green-700' : hasRAGSources ? 'text-slate-600' : 'text-slate-400'
-            }`}>
-              RAG Optimizado
+            <Search className="w-4 h-4 text-green-600" />
+            <span className="text-xs font-semibold text-green-700">
+              RAG Optimizado (Activo)
+            </span>
+            <span className="ml-auto text-[9px] bg-green-600 text-white px-2 py-0.5 rounded-full font-semibold">
+              ÚNICO MODO
             </span>
           </div>
-          <p className={`text-[10px] ${hasRAGSources ? 'text-slate-600' : 'text-slate-400'}`}>
+          <p className="text-[10px] text-slate-600">
             ~{ragTokens.toLocaleString()} tokens
           </p>
-        </button>
+        </div>
       </div>
 
-      {/* Savings Display - Only show if RAG mode and has RAG sources */}
-      {currentMode === 'rag' && hasRAGSources && savingsPercent > 0 && (
+      {/* Savings Display - Always show (RAG is only mode) */}
+      {hasRAGSources && savingsPercent > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-2">
           <div className="flex items-center gap-2 mb-1">
             <TrendingDown className="w-3.5 h-3.5 text-green-600" />
@@ -161,8 +146,8 @@ export default function RAGModeControl({
         </div>
       )}
 
-      {/* No RAG Warning */}
-      {currentMode === 'rag' && !hasRAGSources && (
+      {/* No RAG Warning - Always relevant now */}
+      {!hasRAGSources && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2">
           <p className="text-[10px] text-yellow-700">
             ⚠️ Ningún documento tiene RAG habilitado aún. 
@@ -176,8 +161,7 @@ export default function RAGModeControl({
         <div className="flex items-center gap-1">
           <Zap className="w-3 h-3" />
           <span>
-            Velocidad estimada: 
-            {currentMode === 'rag' && hasRAGSources ? ` ~${speedRAG}s` : ` ~${speedFullText}s`}
+            Velocidad estimada: ~{speedRAG}s
           </span>
         </div>
         <span>

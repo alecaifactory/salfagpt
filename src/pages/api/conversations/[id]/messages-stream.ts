@@ -12,6 +12,8 @@ import {
   updateConversation,
 } from '../../../../lib/firestore';
 import { streamAIResponse } from '../../../../lib/gemini';
+import { searchRelevantChunksOptimized, buildRAGContext, getRAGStats } from 
+  '../../../../lib/rag-search-optimized';
 
 export const POST: APIRoute = async ({ params, request }) => {
   try {
@@ -26,10 +28,10 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // NEW: Track RAG configuration used (before doing any work)
+    // RAG configuration (RAG is now the ONLY option)
     const ragTopK = body.ragTopK || 5;
     const ragMinSimilarity = body.ragMinSimilarity || 0.5;
-    const ragEnabled = body.ragEnabled !== false; // Default: enabled
+    const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
 
     // Get conversation history for temp conversations (can do this early)
     let conversationHistory: Array<{ role: string; content: string }> = [];
@@ -81,18 +83,22 @@ export const POST: APIRoute = async ({ params, request }) => {
             
             const activeSourceIds = contextSources.map((s: any) => s.id).filter(Boolean);
             
-            // Try RAG search if enabled
-            if (ragEnabled && activeSourceIds.length > 0) {
+            // RAG ONLY MODE: Always try RAG search (full-text is disabled)
+            if (activeSourceIds.length > 0) {
               try {
                 console.log('🔍 [Streaming] Attempting RAG search...');
                 console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
-                const { searchRelevantChunks, buildRAGContext, getRAGStats } = await import('../../../../lib/rag-search.js');
                 
-                ragResults = await searchRelevantChunks(userId, message, {
+                // ✅ NEW: Use optimized search (BigQuery first, Firestore fallback)
+                const searchResult = await searchRelevantChunksOptimized(userId, message, {
                   topK: ragTopK,
                   minSimilarity: ragMinSimilarity,
-                  activeSourceIds
+                  activeSourceIds,
+                  preferBigQuery: true
                 });
+                
+                ragResults = searchResult.results;
+                console.log(`  Search method: ${searchResult.searchMethod.toUpperCase()} (${searchResult.searchTime}ms)`);
                 
                 if (ragResults.length > 0) {
                   // SUCCESS: Use RAG chunks
@@ -116,8 +122,11 @@ export const POST: APIRoute = async ({ params, request }) => {
                     .get();
                   
                   if (chunksSnapshot.empty) {
-                    // No chunks exist - documents need indexing
-                    console.warn('⚠️ No chunks exist - using full documents as fallback');
+                    // GRACEFUL DEGRADATION: Documents need indexing
+                    // Full-text is DISABLED as user option, but we use it as emergency fallback
+                    // to ensure the system never breaks completely
+                    console.warn('⚠️ No chunks exist - using full documents as EMERGENCY FALLBACK');
+                    console.warn('   (Full-text mode is disabled as user option)');
                     ragHadFallback = true;
                     additionalContext = contextSources
                       .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
@@ -125,11 +134,13 @@ export const POST: APIRoute = async ({ params, request }) => {
                   } else {
                     // Chunks exist but similarity too low - lower threshold and retry
                     console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
-                    const retryResults = await searchRelevantChunks(userId, message, {
+                    const retrySearchResult = await searchRelevantChunksOptimized(userId, message, {
                       topK: ragTopK * 2, // Double topK
                       minSimilarity: 0.2, // Lower threshold (more permissive)
-                      activeSourceIds
+                      activeSourceIds,
+                      preferBigQuery: true
                     });
+                    const retryResults = retrySearchResult.results;
                     
                     if (retryResults.length > 0) {
                       // SUCCESS with lower threshold
@@ -139,8 +150,9 @@ export const POST: APIRoute = async ({ params, request }) => {
                       ragStats = getRAGStats(retryResults);
                       console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
                     } else {
-                      // Still no results - use full documents
-                      console.warn('⚠️ No relevant chunks even with lower threshold - using full documents');
+                      // GRACEFUL DEGRADATION: Still no results - use full documents as emergency fallback
+                      console.warn('⚠️ No relevant chunks even with lower threshold - using full documents as EMERGENCY FALLBACK');
+                      console.warn('   (Full-text mode is disabled as user option)');
                       ragHadFallback = true;
                       additionalContext = contextSources
                         .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
@@ -149,18 +161,19 @@ export const POST: APIRoute = async ({ params, request }) => {
                   }
                 }
               } catch (error) {
-                console.error('⚠️ RAG search failed, using full documents:', error);
+                // GRACEFUL DEGRADATION: RAG search error - use full documents as emergency fallback
+                console.error('⚠️ RAG search failed, using full documents as EMERGENCY FALLBACK:', error);
+                console.warn('   (Full-text mode is disabled as user option)');
                 ragHadFallback = true;
                 additionalContext = contextSources
                   .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
                   .join('\n');
               }
             } else {
-              // RAG disabled - use full documents
-              console.log('📎 [Streaming] Including full context from', contextSources.length, 'active sources (full-text mode)');
-              additionalContext = contextSources
-                .map((source: any) => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-                .join('\n');
+              // DISABLED: Full-text mode is no longer available
+              // RAG is the ONLY option now
+              console.warn('⚠️ No active sources provided. RAG mode requires active sources.');
+              additionalContext = '';
             }
             
             // Ensure minimum 3 seconds for this step
