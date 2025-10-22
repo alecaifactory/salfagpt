@@ -2809,11 +2809,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           
           {/* 2. PROYECTOS Section - Collapsible */}
           <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
-            <button
-              onClick={() => setShowProjectsSection(!showProjectsSection)}
-              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            >
-              <div className="flex items-center gap-2">
+            <div className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200">
+              <button
+                onClick={() => setShowProjectsSection(!showProjectsSection)}
+                className="flex-1 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors py-1 -my-1 rounded-lg"
+              >
                 <span className={`transform transition-transform ${showProjectsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
@@ -2822,7 +2822,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
                   {folders.length}
                 </span>
-              </div>
+              </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -2840,7 +2840,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
-            </button>
+            </div>
             
             {showProjectsSection && (
               <div className="px-2 pb-2 space-y-1">

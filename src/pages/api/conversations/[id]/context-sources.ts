@@ -67,3 +67,6 @@ export const POST: APIRoute = async ({ params, request }) => {
   }
 };
 
+// PUT /api/conversations/:id/context-sources - Save conversation context sources (alias for POST)
+export const PUT: APIRoute = POST;
+
