@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2 } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -10,6 +10,7 @@ import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
 import AgentEvaluationDashboard from './AgentEvaluationDashboard';
 import AnalyticsDashboard from './AnalyticsDashboard';
+import { AgentSharingModal } from './AgentSharingModal';
 import SalfaAnalyticsDashboard from './SalfaAnalyticsDashboard';
 import UserManagementPanel from './UserManagementPanel';
 import DomainManagementModal from './DomainManagementModal';
@@ -18,6 +19,7 @@ import RAGConfigPanel from './RAGConfigPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
+import { useModalClose } from '../hooks/useModalClose';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
@@ -126,12 +128,27 @@ interface ContextLog {
 interface Conversation {
   id: string;
   title: string;
+  userId: string; // Owner user ID
+  createdAt: Date;
+  updatedAt: Date;
   lastMessageAt: Date;
+  messageCount: number;
+  contextWindowUsage: number;
+  agentModel: string;
   status?: 'active' | 'archived';
   hasBeenRenamed?: boolean; // Track if user has manually renamed this agent
-  isAgent?: boolean; // Filter flag for agents vs other conversation types
-  isProject?: boolean; // Filter flag for projects
-  conversationType?: 'agent' | 'project' | 'chat'; // Explicit type classification
+  agentId?: string; // NEW: Reference to parent agent (for agent-specific chats)
+  folderId?: string; // NEW: Reference to project/folder
+  isAgent?: boolean; // NEW: True if this is an agent, false if it's a chat
+  isShared?: boolean; // NEW: True if this agent was shared with the current user
+  sharedAccessLevel?: 'view' | 'edit' | 'admin'; // NEW: Access level if shared
+}
+
+interface Folder {
+  id: string;
+  name: string;
+  createdAt: Date;
+  conversationCount: number;
 }
 
 interface ChatInterfaceWorkingProps {
@@ -145,7 +162,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [contextLogs, setContextLogs] = useState<ContextLog[]>([]);
+  const [contextLogs, setContextLogs] = useState<ContextLog[]>([]); // Logs for current conversation only
+  const [conversationLogs, setConversationLogs] = useState<Map<string, ContextLog[]>>(new Map()); // All logs by conversation ID
   const [input, setInput] = useState('');
   const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
@@ -157,6 +175,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     startTime?: number;
     needsFeedback?: boolean;
   }>>({});
+  
+  // NEW: Left pane organization state
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [showAgentsSection, setShowAgentsSection] = useState(true);
+  const [showProjectsSection, setShowProjectsSection] = useState(true);
+  const [showChatsSection, setShowChatsSection] = useState(true);
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState('');
+  const [showAgentContextModal, setShowAgentContextModal] = useState(false);
+  const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
+  
+  // Multi-select state for agent context modal
+  const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
+  
+  // NEW: Agent sharing state
+  const [showAgentSharingModal, setShowAgentSharingModal] = useState(false);
+  const [agentToShare, setAgentToShare] = useState<Conversation | null>(null);
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
@@ -200,27 +237,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
   
-  // Agent selection and context configuration
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null);
-  const [showAgentContextModal, setShowAgentContextModal] = useState(false);
-  
-  // Folder/Project management
-  const [folders, setFolders] = useState<Array<{id: string; name: string; conversationCount: number}>>([]);
-  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
-  const [editingFolderName, setEditingFolderName] = useState('');
-  
-  // Collapsible sections
-  const [showAgentesSection, setShowAgentesSection] = useState(true);
-  const [showProyectosSection, setShowProyectosSection] = useState(true);
-  const [showChatsSection, setShowChatsSection] = useState(true);
-  
-  // Drag & drop state
-  const [draggedChat, setDraggedChat] = useState<string | null>(null);
-  
-  // Conversation logs per chat
-  const [conversationLogs, setConversationLogs] = useState<Map<string, ContextLog[]>>(new Map());
-  
   // Archive state
   const [showArchivedConversations, setShowArchivedConversations] = useState(false);
   const [showArchivedSection, setShowArchivedSection] = useState(false);
@@ -260,6 +276,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Modal/Menu close handlers using custom hook
+  const userMenuRef = useModalClose(showUserMenu, () => setShowUserMenu(false));
+  const contextPanelRef = useModalClose(showContextPanel, () => setShowContextPanel(false), false); // Don't close on outside click for panels
+  const newFolderDialogRef = useModalClose(showNewFolderDialog, () => {
+    setShowNewFolderDialog(false);
+    setNewFolderName('');
+  });
+  const deleteConfirmRef = useModalClose(showDeleteConfirm, () => {
+    setShowDeleteConfirm(false);
+    setConversationToDelete(null);
+  });
+
   // Load conversations on mount
   useEffect(() => {
     loadConversations();
@@ -286,18 +314,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     
     return () => clearInterval(interval);
   }, []);
-
-  // Close user menu with ESC key
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && showUserMenu) {
-        setShowUserMenu(false);
-      }
-    };
-    
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [showUserMenu]);
 
   // Handle panel resizing
   useEffect(() => {
@@ -332,34 +348,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     };
   }, [isResizingLeft, isResizingRight]);
 
-  // Group conversations by type
-  const conversationGroups = useMemo(() => {
-    const active = conversations.filter(conv => conv.status !== 'archived');
-    
-    const groups = {
-      agents: active.filter(conv => 
-        conv.conversationType === 'agent' || 
-        conv.isAgent === true ||
-        (!conv.conversationType && !conv.isProject) // Default to agent if not specified
-      ),
-      projects: active.filter(conv => 
-        conv.conversationType === 'project' || 
-        conv.isProject === true
-      ),
-      chats: active.filter(conv => 
-        conv.conversationType === 'chat'
-      ),
-    };
-    
-    console.log('📊 Conversation groups:', {
-      agents: groups.agents.length,
-      projects: groups.projects.length,
-      chats: groups.chats.length,
-      archived: conversations.filter(c => c.status === 'archived').length
-    });
-    
-    return groups;
-  }, [conversations]);
+  // NEW: Load folders from Firestore
+  const loadFolders = async () => {
+    try {
+      const response = await fetch(`/api/folders?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const foldersWithDates = (data.folders || []).map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          createdAt: new Date(f.createdAt),
+          conversationCount: f.conversationCount || 0,
+        }));
+        setFolders(foldersWithDates);
+        console.log('✅ Folders loaded:', foldersWithDates.length);
+        if (foldersWithDates.length > 0) {
+          console.log('📁 First folder:', foldersWithDates[0]);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading folders:', error);
+      setFolders([]);
+    }
+  };
 
   const loadConversations = async () => {
     try {
@@ -370,7 +381,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           ...conv,
           hasBeenRenamed: conv.hasBeenRenamed || false // Ensure hasBeenRenamed is loaded
         }));
-        setConversations(allConvs);
+        
+        // NEW: Load shared agents
+        try {
+          const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
+          if (sharedResponse.ok) {
+            const sharedData = await sharedResponse.json();
+            const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
+              ...conv,
+              isShared: true, // Mark as shared
+              hasBeenRenamed: conv.hasBeenRenamed || false
+            }));
+            
+            // Combine own agents with shared agents
+            setConversations([...allConvs, ...sharedAgents]);
+          } else {
+            setConversations(allConvs);
+          }
+        } catch (sharedError) {
+          console.warn('Could not load shared agents:', sharedError);
+          setConversations(allConvs);
+        }
         
         // Auto-select first conversation or create one
         if (allConvs.length > 0) {
@@ -418,10 +449,55 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
-  const loadContextForConversation = async (conversationId: string) => {
+  const loadContextForConversation = async (conversationId: string, skipRAGVerification = false) => {
     try {
-      // Reload all sources for this user
-      const sourcesResponse = await fetch(`/api/context-sources?userId=${userId}`);
+      // ✅ PERFORMANCE: Use dedicated lightweight endpoint when skipping RAG verification
+      if (skipRAGVerification) {
+        console.log('⚡ Using lightweight metadata endpoint (no RAG verification)...');
+        
+        const response = await fetch(`/api/conversations/${conversationId}/context-sources-metadata`);
+        if (!response.ok) {
+          console.warn('⚠️ No se pudieron cargar fuentes de contexto');
+          return;
+        }
+        
+        const data = await response.json();
+        const sources = data.sources || [];
+        
+        // Convert dates
+        const sourcesWithDates = sources.map((source: any) => ({
+          ...source,
+          addedAt: new Date(source.addedAt),
+          metadata: source.metadata ? {
+            ...source.metadata,
+            validatedAt: source.metadata.validatedAt ? new Date(source.metadata.validatedAt) : undefined,
+          } : undefined,
+          ragMetadata: source.ragMetadata ? {
+            ...source.ragMetadata,
+            indexedAt: source.ragMetadata.indexedAt ? new Date(source.ragMetadata.indexedAt) : undefined,
+          } : undefined,
+        }));
+        
+        setContextSources(sourcesWithDates);
+        
+        // Log filtering results
+        const publicSources = sourcesWithDates.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public'));
+        const assignedSources = sourcesWithDates.filter((s: any) => s.assignedToAgents?.includes(conversationId));
+        
+        console.log('✅ Lightweight context refresh complete:');
+        console.log(`   Total sources for this agent: ${sourcesWithDates.length}`);
+        console.log(`   - PUBLIC sources: ${publicSources.length}`);
+        console.log(`   - Assigned to this agent: ${assignedSources.length}`);
+        console.log(`   - Active (toggled ON): ${sourcesWithDates.filter((s: any) => s.enabled).length}`);
+        
+        return;
+      }
+      
+      // ✅ FULL LOAD: Load all sources and verify RAG status (heavy operation)
+      console.log('🔄 Full context load with RAG verification...');
+      
+      // Load metadata only (no extractedData) - 10-50x faster than full load!
+      const sourcesResponse = await fetch(`/api/context-sources-metadata?userId=${userId}`);
       if (!sourcesResponse.ok) {
         console.warn('⚠️ No se pudieron cargar fuentes de contexto');
         return;
@@ -429,6 +505,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       
       const sourcesData = await sourcesResponse.json();
       const allSources = sourcesData.sources || [];
+      console.log('⚡ Loaded context sources metadata (optimized, no extractedData):', allSources.length);
       
       // Get active source IDs for this conversation
       const contextResponse = await fetch(`/api/conversations/${conversationId}/context-sources`);
@@ -466,7 +543,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           } : undefined,
         }));
       
-      // ✅ NUEVO: Verificar existencia de chunks (sin cargarlos todos) para mostrar estado correcto
+      // ✅ HEAVY OPERATION: Verificar existencia de chunks (solo cuando es necesario)
       // Solo cargamos los stats, NO los chunks completos
       console.log('🔄 Verificando estado RAG de fuentes...');
       const sourcesWithVerifiedRAG = await Promise.all(
@@ -541,6 +618,50 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     } catch (error) {
       console.error('Error saving context:', error);
     }
+  };
+
+  /**
+   * Load full context source including extractedData (on-demand)
+   * Use this when you need the actual content, not just metadata
+   */
+  const loadFullContextSource = async (sourceId: string): Promise<ContextSource | null> => {
+    try {
+      const response = await fetch(`/api/context-sources/${sourceId}`);
+      if (!response.ok) {
+        console.error('Failed to load full context source:', sourceId);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data.source || null;
+    } catch (error) {
+      console.error('Error loading full context source:', error);
+      return null;
+    }
+  };
+
+  /**
+   * Load full extractedData for multiple sources (used when sending messages)
+   * Only loads data for sources that don't already have it
+   */
+  const loadFullContextSources = async (sources: ContextSource[]): Promise<ContextSource[]> => {
+    console.log('📥 Loading full context data for', sources.length, 'sources...');
+    
+    const fullSources = await Promise.all(
+      sources.map(async (source) => {
+        // If already has extractedData, return as-is
+        if (source.extractedData) {
+          return source;
+        }
+        
+        // Otherwise, load it
+        const fullSource = await loadFullContextSource(source.id);
+        return fullSource || source;
+      })
+    );
+    
+    console.log('✅ Loaded full context data');
+    return fullSources;
   };
 
   // NEW: Load agent config for conversation
@@ -699,18 +820,36 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 allConversations.push({
                   id: conv.id,
                   title: conv.title,
+                  userId: conv.userId || userId,
+                  createdAt: new Date(conv.createdAt || Date.now()),
+                  updatedAt: new Date(conv.updatedAt || Date.now()),
                   lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+                  messageCount: conv.messageCount || 0,
+                  contextWindowUsage: conv.contextWindowUsage || 0,
+                  agentModel: conv.agentModel || 'gemini-2.5-flash',
                   status: conv.status || 'active', // Default to active if not set
-                  hasBeenRenamed: conv.hasBeenRenamed || false // Track if user renamed manually
+                  hasBeenRenamed: conv.hasBeenRenamed || false, // Track if user renamed manually
+                  isAgent: conv.isAgent !== false, // Default to true for backward compatibility
+                  agentId: conv.agentId, // Parent agent if this is a chat
+                  folderId: conv.folderId, // Project folder
                 });
               });
             });
             
             setConversations(allConversations);
+            
+            // Auto-select first agent if none selected
+            if (!selectedAgent && allConversations.length > 0) {
+              const firstAgent = allConversations.find(c => c.isAgent !== false);
+              if (firstAgent) {
+                setSelectedAgent(firstAgent.id);
+              }
+            }
+            
             console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
-            console.log(`📋 Conversaciones activas: ${allConversations.filter(c => c.status !== 'archived').length}`);
+            console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
+            console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
             console.log(`🔍 Primera conversación:`, allConversations[0]);
-            console.log(`🔍 Estado conversations después de setear:`, allConversations.length);
           } else {
             console.log('ℹ️ No hay conversaciones guardadas');
           }
@@ -727,6 +866,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     };
     
     loadConversations();
+    loadFolders(); // Also load folders on mount
   }, [userId]);
 
   // NEW: Load user settings from Firestore on mount
@@ -777,11 +917,82 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
     console.log('🔄 Cambiando a conversación:', currentConversation);
     
+    // Load logs for this specific conversation from Map
+    const logsForConversation = conversationLogs.get(currentConversation) || [];
+    setContextLogs(logsForConversation);
+    console.log(`📊 Cargando ${logsForConversation.length} logs para esta conversación`);
+    
     // Load messages for this conversation
     loadMessages(currentConversation);
     
     // Load context configuration for this conversation
-    loadContextForConversation(currentConversation);
+    // If this is a chat (has agentId), load parent agent's context instead
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    if (currentConv?.agentId) {
+      console.log(`🔗 Este es un chat del agente ${currentConv.agentId}, cargando contexto del agente padre`);
+      
+      // Load parent agent's context
+      loadContextForConversation(currentConv.agentId);
+      
+      // Auto-fix: If chat doesn't have context assigned, inherit from parent agent
+      (async () => {
+        try {
+          const chatContextResponse = await fetch(`/api/conversations/${currentConversation}/context-sources`);
+          if (chatContextResponse.ok) {
+            const chatContextData = await chatContextResponse.json();
+            const chatActiveSourceIds = chatContextData.activeContextSourceIds || [];
+            
+            // If chat has no context sources, inherit from parent agent
+            if (chatActiveSourceIds.length === 0) {
+              console.log('🔧 Chat sin contexto detectado, heredando del agente padre...');
+              
+              const agentContextResponse = await fetch(`/api/conversations/${currentConv.agentId}/context-sources`);
+              if (agentContextResponse.ok) {
+                const agentContextData = await agentContextResponse.json();
+                const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+                
+                if (agentActiveSourceIds.length > 0) {
+                  // Assign agent's sources to this chat
+                  for (const sourceId of agentActiveSourceIds) {
+                    try {
+                      await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ agentId: currentConversation }),
+                      });
+                    } catch (error) {
+                      console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
+                    }
+                  }
+                  
+                  // Save active sources to chat's context
+                  await fetch(`/api/conversations/${currentConversation}/context-sources`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
+                  });
+                  
+                  // Reload context - force full reload to update UI
+                  if (currentConv.agentId) {
+                    // Force a full context reload with RAG verification
+                    await loadContextForConversation(currentConv.agentId, false);
+                    
+                    console.log(`✅ Auto-fix: ${agentActiveSourceIds.length} fuentes heredadas del agente al chat`);
+                    console.log('🔄 Recargando contexto completo para mostrar fuentes en UI...');
+                  }
+                }
+              }
+            } else {
+              console.log(`✅ Chat ya tiene ${chatActiveSourceIds.length} fuentes de contexto asignadas`);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Error en auto-fix de contexto:', error);
+        }
+      })();
+    } else {
+      loadContextForConversation(currentConversation); // Load own context
+    }
     
     // NEW: Load agent config for this conversation
     loadAgentConfig(currentConversation);
@@ -789,7 +1000,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     // Reset input
     setInput('');
     
-  }, [currentConversation]);
+  }, [currentConversation, conversations]);
 
   // Helper: Play notification sound
   const playNotificationSound = () => {
@@ -857,7 +1068,194 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     }
   };
 
-  const createNewConversation = async () => {
+  // Helper: Get parent agent for current conversation (if it's a chat)
+  const getParentAgent = () => {
+    if (!currentConversation) return null;
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    if (!currentConv) return null;
+    
+    // If this is a chat (has agentId), return the parent agent
+    if (currentConv.agentId) {
+      return conversations.find(c => c.id === currentConv.agentId) || null;
+    }
+    
+    // If this is an agent itself, return null (no parent)
+    return null;
+  };
+
+  // NEW: Folder management functions
+  const createNewFolder = async (name: string) => {
+    try {
+      const response = await fetch('/api/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, name }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newFolder = {
+          id: data.folder.id,
+          name: data.folder.name,
+          createdAt: new Date(data.folder.createdAt),
+          conversationCount: data.folder.conversationCount || 0,
+        };
+        setFolders(prev => [...prev, newFolder]);
+        console.log('✅ Folder created:', newFolder.id, 'Name:', newFolder.name);
+      }
+    } catch (error) {
+      console.error('❌ Error creating folder:', error);
+    }
+  };
+
+  const renameFolder = async (folderId: string, newName: string) => {
+    try {
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newName }),
+      });
+
+      if (response.ok) {
+        setFolders(prev => prev.map(f => f.id === folderId ? { ...f, name: newName } : f));
+        setEditingFolderId(null);
+        setEditingFolderName('');
+        console.log('✅ Folder renamed:', folderId);
+      }
+    } catch (error) {
+      console.error('❌ Error renaming folder:', error);
+    }
+  };
+
+  const deleteFolder = async (folderId: string) => {
+    if (!confirm('¿Eliminar este proyecto? Las conversaciones se moverán a Sin Proyecto.')) return;
+    
+    try {
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setFolders(prev => prev.filter(f => f.id !== folderId));
+        // Update conversations to remove folderId
+        setConversations(prev => prev.map(c => 
+          c.folderId === folderId ? { ...c, folderId: undefined } : c
+        ));
+        console.log('✅ Folder deleted:', folderId);
+      }
+    } catch (error) {
+      console.error('❌ Error deleting folder:', error);
+    }
+  };
+
+  const moveChatToFolder = async (chatId: string, folderId: string | null) => {
+    try {
+      const response = await fetch(`/api/conversations/${chatId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId }),
+      });
+
+      if (response.ok) {
+        setConversations(prev => prev.map(c => 
+          c.id === chatId ? { ...c, folderId: folderId || undefined } : c
+        ));
+        console.log('✅ Chat moved to folder:', chatId, folderId);
+      }
+    } catch (error) {
+      console.error('❌ Error moving chat to folder:', error);
+    }
+  };
+
+  // NEW: Create new chat for a specific agent (inherits agent's context)
+  const createNewChatForAgent = async (agentId: string) => {
+    try {
+      const agent = conversations.find(c => c.id === agentId);
+      if (!agent) return;
+
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          title: 'Nuevo Chat', // Simple title, agent shown as tag
+          agentId, // Link to parent agent
+          isAgent: false, // Mark as chat
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newChat: Conversation = {
+          id: data.conversation.id,
+          title: data.conversation.title,
+          userId: data.conversation.userId || userId,
+          createdAt: new Date(data.conversation.createdAt || Date.now()),
+          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
+          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
+          messageCount: data.conversation.messageCount || 0,
+          contextWindowUsage: data.conversation.contextWindowUsage || 0,
+          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
+          agentId,
+          isAgent: false,
+        };
+        
+        setConversations(prev => [newChat, ...prev]);
+        setCurrentConversation(newChat.id);
+        setMessages([]);
+        
+        console.log('✅ Chat created for agent:', agentId);
+        
+        // Inherit agent's context - copy active context sources from agent
+        try {
+          // Get agent's active context sources
+          const agentContextResponse = await fetch(`/api/conversations/${agentId}/context-sources`);
+          if (agentContextResponse.ok) {
+            const agentContextData = await agentContextResponse.json();
+            const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+            
+            if (agentActiveSourceIds.length > 0) {
+              console.log(`📋 Heredando ${agentActiveSourceIds.length} fuentes de contexto del agente`);
+              
+              // Assign same sources to new chat
+              for (const sourceId of agentActiveSourceIds) {
+                try {
+                  await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ agentId: newChat.id }),
+                  });
+                } catch (error) {
+                  console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
+                }
+              }
+              
+              // Save active sources to new chat's context
+              await fetch(`/api/conversations/${newChat.id}/context-sources`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
+              });
+              
+              // Reload context for new chat
+              await loadContextForConversation(newChat.id, true);
+              
+              console.log('✅ Contexto del agente heredado al nuevo chat');
+            } else {
+              console.log('ℹ️ Agente no tiene contexto activo para heredar');
+            }
+          }
+        } catch (contextError) {
+          console.warn('⚠️ Failed to inherit agent context:', contextError);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error creating chat:', error);
+    }
+  };
+
+  // NEW: Create new agent (root conversation) - Complete implementation
+  const createNewAgent = async () => {
     try {
       // Call API to create conversation in Firestore
       const response = await fetch('/api/conversations', {
@@ -866,6 +1264,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         body: JSON.stringify({
           userId,
           title: 'Nuevo Agente',
+          isAgent: true, // Mark as agent
         })
       });
 
@@ -874,17 +1273,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         const newConv: Conversation = {
           id: data.conversation.id,
           title: data.conversation.title,
-          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt)
+          userId: data.conversation.userId || userId,
+          createdAt: new Date(data.conversation.createdAt || Date.now()),
+          updatedAt: new Date(data.conversation.updatedAt || Date.now()),
+          lastMessageAt: new Date(data.conversation.lastMessageAt || data.conversation.createdAt),
+          messageCount: data.conversation.messageCount || 0,
+          contextWindowUsage: data.conversation.contextWindowUsage || 0,
+          agentModel: data.conversation.agentModel || 'gemini-2.5-flash',
+          isAgent: true,
         };
         
         setConversations(prev => [newConv, ...prev]);
         setCurrentConversation(newConv.id);
+        setSelectedAgent(newConv.id); // Set as selected agent
         setMessages([]);
         
-        console.log('✅ Conversación creada en Firestore:', newConv.id);
+        console.log('✅ Agente creado en Firestore:', newConv.id);
         
-        // Save initial agent config for the new conversation (always Flash by default)
-        const initialModel = 'gemini-2.5-flash'; // Default to Flash for new agents
+        // Save initial agent config
+        const initialModel = 'gemini-2.5-flash';
         await fetch('/api/agent-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -895,14 +1302,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             systemPrompt: globalUserSettings.systemPrompt,
           }),
         });
-        console.log('✅ Configuración inicial del agente guardada (Flash por defecto):', newConv.id);
 
-        // Auto-assign PUBLIC tagged context sources to new agent
+        // Auto-assign PUBLIC sources
         const publicSources = contextSources.filter(s => s.tags?.includes('PUBLIC'));
         if (publicSources.length > 0) {
           const publicSourceIds = publicSources.map(s => s.id);
           
-          // Assign PUBLIC sources to new agent
           for (const sourceId of publicSourceIds) {
             try {
               await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
@@ -915,62 +1320,59 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
             }
           }
           
-          // Update local context sources to include new agent
           setContextSources(prev => prev.map(s => {
             if (s.tags?.includes('PUBLIC')) {
               return {
                 ...s,
                 assignedToAgents: [...(s.assignedToAgents || []), newConv.id],
-                enabled: true, // Enable by default
+                enabled: true,
               };
             }
             return s;
           }));
           
-          // Save active PUBLIC sources to conversation context
           await fetch(`/api/conversations/${newConv.id}/context-sources`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ activeContextSourceIds: publicSourceIds }),
           });
-          
-          console.log(`✅ ${publicSources.length} fuentes PUBLIC asignadas automáticamente al nuevo agente`);
-        } else {
-          console.log('ℹ️ No hay fuentes PUBLIC - nuevo agente sin contexto predeterminado');
         }
 
-        // Set local config (Flash by default)
         setCurrentAgentConfig({
           preferredModel: initialModel,
           systemPrompt: globalUserSettings.systemPrompt,
         });
-
-        if (data.warning) {
-          console.warn('⚠️', data.warning);
-        }
-      } else {
-        throw new Error('Failed to create conversation');
       }
     } catch (error) {
-      console.error('❌ Error creating conversation:', error);
+      console.error('❌ Error creating agent:', error);
       
-      // Fallback: create temporary conversation in memory
+      // Fallback: create temporary conversation
       const tempId = `temp-${Date.now()}`;
+      const now = new Date();
       const newConv: Conversation = {
         id: tempId,
         title: 'Nuevo Agente',
-        lastMessageAt: new Date()
+        userId: userId,
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: 'gemini-2.5-flash',
+        isAgent: true,
       };
       
       setConversations(prev => [newConv, ...prev]);
       setCurrentConversation(tempId);
+      setSelectedAgent(tempId);
       setMessages([]);
-      setContextLogs([]); // Clear context logs for temporary conversation
       
-      console.warn('⚠️ Conversación temporal creada (no persistente)');
-      console.warn('💡 Para persistencia, configura Firestore credentials');
+      console.warn('⚠️ Agente temporal creado (no persistente)');
     }
   };
+
+  // NEW: Backwards compatibility - keep old function name
+  const createNewConversation = createNewAgent;
 
   const sendMessage = async () => {
     if (!input.trim() || !currentConversation) return;
@@ -1015,15 +1417,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     setMessages(prev => [...prev, streamingMessage]);
 
     try {
-      // Get active context sources
-      const activeContextSources = contextSources
-        .filter(source => source.enabled)
-        .map(source => ({
-          id: source.id,
-          name: source.name,
-          type: 'pdf',
-          content: source.extractedData
-        }));
+      // ✅ PERFORMANCE: Load full extractedData only for active sources (on-demand)
+      const activeSources = contextSources.filter(source => source.enabled);
+      const fullActiveSources = await loadFullContextSources(activeSources);
+      
+      const activeContextSources = fullActiveSources.map(source => ({
+        id: source.id,
+        name: source.name,
+        type: 'pdf',
+        content: source.extractedData
+      }));
 
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
@@ -1272,7 +1675,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     ragConfiguration: ragConfig,
                     references: data.references, // Add chunk references to log
                   };
+                  
+                  // Save log to current conversation's logs
                   setContextLogs(prev => [...prev, log]);
+                  
+                  // Also save to conversationLogs Map for persistence
+                  setConversationLogs(prev => {
+                    const updated = new Map(prev);
+                    const existingLogs = updated.get(currentConversation) || [];
+                    updated.set(currentConversation, [...existingLogs, log]);
+                    return updated;
+                  });
 
                 } else if (data.type === 'error') {
                   throw new Error(data.error);
@@ -1388,6 +1801,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   ) => {
     const startTime = Date.now(); // Track start time
     
+    // Determine which agent to assign to
+    const targetAgent = agentForContextConfig || selectedAgent || currentConversation;
+    
     const newSource: ContextSource = {
       id: `source-${Date.now()}`,
       name: file?.name || url || config?.apiEndpoint || 'Nueva Fuente',
@@ -1397,6 +1813,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       extractedData: '',
       addedAt: new Date(),
       tags: config?.tags, // Include tags from config
+      assignedToAgents: targetAgent && !config?.tags?.includes('PUBLIC') ? [targetAgent] : [], // Assign to current agent unless PUBLIC
       progress: {
         stage: 'uploading',
         percentage: 0,
@@ -1489,8 +1906,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }
 
         // Save to Firestore - Assign to current agent (or all agents if PUBLIC)
+        // 🎯 IMPORTANT: Only assign to AGENTS, not chats
+        const allAgents = conversations.filter(c => c.isAgent !== false);
         const assignedTo = config?.tags?.includes('PUBLIC') 
-          ? conversations.map(c => c.id) // Assign to ALL agents if PUBLIC
+          ? allAgents.map(a => a.id) // Assign to ALL agents if PUBLIC (not chats)
           : currentConversation ? [currentConversation] : []; // Assign to current agent only
         
         const savedSource = await fetch('/api/context-sources', {
@@ -2216,340 +2635,533 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           </button>
         </div>
 
-        {/* Conversations List - Grouped by Type */}
-        <div className="flex-1 overflow-y-auto p-2 dark:bg-slate-800 space-y-4">
-          {conversations.length === 0 && (
-            <div className="p-4 text-center text-slate-500 text-sm">
-              <p>No hay conversaciones</p>
-              <p className="text-xs mt-1">Haz click en "Nuevo Agente" para empezar</p>
-            </div>
-          )}
-          {conversations.length > 0 && conversations.filter(conv => conv.status !== 'archived').length === 0 && (
-            <div className="p-4 text-center text-slate-500 text-sm">
-              <p>Todas las conversaciones están archivadas</p>
-              <p className="text-xs mt-1">Haz click en "Nuevo Agente" para crear una nueva</p>
-            </div>
-          )}
+        {/* NEW: Reorganized Sidebar with Collapsible Sections */}
+        <div className="flex-1 overflow-y-auto p-2 dark:bg-slate-800 space-y-2">
           
-          {/* Agentes Section */}
-          {conversationGroups.agents.length > 0 && (
-            <div>
-              <div className="px-2 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                🤖 Agentes ({conversationGroups.agents.length})
-              </div>
-              <div className="space-y-1">
-                {conversationGroups.agents.map(conv => (
-            <div
-              key={conv.id}
-              className={`w-full p-3 rounded-lg mb-1 transition-colors relative ${
-                currentConversation === conv.id
-                  ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
-                  : conv.status === 'archived'
-                  ? 'bg-amber-50/50 dark:bg-amber-900/20 hover:bg-amber-50 dark:hover:bg-amber-900/30 border border-amber-200/50 dark:border-amber-700/50'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
+          {/* 1. AGENTES Section - Collapsible */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+            <button
+              onClick={() => setShowAgentsSection(!showAgentsSection)}
+              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              {editingConversationId === conv.id ? (
+              <div className="flex items-center gap-2">
+                <span className={`transform transition-transform ${showAgentsSection ? 'rotate-90' : ''}`}>
+                  ▶
+                </span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Agentes</span>
+                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
+                  {conversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}
+                </span>
+              </div>
+            </button>
+            
+            {showAgentsSection && (
+              <div className="px-2 pb-2 space-y-1">
+                {conversations
+                  .filter(c => c.isAgent !== false && c.status !== 'archived')
+                  .map(agent => (
+                    <div
+                      key={agent.id}
+                      className={`w-full p-2 rounded-lg transition-colors group ${
+                        selectedAgent === agent.id
+                          ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+              {editingConversationId === agent.id ? (
                 // Edit mode
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   <input
                     type="text"
                     value={editingTitle}
                     onChange={(e) => setEditingTitle(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        saveConversationTitle(conv.id, editingTitle);
+                        saveConversationTitle(agent.id, editingTitle);
                       } else if (e.key === 'Escape') {
                         cancelEditingConversation();
                       }
                     }}
-                    onBlur={() => saveConversationTitle(conv.id, editingTitle)}
-                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onBlur={() => saveConversationTitle(agent.id, editingTitle)}
+                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
                     autoFocus
                   />
                   <button
-                    onClick={() => saveConversationTitle(conv.id, editingTitle)}
+                    onClick={() => saveConversationTitle(agent.id, editingTitle)}
                     className="p-1 text-green-600 hover:bg-green-50 rounded"
                     title="Guardar"
                   >
-                    <Check className="w-4 h-4" />
+                    <Check className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={cancelEditingConversation}
                     className="p-1 text-red-600 hover:bg-red-50 rounded"
                     title="Cancelar"
                   >
-                    <XIcon className="w-4 h-4" />
+                    <XIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ) : (
                 // View mode
-                <div>
-                  <div className="flex items-center gap-2 group">
-                    <button
-                      onClick={() => setCurrentConversation(conv.id)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="flex-1 flex items-center gap-2 text-left min-w-0"
-                    >
-                      <MessageSquare className={`w-4 h-4 flex-shrink-0 ${conv.status === 'archived' ? 'text-amber-400 dark:text-amber-500' : 'text-slate-400 dark:text-slate-500'}`} />
-                      <span className={`text-sm font-medium truncate ${conv.status === 'archived' ? 'text-amber-700 dark:text-amber-400 italic' : 'text-slate-700 dark:text-slate-200'}`}>
-                        {conv.title}
+                <div className="flex items-center justify-between">
+                  <div
+                    onClick={() => {
+                      setSelectedAgent(agent.id);
+                      setCurrentConversation(agent.id);
+                    }}
+                    className="flex-1 flex items-center gap-2 text-left min-w-0 cursor-pointer"
+                  >
+                    <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200">
+                      {agent.title}
+                    </span>
+                    {agent.isShared && (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] rounded-full font-semibold whitespace-nowrap">
+                        Compartido
                       </span>
-                      {agentProcessing[conv.id]?.needsFeedback && (
-                        <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[9px] font-semibold rounded-full flex-shrink-0">
-                          ⚠️ Feedback
-                        </span>
-                      )}
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                      title="Editar nombre"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (conv.status === 'archived') {
-                          unarchiveConversation(conv.id);
-                        } else {
-                          archiveConversation(conv.id);
-                        }
-                      }}
-                      className={`p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ${
-                        conv.status === 'archived'
-                          ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                          : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
-                      }`}
-                      title={conv.status === 'archived' ? 'Restaurar' : 'Archivar'}
-                    >
-                      {conv.status === 'archived' ? (
-                        <ArchiveRestore className="w-3.5 h-3.5" />
-                      ) : (
-                        <Archive className="w-3.5 h-3.5" />
-                      )}
-                    </button>
+                    )}
                   </div>
                   
-                  {/* Processing indicator with timer */}
-                  {agentProcessing[conv.id]?.isProcessing && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Procesando...</span>
-                      {agentProcessing[conv.id]?.startTime && (
-                        <span className="font-mono font-semibold">
-                          {formatElapsedTime(agentProcessing[conv.id].startTime!)}
-                        </span>
+                  {/* Agent actions */}
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Settings icon - opens context configuration modal */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAgentForContextConfig(agent.id);
+                        setShowAgentContextModal(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                      title="Configurar Contexto"
+                    >
+                      <SettingsIcon className="w-3.5 h-3.5" />
+                    </button>
+                    
+                    {/* NEW: Share icon - opens sharing modal */}
+                    {!agent.isShared && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAgentToShare(agent);
+                          setShowAgentSharingModal(true);
+                        }}
+                        className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
+                        title="Compartir Agente"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    
+                    {/* Edit icon */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        startEditingConversation(agent);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                      title="Editar nombre"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    
+                    {/* NEW: New chat icon - creates a chat for this agent (LAST position) */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        createNewChatForAgent(agent.id);
+                      }}
+                      className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                      title="Nuevo chat"
+                    >
+                      <div className="relative">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <Plus className="w-2 h-2 absolute -top-0.5 -right-0.5 bg-white dark:bg-slate-800 rounded-full" />
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+              </div>
+            )}
+          </div>
+          
+          {/* 2. PROYECTOS Section - Collapsible */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+            <button
+              onClick={() => setShowProjectsSection(!showProjectsSection)}
+              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`transform transition-transform ${showProjectsSection ? 'rotate-90' : ''}`}>
+                  ▶
+                </span>
+                <FileText className="w-4 h-4" />
+                <span>Proyectos</span>
+                <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+                  {folders.length}
+                </span>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const name = prompt('Nombre del nuevo proyecto:');
+                  if (name) createNewFolder(name);
+                }}
+                className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
+                title="Nuevo Proyecto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </button>
+            
+            {showProjectsSection && (
+              <div className="px-2 pb-2 space-y-1">
+                {folders.map(folder => {
+                  const folderChats = conversations.filter(c => c.folderId === folder.id && c.status !== 'archived');
+                  const isExpanded = expandedFolders.has(folder.id);
+                  
+                  return (
+                    <div
+                      key={folder.id}
+                      className="border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden"
+                    >
+                      {/* Folder Header with Drag & Drop */}
+                      <div
+                        className="p-2 bg-slate-50 dark:bg-slate-700/50 hover:bg-green-50 dark:hover:bg-green-900/20 group transition-colors"
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.add('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+                        }}
+                        onDragLeave={(e) => {
+                          e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+                          const chatId = e.dataTransfer.getData('chatId');
+                          if (chatId) {
+                            moveChatToFolder(chatId, folder.id);
+                            // Auto-expand folder when chat is dropped
+                            setExpandedFolders(prev => new Set([...prev, folder.id]));
+                          }
+                        }}
+                      >
+                        {editingFolderId === folder.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingFolderName}
+                              onChange={(e) => setEditingFolderName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  renameFolder(folder.id, editingFolderName);
+                                } else if (e.key === 'Escape') {
+                                  setEditingFolderId(null);
+                                  setEditingFolderName('');
+                                }
+                              }}
+                              onBlur={() => renameFolder(folder.id, editingFolderName)}
+                              className="flex-1 text-sm px-2 py-1 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-slate-200"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => renameFolder(folder.id, editingFolderName)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingFolderId(null);
+                                setEditingFolderName('');
+                              }}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <XIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <button
+                              onClick={() => {
+                                setExpandedFolders(prev => {
+                                  const newSet = new Set(prev);
+                                  if (newSet.has(folder.id)) {
+                                    newSet.delete(folder.id);
+                                  } else {
+                                    newSet.add(folder.id);
+                                  }
+                                  return newSet;
+                                });
+                              }}
+                              className="flex items-center gap-2 flex-1 text-left"
+                            >
+                              <span className={`transform transition-transform text-slate-500 dark:text-slate-400 ${isExpanded ? 'rotate-90' : ''}`}>
+                                ▶
+                              </span>
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                {folder.name}
+                              </span>
+                              <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold">
+                                {folderChats.length}
+                              </span>
+                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => {
+                                  setEditingFolderId(folder.id);
+                                  setEditingFolderName(folder.name);
+                                }}
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                title="Renombrar"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => deleteFolder(folder.id)}
+                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
+                                title="Eliminar"
+                              >
+                                <XIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Chats under this folder - Collapsible */}
+                      {isExpanded && folderChats.length > 0 && (
+                        <div className="px-2 py-2 space-y-1 bg-white dark:bg-slate-800">
+                          {folderChats.map(chat => (
+                            <div
+                              key={chat.id}
+                              className={`w-full p-2 rounded-lg transition-colors group ${
+                                currentConversation === chat.id
+                                  ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
+                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                              }`}
+                              onClick={() => setCurrentConversation(chat.id)}
+                            >
+                              <div className="flex flex-col gap-2">
+                                {/* Agent Tag */}
+                                {chat.agentId && (
+                                  <div className="flex items-center gap-1">
+                                    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                                      <MessageSquare className="w-2.5 h-2.5" />
+                                      {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Chat Title and Actions */}
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200 block truncate">
+                                      {chat.title}
+                                    </span>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                      {chat.lastMessageAt instanceof Date 
+                                        ? chat.lastMessageAt.toLocaleDateString()
+                                        : new Date(chat.lastMessageAt).toLocaleDateString()
+                                      }
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditingConversation(chat);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                      title="Editar nombre"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        // Remove from folder (move back to Chats section)
+                                        moveChatToFolder(chat.id, null);
+                                      }}
+                                      className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900 rounded"
+                                      title="Quitar de proyecto"
+                                    >
+                                      <XIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Empty state when folder is expanded but has no chats */}
+                      {isExpanded && folderChats.length === 0 && (
+                        <div className="px-3 py-2 text-center text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
+                          Arrastra chats aquí
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-              </div>
-            </div>
-          )}
-
-          {/* Proyectos Section */}
-          {conversationGroups.projects.length > 0 && (
-            <div>
-              <div className="px-2 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                📊 Proyectos ({conversationGroups.projects.length})
-              </div>
-              <div className="space-y-1">
-                {conversationGroups.projects.map(conv => (
-            <div
-              key={conv.id}
-              className={`w-full p-3 rounded-lg mb-1 transition-colors relative ${
-                currentConversation === conv.id
-                  ? 'bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              {editingConversationId === conv.id ? (
-                // Edit mode
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        saveConversationTitle(conv.id, editingTitle);
-                      } else if (e.key === 'Escape') {
-                        cancelEditingConversation();
-                      }
-                    }}
-                    onBlur={() => saveConversationTitle(conv.id, editingTitle)}
-                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => saveConversationTitle(conv.id, editingTitle)}
-                    className="p-1 text-green-600 hover:bg-green-50 rounded"
-                    title="Guardar"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={cancelEditingConversation}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    title="Cancelar"
-                  >
-                    <XIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                // View mode
-                <div>
-                  <div className="flex items-center gap-2 group">
-                    <button
-                      onClick={() => setCurrentConversation(conv.id)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="flex-1 flex items-center gap-2 text-left min-w-0"
-                    >
-                      <MessageSquare className="w-4 h-4 flex-shrink-0 text-green-600" />
-                      <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200">
-                        {conv.title}
-                      </span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                      title="Editar nombre"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        archiveConversation(conv.id);
-                      }}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                      title="Archivar"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                    </button>
+                  );
+                })}
+                {folders.length === 0 && (
+                  <div className="px-2 py-3 text-center text-xs text-slate-500">
+                    No hay proyectos creados
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
               </div>
-            </div>
-          )}
-
-          {/* Chats Section */}
-          {conversationGroups.chats.length > 0 && (
-            <div>
-              <div className="px-2 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                💬 Chats ({conversationGroups.chats.length})
-              </div>
-              <div className="space-y-1">
-                {conversationGroups.chats.map(conv => (
-            <div
-              key={conv.id}
-              className={`w-full p-3 rounded-lg mb-1 transition-colors relative ${
-                currentConversation === conv.id
-                  ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
-                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
-              }`}
+            )}
+          </div>
+          
+          {/* 3. CHATS Section - Collapsible, shows chats for selected agent */}
+          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+            <button
+              onClick={() => setShowChatsSection(!showChatsSection)}
+              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              {editingConversationId === conv.id ? (
-                // Edit mode
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        saveConversationTitle(conv.id, editingTitle);
-                      } else if (e.key === 'Escape') {
-                        cancelEditingConversation();
-                      }
-                    }}
-                    onBlur={() => saveConversationTitle(conv.id, editingTitle)}
-                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => saveConversationTitle(conv.id, editingTitle)}
-                    className="p-1 text-green-600 hover:bg-green-50 rounded"
-                    title="Guardar"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={cancelEditingConversation}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded"
-                    title="Cancelar"
-                  >
-                    <XIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                // View mode
-                <div>
-                  <div className="flex items-center gap-2 group">
-                    <button
-                      onClick={() => setCurrentConversation(conv.id)}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="flex-1 flex items-center gap-2 text-left min-w-0"
-                    >
-                      <MessageSquare className="w-4 h-4 flex-shrink-0 text-purple-600" />
-                      <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200">
-                        {conv.title}
-                      </span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        startEditingConversation(conv);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                      title="Editar nombre"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        archiveConversation(conv.id);
-                      }}
-                      className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                      title="Archivar"
-                    >
-                      <Archive className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+              <div className="flex items-center gap-2">
+                <span className={`transform transition-transform ${showChatsSection ? 'rotate-90' : ''}`}>
+                  ▶
+                </span>
+                <MessageSquare className="w-4 h-4" />
+                <span>Chats</span>
+                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                  {selectedAgent 
+                    ? conversations.filter(c => c.agentId === selectedAgent && c.status !== 'archived').length
+                    : conversations.filter(c => c.isAgent === false && c.status !== 'archived').length
+                  }
+                </span>
+                {selectedAgent && (
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    (filtrado)
+                  </span>
+                )}
               </div>
-            </div>
-          )}
+            </button>
+            
+            {showChatsSection && (
+              <div className="px-2 pb-2 space-y-1">
+                {(() => {
+                  // Filter chats based on selectedAgent AND exclude chats that are in folders
+                  const filteredChats = selectedAgent 
+                    ? conversations.filter(c => c.agentId === selectedAgent && c.status !== 'archived' && !c.folderId)
+                    : conversations.filter(c => c.isAgent === false && c.status !== 'archived' && !c.folderId); // Exclude chats with folderId
+                  
+                  if (filteredChats.length === 0) {
+                    return (
+                      <div className="px-2 py-3 text-center text-xs text-slate-500">
+                        {selectedAgent ? 'No hay chats para este agente' : 'No hay chats sin proyecto'}
+                      </div>
+                    );
+                  }
+                  
+                  return filteredChats.map(chat => (
+                      <div
+                        key={chat.id}
+                        className={`w-full p-2 rounded-lg transition-colors group ${
+                          currentConversation === chat.id
+                            ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('chatId', chat.id);
+                        }}
+                      >
+                        {editingConversationId === chat.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={editingTitle}
+                              onChange={(e) => setEditingTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  saveConversationTitle(chat.id, editingTitle);
+                                } else if (e.key === 'Escape') {
+                                  cancelEditingConversation();
+                                }
+                              }}
+                              onBlur={() => saveConversationTitle(chat.id, editingTitle)}
+                              className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-purple-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-slate-700 dark:text-slate-200"
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => saveConversationTitle(chat.id, editingTitle)}
+                              className="p-1 text-green-600 hover:bg-green-50 rounded"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={cancelEditingConversation}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <XIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            {/* Agent Tag - Always show for chats */}
+                            {chat.agentId && (
+                              <div className="flex items-center gap-1">
+                                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                                  <MessageSquare className="w-2.5 h-2.5" />
+                                  {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Chat info - clickable area */}
+                            <div className="flex items-center justify-between">
+                              <div
+                                onClick={() => setCurrentConversation(chat.id)}
+                                className="flex-1 text-left min-w-0 cursor-pointer"
+                              >
+                                <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200 block">
+                                  {chat.title}
+                                </span>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                  {chat.lastMessageAt instanceof Date 
+                                    ? chat.lastMessageAt.toLocaleDateString()
+                                    : new Date(chat.lastMessageAt).toLocaleDateString()
+                                  }
+                                </p>
+                              </div>
+                            
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditingConversation(chat);
+                                }}
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                title="Editar nombre"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  archiveConversation(chat.id);
+                                }}
+                                className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900 rounded"
+                                title="Archivar"
+                              >
+                                <Archive className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ));
+                })()}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Archived Section - Collapsible */}
@@ -2622,62 +3234,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           </div>
         )}
 
-        {/* Context Sources */}
-        <ContextManager
-          sources={contextSources}
-          validations={new Map()}
-          onAddSource={() => setShowAddSourceModal(true)}
-          onToggleSource={toggleContext}
-          onRemoveSource={async (sourceId) => {
-            if (!currentConversation) {
-              console.warn('⚠️ No current conversation for removing source');
-              return;
-            }
-
-            try {
-              console.log(`📦 Archiving source ${sourceId} from agent ${currentConversation}`);
-              
-              // Call API to remove agent from source's assignedToAgents
-              const response = await fetch(`/api/context-sources/${sourceId}/remove-agent`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ agentId: currentConversation }),
-              });
-
-              if (!response.ok) {
-                throw new Error('Failed to remove source from agent');
-              }
-
-              const result = await response.json();
-              console.log(`✅ ${result.message}`);
-
-              // Update local state immediately
-              setContextSources(prev => prev.filter(s => s.id !== sourceId));
-              
-              // Also update active context sources for this conversation
-              const activeSourceIds = contextSources
-                .filter(s => s.enabled && s.id !== sourceId)
-                .map(s => s.id);
-              
-              // Save updated active sources to conversation_context
-              try {
-                await fetch(`/api/conversations/${currentConversation}/context-sources`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ activeContextSourceIds: activeSourceIds }),
-                });
-              } catch (contextError) {
-                console.warn('⚠️ Failed to update conversation context:', contextError);
-              }
-              
-            } catch (error) {
-              console.error('❌ Error archiving source:', error);
-              alert('Error al archivar fuente. Por favor, intenta nuevamente.');
-            }
-          }}
-          onSourceClick={handleSourceSettings}
-          onSourceSettings={handleSourceSettings}
-        />
+        {/* Context Sources moved to Agent Configuration Modal */}
 
         {/* User Menu */}
         <div className="border-t border-slate-200 p-4">
@@ -2903,9 +3460,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           <div className="border-b border-slate-200 dark:border-slate-700 px-6 py-3 bg-white dark:bg-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
-              </h2>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                  {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
+                </h2>
+                {/* Agent Tag - Shows which agent is being used for this chat */}
+                {getParentAgent() && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3" />
+                      Agente: {getParentAgent()?.title}
+                    </span>
+                  </div>
+                )}
+              </div>
               
               {/* Model Selector with Dropdown */}
               <div className="relative">
@@ -2996,13 +3564,26 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 )}
               </div>
             </div>
-            <button
-              onClick={() => setShowAgentConfiguration(true)}
-              className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <SettingsIcon className="w-4 h-4" />
-              Configurar Agente
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Nuevo Chat Button - Only show when agent is selected */}
+              {selectedAgent && (
+                <button
+                  onClick={() => createNewChatForAgent(selectedAgent)}
+                  className="px-3 py-1.5 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2 font-semibold shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nuevo Chat
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowAgentConfiguration(true)}
+                className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <SettingsIcon className="w-4 h-4" />
+                Configurar Agente
+              </button>
+            </div>
           </div>
         )}
         
@@ -3152,7 +3733,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 {/* Header with stats */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-slate-200">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-bold text-slate-800">Desglose del Contexto</h4>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">Desglose del Contexto</h4>
+                      {getParentAgent() && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          📋 Usando contexto del agente: <span className="font-semibold">{getParentAgent()?.title}</span>
+                        </p>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         calculateContextUsage().usagePercent > 80 ? 'bg-red-100 text-red-700' :
@@ -3828,7 +4416,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2">
-              Flow puede cometer errores. Verifica la información importante.
+              SalfaGPT puede cometer errores. Verifica la información importante.
             </p>
           </div>
         </div>
@@ -4017,6 +4605,278 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         </div>
       )}
 
+      {/* Agent Context Configuration Modal */}
+      {showAgentContextModal && agentForContextConfig && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <SettingsIcon className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                  Configuración de Contexto
+                </h2>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAgentContextModal(false);
+                  setAgentForContextConfig(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Agent Name & ID */}
+            <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Agente:</p>
+              <p className="text-lg font-semibold text-slate-800 dark:text-white">
+                {conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-1">
+                ID: {agentForContextConfig}
+              </p>
+            </div>
+
+            {/* Content - Context Sources */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-3 mb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                      Fuentes de Contexto
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {contextSources.filter(s => 
+                        s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
+                      ).length} documentos asignados
+                      {selectedContextIds.length > 0 && ` • ${selectedContextIds.length} seleccionados`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAddSourceModal(true);
+                      setSelectedContextIds([]); // Clear selection when adding
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Agregar Fuente
+                  </button>
+                </div>
+                
+                {/* Multi-select controls */}
+                {contextSources.filter(s => 
+                  s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
+                ).length > 0 && (
+                  <div className="flex items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const agentSources = contextSources.filter(s => 
+                            s.assignedToAgents && s.assignedToAgents.includes(agentForContextConfig)
+                          );
+                          setSelectedContextIds(agentSources.map(s => s.id));
+                        }}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1 hover:bg-blue-50 rounded"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-slate-300">|</span>
+                      <button
+                        onClick={() => setSelectedContextIds([])}
+                        className="text-xs text-gray-600 hover:text-gray-900 font-medium px-2 py-1 hover:bg-gray-100 rounded"
+                        disabled={selectedContextIds.length === 0}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    
+                    {selectedContextIds.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async () => {
+                            // Enable selected sources
+                            for (const sourceId of selectedContextIds) {
+                              const source = contextSources.find(s => s.id === sourceId);
+                              if (source && !source.enabled) {
+                                await toggleContext(sourceId);
+                              }
+                            }
+                            setSelectedContextIds([]);
+                          }}
+                          className="text-xs bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 font-medium"
+                        >
+                          Enable ({selectedContextIds.length})
+                        </button>
+                        <button
+                          onClick={async () => {
+                            // Disable selected sources
+                            for (const sourceId of selectedContextIds) {
+                              const source = contextSources.find(s => s.id === sourceId);
+                              if (source && source.enabled) {
+                                await toggleContext(sourceId);
+                              }
+                            }
+                            setSelectedContextIds([]);
+                          }}
+                          className="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 font-medium"
+                        >
+                          Disable ({selectedContextIds.length})
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* List of context sources for this agent */}
+              <div className="space-y-2">
+                {contextSources
+                  .filter(s => 
+                    !s.assignedToAgents || 
+                    s.assignedToAgents.length === 0 || 
+                    s.assignedToAgents.includes(agentForContextConfig)
+                  )
+                  .map(source => {
+                    const isSelected = selectedContextIds.includes(source.id);
+                    
+                    return (
+                    <div
+                      key={source.id}
+                      onClick={() => {
+                        setSelectedContextIds(prev => 
+                          prev.includes(source.id)
+                            ? prev.filter(id => id !== source.id)
+                            : [...prev, source.id]
+                        );
+                      }}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                          : source.enabled
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700'
+                          : 'bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setSelectedContextIds(prev => 
+                                prev.includes(source.id)
+                                  ? prev.filter(id => id !== source.id)
+                                  : [...prev, source.id]
+                              );
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 flex-shrink-0"
+                          />
+                          <FileText className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <span className="text-sm font-semibold truncate text-slate-800 dark:text-white">
+                            {source.name}
+                          </span>
+                          {source.metadata?.validated && (
+                            <span className="px-1.5 py-0.5 bg-green-600 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
+                              ✓ Validado
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Toggle Switch */}
+                        <label className="relative inline-flex items-center cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={source.enabled}
+                            onChange={() => toggleContext(source.id)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-slate-200 peer-focus:ring-2 peer-focus:ring-green-300 dark:bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-green-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Source preview */}
+                      {source.extractedData && (
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                          {source.extractedData.substring(0, 150)}...
+                        </p>
+                      )}
+
+                      {/* Metadata */}
+                      <div className="mt-2 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                        {source.metadata?.pageCount && (
+                          <span>{source.metadata.pageCount} págs</span>
+                        )}
+                        {source.metadata?.charactersExtracted && (
+                          <span>{(source.metadata.charactersExtracted / 1000).toFixed(1)}k caracteres</span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handleSourceSettings(source.id)}
+                          className="flex-1 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Ver Detalles
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (confirm('¿Quitar esta fuente del agente?')) {
+                              try {
+                                const response = await fetch(`/api/context-sources/${source.id}/remove-agent`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ agentId: agentForContextConfig }),
+                                });
+                                if (response.ok) {
+                                  setContextSources(prev => prev.filter(s => s.id !== source.id));
+                                }
+                              } catch (error) {
+                                console.error('Error removing source:', error);
+                              }
+                            }
+                          }}
+                          className="px-2 py-1 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                  })}
+                {contextSources.filter(s => 
+                  !s.assignedToAgents || 
+                  s.assignedToAgents.length === 0 || 
+                  s.assignedToAgents.includes(agentForContextConfig)
+                ).length === 0 && (
+                  <div className="p-6 text-center text-slate-500 dark:text-slate-400 text-sm">
+                    <p>No hay fuentes de contexto para este agente</p>
+                    <p className="text-xs mt-1">Haz click en "Agregar Fuente" para empezar</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowAgentContextModal(false);
+                  setAgentForContextConfig(null);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AddSourceModal
         isOpen={showAddSourceModal}
         onClose={() => {
@@ -4051,9 +4911,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         isOpen={settingsSource !== null}
         onClose={() => {
           setSettingsSource(null);
-          // Reload sources after modal closes to get updated ragEnabled flag
+          // ✅ PERFORMANCE: Lightweight refresh after settings modal (just RAG toggle changed)
           if (currentConversation) {
-            loadContextForConversation(currentConversation);
+            loadContextForConversation(currentConversation, true); // skipRAGVerification = true
           }
         }}
         userId={userId}
@@ -4067,11 +4927,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         userEmail={userEmail}
         conversations={conversations}
         onSourcesUpdated={() => {
-          // ✅ FIX 2025-10-20: Reload context with proper agent filtering
-          // Don't directly load all sources - use the proper filtering logic
+          // ✅ PERFORMANCE: Lightweight metadata-only refresh (no RAG verification)
+          // Only reload the metadata to show updated assignments in left panel
           if (currentConversation) {
-            console.log('🔄 Reloading context for current agent after assignment:', currentConversation);
-            loadContextForConversation(currentConversation);
+            console.log('⚡ Lightweight context refresh after modal close:', currentConversation);
+            loadContextForConversation(currentConversation, true); // skipRAGVerification = true
           } else {
             console.warn('⚠️ No current conversation - skipping context reload');
           }
@@ -4159,6 +5019,22 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         userEmail={userEmail || ''}
         userRole={currentUser?.role || 'user'}
       />
+
+      {/* Agent Sharing Modal */}
+      {showAgentSharingModal && agentToShare && currentUser && (
+        <AgentSharingModal
+          agent={agentToShare}
+          currentUser={currentUser}
+          onClose={() => {
+            setShowAgentSharingModal(false);
+            setAgentToShare(null);
+          }}
+          onShareUpdated={() => {
+            // Reload conversations to reflect share changes
+            loadConversations();
+          }}
+        />
+      )}
 
       {/* Impersonation Banner */}
       {isImpersonating && impersonatedUser && (
