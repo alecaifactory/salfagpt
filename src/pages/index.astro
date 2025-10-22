@@ -41,12 +41,12 @@ const showLogoutSuccess = logoutParam === 'success';
 </head>
 <body class="min-h-screen">
   <!-- Hero Section with Split Layout -->
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 px-4 py-12">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50 px-4 py-12">
     <div class="max-w-6xl w-full">
       <div class="grid md:grid-cols-2 gap-12 items-center">
         
         <!-- Left Side: Message/Value Proposition -->
-        <div class="text-white space-y-6">
+        <div class="space-y-6">
           <!-- Salfacorp Logo -->
           <div class="flex justify-center md:justify-start">
             <img 
@@ -57,21 +57,21 @@ const showLogoutSuccess = logoutParam === 'success';
           </div>
           
           <div class="space-y-4">
-            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               ¡Hola! Soy tu agente SalfaCorp
             </h1>
           </div>
           
-          <div class="space-y-4 text-slate-200 text-base md:text-lg leading-relaxed">
+          <div class="space-y-4 text-slate-700 text-base md:text-lg leading-relaxed">
             <p>
               En SalfaCorp estamos comprometidos con la innovación y la transformación digital, integrando herramientas de inteligencia artificial para elevar tu eficiencia y productividad. Estos agentes están diseñados para ser tus aliados en procesos y para responder todas tus consultas a cualquier hora y desde cualquier dispositivo.
             </p>
             
-            <p class="text-slate-300 text-sm md:text-base">
-              Ten en cuenta que este agente se basa en inteligencia artificial, por lo que sus respuestas se generan en función de probabilidades. Si no estás de acuerdo con las respuestas puedes escribirnos a <a href="mailto:soporteia@salfagestion.cl" class="text-blue-400 hover:text-blue-300 underline">soporteia@salfagestion.cl</a>
+            <p class="text-slate-600 text-sm md:text-base">
+              Ten en cuenta que este agente se basa en inteligencia artificial, por lo que sus respuestas se generan en función de probabilidades. Si no estás de acuerdo con las respuestas puedes escribirnos a <a href="mailto:soporteia@salfagestion.cl" class="text-blue-600 hover:text-blue-700 underline font-medium">soporteia@salfagestion.cl</a>
             </p>
             
-            <p class="text-slate-100 font-medium">
+            <p class="text-slate-800 font-semibold">
               Inicia sesión con tu correo corporativo y transforma tu día a día. Únete ahora y haz que cada momento cuente, mientras evolucionamos juntos el futuro con soluciones inteligentes.
             </p>
           </div>
@@ -79,23 +79,23 @@ const showLogoutSuccess = logoutParam === 'success';
 
         <!-- Right Side: Login Card -->
         <div class="flex items-center justify-center">
-          <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 md:p-12 w-full max-w-md border border-white/20">
+          <div class="bg-white rounded-2xl shadow-2xl p-8 md:p-12 w-full max-w-md border border-slate-200">
             <div class="space-y-6">
               <div class="text-center space-y-2">
-                <h2 class="text-3xl font-bold text-white">Bienvenido</h2>
-                <p class="text-slate-300">Inicia sesión para continuar</p>
+                <h2 class="text-3xl font-bold text-slate-800">Bienvenido</h2>
+                <p class="text-slate-600">Inicia sesión para continuar</p>
               </div>
 
               <!-- Success Message (Logout) -->
               {showLogoutSuccess && (
-                <div class="bg-green-500/20 border border-green-500/40 rounded-lg p-4">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
                   <div class="flex items-start gap-3">
-                    <svg class="w-6 h-6 text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <div>
-                      <h3 class="text-green-300 font-semibold mb-1">Sesión Cerrada</h3>
-                      <p class="text-green-200 text-sm">Has cerrado sesión exitosamente.</p>
+                      <h3 class="text-green-800 font-semibold mb-1">Sesión Cerrada</h3>
+                      <p class="text-green-700 text-sm">Has cerrado sesión exitosamente.</p>
                     </div>
                   </div>
                 </div>
@@ -103,14 +103,14 @@ const showLogoutSuccess = logoutParam === 'success';
 
               <!-- Error Message -->
               {currentError && (
-                <div class="bg-red-500/20 border border-red-500/40 rounded-lg p-4">
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div class="flex items-start gap-3">
-                    <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <div>
-                      <h3 class="text-red-300 font-semibold mb-1">{currentError.title}</h3>
-                      <p class="text-red-200 text-sm">{currentError.message}</p>
+                      <h3 class="text-red-800 font-semibold mb-1">{currentError.title}</h3>
+                      <p class="text-red-700 text-sm">{currentError.message}</p>
                     </div>
                   </div>
                 </div>
@@ -132,7 +132,7 @@ const showLogoutSuccess = logoutParam === 'success';
                 </a>
                 
                 <div class="text-center">
-                  <p class="text-sm text-slate-400">
+                  <p class="text-sm text-slate-500">
                     Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad
                   </p>
                 </div>
