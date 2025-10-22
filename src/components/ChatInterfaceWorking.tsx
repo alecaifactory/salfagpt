@@ -3250,12 +3250,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
             {showUserMenu && (
               <>
-                {/* Backdrop to close menu when clicking outside */}
                 <div 
-                  className="fixed inset-0 z-40" 
-                  onClick={() => setShowUserMenu(false)}
-                />
-                <div className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
+                  ref={userMenuRef}
+                  className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
                 {/* Context Management - Superadmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
