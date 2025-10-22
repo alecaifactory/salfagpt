@@ -14,11 +14,13 @@
 
 import { BigQuery } from '@google-cloud/bigquery';
 import { generateEmbedding } from './embeddings';
+import { CURRENT_PROJECT_ID } from './firestore';
 
-const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+// Use the same project ID as Firestore (ensures consistency)
+const PROJECT_ID = CURRENT_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 
   (typeof import.meta !== 'undefined' && import.meta.env 
     ? import.meta.env.GOOGLE_CLOUD_PROJECT 
-    : undefined);
+    : 'salfagpt'); // Fallback to salfagpt
 
 const bigquery = new BigQuery({
   projectId: PROJECT_ID,
@@ -26,6 +28,12 @@ const bigquery = new BigQuery({
 
 const DATASET_ID = 'flow_analytics';
 const TABLE_ID = 'document_embeddings';
+
+// Log configuration for debugging
+console.log('📊 BigQuery Vector Search initialized');
+console.log(`  Project: ${PROJECT_ID}`);
+console.log(`  Dataset: ${DATASET_ID}`);
+console.log(`  Table: ${TABLE_ID}`);
 
 export interface VectorSearchResult {
   chunk_id: string;
@@ -159,7 +167,7 @@ export async function vectorSearchBigQuery(
       text_preview: row.text_preview,
       full_text: row.full_text,
       similarity: row.similarity,
-      metadata: row.metadata || {}
+      metadata: row.metadata ? JSON.parse(row.metadata) : {} // ✅ Parse JSON string back to object
     }));
 
     const totalTime = Date.now() - startTime;
@@ -217,7 +225,7 @@ export async function syncChunkToBigQuery(chunk: {
       text_preview: chunk.text.substring(0, 500),
       full_text: chunk.text,
       embedding: chunk.embedding,
-      metadata: safeMetadata,
+      metadata: JSON.stringify(safeMetadata), // ✅ FIX: Convert to JSON string
       created_at: new Date().toISOString(),
     }];
 
@@ -269,7 +277,7 @@ export async function syncChunksBatchToBigQuery(chunks: Array<{
         text_preview: chunk.text.substring(0, 500),
         full_text: chunk.text,
         embedding: chunk.embedding,
-        metadata: safeMetadata, // ✅ JSON-safe metadata
+        metadata: JSON.stringify(safeMetadata), // ✅ FIX: Convert to JSON string
         created_at: new Date().toISOString(),
       };
     });

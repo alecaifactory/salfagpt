@@ -1675,14 +1675,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           : step
       ));
       
-      // ✅ OPTIMIZED: Send only source IDs - API uses BigQuery for similarity search
+      // ✅ OPTIMIZED: Send only source IDs - API uses BigQuery/Firestore for vector search
       // No need to transfer 50+ MB of full document text!
-      const activeContextSources = activeSources.map(source => ({
-        id: source.id,
-        name: source.name,
-        type: 'pdf'
-        // NO content field! BigQuery finds relevant chunks, not full documents
-      }));
+      const activeSourceIds = activeSources.map(source => source.id);
+
+      console.log(`📤 Sending ${activeSourceIds.length} source IDs (not full text) - BigQuery will find relevant chunks`);
 
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
@@ -1693,8 +1690,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
-          contextSources: activeContextSources,
-          ragEnabled: true, // HARDCODED: RAG is now the ONLY option (was: agentRAGMode === 'rag')
+          activeSourceIds: activeSourceIds, // ✅ Just IDs! Backend does vector search
+          ragEnabled: true, // HARDCODED: RAG is now the ONLY option
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
         })
