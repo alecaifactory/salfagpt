@@ -4,10 +4,14 @@ import { firestore, COLLECTIONS } from '../../../../../lib/firestore';
 
 /**
  * GET /api/agents/:id/context-sources/all-ids
- * Get ALL source IDs assigned to a specific agent (for bulk operations)
+ * Get ALL context source IDs assigned to an agent (no pagination, IDs only)
  * 
- * Returns only IDs, not full documents - very fast
- * Used for auto-enabling all sources
+ * Use this for:
+ * - Bulk operations (enable all, disable all)
+ * - Counting total sources
+ * - Quick lookups
+ * 
+ * Does NOT return full source data - just IDs
  */
 export const GET: APIRoute = async (context) => {
   try {
@@ -15,7 +19,7 @@ export const GET: APIRoute = async (context) => {
     const session = getSession(context);
     if (!session) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -30,24 +34,23 @@ export const GET: APIRoute = async (context) => {
       );
     }
 
-    console.log(`📋 Fetching ALL source IDs for agent: ${agentId}`);
+    console.log(`📄 Loading ALL source IDs for agent ${agentId}`);
 
-    // 2. Query for all source IDs (efficient - only IDs)
+    // 2. Query all sources assigned to this agent (IDs only for performance)
     const snapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
       .where('assignedToAgents', 'array-contains', agentId)
-      .select('__name__') // Only fetch document IDs
+      .select('__name__') // Only get document IDs, not full data
       .get();
 
     const sourceIds = snapshot.docs.map(doc => doc.id);
 
-    console.log(`✅ Found ${sourceIds.length} source IDs for agent ${agentId}`);
+    console.log(`✅ Found ${sourceIds.length} sources assigned to agent ${agentId}`);
 
     return new Response(
       JSON.stringify({
         sourceIds,
-        count: sourceIds.length,
-        agentId,
+        total: sourceIds.length
       }),
       {
         status: 200,
@@ -56,17 +59,13 @@ export const GET: APIRoute = async (context) => {
     );
 
   } catch (error) {
-    console.error('❌ Error fetching agent source IDs:', error);
+    console.error('❌ Error loading source IDs:', error);
     return new Response(
       JSON.stringify({
-        error: 'Failed to fetch source IDs',
+        error: 'Internal server error',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 };
-
