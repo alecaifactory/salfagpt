@@ -64,6 +64,10 @@ export default function ContextSourceSettingsModalSimple({
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
+  // NEW: Full source data state (includes extractedData)
+  const [fullSource, setFullSource] = useState<ContextSource | null>(null);
+  const [loadingFullSource, setLoadingFullSource] = useState(false);
+  
   // NEW: Chunk data state
   const [chunksData, setChunksData] = useState<ChunksResponse | null>(null);
   const [loadingChunks, setLoadingChunks] = useState(false);
@@ -94,6 +98,37 @@ export default function ContextSourceSettingsModalSimple({
     }]);
   };
 
+
+  // Load full source data (including extractedData) when modal opens
+  useEffect(() => {
+    if (isOpen && source?.id) {
+      loadFullSource();
+    }
+  }, [isOpen, source?.id]);
+
+  const loadFullSource = async () => {
+    if (!source?.id) return;
+    
+    console.log(`📥 Loading full source data for: ${source.name} (ID: ${source.id})`);
+    setLoadingFullSource(true);
+    
+    try {
+      const response = await fetch(`/api/context-sources/${source.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFullSource(data.source);
+        console.log(`✅ Loaded full source with ${data.source.extractedData?.length || 0} chars of extracted text`);
+      } else {
+        console.error(`❌ Failed to load full source: ${response.status}`);
+        setFullSource(null);
+      }
+    } catch (error) {
+      console.error('❌ Error loading full source:', error);
+      setFullSource(null);
+    } finally {
+      setLoadingFullSource(false);
+    }
+  };
 
   // Load chunks when modal opens (always try, even if ragEnabled is false)
   // This allows us to detect if chunks exist but ragEnabled flag is out of sync
@@ -323,21 +358,26 @@ export default function ContextSourceSettingsModalSimple({
                   <div className="flex items-center gap-2 text-[10px] text-slate-500">
                     <span className="flex items-center gap-1">
                       <Code className="w-3 h-3" />
-                      {source.extractedData?.length.toLocaleString() || '0'} caracteres
+                      {fullSource?.extractedData?.length.toLocaleString() || '0'} caracteres
                     </span>
                     <span className="flex items-center gap-1">
                       <Hash className="w-3 h-3" />
-                      ≈ {source.extractedData ? Math.ceil(source.extractedData.length / 4).toLocaleString() : '0'} tokens
+                      ≈ {fullSource?.extractedData ? Math.ceil(fullSource.extractedData.length / 4).toLocaleString() : '0'} tokens
                     </span>
                   </div>
                 </div>
                 
                 <div className="max-h-[280px] overflow-y-auto bg-slate-50 rounded p-2 border border-slate-100">
-                  {source.extractedData ? (
+                  {loadingFullSource ? (
+                    <div className="h-24 flex flex-col items-center justify-center text-slate-400 gap-2">
+                      <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      <p className="text-xs">Cargando texto extraído...</p>
+                    </div>
+                  ) : fullSource?.extractedData ? (
                     <pre className="text-[11px] text-slate-700 font-mono leading-relaxed whitespace-pre-wrap">
-{source.extractedData.length > 5000 
-  ? source.extractedData.substring(0, 5000) + '\n\n... (texto truncado para vista previa, total: ' + source.extractedData.length.toLocaleString() + ' caracteres)'
-  : source.extractedData}
+{fullSource.extractedData.length > 5000 
+  ? fullSource.extractedData.substring(0, 5000) + '\n\n... (texto truncado para vista previa, total: ' + fullSource.extractedData.length.toLocaleString() + ' caracteres)'
+  : fullSource.extractedData}
                     </pre>
                   ) : (
                     <div className="h-24 flex items-center justify-center text-slate-400">
@@ -382,7 +422,7 @@ export default function ContextSourceSettingsModalSimple({
                   <div className="bg-white rounded p-2 border border-slate-200">
                     <p className="text-[10px] text-slate-500 mb-1">Caracteres extraídos:</p>
                     <p className="text-xs font-semibold text-slate-900">
-                      {source.extractedData?.length.toLocaleString() || 
+                      {fullSource?.extractedData?.length.toLocaleString() || 
                        source.metadata?.charactersExtracted?.toLocaleString() || 'N/A'}
                     </p>
                   </div>
@@ -391,8 +431,8 @@ export default function ContextSourceSettingsModalSimple({
                   <div className="bg-white rounded p-2 border border-slate-200">
                     <p className="text-[10px] text-slate-500 mb-1">Tokens estimados:</p>
                     <p className="text-xs font-semibold text-slate-900">
-                      {source.extractedData 
-                        ? Math.ceil(source.extractedData.length / 4).toLocaleString()
+                      {fullSource?.extractedData 
+                        ? Math.ceil(fullSource.extractedData.length / 4).toLocaleString()
                         : source.metadata?.tokensEstimate?.toLocaleString() || 'N/A'}
                     </p>
                   </div>

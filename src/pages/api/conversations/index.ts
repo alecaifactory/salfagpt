@@ -5,6 +5,7 @@ import {
   groupConversationsByTime,
 } from '../../../lib/firestore';
 import { getSession } from '../../../lib/auth';
+import { isUserDomainEnabled, getDomainFromEmail } from '../../../lib/domains';
 
 // GET /api/conversations - List user's conversations
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -33,6 +34,28 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     if (session.id !== userId) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - Cannot access other user data' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 🔒 CRITICAL Security: Verify user's domain is enabled
+    const userEmail = session.email || '';
+    const isDomainEnabled = await isUserDomainEnabled(userEmail);
+    
+    if (!isDomainEnabled) {
+      const userDomain = getDomainFromEmail(userEmail);
+      console.warn('🚨 API access denied - domain disabled:', {
+        email: userEmail,
+        domain: userDomain,
+        endpoint: 'GET /api/conversations',
+        timestamp: new Date().toISOString(),
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Domain access disabled',
+          message: `El dominio "${userDomain}" no está habilitado. Contacta al administrador.`
+        }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -92,7 +115,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const body = await request.json();
-    const { userId, title, folderId } = body;
+    const { userId, title, folderId, isAgent, agentId } = body;
 
     if (!userId) {
       return new Response(
@@ -109,8 +132,30 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       );
     }
 
+    // 🔒 CRITICAL Security: Verify user's domain is enabled
+    const userEmail = session.email || '';
+    const isDomainEnabled = await isUserDomainEnabled(userEmail);
+    
+    if (!isDomainEnabled) {
+      const userDomain = getDomainFromEmail(userEmail);
+      console.warn('🚨 API access denied - domain disabled:', {
+        email: userEmail,
+        domain: userDomain,
+        endpoint: 'POST /api/conversations',
+        timestamp: new Date().toISOString(),
+      });
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Domain access disabled',
+          message: `El dominio "${userDomain}" no está habilitado. Contacta al administrador.`
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     try {
-      const conversation = await createConversation(userId, title, folderId);
+      const conversation = await createConversation(userId, title, folderId, isAgent, agentId);
 
       return new Response(
         JSON.stringify({ conversation }),

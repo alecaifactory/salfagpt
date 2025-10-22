@@ -327,3 +327,5 @@ Todas las queries con 📝 Full (azul)
 
 
 
+
+

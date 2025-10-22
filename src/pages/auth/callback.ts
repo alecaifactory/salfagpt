@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { exchangeCodeForTokens, getUserInfo, setSession } from '../../lib/auth';
 import { insertUserSession } from '../../lib/gcp';
 import { upsertUserOnLogin } from '../../lib/firestore';
+import { isUserDomainEnabled, getDomainFromEmail } from '../../lib/domains';
 
 export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
   const code = url.searchParams.get('code');
@@ -47,34 +48,61 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
       throw new Error('Email verification required');
     }
 
-    // Prepare user data for session
+    // 🔒 CRITICAL Security: Check if user's domain is enabled
+    const userDomain = getDomainFromEmail(userInfo.email);
+    const isDomainEnabled = await isUserDomainEnabled(userInfo.email);
+    
+    if (!isDomainEnabled) {
+      console.warn('🚨 Login attempt from disabled domain:', {
+        email: userInfo.email,
+        domain: userDomain,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Redirect to login with specific error message
+      return redirect(`/auth/login?error=domain_disabled&domain=${encodeURIComponent(userDomain)}`);
+    }
+
+    console.log('✅ Domain access verified:', {
+      email: userInfo.email,
+      domain: userDomain,
+      enabled: true,
+    });
+
+    // Create/update user in Firestore first to get role
+    let firestoreUser;
+    try {
+      firestoreUser = await upsertUserOnLogin(userInfo.email, userInfo.name, userInfo.id);
+      console.log('✅ User created/updated in Firestore:', userInfo.email);
+    } catch (userError) {
+      console.error('⚠️ Failed to upsert user in Firestore:', userError);
+      // Continue anyway - don't block user login
+      firestoreUser = null;
+    }
+
+    // Prepare user data for session - INCLUDE ROLE from Firestore
     const userData = {
       id: userInfo.id,
       email: userInfo.email,
       name: userInfo.name,
       picture: userInfo.picture,
       verified_email: userInfo.verified_email,
+      role: firestoreUser?.role || 'user', // ✅ CRITICAL: Include role in JWT
+      roles: firestoreUser?.roles || ['user'], // ✅ CRITICAL: Include roles in JWT
     };
 
     // 🔒 Security logging: Successful authentication
     console.log('✅ User authenticated:', {
       userId: userData.id.substring(0, 8) + '...',
       email: userData.email,
+      role: userData.role,
+      roles: userData.roles,
       verified: userData.verified_email,
       timestamp: new Date().toISOString(),
     });
 
-    // Set session cookie
+    // Set session cookie with role included
     setSession({ cookies } as any, userData);
-    
-    // Create/update user in Firestore on login
-    try {
-      await upsertUserOnLogin(userData.email, userData.name, userData.id);
-      console.log('✅ User created/updated in Firestore:', userData.email);
-    } catch (userError) {
-      console.error('⚠️ Failed to upsert user in Firestore:', userError);
-      // Continue anyway - don't block user login
-    }
 
     // Log session to BigQuery (optional, can be async)
     try {

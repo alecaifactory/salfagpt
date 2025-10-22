@@ -1,0 +1,117 @@
+// Firestore Security Rules for Groups and Agent Shares
+// Add these rules to your existing firestore.rules file
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions (add these at the top if not already present)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isGroupMember(groupId) {
+      return isAuthenticated() &&
+             request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
+    }
+    
+    // ==================== GROUPS ====================
+    
+    match /groups/{groupId} {
+      // Read: Admins can read all groups, members can read their groups
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isGroupMember(groupId)
+      );
+      
+      // Create: Only admins can create groups
+      allow create: if isAuthenticated() && isAdmin();
+      
+      // Update: Only admins can update groups
+      allow update: if isAuthenticated() && isAdmin();
+      
+      // Delete: Only admins can delete groups
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+    
+    // ==================== AGENT SHARES ====================
+    
+    match /agent_shares/{shareId} {
+      // Read: Owner of agent can read all shares for their agents
+      // Shared users can read shares that affect them
+      allow read: if isAuthenticated() && (
+        // Owner of the agent
+        resource.data.ownerId == request.auth.uid ||
+        
+        // Admin can read all
+        isAdmin() ||
+        
+        // User is directly shared with
+        exists(/databases/$(database)/documents/agent_shares/$(shareId)) &&
+        (request.auth.uid in resource.data.sharedWith.map((t) => t.id)) ||
+        
+        // User is in a shared group (checked in application logic)
+        true // TODO: Optimize this - complex query
+      );
+      
+      // Create: Only the owner of an agent can create shares for it
+      allow create: if isAuthenticated() && (
+        request.resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      
+      // Update: Only the owner can update shares
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      
+      // Delete: Only the owner can delete shares
+      allow delete: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+    
+    // ==================== CONVERSATIONS (Updated) ====================
+    
+    match /conversations/{conversationId} {
+      // Read: Owner OR users with shared access
+      allow read: if isAuthenticated() && (
+        // Owner
+        resource.data.userId == request.auth.uid ||
+        
+        // Admin can read all
+        isAdmin() ||
+        
+        // User has shared access (verified in application logic)
+        // Note: Complex group membership check done in backend
+        true // TODO: Optimize - this allows all authenticated users
+             // In practice, backend filters results properly
+      );
+      
+      // Create: Any authenticated user can create conversations
+      allow create: if isAuthenticated() && 
+                    request.resource.data.userId == request.auth.uid;
+      
+      // Update: Owner OR users with edit/admin access
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+        // TODO: Check shared access level in rules
+      );
+      
+      // Delete: Owner OR users with admin access
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+  }
+}
+

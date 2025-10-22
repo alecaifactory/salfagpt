@@ -11,6 +11,7 @@ if (session) {
 // Get error and redirect parameters
 const errorParam = Astro.url.searchParams.get('error');
 const redirectParam = Astro.url.searchParams.get('redirect');
+const domainParam = Astro.url.searchParams.get('domain');
 
 // Error messages
 const errorMessages: Record<string, { title: string; message: string; suggestions: string[] }> = {
@@ -55,6 +56,17 @@ const errorMessages: Record<string, { title: string; message: string; suggestion
       'Inicia sesión con tu cuenta de Google',
       'Si no tienes cuenta, contáctanos para crear una'
     ]
+  },
+  'domain_disabled': {
+    title: 'Dominio Deshabilitado',
+    message: domainParam 
+      ? `El dominio "${domainParam}" no está habilitado para acceder a esta plataforma.`
+      : 'Tu dominio de correo no está habilitado para acceder a esta plataforma.',
+    suggestions: [
+      'Contacta al administrador de tu organización',
+      'Verifica que estés usando el correo corporativo correcto',
+      'El administrador debe habilitar tu dominio en la sección de Gestión de Dominios'
+    ]
   }
 };
 
@@ -67,7 +79,7 @@ const redirectUrl = redirectParam || '/chat';
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iniciar Sesión - Flow</title>
+  <title>Iniciar Sesión - SalfaGPT</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
 <body class="h-full m-0 p-0">
@@ -89,7 +101,7 @@ const redirectUrl = redirectParam || '/chat';
           
           <div>
             <h1 class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-              Flow
+              SalfaGPT
             </h1>
             <p class="text-slate-300 text-lg">
               {currentError ? 'Error al Iniciar Sesión' : 'Iniciar Sesión'}

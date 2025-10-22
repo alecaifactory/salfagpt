@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   X, 
   Database, 
@@ -17,7 +17,9 @@ import {
   Tag,
   Globe,
   Grid,
-  Zap
+  Zap,
+  ChevronRight,
+  Folder
 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
@@ -80,7 +82,17 @@ export default function ContextManagementDashboard({
   // 🔑 Hook para cerrar con ESC
   useModalClose(isOpen, onClose);
   const [sources, setSources] = useState<EnrichedContextSource[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
+  // Folder state  
+  const [folderStructure, setFolderStructure] = useState<Array<{name: string; count: number}>>([]);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,10 +122,10 @@ export default function ContextManagementDashboard({
   // Drag & Drop visual state
   const [isDragging, setIsDragging] = useState(false);
 
-  // Load all context sources
+  // Load first page of context sources
   useEffect(() => {
     if (isOpen) {
-      loadAllSources();
+      loadFirstPage();
     }
   }, [isOpen]);
 
@@ -164,47 +176,66 @@ export default function ContextManagementDashboard({
     }
   }, [selectedSourceIds, sources, conversations]);
 
-  const loadAllSources = async () => {
+  const loadFirstPage = async () => {
     setLoading(true);
+    setSources([]);
+    setCurrentPage(0);
+    
     try {
-      const response = await fetch('/api/context-sources/all', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
+      // Load folder structure
+      const structureResponse = await fetch('/api/context-sources/folder-structure');
+      if (structureResponse.ok) {
+        const data = await structureResponse.json();
+        setFolderStructure(data.folders || []);
+        setTotalCount(data.totalCount || 0);
+        
+        // Extract all unique tags from folder structure
+        const tagsSet = new Set<string>();
+        data.folders?.forEach((folder: any) => {
+          if (folder.name) tagsSet.add(folder.name);
+        });
+        setAllTags(Array.from(tagsSet).sort());
+      }
+      
+      // Load first 10 documents
+      const response = await fetch('/api/context-sources/paginated?page=0&limit=10');
       if (response.ok) {
         const data = await response.json();
         setSources(data.sources || []);
+        setHasMore(data.hasMore);
+        setCurrentPage(0);
         
-        // Extract all unique tags
-        const tagsSet = new Set<string>();
-        data.sources?.forEach((source: ContextSource) => {
-          source.labels?.forEach(tag => tagsSet.add(tag));
-        });
-        setAllTags(Array.from(tagsSet).sort());
-        
-        console.log('✅ Loaded', data.sources?.length || 0, 'context sources');
-        console.log('✅ Found', tagsSet.size, 'unique tags');
-        
-        // Debug: Log assignment counts
-        const sourcesWithAssignments = data.sources?.filter((s: any) => 
-          (s.assignedToAgents?.length || 0) > 0
-        );
-        console.log('📊 Sources with assignments:', sourcesWithAssignments?.length || 0);
-        if (sourcesWithAssignments?.length > 0) {
-          console.log('📋 Sample assignments:', {
-            source: sourcesWithAssignments[0].name,
-            assignedToAgents: sourcesWithAssignments[0].assignedToAgents,
-            assignedAgents: sourcesWithAssignments[0].assignedAgents,
-          });
-        }
-      } else {
-        console.error('Failed to load context sources');
+        console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
+        console.log('📊 Total count:', data.totalCount || 0);
+        console.log('📁 Folders:', data.folders?.length || 0);
       }
     } catch (error) {
       console.error('Error loading context sources:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadNextPage = async () => {
+    if (!hasMore || loadingMore) return;
+    
+    setLoadingMore(true);
+    const nextPage = currentPage + 1;
+    
+    try {
+      const response = await fetch(`/api/context-sources/paginated?page=${nextPage}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        setSources(prev => [...prev, ...(data.sources || [])]);
+        setHasMore(data.hasMore);
+        setCurrentPage(nextPage);
+        
+        console.log('✅ Loaded page', nextPage, ':', data.sources?.length || 0, 'sources');
+      }
+    } catch (error) {
+      console.error('Error loading next page:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -580,7 +611,7 @@ export default function ContextManagementDashboard({
     }
 
     setIsUploading(false);
-    await loadAllSources(); // Reload sources
+    await loadFirstPage(); // Reload sources
   };
 
   // DEPRECATED: No longer needed - extraction now happens synchronously
@@ -659,7 +690,7 @@ export default function ContextManagementDashboard({
         
         // Reload sources from backend
         console.log('🔄 Reloading all sources after assignment...');
-        await loadAllSources();
+        await loadFirstPage();
         onSourcesUpdated();
         
         console.log('✅ Sources reloaded. Verifying assignment...');
@@ -683,21 +714,40 @@ export default function ContextManagementDashboard({
   };
 
   const handleAssignClick = async () => {
-    if (selectedSourceIds.length === 0) return;
+    if (selectedSourceIds.length === 0 || pendingAgentIds.length === 0) return;
     
     setIsAssigning(true);
+    
     try {
-      // Assign all selected sources to pending agents
-      for (const sourceId of selectedSourceIds) {
-        await handleBulkAssign(sourceId, pendingAgentIds);
-      }
-      
-      if (selectedSourceIds.length > 1) {
-        alert(`✅ Assigned ${selectedSourceIds.length} sources to ${pendingAgentIds.length} agent(s)`);
+      const response = await fetch('/api/context-sources/bulk-assign-multiple', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceIds: selectedSourceIds,
+          agentIds: pendingAgentIds,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`✅ ${result.sourcesUpdated} documentos asignados en ${(result.responseTime / 1000).toFixed(1)}s`);
+        
+        // Update local state
+        setSources(prev => prev.map(s => 
+          selectedSourceIds.includes(s.id)
+            ? { ...s, assignedToAgents: pendingAgentIds }
+            : s
+        ));
+        
+        // Clear selection
+        setSelectedSourceIds([]);
+        setPendingAgentIds([]);
+      } else {
+        alert('Error al asignar documentos');
       }
     } catch (error) {
-      console.error('Bulk assign failed:', error);
-      alert('Error during bulk assignment');
+      console.error('Error:', error);
+      alert('Error al asignar');
     } finally {
       setIsAssigning(false);
     }
@@ -763,6 +813,55 @@ export default function ContextManagementDashboard({
       )
     : sources;
 
+  const sourcesByTag = useMemo(() => {
+    const groups = new Map<string, EnrichedContextSource[]>();
+    
+    folderStructure.forEach(folder => {
+      groups.set(folder.name, []);
+    });
+    
+    sources.forEach(source => {
+      if (!source.labels || source.labels.length === 0) {
+        if (!groups.has('General')) groups.set('General', []);
+        groups.get('General')!.push(source);
+      } else {
+        source.labels.forEach(tag => {
+          if (!groups.has(tag)) groups.set(tag, []);
+          groups.get(tag)!.push(source);
+        });
+      }
+    });
+    
+    return groups;
+  }, [folderStructure, sources]);
+
+  const toggleFolder = (name: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const expandAllFolders = () => {
+    setExpandedFolders(new Set(Array.from(sourcesByTag.keys())));
+  };
+
+  const collapseAllFolders = () => {
+    setExpandedFolders(new Set());
+  };
+
+  const selectAllInFolder = (folderName: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent folder toggle
+    const folderSources = sourcesByTag.get(folderName) || [];
+    const folderIds = folderSources.map(s => s.id);
+    setSelectedSourceIds(prev => {
+      const combined = new Set([...prev, ...folderIds]);
+      return Array.from(combined);
+    });
+  };
+
   const handleReupload = (queueItemId: string) => {
     const item = uploadQueue.find(i => i.id === queueItemId);
     if (item) {
@@ -786,7 +885,7 @@ export default function ContextManagementDashboard({
       });
 
       if (response.ok) {
-        await loadAllSources();
+        await loadFirstPage();
         onSourcesUpdated();
         // Remove from selection if selected
         setSelectedSourceIds(prev => prev.filter(id => id !== sourceId));
@@ -1086,7 +1185,7 @@ export default function ContextManagementDashboard({
                             // If not found, reload sources (might be newly created)
                             if (!source) {
                               console.log('⟳ Source not in list, reloading...');
-                              await loadAllSources();
+                              await loadFirstPage();
                               source = sources.find(s => s.id === item.sourceId);
                             }
                             
@@ -1328,7 +1427,7 @@ export default function ContextManagementDashboard({
                     </>
                   )}
                   <button
-                    onClick={loadAllSources}
+                    onClick={loadFirstPage}
                     className="text-gray-600 hover:text-gray-900 text-sm flex items-center gap-1 transition-colors"
                     disabled={loading}
                   >
@@ -1364,87 +1463,183 @@ export default function ContextManagementDashboard({
                 </div>
               )}
 
-              {!loading && filteredSources.length > 0 && (
-                <div className="space-y-3">
-                  {filteredSources.map(source => {
-                    const isSelected = selectedSourceIds.includes(source.id);
+              {!loading && sources.length > 0 && (
+                <div className="space-y-4">
+                  {/* Expand/Collapse All Controls */}
+                  {sourcesByTag.size > 1 && (
+                    <div className="flex items-center gap-2 px-1">
+                      <button
+                        onClick={expandAllFolders}
+                        className="text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        Expand All
+                      </button>
+                      <span className="text-gray-300">•</span>
+                      <button
+                        onClick={collapseAllFolders}
+                        className="text-xs text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        Collapse All
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Folder-Grouped Sources */}
+                  {Array.from(sourcesByTag.entries()).map(([folderName, folderSources]) => {
+                    const isExpanded = expandedFolders.has(folderName);
+                    const sourcesToShow = isExpanded ? folderSources : folderSources.slice(0, 3);
+                    const hasMore = folderSources.length > 3;
+                    const selectedInFolder = folderSources.filter(s => selectedSourceIds.includes(s.id)).length;
                     
                     return (
-                      <div
-                        key={source.id}
-                        onClick={() => toggleSourceSelection(source.id)}
-                        className={`w-full text-left border rounded-lg p-4 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'border-gray-900 bg-gray-50 shadow-sm'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => toggleSourceSelection(source.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 flex-shrink-0"
-                            />
-                            <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
-                            <span className="text-sm font-semibold text-gray-900 truncate">
-                              {source.name}
-                            </span>
-                            {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
-                              <span className="px-2 py-0.5 bg-gray-900 text-white text-xs rounded-full flex-shrink-0">
-                                🌐 PUBLIC
+                      <div key={folderName} className="border border-gray-200 rounded-lg overflow-hidden">
+                        {/* Folder Header */}
+                        <div
+                          onClick={() => toggleFolder(folderName)}
+                          className="bg-gray-50 hover:bg-gray-100 px-4 py-3 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-1">
+                              <ChevronRight 
+                                className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                              />
+                              <Folder className="w-4 h-4 text-gray-700" />
+                              <span className="text-sm font-semibold text-gray-900">{folderName}</span>
+                              <span className="text-xs text-gray-600">
+                                {folderSources.length} documento{folderSources.length !== 1 ? 's' : ''}
+                                {selectedInFolder > 0 && (
+                                  <> • <span className="text-blue-600 font-medium">{selectedInFolder} seleccionado{selectedInFolder !== 1 ? 's' : ''}</span></>
+                                )}
                               </span>
-                            )}
-                            {source.metadata?.validated && (
-                              <span className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded-full flex-shrink-0">
-                                ✓ Validado
-                              </span>
-                            )}
+                            </div>
+                            <button
+                              onClick={(e) => selectAllInFolder(folderName, e)}
+                              className="px-3 py-1 text-xs font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+                            >
+                              Select All
+                            </button>
                           </div>
-                          {source.status === 'active' && <CheckCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />}
-                          {source.status === 'error' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                          {source.status === 'processing' && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
                         </div>
 
-                      {/* Compact metadata */}
-                      <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
-                        {source.metadata?.pageCount && (
-                          <span className="flex items-center gap-1">
-                            <FileText className="w-3 h-3" />
-                            {source.metadata.pageCount}p
-                          </span>
-                        )}
-                        {(source.assignedAgents?.length ?? 0) > 0 && (
-                          <span className="flex items-center gap-1">
-                            <MessageSquare className="w-3 h-3" />
-                            {source.assignedAgents?.length ?? 0}
-                          </span>
-                        )}
-                        {source.metadata?.tokensEstimate && (
-                          <span className="flex items-center gap-1 font-mono">
-                            ~{Math.round(source.metadata.tokensEstimate / 1000)}k tokens
-                          </span>
+                        {/* Folder Content */}
+                        <div className={`${isExpanded ? 'max-h-96 overflow-y-auto' : ''}`}>
+                          <div className="p-3 space-y-2">
+                            {sourcesToShow.map(source => {
+                              const isSelected = selectedSourceIds.includes(source.id);
+                              
+                              return (
+                                <div
+                                  key={source.id}
+                                  onClick={() => toggleSourceSelection(source.id)}
+                                  className={`w-full text-left border rounded-lg p-3 transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'border-gray-900 bg-gray-50 shadow-sm'
+                                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between mb-2">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => toggleSourceSelection(source.id)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 flex-shrink-0"
+                                      />
+                                      <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
+                                      <span className="text-sm font-semibold text-gray-900 truncate">
+                                        {source.name}
+                                      </span>
+                                      {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
+                                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs rounded-full flex-shrink-0">
+                                          🌐 PUBLIC
+                                        </span>
+                                      )}
+                                      {source.metadata?.validated && (
+                                        <span className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded-full flex-shrink-0">
+                                          ✓ Validado
+                                        </span>
+                                      )}
+                                    </div>
+                                    {source.status === 'active' && <CheckCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />}
+                                    {source.status === 'error' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                                    {source.status === 'processing' && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
+                                  </div>
+
+                                  {/* Compact metadata */}
+                                  <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
+                                    {source.metadata?.pageCount && (
+                                      <span className="flex items-center gap-1">
+                                        <FileText className="w-3 h-3" />
+                                        {source.metadata.pageCount}p
+                                      </span>
+                                    )}
+                                    {(source.assignedAgents?.length ?? 0) > 0 && (
+                                      <span className="flex items-center gap-1">
+                                        <MessageSquare className="w-3 h-3" />
+                                        {source.assignedAgents?.length ?? 0}
+                                      </span>
+                                    )}
+                                    {source.metadata?.tokensEstimate && (
+                                      <span className="flex items-center gap-1 font-mono">
+                                        ~{Math.round(source.metadata.tokensEstimate / 1000)}k tokens
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Tags */}
+                                  {source.labels && source.labels.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1">
+                                      {source.labels.map(tag => (
+                                        <span
+                                          key={tag}
+                                          className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Show More Indicator */}
+                        {!isExpanded && hasMore && (
+                          <div
+                            onClick={() => toggleFolder(folderName)}
+                            className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="text-xs text-gray-600 hover:text-gray-900">
+                              + {folderSources.length - 3} más documento{folderSources.length - 3 !== 1 ? 's' : ''}
+                            </span>
+                          </div>
                         )}
                       </div>
-
-                      {/* Tags */}
-                      {source.labels && source.labels.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {source.labels.map(tag => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
+                    );
                   })}
+
+                  {/* Load More Button */}
+                  {hasMore && (
+                    <div className="text-center pt-2">
+                      <button
+                        onClick={loadNextPage}
+                        disabled={loadingMore}
+                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors text-sm font-medium inline-flex items-center gap-2"
+                      >
+                        {loadingMore ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Cargando...
+                          </>
+                        ) : (
+                          <>Cargar 10 más</>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1525,7 +1720,7 @@ export default function ContextManagementDashboard({
                       }
                       
                       // Reload
-                      await loadAllSources();
+                      await loadFirstPage();
                     }}
                     className={`w-full p-2 rounded-lg border transition-all text-left ${
                       selectedSource.labels?.includes('PUBLIC')

@@ -6,7 +6,6 @@
  */
 
 import { firestore } from './firestore';
-import type { Timestamp } from 'firebase-admin/firestore';
 
 /**
  * Domain interface
@@ -214,20 +213,36 @@ export async function setDomainEnabled(domainId: string, enabled: boolean): Prom
 
 /**
  * Check if a user's domain is enabled
+ * 
+ * 🔒 SECURITY: Only users from enabled domains can access the platform.
+ * If a domain doesn't exist or is disabled, access is DENIED.
  */
 export async function isUserDomainEnabled(userEmail: string): Promise<boolean> {
   const domainId = getDomainFromEmail(userEmail);
   
   if (!domainId) {
-    return false;
+    console.warn('⚠️ Cannot extract domain from email:', userEmail);
+    return false; // Deny access if we can't determine domain
   }
   
   try {
     const domain = await getDomain(domainId);
-    return domain?.enabled ?? true; // Default to enabled if domain doesn't exist
+    
+    // 🔒 CRITICAL: Domain must exist AND be enabled
+    if (!domain) {
+      console.warn('🚨 Domain not found:', domainId);
+      return false; // Deny access if domain doesn't exist
+    }
+    
+    if (!domain.enabled) {
+      console.warn('🚨 Domain is disabled:', domainId);
+      return false; // Deny access if domain is disabled
+    }
+    
+    return true; // Allow access only if domain exists and is enabled
   } catch (error) {
     console.error('❌ Error checking domain status:', error);
-    return true; // Default to enabled on error
+    return false; // Fail closed - deny access on error
   }
 }
 
