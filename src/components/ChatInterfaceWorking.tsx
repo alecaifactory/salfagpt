@@ -189,9 +189,10 @@ interface ChatInterfaceWorkingProps {
   userId: string;
   userEmail?: string;
   userName?: string;
+  userRole?: string; // ✅ NEW: User role from JWT session
 }
 
-export default function ChatInterfaceWorking({ userId, userEmail, userName }: ChatInterfaceWorkingProps) {
+export default function ChatInterfaceWorking({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
   // Core state
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
@@ -489,9 +490,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           
           // NEW: Load shared agents
           try {
-            const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}`);
+            console.log('🔍 Loading shared agents for userId:', userId, 'email:', userEmail);
+            // ✅ Pass userEmail for backward compatibility with both ID formats
+            const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
+            console.log('   Response status:', sharedResponse.status);
+            
             if (sharedResponse.ok) {
               const sharedData = await sharedResponse.json();
+              console.log('   Shared agents data:', sharedData);
+              
               const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
                 ...conv,
                 isShared: true,
@@ -501,14 +508,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
               }));
               
+              console.log('   Processed shared agents:', sharedAgents.length);
+              sharedAgents.forEach((agent: any) => {
+                console.log('     - ', agent.title, '(id:', agent.id, ')');
+              });
+              
               // Combine own agents with shared agents
               setConversations([...allConversations, ...sharedAgents]);
               console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${allConversations.length + sharedAgents.length} total`);
             } else {
+              const errorText = await sharedResponse.text();
+              console.warn('   Shared agents API failed:', errorText);
               setConversations(allConversations);
             }
           } catch (sharedError) {
-            console.warn('Could not load shared agents:', sharedError);
+            console.error('Could not load shared agents:', sharedError);
             setConversations(allConversations);
           }
           
@@ -2757,7 +2771,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           </div>
           
           {/* New Agent Button - HIDDEN FOR USER ROLE */}
-          {currentUser?.role !== 'user' && (
+          {userRole !== 'user' && (
             <button
               onClick={createNewConversation}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors shadow-sm"
@@ -2856,7 +2870,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </div>
                   
                   {/* Agent actions - HIDDEN FOR USER ROLE */}
-                  {currentUser?.role !== 'user' && (
+                  {userRole !== 'user' && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       {/* Settings icon - opens context configuration modal */}
                       <button
@@ -3537,7 +3551,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                 )}
                 
                 {/* Settings and Analytics - HIDDEN FOR USER ROLE */}
-                {currentUser?.role !== 'user' && (
+                {userRole !== 'user' && (
                   <>
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -4040,7 +4054,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   )}
 
                   {/* Context Sources with RAG Controls - HIDDEN FOR USER ROLE */}
-                  {currentUser?.role !== 'user' && (
+                  {userRole !== 'user' && (
                   <div className="border border-slate-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>

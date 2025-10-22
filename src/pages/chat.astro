@@ -26,6 +26,8 @@ let userId: string;
 let userEmail: string;
 let userName: string;
 
+let userRole: string;
+
 try {
   const decoded = verifyJWT(token);
   
@@ -34,14 +36,17 @@ try {
     return Astro.redirect('/auth/login?error=session_expired&redirect=/chat');
   }
   
-  userId = decoded.sub || decoded.id;
+  // ✅ CRITICAL: Use Google OAuth numeric ID (permanent, unique identifier)
+  userId = decoded.id || decoded.sub; // Google OAuth ID
   userEmail = decoded.email || 'usuario@flow.ai';
   userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
+  userRole = decoded.role || 'user'; // ✅ Extract role from JWT
   
   // Log successful authentication
   console.log('✅ User authenticated:', {
     userId: userId.substring(0, 8) + '...',
     email: userEmail,
+    role: userRole,
     timestamp: new Date().toISOString()
   });
   
@@ -87,6 +92,7 @@ try {
       userId={userId}
       userEmail={userEmail}
       userName={userName}
+      userRole={userRole}
     />
   </body>
 </html>
