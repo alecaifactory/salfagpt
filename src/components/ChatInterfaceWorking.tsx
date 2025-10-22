@@ -2853,9 +2853,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 // View mode
                 <div className="flex items-center justify-between">
                   <div
-                    onClick={() => {
+                    onClick={async () => {
                       setSelectedAgent(agent.id);
-                      setCurrentConversation(agent.id);
+                      // ✅ AUTO-CREATE: Create new chat instead of using agent as conversation
+                      await createNewChatForAgent(agent.id);
                     }}
                     className="flex-1 flex items-center gap-2 text-left min-w-0 cursor-pointer"
                   >
