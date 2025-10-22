@@ -6,20 +6,11 @@ import { firestore, COLLECTIONS } from '../../../../lib/firestore';
  * GET /api/conversations/:id/context-sources-metadata
  * Get context sources metadata for a specific agent (conversation)
  * 
- * PERFORMANCE: Lightweight endpoint - returns only:
- * - Source metadata (no extractedData)
- * - Assignment info (which agents have access)
- * - Toggle state (enabled/disabled for this agent)
- * 
- * Does NOT:
- * - Load extractedData (huge text content)
- * - Verify RAG chunks (multiple API calls)
- * - Load full source details
- * 
- * Use this for:
- * - Refreshing left panel after context management
- * - Quick updates after assignment changes
- * - Lightweight UI refreshes
+ * PERFORMANCE OPTIMIZED:
+ * - Loads sources in batches (100 at a time)
+ * - Stops early when enough assigned sources found
+ * - Returns only metadata (no extractedData)
+ * - Uses pagination to avoid loading all 628 sources
  */
 export const GET: APIRoute = async ({ params, request, cookies }) => {
   try {
@@ -62,69 +53,101 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
       );
     }
 
-    // 3. Get all user's context sources (metadata only)
-    const sourcesSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('userId', '==', session.id)
-      .orderBy('addedAt', 'desc')
-      .get();
-
-    const allSources = sourcesSnapshot.docs.map(doc => {
-      const data = doc.data();
-      
-      // Return minimal metadata - NO extractedData
-      return {
-        id: doc.id,
-        name: data.name,
-        type: data.type,
-        enabled: data.enabled || false,
-        status: data.status || 'active',
-        addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
-        assignedToAgents: data.assignedToAgents || [],
-        labels: data.labels || [],
-        tags: data.tags || [],
-        metadata: {
-          pageCount: data.metadata?.pageCount,
-          tokensEstimate: data.metadata?.tokensEstimate,
-          model: data.metadata?.model,
-          validated: data.metadata?.validated,
-          validatedBy: data.metadata?.validatedBy,
-          validatedAt: data.metadata?.validatedAt?.toDate?.(),
-        },
-        ragEnabled: data.ragEnabled || false,
-        ragMetadata: data.ragMetadata ? {
-          chunkCount: data.ragMetadata.chunkCount,
-          avgChunkSize: data.ragMetadata.avgChunkSize,
-          indexedAt: data.ragMetadata.indexedAt?.toDate?.(),
-        } : undefined,
-      };
-    });
-
-    // 4. Filter by assignment (PUBLIC or assigned to this agent)
-    const filteredSources = allSources.filter((source: any) => {
-      const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
-      const isAssignedToThisAgent = source.assignedToAgents?.includes(conversationId);
-      
-      return hasPublicTag || isAssignedToThisAgent;
-    });
+    // 3. Determine effective agentId (for chat, use parent agent)
+    const effectiveAgentId = conversation?.agentId || conversationId;
+    const isChat = !!conversation?.agentId;
     
-    console.log('🔍 FILTERING CONTEXT SOURCES:');
-    console.log('   All sources:', allSources.length);
-    console.log('   Conversation/Agent ID:', conversationId);
-    console.log('   Filtered sources:', filteredSources.length);
-    console.log('   PUBLIC sources:', allSources.filter((s: any) => s.labels?.includes('PUBLIC') || s.labels?.includes('public')).length);
-    console.log('   Assigned sources:', allSources.filter((s: any) => s.assignedToAgents?.includes(conversationId)).length);
+    if (isChat) {
+      console.log(`🔗 Chat detected - using parent agent ${effectiveAgentId} for context`);
+    }
     
-    // Sample to verify
-    if (allSources.length > 0) {
-      const sample = allSources[0];
-      console.log('   Sample source:', sample.name);
-      console.log('   - assignedToAgents:', sample.assignedToAgents);
-      console.log('   - labels:', sample.labels);
-      console.log('   - isAssignedToThisAgent:', sample.assignedToAgents?.includes(conversationId));
+    // 4. OPTIMIZED: Load sources in batches, stop early when we have enough
+    const startTime = Date.now();
+    const BATCH_SIZE = 100; // Load 100 at a time
+    const TARGET_ASSIGNED = 150; // Stop after finding this many assigned sources
+    
+    let allLoadedSources: any[] = [];
+    let assignedSources: any[] = [];
+    let lastDoc: any = null;
+    let batchNumber = 0;
+    
+    // Load sources in batches until we have enough assigned sources OR reach end
+    while (assignedSources.length < TARGET_ASSIGNED) {
+      batchNumber++;
+      
+      let query = firestore
+        .collection(COLLECTIONS.CONTEXT_SOURCES)
+        .where('userId', '==', session.id)
+        .orderBy('addedAt', 'desc')
+        .limit(BATCH_SIZE);
+      
+      if (lastDoc) {
+        query = query.startAfter(lastDoc);
+      }
+      
+      const batchSnapshot = await query.get();
+      
+      if (batchSnapshot.empty) {
+        console.log(`📭 No more sources - stopping at batch ${batchNumber}`);
+        break;
+      }
+      
+      lastDoc = batchSnapshot.docs[batchSnapshot.docs.length - 1];
+      
+      const batchSources = batchSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name,
+          type: data.type,
+          enabled: data.enabled || false,
+          status: data.status || 'active',
+          addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
+          assignedToAgents: data.assignedToAgents || [],
+          labels: data.labels || [],
+          tags: data.tags || [],
+          metadata: {
+            pageCount: data.metadata?.pageCount,
+            tokensEstimate: data.metadata?.tokensEstimate,
+            model: data.metadata?.model,
+            validated: data.metadata?.validated,
+            validatedBy: data.metadata?.validatedBy,
+            validatedAt: data.metadata?.validatedAt?.toDate?.(),
+          },
+          ragEnabled: data.ragEnabled || false,
+          ragMetadata: data.ragMetadata ? {
+            chunkCount: data.ragMetadata.chunkCount,
+            avgChunkSize: data.ragMetadata.avgChunkSize,
+            indexedAt: data.ragMetadata.indexedAt?.toDate?.(),
+          } : undefined,
+        };
+      });
+      
+      allLoadedSources = [...allLoadedSources, ...batchSources];
+      
+      // Filter this batch for assigned sources
+      const batchAssigned = batchSources.filter((source: any) => {
+        const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
+        const isAssignedToAgent = source.assignedToAgents?.includes(effectiveAgentId);
+        return hasPublicTag || isAssignedToAgent;
+      });
+      
+      assignedSources = [...assignedSources, ...batchAssigned];
+      
+      console.log(`📦 Batch ${batchNumber}: loaded ${batchSnapshot.size}, found ${batchAssigned.length} assigned (total assigned: ${assignedSources.length})`);
+      
+      // Stop if we have enough assigned sources
+      if (assignedSources.length >= TARGET_ASSIGNED) {
+        console.log(`✅ Found enough assigned sources (${assignedSources.length}) - stopping early`);
+        break;
+      }
     }
 
+    const queryTime = Date.now() - startTime;
+    console.log(`📊 Query complete: ${assignedSources.length} assigned sources from ${allLoadedSources.length} total (${queryTime}ms, ${batchNumber} batches)`);
+
     // 5. Get toggle state (activeContextSourceIds)
+    const toggleStartTime = Date.now();
     const contextDoc = await firestore
       .collection(COLLECTIONS.CONVERSATION_CONTEXT)
       .doc(conversationId)
@@ -133,14 +156,16 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
     const activeIds = contextDoc.exists 
       ? (contextDoc.data()?.activeContextSourceIds || [])
       : [];
+    console.log(`📥 Toggle state loaded: ${activeIds.length} active (${Date.now() - toggleStartTime}ms)`);
 
     // 6. Add enabled flag based on active IDs
-    const sourcesWithToggleState = filteredSources.map((source: any) => ({
+    const sourcesWithToggleState = assignedSources.map((source: any) => ({
       ...source,
       enabled: activeIds.includes(source.id),
     }));
 
-    console.log(`⚡ Lightweight metadata loaded for agent ${conversationId}:`, sourcesWithToggleState.length, 'sources');
+    const totalTime = Date.now() - startTime;
+    console.log(`⚡ Complete: ${sourcesWithToggleState.length} sources in ${totalTime}ms`);
 
     return new Response(
       JSON.stringify({ 
@@ -158,4 +183,3 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
     );
   }
 };
-

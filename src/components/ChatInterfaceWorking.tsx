@@ -26,6 +26,40 @@ import type { User as UserType } from '../types/users';
 import type { AgentConfiguration } from '../types/agent-config';
 import type { SourceReference } from '../lib/gemini';
 
+// ===== PERFORMANCE: Context Sources Cache =====
+// Cache fuentes de contexto por agente para evitar queries repetidos de 16s
+interface AgentSourcesCache {
+  sources: ContextSource[];
+  activeIds: string[];
+  timestamp: number;
+}
+
+const agentSourcesCache = new Map<string, AgentSourcesCache>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+function getCachedSources(agentId: string): AgentSourcesCache | null {
+  const cached = agentSourcesCache.get(agentId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`⚡⚡⚡ CACHE HIT for agent ${agentId} - NO API call needed`);
+    return cached;
+  }
+  return null;
+}
+
+function setCachedSources(agentId: string, sources: ContextSource[], activeIds: string[]) {
+  agentSourcesCache.set(agentId, {
+    sources,
+    activeIds,
+    timestamp: Date.now(),
+  });
+  console.log(`💾 Cached ${sources.length} sources for agent ${agentId}`);
+}
+
+function invalidateCache(agentId: string) {
+  agentSourcesCache.delete(agentId);
+  console.log(`🗑️ Cache invalidated for agent: ${agentId}`);
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -537,6 +571,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
 
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
+      // ✅ CACHE CHECK: Skip API if cached
+      const cached = getCachedSources(conversationId);
+      if (cached) {
+        setContextSources(cached.sources);
+        console.log(`✅ Loaded ${cached.sources.length} sources from CACHE (0ms)`);
+        return;
+      }
+      
       // ✅ PERFORMANCE: Use dedicated lightweight endpoint when skipping RAG verification
       if (skipRAGVerification) {
         console.log('⚡ Using lightweight metadata endpoint (no RAG verification)...');
@@ -584,6 +626,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         }
         
         setContextSources(sourcesWithDates);
+        
+        // ✅ CACHE: Save to cache after successful load
+        setCachedSources(conversationId, sourcesWithDates, data.activeContextSourceIds || []);
         
         console.log('✅ Lightweight load complete - SKIPPING RAG verification');
         return; // ⚠️ CRITICAL: Exit here to avoid heavy RAG verification
@@ -963,67 +1008,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
     if (currentConv?.agentId) {
       console.log(`🔗 Este es un chat del agente ${currentConv.agentId}, cargando contexto del agente padre`);
       
-      // Load parent agent's context
+      // ✅ OPTIMIZED: Load parent agent's context (uses cache if available)
       loadContextForConversation(currentConv.agentId);
       
-      // Auto-fix: If chat doesn't have context assigned, inherit from parent agent
-      (async () => {
-        try {
-          const chatContextResponse = await fetch(`/api/conversations/${currentConversation}/context-sources`);
-          if (chatContextResponse.ok) {
-            const chatContextData = await chatContextResponse.json();
-            const chatActiveSourceIds = chatContextData.activeContextSourceIds || [];
-            
-            // If chat has no context sources, inherit from parent agent
-            if (chatActiveSourceIds.length === 0) {
-              console.log('🔧 Chat sin contexto detectado, heredando del agente padre...');
-              
-              const agentContextResponse = await fetch(`/api/conversations/${currentConv.agentId}/context-sources`);
-              if (agentContextResponse.ok) {
-                const agentContextData = await agentContextResponse.json();
-                const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
-                
-                if (agentActiveSourceIds.length > 0) {
-                  // Assign agent's sources to this chat
-                  for (const sourceId of agentActiveSourceIds) {
-                    try {
-                      await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ agentId: currentConversation }),
-                      });
-                    } catch (error) {
-                      console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
-                    }
-                  }
-                  
-                  // Save active sources to chat's context
-                  await fetch(`/api/conversations/${currentConversation}/context-sources`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
-                  });
-                  
-                  // Reload context - force full reload to update UI
-                  if (currentConv.agentId) {
-                    // Force a full context reload with RAG verification
-                    await loadContextForConversation(currentConv.agentId, false);
-                    
-                    console.log(`✅ Auto-fix: ${agentActiveSourceIds.length} fuentes heredadas del agente al chat`);
-                    console.log('🔄 Recargando contexto completo para mostrar fuentes en UI...');
-                  }
-                }
-              }
-            } else {
-              console.log(`✅ Chat ya tiene ${chatActiveSourceIds.length} fuentes de contexto asignadas`);
-            }
-          }
-        } catch (error) {
-          console.warn('⚠️ Error en auto-fix de contexto:', error);
-        }
-      })();
+      // ✅ REMOVED: Auto-fix loop that assigned sources one by one (caused 90s delay)
+      // New architecture: Chat inherits sources via agentId link in backend
+      // Backend's context-sources-metadata endpoint uses effectiveAgentId = conv.agentId || convId
+      // This means chat automatically sees parent agent's sources WITHOUT needing assignments
     } else {
-      loadContextForConversation(currentConversation); // Load own context
+      // Agent (no parent) - load own context
+      loadContextForConversation(currentConversation);
     }
     
     // NEW: Load agent config for this conversation
@@ -1215,7 +1209,36 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
   const createNewChatForAgent = async (agentId: string) => {
     try {
       const agent = conversations.find(c => c.id === agentId);
-      if (!agent) return;
+      if (!agent) {
+        console.error('❌ Agent not found:', agentId);
+        return;
+      }
+
+      // Optimistic UI: Create chat placeholder immediately
+      const optimisticId = `optimistic-chat-${Date.now()}`;
+      const now = new Date();
+      const optimisticChat: Conversation = {
+        id: optimisticId,
+        title: 'Nuevo Chat',
+        userId: userId,
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: agent.agentModel || 'gemini-2.5-flash',
+        isAgent: false,
+        agentId: agentId,
+        status: 'active',
+        hasBeenRenamed: false,
+      };
+      
+      // Add optimistic chat to list immediately
+      setConversations(prev => [optimisticChat, ...prev]);
+      setCurrentConversation(optimisticId);
+      setMessages([]);
+      
+      console.log('⚡ Chat optimista creado para agente:', agentId);
 
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -1232,69 +1255,193 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         const data = await response.json();
         const newChatId = data.conversation.id;
         
-        console.log('✅ Chat created for agent:', agentId, 'Chat ID:', newChatId);
+        console.log('✅ Chat creado en Firestore:', newChatId, 'para agente:', agentId);
         
-        // Inherit agent's context - copy active context sources from agent
+        // ✅ CRITICAL FIX: Update currentConversation IMMEDIATELY to prevent race condition
+        // This ensures any pending messages use the real ID, not optimistic ID
+        setCurrentConversation(newChatId);
+        
+        // ✅ OPTIMIZED INHERITANCE: Just copy activeContextSourceIds from agent to chat
+        // NO need to re-assign sources - chat inherits them from parent agent via agentId link
         try {
-          // Get agent's active context sources
+          console.log('🔄 Heredando contexto del agente:', agentId);
+          
+          // Get agent's active sources (which ones are toggled ON)
           const agentContextResponse = await fetch(`/api/conversations/${agentId}/context-sources`);
-          if (agentContextResponse.ok) {
-            const agentContextData = await agentContextResponse.json();
-            const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+          const agentContextData = agentContextResponse.ok 
+            ? await agentContextResponse.json() 
+            : { activeContextSourceIds: [] };
+          
+          const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
+          
+          console.log(`🎯 Fuentes activas en el agente: ${agentActiveSourceIds.length}`);
+          
+          // Determine which sources to activate in the new chat
+          let sourcesToActivate: string[];
+          
+          if (agentActiveSourceIds.length > 0) {
+            // Agent has sources active → inherit those
+            sourcesToActivate = agentActiveSourceIds;
+            console.log(`📋 Heredando ${sourcesToActivate.length} fuentes ACTIVAS del agente`);
+          } else if (contextSources.length > 0) {
+            // Agent has NO active sources but has assigned sources → auto-activate all
+            sourcesToActivate = contextSources.map(s => s.id);
+            console.log(`⚡ Auto-activando ${sourcesToActivate.length} fuentes del agente`);
+          } else {
+            sourcesToActivate = [];
+            console.log('ℹ️ Agente sin fuentes asignadas');
+          }
+          
+          if (sourcesToActivate.length > 0) {
+            // ✅ INSTANT: Just save activeContextSourceIds (NO assignments needed)
+            await fetch(`/api/conversations/${newChatId}/context-sources`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ activeContextSourceIds: sourcesToActivate }),
+            });
             
-            if (agentActiveSourceIds.length > 0) {
-              console.log(`📋 Heredando ${agentActiveSourceIds.length} fuentes de contexto del agente`);
-              
-              // Assign same sources to new chat
-              for (const sourceId of agentActiveSourceIds) {
-                try {
-                  await fetch(`/api/context-sources/${sourceId}/assign-agent`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ agentId: newChatId }),
-                  });
-                } catch (error) {
-                  console.warn('⚠️ Failed to assign source to chat:', sourceId, error);
-                }
-              }
-              
-              // Save active sources to new chat's context
-              await fetch(`/api/conversations/${newChatId}/context-sources`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ activeContextSourceIds: agentActiveSourceIds }),
-              });
-              
-              console.log('✅ Contexto del agente heredado al nuevo chat');
-            } else {
-              console.log('ℹ️ Agente no tiene contexto activo para heredar');
-            }
+            console.log(`✅ ${sourcesToActivate.length} fuentes activadas (heredadas del agente)`);
+            
+            // ✅ Update local state immediately
+            setContextSources(prev => prev.map(source => ({
+              ...source,
+              enabled: sourcesToActivate.includes(source.id)
+            })));
+            
+            console.log('🔄 Listo para enviar mensajes con contexto');
           }
         } catch (contextError) {
-          console.warn('⚠️ Failed to inherit agent context:', contextError);
+          console.warn('⚠️ Error heredando contexto:', contextError);
         }
         
-        // CRITICAL: Reload all conversations from Firestore to ensure persistence
-        console.log('🔄 Recargando conversaciones desde Firestore para verificar persistencia...');
-        await loadConversations();
+        // Get the current optimistic chat (may have been edited by user)
+        const optimisticChat = conversations.find(c => c.id === optimisticId);
+        const userEditedTitle = optimisticChat?.title !== 'Nuevo Chat';
+        const editedTitle = optimisticChat?.title || 'Nuevo Chat';
         
-        // Select the new chat
-        setCurrentConversation(newChatId);
-        setMessages([]);
+        // Replace optimistic chat with real one from Firestore
+        setConversations(prev => 
+          prev.map(conv => conv.id === optimisticId 
+            ? { ...data.conversation, 
+                createdAt: new Date(data.conversation.createdAt),
+                updatedAt: new Date(data.conversation.updatedAt),
+                lastMessageAt: new Date(data.conversation.lastMessageAt),
+                isAgent: false,
+                agentId: agentId,
+                title: editedTitle, // Use edited title if user changed it
+                hasBeenRenamed: userEditedTitle, // Mark if user renamed
+              }
+            : conv
+          )
+        );
         
-        // Reload context for new chat
-        await loadContextForConversation(newChatId, true);
+        // If user edited the title while optimistic, save it to Firestore
+        if (userEditedTitle) {
+          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          try {
+            await fetch(`/api/conversations/${newChatId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                title: editedTitle,
+                hasBeenRenamed: true
+              })
+            });
+            console.log('✅ Título editado guardado en Firestore');
+          } catch (titleError) {
+            console.warn('⚠️ Failed to save edited title:', titleError);
+          }
+        }
         
-        console.log('✅ Chat creado y lista recargada desde Firestore');
+        // ℹ️ currentConversation already updated at the top (line 1268) to prevent race condition
+        
+        // ✅ PERFORMANCE: Don't reload context - we already have it from parent agent
+        // Just update cache with new chatId pointing to same sources
+        const agentCache = getCachedSources(agentId);
+        if (agentCache) {
+          // Chat inherits agent's sources - copy cache entry
+          // Use agentCache.activeIds since we inherited those from parent
+          setCachedSources(newChatId, agentCache.sources, agentCache.activeIds);
+          console.log(`⚡ Chat ${newChatId} heredó cache del agente ${agentId} (${agentCache.sources.length} fuentes)`);
+        }
+        
+        console.log('✅ Chat confirmado y actualizado con ID real:', newChatId);
+      } else {
+        // Handle API error response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al crear chat (API):', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Remove optimistic chat since creation failed
+        setConversations(prev => prev.filter(conv => conv.id !== optimisticId));
+        
+        // If authentication error, show user-friendly message
+        if (response.status === 401) {
+          alert('Sesión expirada. Por favor, recarga la página y vuelve a iniciar sesión.');
+          return;
+        }
+        
+        // For other errors, convert optimistic to temporary
+        const tempId = `temp-chat-${Date.now()}`;
+        const tempChat: Conversation = {
+          id: tempId,
+          title: 'Nuevo Chat',
+          userId: userId,
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: agent.agentModel || 'gemini-2.5-flash',
+          isAgent: false,
+          agentId: agentId,
+          status: 'active',
+          hasBeenRenamed: false,
+        };
+        
+        setConversations(prev => [tempChat, ...prev]);
+        setCurrentConversation(tempId);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Error creating chat:', error);
+      console.warn('⚠️ Chat temporal creado (no persistente)');
     }
   };
 
   // NEW: Create new agent (root conversation) - Complete implementation
   const createNewAgent = async () => {
     try {
+      // Optimistic UI: Create a placeholder immediately
+      const optimisticId = `optimistic-${Date.now()}`;
+      const now = new Date();
+      const optimisticAgent: Conversation = {
+        id: optimisticId,
+        title: 'Nuevo Agente',
+        userId: userId,
+        createdAt: now,
+        updatedAt: now,
+        lastMessageAt: now,
+        messageCount: 0,
+        contextWindowUsage: 0,
+        agentModel: 'gemini-2.5-flash',
+        isAgent: true,
+        status: 'active',
+        hasBeenRenamed: false,
+      };
+      
+      // Add optimistic agent to list immediately
+      setConversations(prev => [optimisticAgent, ...prev]);
+      setCurrentConversation(optimisticId);
+      setSelectedAgent(optimisticId);
+      setMessages([]);
+      
+      console.log('⚡ Agente optimista creado (esperando confirmación de Firestore)');
+      
       // Call API to create conversation in Firestore
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -1349,46 +1496,97 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           });
         }
 
-        // CRITICAL: Reload all conversations from Firestore to ensure persistence
-        console.log('🔄 Recargando conversaciones desde Firestore para verificar persistencia...');
-        await loadConversations();
+        // Get the current optimistic agent (may have been edited by user)
+        const optimisticAgent = conversations.find(c => c.id === optimisticId);
+        const userEditedTitle = optimisticAgent?.title !== 'Nuevo Agente';
+        const editedTitle = optimisticAgent?.title || 'Nuevo Agente';
         
-        // Select the new agent
+        // Replace optimistic agent with real one from Firestore
+        setConversations(prev => 
+          prev.map(conv => conv.id === optimisticId 
+            ? { ...data.conversation, 
+                createdAt: new Date(data.conversation.createdAt),
+                updatedAt: new Date(data.conversation.updatedAt),
+                lastMessageAt: new Date(data.conversation.lastMessageAt),
+                isAgent: true,
+                title: editedTitle, // Use edited title if user changed it
+                hasBeenRenamed: userEditedTitle, // Mark if user renamed
+              }
+            : conv
+          )
+        );
+        
+        // If user edited the title while optimistic, save it to Firestore
+        if (userEditedTitle) {
+          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          try {
+            await fetch(`/api/conversations/${newConvId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                title: editedTitle,
+                hasBeenRenamed: true
+              })
+            });
+            console.log('✅ Título editado guardado en Firestore');
+          } catch (titleError) {
+            console.warn('⚠️ Failed to save edited title:', titleError);
+          }
+        }
+        
+        // Update references to use real ID
         setCurrentConversation(newConvId);
         setSelectedAgent(newConvId);
-        setMessages([]);
 
         setCurrentAgentConfig({
           preferredModel: initialModel,
           systemPrompt: globalUserSettings.systemPrompt,
         });
         
-        console.log('✅ Agente creado y lista recargada desde Firestore');
+        console.log('✅ Agente confirmado y actualizado con ID real:', newConvId);
+      } else {
+        // Handle API error response
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al crear agente (API):', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Remove optimistic agent since creation failed
+        setConversations(prev => prev.filter(conv => conv.id !== optimisticId));
+        
+        // If authentication error, show user-friendly message
+        if (response.status === 401) {
+          alert('Sesión expirada. Por favor, recarga la página y vuelve a iniciar sesión.');
+          return;
+        }
+        
+        // For other errors, convert optimistic to temporary
+        const tempId = `temp-${Date.now()}`;
+        const tempConv: Conversation = {
+          id: tempId,
+          title: 'Nuevo Agente',
+          userId: userId,
+          createdAt: now,
+          updatedAt: now,
+          lastMessageAt: now,
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: 'gemini-2.5-flash',
+          isAgent: true,
+          status: 'active',
+          hasBeenRenamed: false,
+        };
+        
+        setConversations(prev => [tempConv, ...prev]);
+        setCurrentConversation(tempId);
+        setSelectedAgent(tempId);
+        
+        throw new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Error creating agent:', error);
-      
-      // Fallback: create temporary conversation
-      const tempId = `temp-${Date.now()}`;
-      const now = new Date();
-      const newConv: Conversation = {
-        id: tempId,
-        title: 'Nuevo Agente',
-        userId: userId,
-        createdAt: now,
-        updatedAt: now,
-        lastMessageAt: now,
-        messageCount: 0,
-        contextWindowUsage: 0,
-        agentModel: 'gemini-2.5-flash',
-        isAgent: true,
-      };
-      
-      setConversations(prev => [newConv, ...prev]);
-      setCurrentConversation(tempId);
-      setSelectedAgent(tempId);
-      setMessages([]);
-      
       console.warn('⚠️ Agente temporal creado (no persistente)');
     }
   };
@@ -1831,6 +2029,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
         .map(s => s.id);
       console.log('💾 Saving active IDs for conversation:', newActiveIds);
       saveContextForConversation(currentConversation, newActiveIds);
+      
+      // ✅ CACHE: Update cache with new toggle state
+      setCachedSources(currentConversation, updatedSources, newActiveIds);
     }
   };
 
@@ -2400,8 +2601,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       return;
     }
 
+    // Check if this is an optimistic ID (not yet confirmed by Firestore)
+    const isOptimistic = conversationId.startsWith('optimistic-');
+    const isTemporary = conversationId.startsWith('temp-');
+
     try {
-      // Update in Firestore
+      // Optimistic UI: Update local state immediately for better UX
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId 
+          ? { ...c, title: newTitle.trim(), hasBeenRenamed: isManualRename } 
+          : c
+      ));
+      
+      console.log(`⚡ Título actualizado localmente: "${newTitle.trim()}" (${conversationId})`);
+      cancelEditingConversation();
+
+      // If optimistic or temporary, only update locally (don't call API yet)
+      if (isOptimistic || isTemporary) {
+        console.log(`ℹ️ Chat ${isOptimistic ? 'optimista' : 'temporal'} - título se guardará cuando se confirme en Firestore`);
+        return;
+      }
+
+      // For confirmed chats, update in Firestore
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -2412,21 +2633,32 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update conversation title');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Error al actualizar título en API:', {
+          conversationId,
+          status: response.status,
+          error: errorData
+        });
+        
+        // Revert local state if API fails
+        const conversation = conversations.find(c => c.id === conversationId);
+        if (conversation) {
+          setConversations(prev => prev.map(c => 
+            c.id === conversationId 
+              ? { ...c, title: conversation.title } // Revert to old title
+              : c
+          ));
+        }
+        
+        throw new Error(errorData.error || 'Failed to update title');
       }
 
-      // Update local state
-      setConversations(prev => prev.map(c => 
-        c.id === conversationId 
-          ? { ...c, title: newTitle.trim(), hasBeenRenamed: isManualRename } 
-          : c
-      ));
-
       const renameType = isManualRename ? 'manual' : 'auto';
-      console.log(`✅ Título del agente actualizado en Firestore (${renameType}):`, conversationId);
-      cancelEditingConversation();
+      console.log(`✅ Título actualizado en Firestore (${renameType}):`, conversationId, '→', newTitle.trim());
+      
     } catch (error) {
-      console.error('❌ Error al actualizar título del agente:', error);
+      console.error('❌ Error al actualizar título:', error);
+      alert('Error al guardar el título. Por favor, intenta de nuevo.');
     }
   };
 
@@ -3941,7 +4173,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
                       <span className="text-xs text-slate-500">
-                        {contextSources.filter(s => s.enabled).length} activas • ~{(() => {
+                        {contextSources.filter(s => s.enabled).length} activas / {contextSources.length} asignadas • ~{(() => {
                           // Calculate mixed-mode tokens (some RAG, some full-text)
                           const totalTokens = contextSources.filter(s => s.enabled).reduce((sum, s) => {
                             const fullTokens = Math.floor((s.extractedData?.length || 0) / 4);
@@ -4015,13 +4247,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                         </div>
                       </div>
                     )}
-                    {contextSources.filter(s => s.enabled).length === 0 ? (
+                    {contextSources.length === 0 ? (
                       <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded text-center">
-                        No hay fuentes activas. Actívalas desde el panel izquierdo.
+                        No hay fuentes asignadas a este agente. Agrégalas desde "Configurar Agente".
                       </p>
                     ) : (
-                      <div className="space-y-2">
-                        {contextSources.filter(s => s.enabled).map(source => {
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {contextSources.map(source => {
                           // Calculate tokens for this source
                           const fullTextTokens = Math.floor((source.extractedData?.length || 0) / 4);
                           const ragTokens = source.ragEnabled && source.ragMetadata 
@@ -4034,19 +4266,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                           return (
                           <div
                             key={source.id}
-                            className={`w-full border rounded p-2 ${
+                            className={`w-full border rounded p-2 transition-all ${
                               source.enabled 
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-slate-50 border-slate-300 opacity-60'
+                                ? 'bg-green-50 border-green-200 shadow-sm'
+                                : 'bg-slate-50 border-slate-200 opacity-50'
                             }`}
                           >
                             {/* Header: Name and badges only (NO toggle here - está en sidebar) */}
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-                                <FileText className="w-3.5 h-3.5 flex-shrink-0 text-green-600" />
-                                <p className="text-xs font-semibold truncate text-slate-800">
+                                <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${source.enabled ? 'text-green-600' : 'text-slate-400'}`} />
+                                <p className={`text-xs font-semibold truncate ${source.enabled ? 'text-slate-800' : 'text-slate-500'}`}>
                                   {source.name}
                                 </p>
+                                {/* Estado de activación badge */}
+                                {!source.enabled && (
+                                  <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 text-[9px] rounded-full font-semibold flex-shrink-0">
+                                    ○ Inactiva
+                                  </span>
+                                )}
                                 {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
                                   <span className="px-1.5 py-0.5 bg-slate-800 text-white text-[9px] rounded-full font-semibold flex-shrink-0">
                                     🌐 PUBLIC
