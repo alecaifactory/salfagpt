@@ -87,6 +87,7 @@ export const COLLECTIONS = {
   WORKFLOW_CONFIGS: 'workflow_configs',        // NEW: Workflow configurations
   CONVERSATION_CONTEXT: 'conversation_context', // NEW: Context state per conversation
   USAGE_LOGS: 'usage_logs',                    // NEW: Usage tracking
+  AGENT_SHARES: 'agent_shares',                // NEW: Agent sharing permissions
 } as const;
 
 // Types
@@ -104,6 +105,11 @@ export interface Conversation {
   agentModel: string; // e.g., "gemini-2.5-pro"
   activeContextSourceIds?: string[]; // IDs of active context sources for this conversation
   status?: 'active' | 'archived'; // Archive status (optional, defaults to 'active')
+  isAgent?: boolean; // NEW: True if this is an agent, false if it's a chat
+  agentId?: string; // NEW: Reference to parent agent (for agent-specific chats)
+  hasBeenRenamed?: boolean; // Track if user has manually renamed
+  isShared?: boolean; // NEW: True if this agent was shared with the current user
+  sharedAccessLevel?: 'view' | 'edit' | 'admin'; // NEW: Access level if shared
 }
 
 export interface Message {
@@ -178,6 +184,46 @@ export interface ContextItem {
   content: string;
   tokenCount: number;
   addedAt: Date;
+}
+
+// NEW: Group - User groups for organizing access control
+// IMPORTANT: Groups are for sharing access to agents/context, NOT for elevating permissions
+// Groups inherit the LOWEST permission level of their members
+export interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  type: 'department' | 'team' | 'project' | 'custom';
+  members: string[]; // User IDs - can only be 'user' role
+  createdBy: string; // User ID of creator
+  createdAt: Date;
+  updatedAt: Date;
+  isActive: boolean;
+  // Groups do NOT have roles - members keep their individual roles
+  // Groups are ONLY for organizing shared access to agents
+  maxAccessLevel: 'view' | 'use'; // Maximum access level this group can have (never 'admin')
+  source?: 'localhost' | 'production';
+}
+
+// NEW: Agent Sharing - Share conversations/agents with users or groups
+// IMPORTANT: Access levels are restricted:
+// - Groups can only have 'view' or 'use' (never 'admin')
+// - Individual users can have any level IF their role permits
+// - Users with 'user' role: max 'use'
+// - Users with 'expert'+ role: max 'admin'
+export interface AgentShare {
+  id: string;
+  agentId: string; // Conversation ID
+  ownerId: string; // Original owner user ID
+  sharedWith: Array<{
+    type: 'user' | 'group';
+    id: string; // User ID or Group ID
+  }>;
+  accessLevel: 'view' | 'use' | 'admin'; // Changed: 'edit' → 'use' for clarity
+  createdAt: Date;
+  updatedAt: Date;
+  expiresAt?: Date;
+  source?: 'localhost' | 'production';
 }
 
 // NEW: User Settings - Global preferences for each user
@@ -255,7 +301,9 @@ export interface UsageLog {
 export async function createConversation(
   userId: string,
   title: string = 'New Conversation',
-  folderId?: string
+  folderId?: string,
+  isAgent?: boolean,
+  agentId?: string
 ): Promise<Conversation> {
   const conversationRef = firestore.collection(COLLECTIONS.CONVERSATIONS).doc();
   
@@ -264,6 +312,8 @@ export async function createConversation(
     userId,
     title,
     ...(folderId && { folderId }), // Only include folderId if it's defined
+    ...(isAgent !== undefined && { isAgent }), // Include isAgent if provided
+    ...(agentId && { agentId }), // Include agentId if provided (for chats linked to agents)
     createdAt: new Date(),
     updatedAt: new Date(),
     lastMessageAt: new Date(),
@@ -1607,6 +1657,105 @@ export async function getContextSource(sourceId: string): Promise<ContextSource 
   }
 }
 
+/**
+ * Get context sources metadata only (no extractedData)
+ * Use this for list views to improve performance - 10-50x faster!
+ * 
+ * For full data including extractedData, use getContextSource(id)
+ */
+export async function getContextSourcesMetadata(userId: string): Promise<ContextSource[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .where('userId', '==', userId)
+      .orderBy('addedAt', 'desc')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      
+      // Return source WITHOUT extractedData for performance
+      const source: any = {
+        id: doc.id,
+        userId: data.userId,
+        name: data.name,
+        type: data.type,
+        enabled: data.enabled || false,
+        status: data.status || 'active',
+        addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
+        assignedToAgents: data.assignedToAgents || [],
+        labels: data.labels || [],
+        tags: data.tags || [],
+        qualityRating: data.qualityRating,
+        qualityNotes: data.qualityNotes,
+        certified: data.certified || false,
+        certifiedBy: data.certifiedBy,
+        certifiedAt: data.certifiedAt?.toDate?.(),
+        certificationNotes: data.certificationNotes,
+        
+        // Metadata (small, safe to include)
+        metadata: data.metadata ? {
+          originalFileName: data.metadata.originalFileName,
+          originalFileSize: data.metadata.originalFileSize,
+          pageCount: data.metadata.pageCount,
+          tokensEstimate: data.metadata.tokensEstimate,
+          charactersExtracted: data.metadata.charactersExtracted,
+          model: data.metadata.model,
+          extractionDate: data.metadata.extractionDate?.toDate?.(),
+          extractionTime: data.metadata.extractionTime,
+          validated: data.metadata.validated,
+          validatedBy: data.metadata.validatedBy,
+          validatedAt: data.metadata.validatedAt?.toDate?.(),
+          inputTokens: data.metadata.inputTokens,
+          outputTokens: data.metadata.outputTokens,
+          totalTokens: data.metadata.totalTokens,
+          inputCost: data.metadata.inputCost,
+          outputCost: data.metadata.outputCost,
+          totalCost: data.metadata.totalCost,
+          costFormatted: data.metadata.costFormatted,
+          uploadedVia: data.metadata.uploadedVia,
+          gcsPath: data.metadata.gcsPath,
+        } : undefined,
+        
+        // Error info
+        error: data.error ? {
+          ...data.error,
+          timestamp: data.error.timestamp?.toDate?.() || new Date(),
+        } : undefined,
+        
+        // Progress
+        progress: data.progress,
+        
+        // Source tracking
+        source: data.source,
+        
+        // RAG metadata (without embeddings)
+        ragEnabled: data.ragEnabled,
+        ragMetadata: data.ragMetadata ? {
+          chunkCount: data.ragMetadata.chunkCount,
+          indexedAt: data.ragMetadata.indexedAt?.toDate?.(),
+          embeddingModel: data.ragMetadata.embeddingModel,
+          chunkSize: data.ragMetadata.chunkSize,
+          overlap: data.ragMetadata.overlap,
+          // Exclude: embedding vectors (loaded separately via chunks endpoint)
+        } : undefined,
+        
+        // ❌ EXCLUDED: extractedData (load on-demand via getContextSource)
+        // This field can be 50-500KB per source, causing slow initial loads
+      };
+      
+      return source as ContextSource;
+    });
+  } catch (error) {
+    console.error('❌ Error fetching context sources metadata:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all context sources for a user (includes extractedData)
+ * Use getContextSourcesMetadata() for list views for better performance
+ */
 export async function getContextSources(userId: string): Promise<ContextSource[]> {
   try {
     const snapshot = await firestore
@@ -1716,6 +1865,447 @@ export async function deleteContextSource(sourceId: string): Promise<void> {
     .delete();
   
   console.log(`🗑️ Context source deleted:`, sourceId);
+}
+
+// ==================== GROUP MANAGEMENT ====================
+
+/**
+ * Create a new group
+ * IMPORTANT: Groups can only contain users with 'user' role
+ * Groups cannot elevate permissions - they organize access only
+ */
+export async function createGroup(
+  name: string,
+  description: string,
+  type: Group['type'],
+  createdBy: string,
+  initialMembers: string[] = [],
+  maxAccessLevel: 'view' | 'use' = 'use'
+): Promise<Group> {
+  // Validate members are 'user' role only
+  if (initialMembers.length > 0) {
+    const memberUsers = await Promise.all(
+      initialMembers.map(id => getUserById(id))
+    );
+    
+    const nonUserRoleMembers = memberUsers.filter(
+      u => u && u.role !== 'user'
+    );
+    
+    if (nonUserRoleMembers.length > 0) {
+      const names = nonUserRoleMembers.map(u => u?.name).join(', ');
+      throw new Error(
+        `Los grupos solo pueden contener usuarios con rol 'user'. ` +
+        `Los siguientes tienen roles elevados: ${names}`
+      );
+    }
+  }
+
+  const groupRef = firestore.collection(COLLECTIONS.GROUPS).doc();
+  const now = new Date();
+  const source = getEnvironmentSource();
+  
+  const group: Group = {
+    id: groupRef.id,
+    name,
+    description,
+    type,
+    members: initialMembers,
+    createdBy,
+    createdAt: now,
+    updatedAt: now,
+    isActive: true,
+    maxAccessLevel, // Default: 'use' (can use agents but not administer)
+    source,
+  };
+
+  await groupRef.set(group);
+  console.log(`👥 Group created from ${source}:`, groupRef.id, `maxAccess: ${maxAccessLevel}`);
+  return group;
+}
+
+/**
+ * Get group by ID
+ */
+export async function getGroup(groupId: string): Promise<Group | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.GROUPS)
+      .doc(groupId)
+      .get();
+
+    if (!doc.exists) return null;
+
+    const data = doc.data();
+    if (!data) return null;
+
+    return {
+      ...data,
+      createdAt: data.createdAt.toDate(),
+      updatedAt: data.updatedAt.toDate(),
+    } as Group;
+  } catch (error) {
+    console.error('❌ Error getting group:', error);
+    return null;
+  }
+}
+
+/**
+ * Get all groups
+ */
+export async function getAllGroups(): Promise<Group[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.GROUPS)
+      .where('isActive', '==', true)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+      } as Group;
+    });
+  } catch (error) {
+    console.error('❌ Error getting all groups:', error);
+    return [];
+  }
+}
+
+/**
+ * Get groups for a specific user (groups they are a member of)
+ */
+export async function getUserGroups(userId: string): Promise<Group[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.GROUPS)
+      .where('members', 'array-contains', userId)
+      .where('isActive', '==', true)
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+      } as Group;
+    });
+  } catch (error) {
+    console.error('❌ Error getting user groups:', error);
+    return [];
+  }
+}
+
+/**
+ * Update group
+ */
+export async function updateGroup(
+  groupId: string,
+  updates: Partial<Omit<Group, 'id' | 'createdBy' | 'createdAt'>>
+): Promise<void> {
+  const updateData: any = {
+    ...updates,
+    updatedAt: new Date(),
+  };
+
+  await firestore
+    .collection(COLLECTIONS.GROUPS)
+    .doc(groupId)
+    .update(updateData);
+    
+  console.log(`📝 Group updated:`, groupId);
+}
+
+/**
+ * Add member to group
+ * IMPORTANT: Only users with 'user' role can be added to groups
+ * Groups cannot elevate permissions
+ */
+export async function addGroupMember(groupId: string, userId: string): Promise<void> {
+  const group = await getGroup(groupId);
+  if (!group) {
+    throw new Error('Grupo no encontrado');
+  }
+
+  if (group.members.includes(userId)) {
+    console.log(`ℹ️ User already in group:`, userId);
+    return;
+  }
+
+  // CRITICAL: Validate user has 'user' role only
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error('Usuario no encontrado');
+  }
+
+  if (user.role !== 'user') {
+    throw new Error(
+      `Solo usuarios con rol 'user' pueden agregarse a grupos. ` +
+      `${user.name} tiene rol '${user.role}' que tiene permisos elevados. ` +
+      `Los grupos son para organizar acceso, no para escalar permisos.`
+    );
+  }
+
+  await updateGroup(groupId, {
+    members: [...group.members, userId],
+  });
+  
+  console.log(`✅ Added user to group:`, { groupId, userId, userRole: user.role });
+}
+
+/**
+ * Remove member from group
+ */
+export async function removeGroupMember(groupId: string, userId: string): Promise<void> {
+  const group = await getGroup(groupId);
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
+  await updateGroup(groupId, {
+    members: group.members.filter(id => id !== userId),
+  });
+  
+  console.log(`✅ Removed user from group:`, { groupId, userId });
+}
+
+/**
+ * Delete group
+ */
+export async function deleteGroup(groupId: string): Promise<void> {
+  // Note: This doesn't remove agent shares - those should be cleaned up separately
+  await firestore
+    .collection(COLLECTIONS.GROUPS)
+    .doc(groupId)
+    .delete();
+    
+  console.log(`🗑️ Group deleted:`, groupId);
+}
+
+/**
+ * Deactivate group (soft delete)
+ */
+export async function deactivateGroup(groupId: string): Promise<void> {
+  await updateGroup(groupId, { isActive: false });
+  console.log(`📦 Group deactivated:`, groupId);
+}
+
+// ==================== AGENT SHARING ====================
+
+/**
+ * Share an agent with users or groups
+ * IMPORTANT: 
+ * - Groups can only have 'view' or 'use' access (never 'admin')
+ * - Individual users can have any level IF their role permits
+ */
+export async function shareAgent(
+  agentId: string,
+  ownerId: string,
+  sharedWith: Array<{ type: 'user' | 'group'; id: string }>,
+  accessLevel: AgentShare['accessLevel'] = 'view',
+  expiresAt?: Date
+): Promise<AgentShare> {
+  // CRITICAL: Validate access level for groups
+  const hasGroups = sharedWith.some(t => t.type === 'group');
+  
+  if (hasGroups && accessLevel === 'admin') {
+    throw new Error(
+      'Los grupos no pueden tener nivel de acceso "admin". ' +
+      'Solo "view" (ver) o "use" (usar) están permitidos. ' +
+      'Para acceso admin, comparte directamente con usuarios individuales.'
+    );
+  }
+
+  // For individual users with 'user' role, validate max access is 'use'
+  const userTargets = sharedWith.filter(t => t.type === 'user');
+  if (userTargets.length > 0) {
+    const users = await Promise.all(
+      userTargets.map(t => getUserById(t.id))
+    );
+    
+    const basicUsers = users.filter(u => u && u.role === 'user');
+    
+    if (basicUsers.length > 0 && accessLevel === 'admin') {
+      const names = basicUsers.map(u => u?.name).join(', ');
+      console.warn(
+        `⚠️ Compartiendo con nivel 'admin' a usuarios con rol 'user': ${names}. ` +
+        `Considera si realmente necesitan permisos administrativos.`
+      );
+    }
+  }
+
+  const shareRef = firestore.collection(COLLECTIONS.AGENT_SHARES).doc();
+  const now = new Date();
+  const source = getEnvironmentSource();
+  
+  const agentShare: AgentShare = {
+    id: shareRef.id,
+    agentId,
+    ownerId,
+    sharedWith,
+    accessLevel,
+    createdAt: now,
+    updatedAt: now,
+    ...(expiresAt && { expiresAt }),
+    source,
+  };
+
+  await shareRef.set(agentShare);
+  console.log(`🔗 Agent shared from ${source}:`, shareRef.id, `level: ${accessLevel}`);
+  return agentShare;
+}
+
+/**
+ * Get all shares for a specific agent
+ */
+export async function getAgentShares(agentId: string): Promise<AgentShare[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.AGENT_SHARES)
+      .where('agentId', '==', agentId)
+      .get();
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        createdAt: data.createdAt.toDate(),
+        updatedAt: data.updatedAt.toDate(),
+        ...(data.expiresAt && { expiresAt: data.expiresAt.toDate() }),
+      } as AgentShare;
+    });
+  } catch (error) {
+    console.error('❌ Error getting agent shares:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all agents shared with a user (directly or via groups)
+ */
+export async function getSharedAgents(userId: string): Promise<Conversation[]> {
+  try {
+    // 1. Get user's groups
+    const userGroups = await getUserGroups(userId);
+    const groupIds = userGroups.map(g => g.id);
+
+    // 2. Find shares where user or their groups are included
+    const snapshot = await firestore
+      .collection(COLLECTIONS.AGENT_SHARES)
+      .get();
+
+    const relevantShares = snapshot.docs
+      .map(doc => doc.data() as AgentShare)
+      .filter(share => {
+        // Check if expired
+        if (share.expiresAt && new Date(share.expiresAt) < new Date()) {
+          return false;
+        }
+
+        // Check if shared with this user or their groups
+        return share.sharedWith.some(target => 
+          (target.type === 'user' && target.id === userId) ||
+          (target.type === 'group' && groupIds.includes(target.id))
+        );
+      });
+
+    // 3. Load the actual conversations/agents
+    const agentIds = relevantShares.map(share => share.agentId);
+    
+    if (agentIds.length === 0) {
+      return [];
+    }
+
+    const agents: Conversation[] = [];
+    for (const agentId of agentIds) {
+      const agent = await getConversation(agentId);
+      if (agent) {
+        agents.push(agent);
+      }
+    }
+
+    return agents;
+  } catch (error) {
+    console.error('❌ Error getting shared agents:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if user has access to an agent
+ */
+export async function userHasAccessToAgent(
+  userId: string,
+  agentId: string
+): Promise<{ hasAccess: boolean; accessLevel?: AgentShare['accessLevel'] }> {
+  try {
+    // Check if user is owner
+    const agent = await getConversation(agentId);
+    if (agent?.userId === userId) {
+      return { hasAccess: true, accessLevel: 'admin' };
+    }
+
+    // Check shares
+    const shares = await getAgentShares(agentId);
+    const userGroups = await getUserGroups(userId);
+    const groupIds = userGroups.map(g => g.id);
+
+    for (const share of shares) {
+      // Check if expired
+      if (share.expiresAt && new Date(share.expiresAt) < new Date()) {
+        continue;
+      }
+
+      // Check if shared with this user or their groups
+      const isSharedWithUser = share.sharedWith.some(target => 
+        (target.type === 'user' && target.id === userId) ||
+        (target.type === 'group' && groupIds.includes(target.id))
+      );
+
+      if (isSharedWithUser) {
+        return { hasAccess: true, accessLevel: share.accessLevel };
+      }
+    }
+
+    return { hasAccess: false };
+  } catch (error) {
+    console.error('❌ Error checking agent access:', error);
+    return { hasAccess: false };
+  }
+}
+
+/**
+ * Update agent share
+ */
+export async function updateAgentShare(
+  shareId: string,
+  updates: Partial<Omit<AgentShare, 'id' | 'agentId' | 'ownerId' | 'createdAt'>>
+): Promise<void> {
+  await firestore
+    .collection(COLLECTIONS.AGENT_SHARES)
+    .doc(shareId)
+    .update({
+      ...updates,
+      updatedAt: new Date(),
+    });
+    
+  console.log(`📝 Agent share updated:`, shareId);
+}
+
+/**
+ * Delete agent share
+ */
+export async function deleteAgentShare(shareId: string): Promise<void> {
+  await firestore
+    .collection(COLLECTIONS.AGENT_SHARES)
+    .doc(shareId)
+    .delete();
+    
+  console.log(`🗑️ Agent share deleted:`, shareId);
 }
 
 

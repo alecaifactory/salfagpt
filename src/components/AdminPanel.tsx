@@ -2,18 +2,24 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, Edit2, Trash2, Shield, ShieldOff, Check, X } from 'lucide-react';
 import type { User, UserRole } from '../types/users';
 import { ROLE_LABELS } from '../types/users';
+import { GroupManagementPanel } from './GroupManagementPanel';
 
 interface AdminPanelProps {
   currentUserId: string;
+  currentUser?: User;
 }
 
-export default function AdminPanel({ currentUserId }: AdminPanelProps) {
+export default function AdminPanel({ currentUserId, currentUser }: AdminPanelProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
+  
+  // NEW: Tab and group management states
+  const [activeTab, setActiveTab] = useState<'users' | 'groups'>('users');
+  const [showGroupManagement, setShowGroupManagement] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -144,170 +150,244 @@ export default function AdminPanel({ currentUserId }: AdminPanelProps) {
               <Users className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Gestión de Usuarios</h1>
+              <h1 className="text-2xl font-bold text-slate-800">
+                {activeTab === 'users' ? 'Gestión de Usuarios' : 'Gestión de Grupos'}
+              </h1>
               <p className="text-sm text-slate-600">
-                {users.length} usuarios totales • {users.filter((u) => u.isActive).length} activos
+                {activeTab === 'users' 
+                  ? `${users.length} usuarios totales • ${users.filter((u) => u.isActive).length} activos`
+                  : 'Organiza usuarios en grupos para compartir accesos'
+                }
               </p>
             </div>
           </div>
+          <div className="flex gap-3">
+            {activeTab === 'users' ? (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Crear Usuario
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowGroupManagement(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Gestionar Grupos
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-4">
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'users'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
           >
-            <Plus className="w-4 h-4" />
-            Crear Usuario
+            <Users className="w-5 h-5" />
+            Usuarios
+          </button>
+          <button
+            onClick={() => setActiveTab('groups')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'groups'
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            Grupos
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-4 p-4 bg-slate-50 rounded-lg">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Filtrar por rol
-            </label>
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value as UserRole | 'all')}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todos los roles</option>
-              {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Filtrar por estado
-            </label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Todos</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Users Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Usuario
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Rol
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Empresa
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Último acceso
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
-                        {user.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-slate-900">{user.name}</div>
-                        <div className="text-sm text-slate-500">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <select
-                      value={user.role}
-                      onChange={(e) => handleUpdateRole(user, e.target.value as UserRole)}
-                      disabled={user.id === currentUserId}
-                      className={`text-sm px-3 py-1 rounded-full font-medium ${getRoleBadgeColor(
-                        user.role
-                      )} ${user.id === currentUserId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
-                    >
-                      {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                        <option key={key} value={key}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-slate-900">{user.company}</div>
-                    {user.department && (
-                      <div className="text-sm text-slate-500">{user.department}</div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleToggleActive(user)}
-                      disabled={user.id === currentUserId}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
-                        user.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      } ${user.id === currentUserId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
-                    >
-                      {user.isActive ? (
-                        <>
-                          <Check className="w-3 h-3" /> Activo
-                        </>
-                      ) : (
-                        <>
-                          <X className="w-3 h-3" /> Inactivo
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                    {user.lastLoginAt
-                      ? new Date(user.lastLoginAt).toLocaleDateString('es-ES')
-                      : 'Nunca'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={user.id === currentUserId}
-                      className={`inline-flex items-center gap-1 px-3 py-1 text-red-600 hover:text-red-800 ${
-                        user.id === currentUserId ? 'opacity-30 cursor-not-allowed' : ''
-                      }`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-12">
-            <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">No se encontraron usuarios con los filtros aplicados</p>
+        {/* Filters - Only show for users tab */}
+        {activeTab === 'users' && (
+          <div className="flex gap-4 p-4 bg-slate-50 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Filtrar por rol
+              </label>
+              <select
+                value={filterRole}
+                onChange={(e) => setFilterRole(e.target.value as UserRole | 'all')}
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Todos los roles</option>
+                {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Filtrar por estado
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Todos</option>
+                <option value="active">Activos</option>
+                <option value="inactive">Inactivos</option>
+              </select>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Tab Content */}
+      {activeTab === 'users' ? (
+        /* Users Table */
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Usuario
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Rol
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Empresa
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Último acceso
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                          {user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-slate-900">{user.name}</div>
+                          <div className="text-sm text-slate-500">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={user.role}
+                        onChange={(e) => handleUpdateRole(user, e.target.value as UserRole)}
+                        disabled={user.id === currentUserId}
+                        className={`text-sm px-3 py-1 rounded-full font-medium ${getRoleBadgeColor(
+                          user.role
+                        )} ${user.id === currentUserId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                      >
+                        {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-slate-900">{user.company}</div>
+                      {user.department && (
+                        <div className="text-sm text-slate-500">{user.department}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleToggleActive(user)}
+                        disabled={user.id === currentUserId}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                          user.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        } ${user.id === currentUserId ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'}`}
+                      >
+                        {user.isActive ? (
+                          <>
+                            <Check className="w-3 h-3" /> Activo
+                          </>
+                        ) : (
+                          <>
+                            <X className="w-3 h-3" /> Inactivo
+                          </>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                      {user.lastLoginAt
+                        ? new Date(user.lastLoginAt).toLocaleDateString('es-ES')
+                        : 'Nunca'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={user.id === currentUserId}
+                        className={`inline-flex items-center gap-1 px-3 py-1 text-red-600 hover:text-red-800 ${
+                          user.id === currentUserId ? 'opacity-30 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredUsers.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500">No se encontraron usuarios con los filtros aplicados</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Groups Tab */
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+          <div className="text-center">
+            <Users className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Gestión de Grupos</h3>
+            <p className="text-slate-600 mb-6 max-w-md mx-auto">
+              Crea y gestiona grupos de usuarios para compartir agentes de forma organizada.
+              Los grupos permiten dar acceso a múltiples usuarios simultáneamente.
+            </p>
+            <button
+              onClick={() => setShowGroupManagement(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Abrir Gestión de Grupos
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Group Management Modal */}
+      {showGroupManagement && currentUser && (
+        <GroupManagementPanel
+          currentUser={currentUser}
+          onClose={() => setShowGroupManagement(false)}
+        />
+      )}
     </div>
   );
 }

@@ -46,6 +46,10 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
   const [loadingChunks, setLoadingChunks] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<string[]>(['extract', 'chunk', 'embed']);
   const [viewingChunk, setViewingChunk] = useState<DocumentChunk | null>(null);
+  
+  // NEW: On-demand loading of extracted data
+  const [extractedData, setExtractedData] = useState<string | null>(source.extractedData || null);
+  const [loadingExtractedData, setLoadingExtractedData] = useState(false);
 
   // Load chunks when RAG tab is opened
   useEffect(() => {
@@ -53,6 +57,36 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
       loadChunks();
     }
   }, [activeTab, source.ragEnabled]);
+  
+  // Load extracted data when "Extracted Text" tab is opened
+  useEffect(() => {
+    if (activeTab === 'extracted' && !extractedData && !loadingExtractedData) {
+      loadExtractedData();
+    }
+  }, [activeTab]);
+
+  const loadExtractedData = async () => {
+    console.log('📄 Loading extracted data for source:', source.id);
+    setLoadingExtractedData(true);
+    
+    try {
+      const response = await fetch(`/api/context-sources/${source.id}/extracted-data`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Extracted data loaded:', data.charactersExtracted, 'characters');
+        setExtractedData(data.extractedData || null);
+      } else {
+        console.error('❌ Failed to load extracted data');
+        setExtractedData(null);
+      }
+    } catch (error) {
+      console.error('❌ Error loading extracted data:', error);
+      setExtractedData(null);
+    } finally {
+      setLoadingExtractedData(false);
+    }
+  };
 
   const loadChunks = async () => {
     if (!userId) {
@@ -133,9 +167,9 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
   };
 
   const downloadExtractedText = () => {
-    if (!source.extractedData) return;
+    if (!extractedData) return;
     
-    const blob = new Blob([source.extractedData], { type: 'text/plain' });
+    const blob = new Blob([extractedData], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -581,14 +615,15 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">Texto Extraído</h4>
                   <p className="text-xs text-gray-600">
-                    {source.extractedData ? 
-                      `${source.extractedData.length.toLocaleString()} caracteres` : 
+                    {loadingExtractedData ? 'Cargando...' :
+                     extractedData ? 
+                      `${extractedData.length.toLocaleString()} caracteres` : 
                       'No disponible'}
                   </p>
                 </div>
               </div>
               
-              {source.extractedData && (
+              {extractedData && !loadingExtractedData && (
                 <button
                   onClick={downloadExtractedText}
                   className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
@@ -599,10 +634,15 @@ export default function PipelineDetailView({ source, userId }: PipelineDetailVie
               )}
             </div>
 
-            {source.extractedData ? (
+            {loadingExtractedData ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-8 h-8 mx-auto mb-3 text-blue-600 animate-spin" />
+                <p className="text-sm text-gray-600">Cargando texto extraído...</p>
+              </div>
+            ) : extractedData ? (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto">
                 <pre className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
-                  {source.extractedData}
+                  {extractedData}
                 </pre>
               </div>
             ) : (

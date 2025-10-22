@@ -1,6 +1,7 @@
 ---
 import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
 import { verifyJWT } from '../lib/auth';
+import { isUserDomainEnabled, getDomainFromEmail } from '../lib/domains';
 import '../styles/global.css';
 
 // 🔒 SECURITY: Always require authentication
@@ -42,6 +43,28 @@ try {
     userId: userId.substring(0, 8) + '...',
     email: userEmail,
     timestamp: new Date().toISOString()
+  });
+  
+  // 🔒 CRITICAL Security: Verify domain is still enabled
+  // (In case domain was disabled after user logged in)
+  const isDomainEnabled = await isUserDomainEnabled(userEmail);
+  
+  if (!isDomainEnabled) {
+    const userDomain = getDomainFromEmail(userEmail);
+    console.warn('🚨 Access denied - domain disabled for active session:', {
+      email: userEmail,
+      domain: userDomain,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Clear session and redirect to login with error
+    cookies.delete('flow_session', { path: '/' });
+    return Astro.redirect(`/auth/login?error=domain_disabled&domain=${encodeURIComponent(userDomain)}`);
+  }
+  
+  console.log('✅ Domain access verified for active session:', {
+    email: userEmail,
+    domain: getDomainFromEmail(userEmail),
   });
 } catch (error) {
   // Token invalid or expired
