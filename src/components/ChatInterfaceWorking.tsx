@@ -3537,27 +3537,34 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
                   </>
                 )}
                 
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => {
-                    setShowUserSettings(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  <span className="font-medium">Configuración</span>
-                </button>
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => {
-                    setShowSalfaAnalytics(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                  <span className="font-medium">Analíticas SalfaGPT</span>
-                </button>
-                <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+                {/* Settings and Analytics - HIDDEN FOR USER ROLE */}
+                {currentUser?.role !== 'user' && (
+                  <>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowUserSettings(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                      <span className="font-medium">Configuración</span>
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowSalfaAnalytics(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                      <span className="font-medium">Analíticas SalfaGPT</span>
+                    </button>
+                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+                  </>
+                )}
+                
+                {/* Logout - ALWAYS VISIBLE */}
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
                   onClick={async () => {
