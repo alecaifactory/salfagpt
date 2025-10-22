@@ -1,16 +1,17 @@
 import type { APIRoute } from 'astro';
-import {
-  updateContextSource,
-  deleteContextSource,
-  firestore,
-  COLLECTIONS,
-} from '../../../lib/firestore';
+import { getContextSource } from '../../../lib/firestore';
 import { getSession } from '../../../lib/auth';
 
-// PUT /api/context-sources/:id - Update context source
-export const PUT: APIRoute = async ({ params, request, cookies }) => {
+/**
+ * GET /api/context-sources/[id]
+ * Get a single context source with FULL data (includes extractedData)
+ * 
+ * Use this when you need the actual content, not just metadata
+ * For list views, use /api/context-sources-metadata instead
+ */
+export const GET: APIRoute = async ({ params, cookies }) => {
   try {
-    // Verify authentication
+    // 1. Verify authentication
     const session = getSession({ cookies } as any);
     if (!session) {
       return new Response(
@@ -20,103 +21,42 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     }
 
     const sourceId = params.id;
-    const body = await request.json();
-
     if (!sourceId) {
       return new Response(
-        JSON.stringify({ error: 'sourceId is required' }),
+        JSON.stringify({ error: 'Source ID required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    // SECURITY: Verify user owns this source
-    const sourceDoc = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .doc(sourceId)
-      .get();
-
-    if (!sourceDoc.exists) {
+    // 2. Load FULL source including extractedData
+    const source = await getContextSource(sourceId);
+    
+    if (!source) {
       return new Response(
         JSON.stringify({ error: 'Source not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    if (sourceDoc.data()?.userId !== session.id) {
+    // 3. SECURITY: Verify ownership (unless superadmin)
+    if (source.userId !== session.id && session.email !== 'alec@getaifactory.com') {
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Cannot modify other user sources' }),
+        JSON.stringify({ error: 'Forbidden - Cannot access other user data' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    await updateContextSource(sourceId, body);
+    console.log('✅ Loaded full context source:', sourceId, `(${source.extractedData?.length || 0} chars)`);
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ source }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('Error updating context source:', error);
+    console.error('Error fetching context source:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to update context source' }),
+      JSON.stringify({ error: error.message || 'Failed to fetch source' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 };
-
-// DELETE /api/context-sources/:id - Delete context source
-export const DELETE: APIRoute = async ({ params, cookies }) => {
-  try {
-    // Verify authentication
-    const session = getSession({ cookies } as any);
-    if (!session) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Please login' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const sourceId = params.id;
-
-    if (!sourceId) {
-      return new Response(
-        JSON.stringify({ error: 'sourceId is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // SECURITY: Verify user owns this source
-    const sourceDoc = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .doc(sourceId)
-      .get();
-
-    if (!sourceDoc.exists) {
-      return new Response(
-        JSON.stringify({ error: 'Source not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (sourceDoc.data()?.userId !== session.id) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden - Cannot delete other user sources' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    await deleteContextSource(sourceId);
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error: any) {
-    console.error('Error deleting context source:', error);
-    return new Response(
-      JSON.stringify({ error: error.message || 'Failed to delete context source' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-};
-

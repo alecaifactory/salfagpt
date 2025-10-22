@@ -1,0 +1,142 @@
+import type { APIRoute } from 'astro';
+import { getSession } from '../../../lib/auth';
+import { firestore, COLLECTIONS } from '../../../lib/firestore';
+
+/**
+ * POST /api/context-sources/bulk-assign-multiple
+ * Assign MULTIPLE context sources to agents in a SINGLE batch operation
+ * 
+ * Body: {
+ *   sourceIds: string[],      // Array of source IDs (e.g., 538 documents)
+ *   agentIds: string[]        // Array of agent IDs to assign to
+ * }
+ * 
+ * PERFORMANCE: Uses Firestore batch write (up to 500 docs per batch)
+ * Much faster than individual requests
+ * 
+ * Security: Only superadmin can bulk assign
+ */
+export const POST: APIRoute = async (context) => {
+  const startTime = Date.now();
+  
+  try {
+    // 1. Verify authentication
+    const session = getSession(context);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. SECURITY: Only superadmin can bulk assign
+    if (session.email !== 'alec@getaifactory.com') {
+      console.warn('🚨 Unauthorized bulk assign attempt:', session.email);
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Superadmin access only' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Parse request body
+    const body = await context.request.json();
+    const { sourceIds, agentIds } = body;
+
+    if (!Array.isArray(sourceIds) || sourceIds.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'sourceIds must be a non-empty array' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!Array.isArray(agentIds) || agentIds.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'agentIds must be a non-empty array' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('🚀 BULK ASSIGN MULTIPLE:');
+    console.log('   Sources:', sourceIds.length);
+    console.log('   Agents:', agentIds.length);
+    console.log('   Total assignments:', sourceIds.length * agentIds.length);
+
+    // 4. Use Firestore batch for efficient bulk update
+    // Firestore batch limit: 500 operations
+    const BATCH_SIZE = 500;
+    const batches: any[] = [];
+    let currentBatch = firestore.batch();
+    let operationCount = 0;
+
+    for (const sourceId of sourceIds) {
+      const sourceRef = firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc(sourceId);
+      
+      // Update assignedToAgents field
+      currentBatch.update(sourceRef, {
+        assignedToAgents: agentIds,
+        updatedAt: new Date(),
+      });
+      
+      operationCount++;
+      
+      // If batch is full, start a new one
+      if (operationCount >= BATCH_SIZE) {
+        batches.push(currentBatch);
+        currentBatch = firestore.batch();
+        operationCount = 0;
+      }
+    }
+    
+    // Add remaining operations
+    if (operationCount > 0) {
+      batches.push(currentBatch);
+    }
+
+    console.log('📦 Created', batches.length, 'batch(es) for', sourceIds.length, 'sources');
+
+    // 5. Commit all batches in parallel
+    const batchStartTime = Date.now();
+    await Promise.all(batches.map(batch => batch.commit()));
+    const batchElapsed = Date.now() - batchStartTime;
+
+    const totalElapsed = Date.now() - startTime;
+
+    console.log('✅ BULK ASSIGN COMPLETE:');
+    console.log('   Sources updated:', sourceIds.length);
+    console.log('   Agents assigned:', agentIds.length);
+    console.log('   Batch operations:', batches.length);
+    console.log('   Batch time:', batchElapsed, 'ms');
+    console.log('   Total time:', totalElapsed, 'ms');
+    console.log('   Avg per source:', Math.round(totalElapsed / sourceIds.length), 'ms');
+
+    // 6. Return success
+    return new Response(
+      JSON.stringify({
+        success: true,
+        sourcesUpdated: sourceIds.length,
+        agentsAssigned: agentIds.length,
+        batches: batches.length,
+        responseTime: totalElapsed,
+        avgPerSource: Math.round(totalElapsed / sourceIds.length),
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+  } catch (error) {
+    console.error('❌ Error in bulk-assign-multiple:', error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Failed to bulk assign',
+        details: error instanceof Error ? error.stack : undefined,
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
+};
+
