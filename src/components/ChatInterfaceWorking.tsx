@@ -290,6 +290,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     preferredModel: 'gemini-2.5-flash',
     systemPrompt: 'Eres un asistente útil y profesional. Responde de manera clara y concisa.',
     language: 'es',
+    theme: 'light', // Default theme
   });
 
   // Agent-specific config state (overrides global settings)
@@ -847,11 +848,30 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           const data = await response.json();
           setGlobalUserSettings(data);
           console.log('✅ Configuración del usuario cargada:', data.preferredModel);
+          
+          // Apply theme from Firestore (with fallback to 'light')
+          const theme = data.theme || 'light';
+          console.log(`🎨 Aplicando tema desde Firestore: ${theme}`);
+          
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          
+          // Sync to localStorage for consistency
+          localStorage.setItem('theme', theme);
         } else {
           console.warn('⚠️ No se pudo cargar configuración del usuario, usando defaults');
+          // Apply default light theme
+          document.documentElement.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
         }
       } catch (error) {
         console.error('❌ Error al cargar configuración del usuario:', error);
+        // Apply default light theme on error
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
       }
     };
     
@@ -2242,6 +2262,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         const savedSettings = await response.json();
         setGlobalUserSettings(savedSettings);
         console.log('✅ Configuración del usuario guardada en Firestore:', savedSettings.preferredModel);
+        
+        // Apply theme if it was changed
+        if (savedSettings.theme) {
+          console.log(`🎨 Aplicando tema guardado: ${savedSettings.theme}`);
+          if (savedSettings.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          localStorage.setItem('theme', savedSettings.theme);
+        }
       } else {
         console.error('❌ Error al guardar configuración del usuario');
       }

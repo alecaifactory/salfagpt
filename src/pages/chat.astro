@@ -85,6 +85,48 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat - Flow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    
+    <!-- Theme initialization script - runs BEFORE page renders to prevent FOUC -->
+    <script is:inline>
+      (function() {
+        // Try to load theme from localStorage first (instant)
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+        
+        // Then load from Firestore and update if different
+        // This happens async after initial render
+        const userId = '${userId}'; // Template literal with Astro variable
+        if (userId && userId !== '\${userId}') {
+          fetch(`/api/user-settings?userId=${userId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+              if (data && data.theme) {
+                const firestoreTheme = data.theme;
+                // Only update if different from localStorage
+                if (savedTheme !== firestoreTheme) {
+                  localStorage.setItem('theme', firestoreTheme);
+                  if (firestoreTheme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                }
+              }
+            })
+            .catch(() => {
+              // Fallback to light on error
+              if (!savedTheme) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+              }
+            });
+        }
+      })();
+    </script>
   </head>
   <body class="h-full m-0 p-0">
     <ChatInterfaceWorking 

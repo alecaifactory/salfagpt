@@ -24,6 +24,7 @@ export const GET: APIRoute = async ({ request }) => {
           preferredModel: 'gemini-2.5-flash',
           systemPrompt: 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
           language: 'es',
+          theme: 'light', // Default theme
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } }
       );
@@ -46,7 +47,7 @@ export const GET: APIRoute = async ({ request }) => {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const { userId, preferredModel, systemPrompt, language } = body;
+    const { userId, preferredModel, systemPrompt, language, theme } = body;
 
     if (!userId) {
       return new Response(
@@ -59,9 +60,10 @@ export const POST: APIRoute = async ({ request }) => {
       preferredModel: preferredModel || 'gemini-2.5-flash',
       systemPrompt: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.',
       language: language || 'es',
+      theme: theme || 'light', // Default to 'light' if not provided
     });
 
-    console.log('✅ User settings saved:', userId);
+    console.log('✅ User settings saved:', userId, 'theme:', settings.theme);
 
     return new Response(JSON.stringify(settings), {
       status: 200,
