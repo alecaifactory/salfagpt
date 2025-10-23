@@ -1000,33 +1000,70 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  * Get user by ID
  */
 export async function getUserById(userId: string): Promise<User | null> {
+  // Try document ID first (hash-based or email-based)
   const doc = await firestore.collection(COLLECTIONS.USERS).doc(userId).get();
   
-  if (!doc.exists) {
-    return null;
+  if (doc.exists) {
+    const data = doc.data();
+    if (data) {
+      return {
+        id: doc.id,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        roles: data.roles || [data.role],
+        permissions: data.permissions,
+        company: data.company,
+        createdBy: data.createdBy,
+        department: data.department,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+        lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+        isActive: data.isActive,
+        avatarUrl: data.avatarUrl,
+        agentAccessCount: data.agentAccessCount,
+        contextAccessCount: data.contextAccessCount,
+      };
+    }
   }
-
-  const data = doc.data();
-  if (!data) return null;
-
-  return {
-    id: doc.id,
-    email: data.email,
-    name: data.name,
-    role: data.role,
-    roles: data.roles || [data.role], // Backward compat: default to single role array
-    permissions: data.permissions,
-    company: data.company,
-    createdBy: data.createdBy,
-    department: data.department,
-    createdAt: new Date(data.createdAt),
-    updatedAt: new Date(data.updatedAt),
-    lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
-    isActive: data.isActive,
-    avatarUrl: data.avatarUrl,
-    agentAccessCount: data.agentAccessCount,
-    contextAccessCount: data.contextAccessCount,
-  };
+  
+  // 🔑 FALLBACK: If not found by document ID, try by googleUserId field (numeric OAuth ID)
+  if (/^\d+$/.test(userId)) {
+    try {
+      const snapshot = await firestore
+        .collection(COLLECTIONS.USERS)
+        .where('googleUserId', '==', userId)
+        .limit(1)
+        .get();
+      
+      if (!snapshot.empty) {
+        const foundDoc = snapshot.docs[0];
+        const data = foundDoc.data();
+        return {
+          id: foundDoc.id,
+          email: data.email,
+          name: data.name,
+          role: data.role,
+          roles: data.roles || [data.role],
+          permissions: data.permissions,
+          company: data.company,
+          createdBy: data.createdBy,
+          department: data.department,
+          createdAt: new Date(data.createdAt),
+          updatedAt: new Date(data.updatedAt),
+          lastLoginAt: data.lastLoginAt ? new Date(data.lastLoginAt) : undefined,
+          isActive: data.isActive,
+          avatarUrl: data.avatarUrl,
+          agentAccessCount: data.agentAccessCount,
+          contextAccessCount: data.contextAccessCount,
+        };
+      }
+    } catch (error) {
+      console.warn('⚠️ Firestore query by googleUserId failed:', error);
+    }
+  }
+  
+  return null;
 }
 
 /**
