@@ -30,19 +30,34 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    // 🔑 CRITICAL: Determine effective agent ID (for chats, use parent agent)
+    let effectiveAgentId = conversationId;
+    let isChat = false;
+    
+    if (!conversationId.startsWith('temp-')) {
+      const conversation = await getConversation(conversationId);
+      if (conversation?.agentId) {
+        effectiveAgentId = conversation.agentId;
+        isChat = true;
+        console.log(`🔗 Chat detected (${conversationId}) - using parent agent ${effectiveAgentId} for context`);
+      }
+    }
+
     // ✅ BACKWARD COMPATIBLE: Support three formats
     // Format 1 (NEW - OPTIMAL): agentId only - BigQuery queries by agent
     // Format 2 (OPTIMIZED): activeSourceIds = ['id1', 'id2', ...] (just IDs)
     // Format 3 (OLD): contextSources = [{id, name, type, content}] (with full text)
     const useAgentSearch = body.useAgentSearch !== false; // Default: true
-    const agentId = conversationId; // Agent ID is the conversation ID
+    const agentId = effectiveAgentId; // ✅ Use effective agent ID
     const activeSourceIds = body.activeSourceIds || 
       (body.contextSources && body.contextSources.map((s: any) => s.id).filter(Boolean)) || 
       [];
     
     console.log(`📋 RAG Configuration:`, {
+      conversationId,
+      isChat,
+      effectiveAgentId,
       useAgentSearch,
-      agentId,
       activeSourceIdsCount: activeSourceIds.length,
       approach: useAgentSearch ? 'AGENT_SEARCH (optimal)' : 'SOURCE_IDS (legacy)'
     });

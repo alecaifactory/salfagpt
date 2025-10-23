@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../lib/auth';
-import { firestore, COLLECTIONS } from '../../../../lib/firestore';
+import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from '../../../../lib/firestore';
 
 /**
  * GET /api/agents/:id/context-sources?page=0&limit=10
@@ -10,6 +10,10 @@ import { firestore, COLLECTIONS } from '../../../../lib/firestore';
  * - Pagination (10 docs at a time)
  * - Minimal metadata (no extractedData, no chunks)
  * - Fast query using assignedToAgents index
+ * 
+ * SHARED AGENTS:
+ * - Uses owner's context sources (not current user's)
+ * - Maintains privacy (each user's conversations are separate)
  * 
  * For full source details, use /api/context-sources/[sourceId]
  */
@@ -41,11 +45,17 @@ export const GET: APIRoute = async (context) => {
     const limit = parseInt(url.searchParams.get('limit') || '10');
 
     console.log(`📄 Loading context sources for agent ${agentId}: page ${page}, limit ${limit}`);
+    console.log(`   Current user: ${session.id}`);
+    
+    // 🔑 CRITICAL: Get effective owner (original owner if shared, else current user)
+    const effectiveUserId = await getEffectiveOwnerForContext(agentId, session.id);
+    console.log(`   🔑 Effective owner for context: ${effectiveUserId}${effectiveUserId !== session.id ? ' (shared agent)' : ' (own agent)'}`);
     console.log('   Query: assignedToAgents array-contains', agentId);
 
-    // 2. Query sources assigned to this agent
+    // 2. Query sources assigned to this agent (using owner's sources)
     let query: any = firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .where('userId', '==', effectiveUserId) // ✅ Use effective owner
       .where('assignedToAgents', 'array-contains', agentId)
       .orderBy('addedAt', 'desc');
 
@@ -71,6 +81,7 @@ export const GET: APIRoute = async (context) => {
         console.log('📊 Counting total sources for agent...');
         const countSnapshot = await firestore
           .collection(COLLECTIONS.CONTEXT_SOURCES)
+          .where('userId', '==', effectiveUserId) // ✅ Use effective owner
           .where('assignedToAgents', 'array-contains', agentId)
           .select('name', 'assignedToAgents') // Fetch minimal fields for verification
           .get();

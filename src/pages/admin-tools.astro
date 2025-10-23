@@ -1,0 +1,257 @@
+---
+// Admin Tools Page
+import { getSession } from '../lib/auth';
+
+const session = getSession(Astro as any);
+
+if (!session) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Tools</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f8fafc;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+    .section {
+      margin: 30px 0;
+      padding: 20px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+    }
+    h2 {
+      color: #334155;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    .output {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8fafc;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .success {
+      color: #16a34a;
+    }
+    .error {
+      color: #dc2626;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    thead {
+      background: #f1f5f9;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 13px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-pro {
+      background: #f3e8ff;
+      color: #7c3aed;
+    }
+    .badge-flash {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛠️ Admin Tools</h1>
+    <p style="color: #64748b; margin-bottom: 30px;">
+      Herramientas administrativas para gestión de agentes
+    </p>
+
+    <!-- Task 1: List Agents -->
+    <div class="section">
+      <h2>1️⃣ Lista de Agentes Activos</h2>
+      <button onclick="listAgents()">📋 Mostrar Agentes</button>
+      <div id="agentsList" class="output" style="display: none;"></div>
+    </div>
+
+    <!-- Task 2: Create Cursor Agent -->
+    <div class="section">
+      <h2>2️⃣ Crear Agente "Cursor"</h2>
+      <button onclick="createCursorAgent()">🤖 Crear Agente</button>
+      <div id="createOutput" class="output" style="display: none;"></div>
+    </div>
+
+    <a href="/chat" style="color: #3b82f6; text-decoration: none; font-weight: 500;">
+      ← Volver al Chat
+    </a>
+  </div>
+
+  <script>
+    const userId = '{session.id}';
+    const userEmail = '{session.email}';
+
+    async function listAgents() {
+      const output = document.getElementById('agentsList');
+      output.style.display = 'block';
+      output.innerHTML = '⏳ Cargando agentes...';
+
+      try {
+        const response = await fetch(`/api/conversations/index.ts?userId=${userId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Error loading agents');
+        }
+
+        // Extract all conversations from groups
+        const allConversations = [];
+        if (data.groups) {
+          data.groups.forEach(group => {
+            allConversations.push(...group.conversations);
+          });
+        }
+
+        // Build HTML table
+        let html = `
+          <div class="success">✅ ${allConversations.length} agentes encontrados</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th>Título</th>
+                <th style="width: 80px;">Modelo</th>
+                <th style="width: 80px; text-align: right;">Mensajes</th>
+                <th style="width: 120px;">Última Actividad</th>
+                <th style="width: 150px;">ID</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        allConversations.forEach((agent, index) => {
+          const lastActivity = new Date(agent.lastMessageAt).toLocaleDateString('es-ES');
+          const badgeClass = agent.agentModel === 'gemini-2.5-pro' ? 'badge-pro' : 'badge-flash';
+          const modelText = agent.agentModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash';
+
+          html += `
+            <tr>
+              <td>${index + 1}</td>
+              <td><strong>${agent.title || 'Sin título'}</strong></td>
+              <td><span class="badge ${badgeClass}">${modelText}</span></td>
+              <td style="text-align: right;">${agent.messageCount || 0}</td>
+              <td>${lastActivity}</td>
+              <td style="font-family: monospace; font-size: 11px;">${agent.id.substring(0, 20)}...</td>
+            </tr>
+          `;
+        });
+
+        html += `
+            </tbody>
+          </table>
+        `;
+
+        output.innerHTML = html;
+      } catch (error) {
+        output.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+      }
+    }
+
+    async function createCursorAgent() {
+      const output = document.getElementById('createOutput');
+      output.style.display = 'block';
+      output.innerHTML = '⏳ Creando agente "Cursor"...';
+
+      try {
+        const response = await fetch('/api/conversations/index.ts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: userId,
+            title: 'Cursor',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Error creating agent');
+        }
+
+        const agent = data.conversation;
+        output.innerHTML = `
+          <div class="success">✅ Agente "Cursor" creado exitosamente!</div>
+          <div style="margin-top: 15px;">
+            <strong>Detalles:</strong><br>
+            • Título: ${agent.title}<br>
+            • ID: ${agent.id}<br>
+            • Modelo: ${agent.agentModel}<br>
+            • Creado: ${new Date(agent.createdAt).toLocaleString('es-ES')}<br>
+            • Mensajes: ${agent.messageCount}<br>
+          </div>
+          <div style="margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 6px; border: 1px solid #fbbf24;">
+            <strong>📌 Nota:</strong> El agente está listo para usar en /chat
+          </div>
+        `;
+
+        // Auto-refresh agent list
+        setTimeout(() => {
+          console.log('Auto-refreshing agent list...');
+          listAgents();
+        }, 1000);
+      } catch (error) {
+        output.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>
+

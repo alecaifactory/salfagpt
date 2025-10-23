@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2 } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -202,6 +202,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [input, setInput] = useState('');
   const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   
   // Per-agent processing state
@@ -214,9 +215,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // NEW: Left pane organization state
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [showAgentsSection, setShowAgentsSection] = useState(true);
-  const [showProjectsSection, setShowProjectsSection] = useState(true);
-  const [showChatsSection, setShowChatsSection] = useState(true);
+  const [showAgentsSection, setShowAgentsSection] = useState(false);
+  const [showProjectsSection, setShowProjectsSection] = useState(false);
+  const [showChatsSection, setShowChatsSection] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [showAgentContextModal, setShowAgentContextModal] = useState(false);
@@ -1017,6 +1018,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     
     // If this is an agent itself, return null (no parent)
     return null;
+  };
+
+  // Helper: Copy message content in Markdown format
+  const copyMessageAsMarkdown = async (messageContent: string, messageId: string) => {
+    try {
+      await navigator.clipboard.writeText(messageContent);
+      setCopiedMessageId(messageId);
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedMessageId(null);
+      }, 2000);
+      
+      console.log('✅ Mensaje copiado en formato Markdown');
+    } catch (error) {
+      console.error('❌ Error al copiar mensaje:', error);
+    }
   };
 
   // NEW: Folder management functions
@@ -3678,97 +3696,99 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 )}
               </div>
               
-              {/* Model Selector with Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowAgentModelSelector(!showAgentModelSelector);
-                  }}
-                  disabled={currentConversation?.startsWith('temp-')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                    currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
-                      ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                      : 'bg-green-100 text-green-700 hover:bg-green-200'
-                  } ${currentConversation?.startsWith('temp-') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  title="Click para cambiar modelo del agente"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  {currentAgentConfig?.preferredModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
-                  <span className="text-[10px]">▼</span>
-                </button>
-                
-                {/* Model Selector Dropdown */}
-                {showAgentModelSelector && (
-                  <div 
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl z-50 min-w-[280px]"
+              {/* Model Selector with Dropdown - Only visible for admin role */}
+              {userRole === 'admin' && (
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowAgentModelSelector(!showAgentModelSelector);
+                    }}
+                    disabled={currentConversation?.startsWith('temp-')}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
+                        ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    } ${currentConversation?.startsWith('temp-') ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title="Click para cambiar modelo del agente"
                   >
-                    <div className="p-3 border-b border-slate-200 dark:border-slate-600">
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Modelo del Agente</p>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Solo afecta a este agente
-                      </p>
-                    </div>
-                    
-                    <div className="p-2 space-y-1">
-                      {/* Flash Option */}
-                      <button
-                        onClick={() => changeAgentModel('gemini-2.5-flash')}
-                        className={`w-full p-3 rounded-lg text-left transition-all ${
-                          currentAgentConfig?.preferredModel === 'gemini-2.5-flash'
-                            ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="w-4 h-4 text-green-600" />
-                          <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Flash</span>
-                          <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
-                            Rápido
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
-                          Respuestas rápidas y económicas • 94% más barato
+                    <Sparkles className="w-3 h-3" />
+                    {currentAgentConfig?.preferredModel === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
+                    <span className="text-[10px]">▼</span>
+                  </button>
+                  
+                  {/* Model Selector Dropdown */}
+                  {showAgentModelSelector && (
+                    <div 
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl z-50 min-w-[280px]"
+                    >
+                      <div className="p-3 border-b border-slate-200 dark:border-slate-600">
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Modelo del Agente</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Solo afecta a este agente
                         </p>
-                      </button>
+                      </div>
                       
-                      {/* Pro Option */}
-                      <button
-                        onClick={() => changeAgentModel('gemini-2.5-pro')}
-                        className={`w-full p-3 rounded-lg text-left transition-all ${
-                          currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
-                            ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Sparkles className="w-4 h-4 text-purple-600" />
-                          <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Pro</span>
-                          <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
-                            Avanzado
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
-                          Mayor precisión y análisis profundo • Tareas complejas
-                        </p>
-                      </button>
+                      <div className="p-2 space-y-1">
+                        {/* Flash Option */}
+                        <button
+                          onClick={() => changeAgentModel('gemini-2.5-flash')}
+                          className={`w-full p-3 rounded-lg text-left transition-all ${
+                            currentAgentConfig?.preferredModel === 'gemini-2.5-flash'
+                              ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Sparkles className="w-4 h-4 text-green-600" />
+                            <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Flash</span>
+                            <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
+                              Rápido
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
+                            Respuestas rápidas y económicas • 94% más barato
+                          </p>
+                        </button>
+                        
+                        {/* Pro Option */}
+                        <button
+                          onClick={() => changeAgentModel('gemini-2.5-pro')}
+                          className={`w-full p-3 rounded-lg text-left transition-all ${
+                            currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
+                              ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <Sparkles className="w-4 h-4 text-purple-600" />
+                            <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Pro</span>
+                            <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
+                              Avanzado
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 ml-6">
+                            Mayor precisión y análisis profundo • Tareas complejas
+                          </p>
+                        </button>
+                      </div>
+                      
+                      <div className="p-2 border-t border-slate-200 dark:border-slate-600">
+                        <button
+                          onClick={() => setShowAgentModelSelector(false)}
+                          className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                        >
+                          Cerrar
+                        </button>
+                      </div>
                     </div>
-                    
-                    <div className="p-2 border-t border-slate-200 dark:border-slate-600">
-                      <button
-                        onClick={() => setShowAgentModelSelector(false)}
-                        className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                      >
-                        Cerrar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              {/* Nuevo Chat Button - Only show when agent is selected */}
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Nuevo Chat Button - Only show when agent is selected - Moved to right */}
               {selectedAgent && (
                 <button
                   onClick={() => createNewChatForAgent(selectedAgent)}
@@ -3779,13 +3799,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </button>
               )}
               
-              <button
-                onClick={() => setShowAgentConfiguration(true)}
-                className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
-              >
-                <SettingsIcon className="w-4 h-4" />
-                Configurar Agente
-              </button>
+              {/* Configurar Agente Button - Only visible for admin role */}
+              {userRole === 'admin' && (
+                <button
+                  onClick={() => setShowAgentConfiguration(true)}
+                  className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <SettingsIcon className="w-4 h-4" />
+                  Configurar Agente
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -3803,19 +3826,49 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
               >
                 {msg.role === 'user' ? (
-                  <div className="inline-block max-w-2xl p-4 rounded-lg bg-blue-600 text-white">
-                    {msg.content}
+                  <div className="inline-block max-w-2xl rounded-lg bg-blue-600 text-white">
+                    <div className="px-4 pt-3 pb-2 border-b border-blue-500 flex items-center justify-between">
+                      <span className="text-sm font-semibold">Tú:</span>
+                      <button
+                        onClick={() => copyMessageAsMarkdown(msg.content, msg.id)}
+                        className="p-1.5 rounded hover:bg-blue-700 transition-colors"
+                        title="Copiar en formato Markdown"
+                      >
+                        {copiedMessageId === msg.id ? (
+                          <Check className="w-4 h-4 text-green-300" />
+                        ) : (
+                          <Copy className="w-4 h-4 text-blue-200" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="px-4 pb-4 pt-2">
+                      {msg.content}
+                    </div>
                   </div>
                 ) : (
                   <div className="inline-block max-w-3xl rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
                     <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
                       <span className="text-sm font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
-                      {/* Show response time if available */}
-                      {msg.responseTime && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                          {formatResponseTime(msg.responseTime)}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {/* Copy button */}
+                        <button
+                          onClick={() => copyMessageAsMarkdown(msg.content, msg.id)}
+                          className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          title="Copiar en formato Markdown"
+                        >
+                          {copiedMessageId === msg.id ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                          )}
+                        </button>
+                        {/* Show response time if available */}
+                        {msg.responseTime && (
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                            {formatResponseTime(msg.responseTime)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="p-5">
                       {/* Show thinking steps if present */}
