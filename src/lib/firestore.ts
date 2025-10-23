@@ -2349,10 +2349,12 @@ export async function getSharedAgents(userId: string, userEmail?: string): Promi
 
 /**
  * Check if user has access to an agent
+ * Supports both hash-based IDs and numeric OAuth IDs
  */
 export async function userHasAccessToAgent(
   userId: string,
-  agentId: string
+  agentId: string,
+  userEmail?: string
 ): Promise<{ hasAccess: boolean; accessLevel?: AgentShare['accessLevel'] }> {
   try {
     // Check if user is owner
@@ -2361,10 +2363,35 @@ export async function userHasAccessToAgent(
       return { hasAccess: true, accessLevel: 'admin' };
     }
 
-    // Check shares
+    // 🔑 CRITICAL: Convert to hash-based ID if numeric ID provided
+    let userHashId = userId;
+    
+    // If userId looks numeric (OAuth ID), try to get hash ID from user document
+    if (/^\d+$/.test(userId)) {
+      console.log(`🔍 Numeric userId detected (${userId}), looking up hash ID...`);
+      
+      // Try to get user by numeric ID first
+      const user = await getUserById(userId);
+      if (user) {
+        userHashId = user.id;
+        console.log(`   ✅ Found hash ID: ${userHashId}`);
+      } else if (userEmail) {
+        // Fallback: lookup by email
+        const userByEmail = await getUserByEmail(userEmail);
+        if (userByEmail) {
+          userHashId = userByEmail.id;
+          console.log(`   ✅ Found hash ID via email: ${userHashId}`);
+        }
+      }
+    }
+
+    // Check shares (using hash ID)
     const shares = await getAgentShares(agentId);
-    const userGroups = await getUserGroups(userId);
+    const userGroups = await getUserGroups(userHashId);
     const groupIds = userGroups.map(g => g.id);
+
+    console.log(`🔍 Checking access for user ${userHashId} to agent ${agentId}`);
+    console.log(`   Shares found: ${shares.length}`);
 
     for (const share of shares) {
       // Check if expired
@@ -2374,15 +2401,17 @@ export async function userHasAccessToAgent(
 
       // Check if shared with this user or their groups
       const isSharedWithUser = share.sharedWith.some(target => 
-        (target.type === 'user' && target.id === userId) ||
+        (target.type === 'user' && target.id === userHashId) ||
         (target.type === 'group' && groupIds.includes(target.id))
       );
 
       if (isSharedWithUser) {
+        console.log(`   ✅ Access granted: ${share.accessLevel}`);
         return { hasAccess: true, accessLevel: share.accessLevel };
       }
     }
 
+    console.log(`   ❌ No access found`);
     return { hasAccess: false };
   } catch (error) {
     console.error('❌ Error checking agent access:', error);
@@ -2417,8 +2446,17 @@ export async function getEffectiveOwnerForContext(
       return currentUserId;
     }
     
+    // 🔑 CRITICAL: Get user's email for hash ID lookup
+    let userEmail: string | undefined;
+    
+    // Try to get user by numeric ID
+    const currentUser = await getUserById(currentUserId);
+    if (currentUser) {
+      userEmail = currentUser.email;
+    }
+    
     // If not owner, check if it's a shared agent
-    const access = await userHasAccessToAgent(currentUserId, agentId);
+    const access = await userHasAccessToAgent(currentUserId, agentId, userEmail);
     
     if (access.hasAccess) {
       // Shared agent → use original owner's ID for context
