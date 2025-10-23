@@ -185,17 +185,52 @@ export const POST: APIRoute = async (context) => {
     ];
 
     // RF-04.1: Conversations over time (by day)
+    // Generate complete date range from startDate to endDate
     const conversationsByDay = new Map<string, number>();
+    
+    // Initialize all days in range with 0
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dateKey = currentDate.toISOString().split('T')[0];
+      conversationsByDay.set(dateKey, 0);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Count conversations by day
     conversations.forEach(conv => {
-      const date = conv.lastMessageAt?.toISOString?.()?.split('T')[0] || '';
-      conversationsByDay.set(date, (conversationsByDay.get(date) || 0) + 1);
+      if (!conv.lastMessageAt) return;
+      
+      const convDate = conv.lastMessageAt instanceof Date 
+        ? conv.lastMessageAt 
+        : new Date(conv.lastMessageAt);
+      
+      if (isNaN(convDate.getTime())) return; // Skip invalid dates
+      
+      const dateKey = convDate.toISOString().split('T')[0];
+      if (conversationsByDay.has(dateKey)) {
+        conversationsByDay.set(dateKey, (conversationsByDay.get(dateKey) || 0) + 1);
+      }
     });
 
+    // Build arrays for chart
     const sortedDays = Array.from(conversationsByDay.keys()).sort();
     const conversationsOverTime = {
-      labels: sortedDays.map(d => new Date(d).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })),
+      labels: sortedDays.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('es-ES', { 
+          month: 'short', 
+          day: 'numeric',
+          timeZone: 'UTC' // Prevent timezone issues
+        });
+      }),
       values: sortedDays.map(d => conversationsByDay.get(d) || 0)
     };
+
+    console.log('📊 Conversations by day:', {
+      totalDays: sortedDays.length,
+      dateRange: `${sortedDays[0]} to ${sortedDays[sortedDays.length - 1]}`,
+      totalConversations: conversationsOverTime.values.reduce((a, b) => a + b, 0)
+    });
 
     // RF-04.2: Messages by Assistant (model)
     const messagesByModel = messagesData.reduce((acc, msg) => {
