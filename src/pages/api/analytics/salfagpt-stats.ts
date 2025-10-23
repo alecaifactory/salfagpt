@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
-import { firestore } from '../../../lib/firestore';
+import { firestore, getEffectivenessStats } from '../../../lib/firestore';
 
 /**
  * SalfaGPT Analytics Stats API
@@ -12,9 +12,10 @@ import { firestore } from '../../../lib/firestore';
  * - RF-05: Top Users Table
  */
 
-export const POST: APIRoute = async ({ request, cookies }) => {
+export const POST: APIRoute = async (context) => {
   // Authenticate
-  const session = getSession({ cookies });
+  const session = getSession(context);
+  const { request } = context;
   if (!session) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401,
@@ -53,12 +54,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const conversationsSnapshot = await conversationsQuery.get();
-    const conversations = conversationsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.(),
-      lastMessageAt: doc.data().lastMessageAt?.toDate?.()
-    }));
+    const conversations = conversationsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        agentModel: data.agentModel,
+        createdAt: data.createdAt?.toDate?.(),
+        lastMessageAt: data.lastMessageAt?.toDate?.(),
+        ...data,
+      };
+    });
 
     // Query previous period conversations
     let prevConversationsQuery = firestore
@@ -71,6 +77,19 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     const prevConversationsSnapshot = await prevConversationsQuery.get();
+
+    // ✅ Load all users to map userId → email
+    const usersSnapshot = await firestore.collection('users').get();
+    const usersMap = new Map<string, { email: string; name: string }>();
+    usersSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      usersMap.set(doc.id, {
+        email: data.email || doc.id,
+        name: data.name || 'Unknown'
+      });
+    });
+
+    console.log(`✅ Loaded ${usersMap.size} users for email mapping`);
 
     // Get all messages for these conversations
     const conversationIds = conversations.map(c => c.id);
@@ -210,44 +229,58 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     };
 
     // RF-04.4 & RF-05.1: Top Users
-    const userMessageCount = new Map<string, { email: string; messages: number; conversations: Set<string> }>();
+    const userMessageCount = new Map<string, { 
+      userId: string;
+      email: string; 
+      messages: number; 
+      conversations: Set<string>;
+      lastMessageTime: Date;
+    }>();
     
     messagesData.forEach(msg => {
       const conv = conversations.find(c => c.id === msg.conversationId);
       if (!conv) return;
       
-      // We need to get user email - for now use userId
       const userKey = conv.userId;
       if (!userMessageCount.has(userKey)) {
+        // ✅ Map userId to real email from users collection
+        const userInfo = usersMap.get(userKey);
         userMessageCount.set(userKey, {
-          email: userKey, // TODO: Map to actual email from users collection
+          userId: userKey,
+          email: userInfo?.email || userKey,
           messages: 0,
-          conversations: new Set()
+          conversations: new Set(),
+          lastMessageTime: msg.timestamp || new Date()
         });
       }
       
       const userData = userMessageCount.get(userKey)!;
       userData.messages += 1;
       userData.conversations.add(msg.conversationId);
+      
+      // Track most recent message time
+      if (msg.timestamp && msg.timestamp > userData.lastMessageTime) {
+        userData.lastMessageTime = msg.timestamp;
+      }
     });
 
     const topUsers = Array.from(userMessageCount.values())
       .sort((a, b) => b.messages - a.messages)
       .slice(0, 10)
       .map(u => ({
-        email: u.email,
+        email: u.email, // ✅ Now shows real email
         messages: u.messages,
         conversations: u.conversations.size,
-        lastActive: new Date() // TODO: Get from last message timestamp
+        lastActive: u.lastMessageTime // ✅ Real last message time
       }));
 
     // RF-04.5: Users by Domain
     const domains = Array.from(uniqueUserIds)
       .map(uid => {
-        // Extract domain from userId (assuming format: email_domain_com)
-        const parts = uid.split('_');
-        if (parts.length >= 2) {
-          return `@${parts[parts.length - 2]}.${parts[parts.length - 1]}`;
+        // ✅ Extract domain from real email in users collection
+        const userInfo = usersMap.get(uid);
+        if (userInfo?.email && userInfo.email.includes('@')) {
+          return '@' + userInfo.email.split('@')[1];
         }
         return 'other';
       });
@@ -262,6 +295,56 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       values: Object.values(domainCounts)
     };
 
+    // ✅ NEW: Get effectiveness stats from message_ratings collection
+    const effectivenessStats = await getEffectivenessStats(
+      startDate,
+      endDate,
+      userId // Filter by user if not admin
+    );
+
+    console.log('✅ Effectiveness stats calculated:', {
+      totalRatings: effectivenessStats.totalRatings,
+      completeRate: (effectivenessStats.completeRate * 100).toFixed(1) + '%',
+      helpfulRate: (effectivenessStats.helpfulRate * 100).toFixed(1) + '%'
+    });
+
+    // ✅ Apply effectiveness filter if specified
+    let filteredMessageIds: Set<string> | null = null;
+    if (filters.effectiveness && filters.effectiveness !== 'all') {
+      try {
+        const ratingsSnapshot = await firestore
+          .collection('message_ratings')
+          .where('createdAt', '>=', startDate)
+          .where('createdAt', '<=', endDate)
+          .get();
+        
+        filteredMessageIds = new Set(
+          ratingsSnapshot.docs
+            .filter(doc => {
+              const data = doc.data();
+              if (filters.effectiveness === 'satisfactory') {
+                return data.isComplete === true && data.wasHelpful === true;
+              } else if (filters.effectiveness === 'incomplete') {
+                return data.isComplete === false || data.wasHelpful === false;
+              }
+              return true;
+            })
+            .map(doc => doc.data().messageId)
+        );
+        
+        // Filter messages based on ratings
+        if (filteredMessageIds.size > 0) {
+          messagesData = messagesData.filter(msg => filteredMessageIds!.has(msg.id));
+          console.log(`📊 Filtered by effectiveness: ${messagesData.length} messages remain`);
+        } else {
+          console.log('⚠️ No messages match effectiveness filter, showing all');
+        }
+      } catch (error) {
+        console.warn('⚠️ Error filtering by effectiveness:', error);
+        // Continue without filter if error occurs
+      }
+    }
+
     // Return analytics
     return new Response(JSON.stringify({
       kpis,
@@ -270,6 +353,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       messagesByHour,
       topUsers,
       usersByDomain,
+      effectivenessStats, // ✅ NEW: Include effectiveness data
       metadata: {
         period: {
           start: startDate.toISOString(),

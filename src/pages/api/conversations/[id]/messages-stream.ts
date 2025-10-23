@@ -69,6 +69,8 @@ export const POST: APIRoute = async ({ params, request }) => {
 
     // Create SSE stream
     const encoder = new TextEncoder();
+    const streamStartTime = Date.now(); // ✅ Track total response time
+    
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -439,7 +441,10 @@ export const POST: APIRoute = async ({ params, request }) => {
                 console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - ${chunkInfo}`);
               });
 
-              // Save message with references
+              // Calculate total response time
+              const totalResponseTime = Date.now() - streamStartTime; // ✅ Time from start to completion
+
+              // Save message with references and responseTime
               const aiMsg = await addMessage(
                 conversationId,
                 userId,
@@ -447,7 +452,8 @@ export const POST: APIRoute = async ({ params, request }) => {
                 { type: 'text', text: fullResponse },
                 Math.ceil(fullResponse.length / 4),
                 undefined, // contextSections (not used here)
-                references.length > 0 ? references : undefined // Save references!
+                references.length > 0 ? references : undefined, // Save references!
+                totalResponseTime // ✅ Save response time in milliseconds
               );
 
               // Update conversation stats
