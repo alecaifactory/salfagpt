@@ -76,6 +76,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
   const [topUsers, setTopUsers] = useState<UserActivity[]>([]);
   const [usersByDomain, setUsersByDomain] = useState<ChartData>({ labels: [], values: [] });
   const [effectivenessStats, setEffectivenessStats] = useState<any>(null); // ✅ NEW: Effectiveness stats
+  const [availableAgents, setAvailableAgents] = useState<Array<{ id: string; title: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [aiInput, setAIInput] = useState('');
@@ -114,7 +115,8 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
         setMessagesByHour(data.messagesByHour || { labels: [], values: [] });
         setTopUsers(data.topUsers || []);
         setUsersByDomain(data.usersByDomain || { labels: [], values: [] });
-        setEffectivenessStats(data.effectivenessStats || null); // ✅ NEW: Store effectiveness stats
+        setEffectivenessStats(data.effectivenessStats || null);
+        setAvailableAgents(data.availableAgents || []); // ✅ Load list of agents for filter
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -259,9 +261,12 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                   onChange={(e) => setFilters(prev => ({ ...prev, assistantFilter: e.target.value }))}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="all">Todos los Asistentes</option>
-                  <option value="flash">Flash</option>
-                  <option value="pro">Pro</option>
+                  <option value="all">Todos los Agentes</option>
+                  {availableAgents.map(agent => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.title}
+                    </option>
+                  ))}
                 </select>
 
                 <select
@@ -436,10 +441,10 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                     </div>
                   </div>
 
-                  {/* RF-4.2: Messages by Assistant */}
+                  {/* RF-4.2: Messages by Assistant (Agent) */}
                   <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="font-semibold text-gray-900 mb-1">Mensajes por Asistente</h3>
-                    <p className="text-sm text-gray-500 mb-4">Distribución de mensajes entre asistentes</p>
+                    <h3 className="font-semibold text-gray-900 mb-1">Mensajes por Agente</h3>
+                    <p className="text-sm text-gray-500 mb-4">Top 10 agentes con más interacciones</p>
                     <div className="w-full h-64">
                       <canvas id="assistantChart"></canvas>
                     </div>
