@@ -33,6 +33,7 @@ export default function UserSettingsModal({
 }: UserSettingsModalProps) {
   const [settings, setSettings] = useState<UserSettings>(currentSettings);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
@@ -40,9 +41,11 @@ export default function UserSettingsModal({
   useEffect(() => {
     if (isOpen) {
       setSettings(currentSettings);
-      // Load theme from localStorage
-      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-      setCurrentTheme(savedTheme || 'light');
+      // Load theme from currentSettings (from Firestore), fallback to localStorage, then 'light'
+      const themeFromSettings = currentSettings.theme;
+      const themeFromLocalStorage = localStorage.getItem('theme') as 'light' | 'dark' | null;
+      const finalTheme = themeFromSettings || themeFromLocalStorage || 'light';
+      setCurrentTheme(finalTheme);
     }
   }, [isOpen, currentSettings]);
 
@@ -53,15 +56,36 @@ export default function UserSettingsModal({
     onClose();
   };
 
-  const handleThemeToggle = (theme: 'light' | 'dark') => {
+  const handleThemeToggle = async (theme: 'light' | 'dark') => {
     setCurrentTheme(theme);
-    localStorage.setItem('theme', theme);
+    setIsSavingTheme(true);
     
-    // Apply theme to document
+    // Apply theme to document immediately (for instant visual feedback)
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+    
+    // Save to localStorage immediately
+    localStorage.setItem('theme', theme);
+    
+    // Update settings object
+    const updatedSettings = {
+      ...settings,
+      theme: theme,
+    };
+    setSettings(updatedSettings);
+    
+    // Save to Firestore immediately (don't wait for "Guardar Configuración")
+    try {
+      console.log('💾 Guardando tema en Firestore:', theme);
+      await onSave(updatedSettings);
+      console.log('✅ Tema guardado exitosamente');
+    } catch (error) {
+      console.error('❌ Error al guardar tema:', error);
+    } finally {
+      setIsSavingTheme(false);
     }
   };
 
@@ -259,9 +283,20 @@ export default function UserSettingsModal({
                 <span className="font-medium">Oscuro</span>
               </button>
             </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
-                El tema se guarda automáticamente y persiste entre sesiones.
-              </p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  El tema se guarda automáticamente y persiste entre sesiones.
+                </p>
+                {isSavingTheme && (
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Guardando...
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Info Box */}
