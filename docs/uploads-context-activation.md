@@ -100,15 +100,15 @@ Usuario hace click en toggle manualmente
 ### Ahora (Automático)
 
 ```
-Usuario asigna contexto → S001
+Usuario asigna contexto(s) → S001
     ↓
 API actualiza assignedToAgents: ['S001']
     ↓
-⚡ API auto-activa: activeContextSourceIds: [sourceId]
+⚡ API auto-activa: activeContextSourceIds: [sourceId(s)]
     ↓
-✅ Usuario ve: "1 asignada, 1 activa"
+✅ Usuario ve: "N asignadas, N activas"
     ↓
-✅ Fuente lista para usar inmediatamente
+✅ Fuentes listas para usar inmediatamente
 ```
 
 ---
@@ -165,6 +165,25 @@ Ahora: 1 activa ✅
 }
 ```
 
+### Test 3: Bulk assign multiple (3 documentos)
+
+**Agente:** S001 (ID: `AjtQZEIMQvFnPRJRjl4y`)  
+**Documentos:** 3 PDFs asignados simultáneamente
+
+**Logs del servidor:**
+```
+⚡ Auto-activating sources for assigned agents...
+   ✅ Activated 1 sources for agent AjtQZEIMQvFnPRJRjl4y
+✅ Auto-activated 1 total source assignments
+
+✅ Context stats for agent AjtQZEIMQvFnPRJRjl4y: {
+  totalCount: 3,
+  activeCount: 3,  // ✅ Las 3 activas automáticamente!
+}
+```
+
+**Resultado:** 100% de fuentes activadas automáticamente al asignar
+
 ---
 
 ## 🎯 Impacto
@@ -219,7 +238,10 @@ Ahora: 1 activa ✅
 
 ```
 src/pages/api/context-sources/bulk-assign.ts (líneas 113-148)
-  └─ Agregado: Auto-activación para agentes asignados
+  └─ Agregado: Auto-activación para un solo source a múltiples agentes
+
+src/pages/api/context-sources/bulk-assign-multiple.ts (líneas 127-164)
+  └─ Agregado: Auto-activación para múltiples sources a múltiples agentes
 ```
 
 ---
