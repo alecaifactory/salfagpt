@@ -62,6 +62,19 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    // 🔑 CRITICAL: Determine effective agent ID (for chats, use parent agent)
+    let effectiveAgentId = conversationId;
+    let isChat = false;
+    
+    if (!conversationId.startsWith('temp-')) {
+      const conversation = await getConversation(conversationId);
+      if (conversation?.agentId) {
+        effectiveAgentId = conversation.agentId;
+        isChat = true;
+        console.log(`🔗 Chat detected (${conversationId}) - using parent agent ${effectiveAgentId} for context`);
+      }
+    }
+
     // Build additional context from active sources
     // RAG MODE ONLY: Full-text mode is disabled
     let additionalContext = '';
@@ -82,6 +95,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         try {
           console.log('🔍 Attempting RAG search...');
           console.log(`  Configuration: topK=${ragTopK}, minSimilarity=${ragMinSimilarity}`);
+          console.log(`  Effective Agent ID: ${effectiveAgentId}${isChat ? ' (chat parent)' : ' (direct agent)'}`);
           
           // ✅ NEW: Use optimized search (BigQuery first, Firestore fallback)
           const searchResult = await searchRelevantChunksOptimized(userId, message, {

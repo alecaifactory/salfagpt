@@ -2391,6 +2391,51 @@ export async function userHasAccessToAgent(
 }
 
 /**
+ * Get the effective owner userId for context source access
+ * 
+ * When an agent is shared:
+ * - User's own conversations use their userId
+ * - Shared agents use the original owner's userId
+ * 
+ * This ensures shared agents have access to the owner's context sources
+ */
+export async function getEffectiveOwnerForContext(
+  agentId: string,
+  currentUserId: string
+): Promise<string> {
+  try {
+    // Get the agent/conversation
+    const agent = await getConversation(agentId);
+    
+    if (!agent) {
+      console.warn('⚠️ Agent not found, using current user:', agentId);
+      return currentUserId;
+    }
+    
+    // If current user is the owner, use their ID
+    if (agent.userId === currentUserId) {
+      return currentUserId;
+    }
+    
+    // If not owner, check if it's a shared agent
+    const access = await userHasAccessToAgent(currentUserId, agentId);
+    
+    if (access.hasAccess) {
+      // Shared agent → use original owner's ID for context
+      console.log(`🔗 Agent compartido: usando contexto del dueño original ${agent.userId}`);
+      return agent.userId;
+    }
+    
+    // No access → use current user (will return empty)
+    console.warn('⚠️ User has no access to agent, using current user:', currentUserId);
+    return currentUserId;
+  } catch (error) {
+    console.error('❌ Error getting effective owner:', error);
+    return currentUserId;
+  }
+}
+
+/**
  * Update agent share
  */
 export async function updateAgentShare(

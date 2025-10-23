@@ -18,7 +18,7 @@
 
 import { BigQuery } from '@google-cloud/bigquery';
 import { generateEmbedding } from './embeddings';
-import { firestore, COLLECTIONS } from './firestore';
+import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from './firestore';
 import { CURRENT_PROJECT_ID } from './firestore';
 
 const PROJECT_ID = CURRENT_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
@@ -72,11 +72,16 @@ export async function searchByAgent(
 
   try {
     console.log('🔍 BigQuery Agent Search starting...');
+    console.log(`  Current User: ${userId}`);
     console.log(`  Agent: ${agentId}`);
     console.log(`  Query: "${query.substring(0, 100)}..."`);
     console.log(`  TopK: ${topK}, MinSimilarity: ${minSimilarity}`);
     
     const startTime = Date.now();
+
+    // 🔑 CRITICAL: Get effective owner (original owner if shared, else current user)
+    const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
+    console.log(`  🔑 Effective owner for context: ${effectiveUserId}${effectiveUserId !== userId ? ' (shared agent)' : ' (own agent)'}`);
 
     // 1. Generate query embedding
     console.log('  1/4 Generating query embedding...');
@@ -98,14 +103,14 @@ export async function searchByAgent(
           SELECT DISTINCT sourceId
           FROM \`${PROJECT_ID}.${DATASET_ID}.agent_source_assignments\`
           WHERE agentId = @agentId
-            AND userId = @userId
+            AND userId = @effectiveUserId
             AND isActive = true
           ORDER BY assignedAt DESC
         `;
         
         const [rows] = await bigquery.query({
           query,
-          params: { agentId, userId }
+          params: { agentId, effectiveUserId }
         });
         
         assignedSourceIds = rows.map((row: any) => row.sourceId);
@@ -119,7 +124,7 @@ export async function searchByAgent(
     if (assignedSourceIds.length === 0) {
       const sourcesSnapshot = await firestore
         .collection(COLLECTIONS.CONTEXT_SOURCES)
-        .where('userId', '==', userId)
+        .where('userId', '==', effectiveUserId) // ✅ Use effective owner
         .where('assignedToAgents', 'array-contains', agentId)
         .select('__name__') // Only get IDs, not full documents
         .get();
@@ -157,7 +162,7 @@ export async function searchByAgent(
               ON pos = pos2
           ) AS similarity
         FROM \`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\`
-        WHERE user_id = @userId
+        WHERE user_id = @effectiveUserId
           AND source_id IN UNNEST(@assignedSourceIds)
       )
       SELECT 
@@ -177,7 +182,7 @@ export async function searchByAgent(
     const [rows] = await bigquery.query({
       query: sqlQuery,
       params: {
-        userId,
+        effectiveUserId, // ✅ Use effective owner for shared agents
         assignedSourceIds,
         queryEmbedding,
         minSimilarity,
