@@ -88,6 +88,7 @@ export const COLLECTIONS = {
   CONVERSATION_CONTEXT: 'conversation_context', // NEW: Context state per conversation
   USAGE_LOGS: 'usage_logs',                    // NEW: Usage tracking
   AGENT_SHARES: 'agent_shares',                // NEW: Agent sharing permissions
+  MESSAGE_RATINGS: 'message_ratings',          // ✅ NEW: Message ratings and effectiveness tracking
 } as const;
 
 // Types
@@ -120,6 +121,7 @@ export interface Message {
   content: MessageContent;
   timestamp: Date;
   tokenCount: number;
+  responseTime?: number; // ✅ NEW: Response time in milliseconds (for assistant messages)
   contextSections?: ContextSection[];
   references?: Array<{
     id: number;
@@ -160,6 +162,27 @@ export interface ContextSection {
   tokenCount: number;
   content: string;
   collapsed: boolean;
+}
+
+// ✅ NEW: Message Rating (for effectiveness tracking)
+export interface MessageRating {
+  id: string;                    // Document ID
+  messageId: string;             // Message being rated
+  conversationId: string;        // Parent conversation
+  userId: string;                // User who rated
+  
+  // Rating fields
+  rating: 'positive' | 'negative' | 'neutral';
+  wasHelpful: boolean;           // Was the response helpful?
+  isComplete: boolean;           // Was the response complete?
+  
+  // Optional detailed feedback
+  feedback?: string;
+  categories?: string[];         // E.g., ['impreciso', 'lento', 'excelente']
+  
+  // Metadata
+  createdAt: Date;
+  source: 'localhost' | 'production';
 }
 
 export interface Folder {
@@ -232,6 +255,7 @@ export interface UserSettings {
   preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   systemPrompt: string;
   language: string;
+  theme?: 'light' | 'dark';                    // Theme preference (default: 'light')
   createdAt: Date;
   updatedAt: Date;
   source?: 'localhost' | 'production';
@@ -437,7 +461,8 @@ export async function addMessage(
       startPage?: number;
       endPage?: number;
     };
-  }>
+  }>,
+  responseTime?: number // ✅ NEW: Response time in milliseconds
 ): Promise<Message> {
   const messageRef = firestore.collection(COLLECTIONS.MESSAGES).doc();
   
@@ -449,6 +474,7 @@ export async function addMessage(
     content,
     timestamp: new Date(),
     tokenCount,
+    ...(responseTime !== undefined && { responseTime }), // ✅ Include responseTime if provided
     ...(contextSections !== undefined && { contextSections }), // Only include if defined
     ...(references !== undefined && { references }), // Only include if defined
     source: getEnvironmentSource(), // Track source for analytics
@@ -2392,6 +2418,215 @@ export async function deleteAgentShare(shareId: string): Promise<void> {
     .delete();
     
   console.log(`🗑️ Agent share deleted:`, shareId);
+}
+
+// ========================================
+// Message Rating Operations (NEW)
+// ========================================
+
+/**
+ * Create or update message rating
+ * Used for tracking effectiveness and user satisfaction
+ */
+export async function rateMessage(
+  messageId: string,
+  conversationId: string,
+  userId: string,
+  rating: 'positive' | 'negative' | 'neutral',
+  wasHelpful: boolean,
+  isComplete: boolean,
+  feedback?: string,
+  categories?: string[]
+): Promise<MessageRating> {
+  const now = new Date();
+  
+  // Check if rating already exists for this message+user
+  const existingSnapshot = await firestore
+    .collection(COLLECTIONS.MESSAGE_RATINGS)
+    .where('messageId', '==', messageId)
+    .where('userId', '==', userId)
+    .limit(1)
+    .get();
+  
+  const ratingData = {
+    messageId,
+    conversationId,
+    userId,
+    rating,
+    wasHelpful,
+    isComplete,
+    ...(feedback && { feedback }),
+    ...(categories && { categories }),
+    createdAt: now,
+    source: getEnvironmentSource(),
+  };
+  
+  if (!existingSnapshot.empty) {
+    // Update existing rating
+    const existingDoc = existingSnapshot.docs[0];
+    await firestore
+      .collection(COLLECTIONS.MESSAGE_RATINGS)
+      .doc(existingDoc.id)
+      .update({
+        ...ratingData,
+        updatedAt: now,
+      });
+    
+    console.log(`✅ Message rating updated: ${messageId}`);
+    
+    return {
+      id: existingDoc.id,
+      ...ratingData,
+    };
+  } else {
+    // Create new rating
+    const ratingRef = firestore.collection(COLLECTIONS.MESSAGE_RATINGS).doc();
+    await ratingRef.set(ratingData);
+    
+    console.log(`✅ Message rating created: ${messageId}`);
+    
+    return {
+      id: ratingRef.id,
+      ...ratingData,
+    };
+  }
+}
+
+/**
+ * Get rating for a specific message
+ */
+export async function getMessageRating(
+  messageId: string,
+  userId: string
+): Promise<MessageRating | null> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.MESSAGE_RATINGS)
+      .where('messageId', '==', messageId)
+      .where('userId', '==', userId)
+      .limit(1)
+      .get();
+    
+    if (snapshot.empty) {
+      return null;
+    }
+    
+    const doc = snapshot.docs[0];
+    const data = doc.data();
+    
+    return {
+      id: doc.id,
+      messageId: data.messageId,
+      conversationId: data.conversationId,
+      userId: data.userId,
+      rating: data.rating,
+      wasHelpful: data.wasHelpful,
+      isComplete: data.isComplete,
+      feedback: data.feedback,
+      categories: data.categories,
+      createdAt: data.createdAt.toDate(),
+      source: data.source,
+    };
+  } catch (error) {
+    console.error('Error getting message rating:', error);
+    return null;
+  }
+}
+
+/**
+ * Get all ratings for a conversation
+ */
+export async function getConversationRatings(
+  conversationId: string
+): Promise<MessageRating[]> {
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.MESSAGE_RATINGS)
+      .where('conversationId', '==', conversationId)
+      .orderBy('createdAt', 'desc')
+      .get();
+    
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        messageId: data.messageId,
+        conversationId: data.conversationId,
+        userId: data.userId,
+        rating: data.rating,
+        wasHelpful: data.wasHelpful,
+        isComplete: data.isComplete,
+        feedback: data.feedback,
+        categories: data.categories,
+        createdAt: data.createdAt.toDate(),
+        source: data.source,
+      };
+    });
+  } catch (error) {
+    console.error('Error getting conversation ratings:', error);
+    return [];
+  }
+}
+
+/**
+ * Get effectiveness stats for analytics
+ */
+export async function getEffectivenessStats(
+  startDate: Date,
+  endDate: Date,
+  userId?: string
+): Promise<{
+  totalRatings: number;
+  positiveCount: number;
+  negativeCount: number;
+  helpfulCount: number;
+  completeCount: number;
+  positiveRate: number;
+  helpfulRate: number;
+  completeRate: number;
+}> {
+  try {
+    let query = firestore
+      .collection(COLLECTIONS.MESSAGE_RATINGS)
+      .where('createdAt', '>=', startDate)
+      .where('createdAt', '<=', endDate);
+    
+    if (userId) {
+      query = query.where('userId', '==', userId);
+    }
+    
+    const snapshot = await query.get();
+    const ratings = snapshot.docs.map(doc => doc.data());
+    
+    const totalRatings = ratings.length;
+    const positiveCount = ratings.filter(r => r.rating === 'positive').length;
+    const negativeCount = ratings.filter(r => r.rating === 'negative').length;
+    const helpfulCount = ratings.filter(r => r.wasHelpful).length;
+    const completeCount = ratings.filter(r => r.isComplete).length;
+    
+    return {
+      totalRatings,
+      positiveCount,
+      negativeCount,
+      helpfulCount,
+      completeCount,
+      positiveRate: totalRatings > 0 ? positiveCount / totalRatings : 0,
+      helpfulRate: totalRatings > 0 ? helpfulCount / totalRatings : 0,
+      completeRate: totalRatings > 0 ? completeCount / totalRatings : 0,
+    };
+  } catch (error) {
+    console.error('Error calculating effectiveness stats:', error);
+    return {
+      totalRatings: 0,
+      positiveCount: 0,
+      negativeCount: 0,
+      helpfulCount: 0,
+      completeCount: 0,
+      positiveRate: 0,
+      helpfulRate: 0,
+      completeRate: 0,
+    };
+  }
 }
 
 

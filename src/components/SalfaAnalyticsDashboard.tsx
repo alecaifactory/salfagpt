@@ -75,6 +75,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
   const [messagesByHour, setMessagesByHour] = useState<ChartData>({ labels: [], values: [] });
   const [topUsers, setTopUsers] = useState<UserActivity[]>([]);
   const [usersByDomain, setUsersByDomain] = useState<ChartData>({ labels: [], values: [] });
+  const [effectivenessStats, setEffectivenessStats] = useState<any>(null); // ✅ NEW: Effectiveness stats
   const [loading, setLoading] = useState(true);
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const [aiInput, setAIInput] = useState('');
@@ -99,6 +100,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
             startDate: filters.dateRange.start.toISOString(),
             endDate: filters.dateRange.end.toISOString(),
             assistant: filters.assistantFilter !== 'all' ? filters.assistantFilter : undefined,
+            effectiveness: filters.effectivenessFilter, // ✅ NEW: Pass effectiveness filter
             domain: filters.domainFilter !== 'all' ? filters.domainFilter : undefined,
           }
         })
@@ -112,6 +114,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
         setMessagesByHour(data.messagesByHour || { labels: [], values: [] });
         setTopUsers(data.topUsers || []);
         setUsersByDomain(data.usersByDomain || { labels: [], values: [] });
+        setEffectivenessStats(data.effectivenessStats || null); // ✅ NEW: Store effectiveness stats
       }
     } catch (error) {
       console.error('Error loading analytics:', error);
@@ -262,6 +265,16 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                 </select>
 
                 <select
+                  value={filters.effectivenessFilter}
+                  onChange={(e) => setFilters(prev => ({ ...prev, effectivenessFilter: e.target.value as any }))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">Toda la efectividad</option>
+                  <option value="satisfactory">Satisfactoria</option>
+                  <option value="incomplete">Incompleta</option>
+                </select>
+
+                <select
                   value={filters.domainFilter}
                   onChange={(e) => setFilters(prev => ({ ...prev, domainFilter: e.target.value }))}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
@@ -304,6 +317,37 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
                     </div>
                   ))}
                 </div>
+
+                {/* ✅ NEW: Effectiveness Stats Card (if data available) */}
+                {effectivenessStats && effectivenessStats.totalRatings > 0 && (
+                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h3 className="font-semibold text-gray-900 mb-4">Estadísticas de Efectividad</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Total Evaluaciones</p>
+                        <p className="text-2xl font-bold text-gray-900">{effectivenessStats.totalRatings}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Respuestas Completas</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {(effectivenessStats.completeRate * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Fueron Útiles</p>
+                        <p className="text-2xl font-bold text-blue-600">
+                          {(effectivenessStats.helpfulRate * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Positivas</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {(effectivenessStats.positiveRate * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* RF-06: AI Assistant */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
