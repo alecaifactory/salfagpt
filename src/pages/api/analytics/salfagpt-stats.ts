@@ -39,7 +39,8 @@ export const POST: APIRoute = async (context) => {
       userId,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
-      previousPeriod: `${previousStartDate.toISOString()} - ${previousEndDate.toISOString()}`
+      previousPeriod: `${previousStartDate.toISOString()} - ${previousEndDate.toISOString()}`,
+      assistantFilter: filters.assistant || 'all'
     });
 
     // Query conversations in date range
@@ -52,19 +53,33 @@ export const POST: APIRoute = async (context) => {
     if (userId) {
       conversationsQuery = conversationsQuery.where('userId', '==', userId);
     }
+    
+    // ✅ Filter by specific agent if selected
+    let specificAgentId: string | null = null;
+    if (filters.assistant && filters.assistant !== 'all') {
+      specificAgentId = filters.assistant;
+      // We'll filter conversations after loading (can't use where for document ID)
+    }
 
     const conversationsSnapshot = await conversationsQuery.get();
-    const conversations = conversationsSnapshot.docs.map(doc => {
+    let conversations = conversationsSnapshot.docs.map(doc => {
       const data = doc.data();
       return {
         id: doc.id,
         userId: data.userId,
+        title: data.title,
         agentModel: data.agentModel,
         createdAt: data.createdAt?.toDate?.(),
         lastMessageAt: data.lastMessageAt?.toDate?.(),
         ...data,
       };
     });
+    
+    // ✅ Apply agent filter if specified
+    if (specificAgentId) {
+      conversations = conversations.filter(c => c.id === specificAgentId);
+      console.log(`📊 Filtered to specific agent: ${specificAgentId} (${conversations.length} conversations)`);
+    }
 
     // Query previous period conversations
     let prevConversationsQuery = firestore
@@ -232,20 +247,33 @@ export const POST: APIRoute = async (context) => {
       totalConversations: conversationsOverTime.values.reduce((a, b) => a + b, 0)
     });
 
-    // RF-04.2: Messages by Assistant (model)
-    const messagesByModel = messagesData.reduce((acc, msg) => {
-      // Get model from parent conversation
+    // RF-04.2: Messages by Assistant (Agent)
+    // Count messages per agent (conversation)
+    const messagesByAgent = messagesData.reduce((acc, msg) => {
       const conv = conversations.find(c => c.id === msg.conversationId);
-      const model = conv?.agentModel || 'gemini-2.5-flash';
-      const modelName = model.includes('pro') ? 'Pro' : 'Flash';
-      acc[modelName] = (acc[modelName] || 0) + 1;
+      if (!conv) return acc;
+      
+      // Use conversation title as agent name
+      const agentName = conv.title || 'Sin nombre';
+      acc[agentName] = (acc[agentName] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
+    // Sort by message count and take top 10 agents
+    const sortedAgents = Object.entries(messagesByAgent)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10);
+
     const messagesByAssistant = {
-      labels: Object.keys(messagesByModel),
-      values: Object.values(messagesByModel)
+      labels: sortedAgents.map(([name]) => name),
+      values: sortedAgents.map(([, count]) => count)
     };
+
+    console.log('📊 Messages by agent (top 10):', {
+      totalAgents: Object.keys(messagesByAgent).length,
+      topAgent: sortedAgents[0]?.[0],
+      topAgentMessages: sortedAgents[0]?.[1]
+    });
 
     // RF-04.3: Messages by Hour
     const messagesByHourMap = new Map<number, number>();
@@ -380,6 +408,16 @@ export const POST: APIRoute = async (context) => {
       }
     }
 
+    // ✅ Build list of available agents for filter dropdown
+    const availableAgents = conversations
+      .map(c => ({ id: c.id, title: c.title || 'Sin nombre' }))
+      .filter((agent, index, self) => 
+        // Remove duplicates by id
+        index === self.findIndex(a => a.id === agent.id)
+      )
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .slice(0, 50); // Limit to 50 for performance
+
     // Return analytics
     return new Response(JSON.stringify({
       kpis,
@@ -388,7 +426,8 @@ export const POST: APIRoute = async (context) => {
       messagesByHour,
       topUsers,
       usersByDomain,
-      effectivenessStats, // ✅ NEW: Include effectiveness data
+      effectivenessStats,
+      availableAgents, // ✅ NEW: List of agents for filter dropdown
       metadata: {
         period: {
           start: startDate.toISOString(),
