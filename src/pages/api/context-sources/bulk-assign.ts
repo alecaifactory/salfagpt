@@ -110,12 +110,50 @@ export const POST: APIRoute = async (context) => {
       }
     });
 
+    // 5. ✅ AUTO-ACTIVATE: When assigning to agents, activate by default
+    console.log('⚡ Auto-activating source for assigned agents...');
+    let activatedCount = 0;
+    
+    for (const agentId of agentIds) {
+      try {
+        // Get current active sources for this agent
+        const contextRef = firestore.collection(COLLECTIONS.CONVERSATION_CONTEXT).doc(agentId);
+        const contextDoc = await contextRef.get();
+        
+        const currentActiveIds = contextDoc.exists
+          ? (contextDoc.data()?.activeContextSourceIds || [])
+          : [];
+        
+        // Add this source if not already active
+        if (!currentActiveIds.includes(sourceId)) {
+          const newActiveIds = [...currentActiveIds, sourceId];
+          
+          await contextRef.set({
+            conversationId: agentId,
+            activeContextSourceIds: newActiveIds,
+            lastUsedAt: new Date(),
+            updatedAt: new Date(),
+          }, { merge: true });
+          
+          activatedCount++;
+          console.log(`   ✅ Activated for agent ${agentId}`);
+        } else {
+          console.log(`   ℹ️ Already active for agent ${agentId}`);
+        }
+      } catch (error) {
+        console.warn(`   ⚠️ Failed to activate for agent ${agentId}:`, error);
+      }
+    }
+    
+    console.log(`✅ Auto-activated source for ${activatedCount} agents`);
+
     // 6. Return success
     return new Response(
       JSON.stringify({
         success: true,
         sourceId,
         assignedCount: agentIds.length,
+        activatedCount,
       }),
       {
         status: 200,
