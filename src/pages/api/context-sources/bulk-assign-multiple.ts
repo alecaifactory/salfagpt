@@ -124,6 +124,45 @@ export const POST: APIRoute = async (context) => {
       console.log('   Match:', JSON.stringify(sampleData?.assignedToAgents) === JSON.stringify(agentIds));
     }
 
+    // 5.5. ✅ AUTO-ACTIVATE: When assigning to agents, activate by default
+    console.log('⚡ Auto-activating sources for assigned agents...');
+    let totalActivations = 0;
+    
+    for (const agentId of agentIds) {
+      try {
+        // Get current active sources for this agent
+        const contextRef = firestore.collection(COLLECTIONS.CONVERSATION_CONTEXT).doc(agentId);
+        const contextDoc = await contextRef.get();
+        
+        const currentActiveIds = contextDoc.exists
+          ? (contextDoc.data()?.activeContextSourceIds || [])
+          : [];
+        
+        // Add all newly assigned sources that aren't already active
+        const newSourcesToActivate = sourceIds.filter((id: string) => !currentActiveIds.includes(id));
+        
+        if (newSourcesToActivate.length > 0) {
+          const allActiveIds = [...currentActiveIds, ...newSourcesToActivate];
+          
+          await contextRef.set({
+            conversationId: agentId,
+            activeContextSourceIds: allActiveIds,
+            lastUsedAt: new Date(),
+            updatedAt: new Date(),
+          }, { merge: true });
+          
+          totalActivations += newSourcesToActivate.length;
+          console.log(`   ✅ Activated ${newSourcesToActivate.length} sources for agent ${agentId}`);
+        } else {
+          console.log(`   ℹ️ All ${sourceIds.length} sources already active for agent ${agentId}`);
+        }
+      } catch (error) {
+        console.warn(`   ⚠️ Failed to activate sources for agent ${agentId}:`, error);
+      }
+    }
+    
+    console.log(`✅ Auto-activated ${totalActivations} total source assignments`);
+
     // 6. Return success
     return new Response(
       JSON.stringify({
@@ -133,6 +172,7 @@ export const POST: APIRoute = async (context) => {
         batches: batches.length,
         responseTime: totalElapsed,
         avgPerSource: Math.round(totalElapsed / sourceIds.length),
+        activatedCount: totalActivations,
       }),
       {
         status: 200,
