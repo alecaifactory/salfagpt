@@ -48,6 +48,9 @@ export default function MessageRenderer({
 
     let processed = content;
     
+    // Track which references have been shown (to show percentage only on first occurrence)
+    const shownReferences = new Set<number>();
+    
     // First, try to replace existing [1], [2] markers if AI included them
     references.forEach(ref => {
       const pattern = new RegExp(`\\[${ref.id}\\]`, 'g');
@@ -59,13 +62,21 @@ export default function MessageRenderer({
         : 'bg-orange-100 text-orange-700 border-orange-400 hover:bg-orange-200'
         : 'bg-blue-100 text-blue-700 border-blue-400 hover:bg-blue-200';
       
-      const similarityBadge = ref.similarity !== undefined
-        ? `<span class="ml-1 text-[9px] font-black">${(ref.similarity * 100).toFixed(0)}%</span>`
-        : '';
-      
+      // Custom replacer function to show percentage only on first occurrence
+      let replacementCount = 0;
       processed = processed.replace(
         pattern, 
-        `<sup><span class="reference-badge inline-flex items-center px-2 py-1 mx-1 ${similarityColor} rounded-lg font-bold text-sm border-2 cursor-pointer transition-all shadow-sm hover:shadow-md" data-ref-id="${ref.id}" title="Click para ver detalles del fragmento - Similitud: ${ref.similarity ? (ref.similarity * 100).toFixed(1) + '%' : 'N/A'}">[${ref.id}]${similarityBadge}</span></sup>`
+        (match) => {
+          replacementCount++;
+          const isFirstOccurrence = replacementCount === 1;
+          
+          // Only show percentage badge on first occurrence
+          const similarityBadge = isFirstOccurrence && ref.similarity !== undefined
+            ? `<span class="ml-1 text-[9px] font-black">${(ref.similarity * 100).toFixed(0)}%</span>`
+            : '';
+          
+          return `<sup><span class="reference-badge inline-flex items-center px-2 py-1 mx-1 ${similarityColor} rounded-lg font-bold text-sm border-2 cursor-pointer transition-all shadow-sm hover:shadow-md" data-ref-id="${ref.id}" title="Click para ver detalles del fragmento - Similitud: ${ref.similarity ? (ref.similarity * 100).toFixed(1) + '%' : 'N/A'}">[${ref.id}]${similarityBadge}</span></sup>`;
+        }
       );
     });
     
