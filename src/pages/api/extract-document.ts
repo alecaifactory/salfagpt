@@ -34,6 +34,7 @@ export const POST: APIRoute = async ({ request }) => {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const model = formData.get('model') as string || 'gemini-2.5-flash';
+    const extractionMethod = formData.get('extractionMethod') as string || 'gemini'; // 'gemini' or 'vision-api'
 
     if (!file) {
       return new Response(
@@ -113,15 +114,46 @@ export const POST: APIRoute = async ({ request }) => {
     
     console.log(`✅ File saved to storage: ${storageResult.storagePath}`);
     
-    // STEP 2: Process with Gemini
-    console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
+    // STEP 2: Extract text (Gemini or Vision API)
     const extractStepStart = Date.now();
-    pipelineLogs.push({
-      step: 'extract',
-      status: 'in_progress',
-      startTime: new Date(extractStepStart),
-      message: `Extrayendo texto con ${model}...`,
-    });
+    let extractedText = '';
+    let extractionTime = 0;
+    let extractionMetadata: any = {};
+    
+    if (extractionMethod === 'vision-api' && file.type === 'application/pdf') {
+      // Use Google Cloud Vision API for PDFs
+      console.log('👁️ Step 2/3: Extracting text with Google Cloud Vision API...');
+      pipelineLogs.push({
+        step: 'extract',
+        status: 'in_progress',
+        startTime: new Date(extractStepStart),
+        message: 'Extrayendo texto con Vision API...',
+      });
+      
+      const { extractTextWithVisionAPI } = await import('../../lib/vision-extraction.js');
+      const visionResult = await extractTextWithVisionAPI(buffer);
+      
+      extractedText = visionResult.text;
+      extractionTime = visionResult.extractionTime;
+      extractionMetadata = {
+        method: 'vision-api',
+        confidence: visionResult.confidence,
+        pages: visionResult.pages,
+        language: visionResult.language,
+      };
+      
+      console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
+      console.log(`  Confidence: ${(visionResult.confidence * 100).toFixed(1)}%`);
+      
+    } else {
+      // Use Gemini AI (default)
+      console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
+      pipelineLogs.push({
+        step: 'extract',
+        status: 'in_progress',
+        startTime: new Date(extractStepStart),
+        message: `Extrayendo texto con ${model}...`,
+      });
     
     const base64Data = buffer.toString('base64');
 
@@ -250,21 +282,35 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
       },
     });
 
-    const extractStepEnd = Date.now();
-    const extractionTime = extractStepEnd - extractStepStart;
-    const extractedText = result.text || '';
-    
-    // Calculate token usage
-    const outputTokens = estimateTokens(extractedText);
-    const inputTokens = estimateTokens(base64Data); // Approximate
-    const totalTokens = inputTokens + outputTokens;
-    
-    // Calculate costs
-    const costBreakdown = calculateGeminiCost(
-      inputTokens, 
-      outputTokens, 
-      model as 'gemini-2.5-pro' | 'gemini-2.5-flash'
-    );
+      const extractStepEnd = Date.now();
+      extractionTime = extractStepEnd - extractStepStart;
+      extractedText = result.text || '';
+      
+      // Calculate token usage
+      const outputTokens = estimateTokens(extractedText);
+      const inputTokens = estimateTokens(base64Data); // Approximate
+      const totalTokens = inputTokens + outputTokens;
+      
+      // Calculate costs
+      const costBreakdown = calculateGeminiCost(
+        inputTokens, 
+        outputTokens, 
+        model as 'gemini-2.5-pro' | 'gemini-2.5-flash'
+      );
+      
+      extractionMetadata = {
+        method: 'gemini',
+        model,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        cost: costBreakdown.totalCost,
+      };
+      
+      console.log(`✅ Gemini extraction: ${extractedText.length} chars in ${extractionTime}ms`);
+      console.log(`📊 Tokens: ${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output`);
+      console.log(`💰 Cost: $${costBreakdown.totalCost.toFixed(3)}`);
+    }
 
     // ✅ CRITICAL: Validate extraction success - don't mark empty as successful
     if (!extractedText || extractedText.trim().length === 0) {
