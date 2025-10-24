@@ -454,7 +454,7 @@ export default function ContextManagementDashboard({
         formData.append('userId', userId);
         formData.append('name', item.file.name);
         formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
-        formData.append('extractionMethod', 'gemini'); // Use Gemini (Vision API needs more work)
+        formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
 
         // Upload stage (0-25%)
         setUploadQueue(prev => prev.map(i => 
@@ -542,8 +542,8 @@ export default function ContextManagementDashboard({
               credentials: 'include', // ✅ FIX: Include cookies for authentication
               body: JSON.stringify({
                 userId,
-                chunkSize: 1000, // Updated for better technical doc chunking
-                overlap: 250,    // Maximum context preservation
+                chunkSize: 2000, // Optimal for technical procedures (keeps sections together)
+                overlap: 500,    // Maximum context continuity (prevents information loss at boundaries)
               }),
             });
 

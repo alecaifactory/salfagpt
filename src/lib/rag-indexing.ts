@@ -35,8 +35,8 @@ export async function chunkAndIndexDocument(
     userId,
     sourceName,
     text,
-    chunkSize = 1000,  // Default: 1000 tokens per chunk (better for technical docs like SSOMA)
-    overlap = 250,     // Default: 250 tokens overlap (maximum context preservation)
+    chunkSize = 2000,  // Default: 2000 tokens per chunk (optimal for technical procedures like SSOMA)
+    overlap = 500,     // Default: 500 tokens overlap (maximum context continuity across chunks)
   } = options;
 
   const startTime = Date.now();

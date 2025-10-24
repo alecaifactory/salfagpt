@@ -2043,7 +2043,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         formData.append('file', file);
         formData.append('type', type);
         formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
-        formData.append('extractionMethod', 'gemini'); // Use Gemini (Vision API needs more work)
+        formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
 
         console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with Gemini Pro`);
 

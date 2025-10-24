@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     const sourceId = params.id;
     const body = await request.json();
-    const { userId, chunkSize = 1000, overlap = 250 } = body;
+    const { userId, chunkSize = 2000, overlap = 500 } = body;
 
     if (!sourceId || !userId) {
       return new Response(

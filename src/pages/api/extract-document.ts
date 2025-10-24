@@ -34,7 +34,7 @@ export const POST: APIRoute = async ({ request }) => {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const model = formData.get('model') as string || 'gemini-2.5-flash';
-    const extractionMethod = formData.get('extractionMethod') as string || 'gemini'; // 'gemini' or 'vision-api'
+    let extractionMethod = formData.get('extractionMethod') as string || 'vision-api'; // ✅ DEFAULT TO VISION API (using let to allow fallback)
 
     if (!file) {
       return new Response(
@@ -116,9 +116,17 @@ export const POST: APIRoute = async ({ request }) => {
     
     // STEP 2: Extract text (Gemini or Vision API)
     const extractStepStart = Date.now();
+    let extractStepEnd = extractStepStart; // ✅ Initialize
     let extractedText = '';
     let extractionTime = 0;
     let extractionMetadata: any = {};
+    
+    // Initialize token tracking variables (used by both paths)
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let totalTokens = 0;
+    let costBreakdown = { inputCost: 0, outputCost: 0, totalCost: 0 };
+    let maxOutputTokens = 8192; // Default
     
     if (extractionMethod === 'vision-api' && file.type === 'application/pdf') {
       // Use Google Cloud Vision API for PDFs
@@ -135,11 +143,30 @@ export const POST: APIRoute = async ({ request }) => {
       
       extractedText = visionResult.text;
       extractionTime = visionResult.extractionTime;
+      extractStepEnd = Date.now(); // ✅ Track end time
+      
+      // Calculate token estimates for Vision API path
+      outputTokens = estimateTokens(extractedText);
+      inputTokens = 0; // Vision API doesn't use token-based input
+      totalTokens = outputTokens;
+      
+      // Vision API cost (different pricing)
+      const visionCost = 0.024; // ~$0.024 per document (estimated)
+      costBreakdown = {
+        inputCost: 0,
+        outputCost: visionCost,
+        totalCost: visionCost,
+      };
+      
       extractionMetadata = {
         method: 'vision-api',
         confidence: visionResult.confidence,
         pages: visionResult.pages,
         language: visionResult.language,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        cost: visionCost,
       };
       
       console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
@@ -193,7 +220,7 @@ export const POST: APIRoute = async ({ request }) => {
       }
     };
 
-    const maxOutputTokens = calculateMaxOutputTokens(file.size, model);
+    maxOutputTokens = calculateMaxOutputTokens(file.size, model);
     const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
 
     console.log(`🎯 File: ${file.name} (${fileSizeMB} MB)`);
@@ -292,16 +319,17 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
       },
     });
 
-      extractionTime = Date.now() - extractStepStart;
+      extractStepEnd = Date.now(); // ✅ Track end time
+      extractionTime = extractStepEnd - extractStepStart;
       extractedText = result.text || '';
       
       // Calculate token usage
-      const outputTokens = estimateTokens(extractedText);
-      const inputTokens = estimateTokens(base64Data); // Approximate
-      const totalTokens = inputTokens + outputTokens;
+      outputTokens = estimateTokens(extractedText);
+      inputTokens = estimateTokens(base64Data); // Approximate
+      totalTokens = inputTokens + outputTokens;
       
       // Calculate costs
-      const costBreakdown = calculateGeminiCost(
+      costBreakdown = calculateGeminiCost(
         inputTokens, 
         outputTokens, 
         model as 'gemini-2.5-pro' | 'gemini-2.5-flash'
