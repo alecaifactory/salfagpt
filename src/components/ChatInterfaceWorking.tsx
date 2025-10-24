@@ -2043,8 +2043,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         formData.append('file', file);
         formData.append('type', type);
         formData.append('model', config?.model || 'gemini-2.5-pro'); // Default to Pro for best quality
+        formData.append('extractionMethod', 'vision-api'); // Use Vision API for better OCR
 
-        console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with model: ${config?.model || 'gemini-2.5-pro'}`);
+        console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with Vision API`);
 
         const response = await fetch('/api/extract-document', {
           method: 'POST',
