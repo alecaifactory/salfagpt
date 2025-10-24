@@ -267,8 +267,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // DISABLED FULL-TEXT MODE: RAG is now the ONLY option
   // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
   const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
-  const [ragTopK, setRagTopK] = useState(5); // Top 5 chunks (optimal for context window)
-  const [ragMinSimilarity, setRagMinSimilarity] = useState(0); // 0 = show all similarities for debugging
+  const [ragTopK, setRagTopK] = useState(10); // Top 10 chunks (better coverage for technical docs)
+  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.6); // 60% similarity threshold (production setting)
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
