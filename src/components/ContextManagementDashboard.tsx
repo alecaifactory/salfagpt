@@ -541,8 +541,8 @@ export default function ContextManagementDashboard({
               credentials: 'include', // ✅ FIX: Include cookies for authentication
               body: JSON.stringify({
                 userId,
-                chunkSize: 500,
-                overlap: 50,
+                chunkSize: 1000, // Updated for better technical doc chunking
+                overlap: 250,    // Maximum context preservation
               }),
             });
 
