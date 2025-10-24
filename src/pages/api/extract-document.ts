@@ -292,8 +292,7 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
       },
     });
 
-      const extractStepEnd = Date.now();
-      extractionTime = extractStepEnd - extractStepStart;
+      extractionTime = Date.now() - extractStepStart;
       extractedText = result.text || '';
       
       // Calculate token usage
