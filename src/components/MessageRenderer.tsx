@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { ExternalLink, FileText, CheckCircle, Image as ImageIcon, Video } from 'lucide-react';
+import { ExternalLink, FileText, CheckCircle, Image as ImageIcon, Video, ChevronDown, ChevronRight } from 'lucide-react';
 import type { SourceReference } from '../lib/gemini';
 
 interface MessageRendererProps {
@@ -26,6 +26,7 @@ export default function MessageRenderer({
   onReferenceClick,
   onSourceClick 
 }: MessageRendererProps) {
+  const [referencesExpanded, setReferencesExpanded] = useState(false); // Collapsed by default
   
   // Debug: Log references received
   React.useEffect(() => {
@@ -333,19 +334,26 @@ export default function MessageRenderer({
       {/* References Footer - Enhanced with similarity prominence */}
       {references.length > 0 && (
         <div className="mt-6 pt-4 border-t-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-b-lg -mx-4 -mb-4 px-4 pb-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              📚 Referencias utilizadas
-              <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-semibold">
-                {references.length}
-              </span>
-            </h4>
+          <button
+            onClick={() => setReferencesExpanded(!referencesExpanded)}
+            className="w-full flex items-center justify-between mb-3 hover:bg-blue-100/50 p-2 rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                {referencesExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                📚 Referencias utilizadas
+                <span className="px-2 py-0.5 bg-blue-600 text-white rounded-full text-xs font-semibold">
+                  {references.length}
+                </span>
+              </h4>
+            </div>
             <p className="text-xs text-slate-500 italic">
-              Click en cualquier referencia para ver detalles
+              {referencesExpanded ? 'Click para colapsar' : 'Click para expandir'}
             </p>
-          </div>
-          <div className="space-y-2">
-            {references.map(ref => (
+          </button>
+          {referencesExpanded && (
+            <div className="space-y-2">
+              {references.map(ref => (
               <button
                 key={ref.id}
                 onClick={() => onReferenceClick?.(ref)}
@@ -420,11 +428,19 @@ export default function MessageRenderer({
                   </div>
                 </div>
               </button>
-            ))}
-          </div>
-          <p className="text-xs text-slate-500 mt-3 text-center italic">
-            💡 Los números entre corchetes [1] [2] en el texto son clickables
-          </p>
+              ))}
+            </div>
+          )}
+          {!referencesExpanded && (
+            <p className="text-xs text-slate-500 text-center italic">
+              💡 Click arriba para ver los {references.length} fragmentos utilizados
+            </p>
+          )}
+          {referencesExpanded && (
+            <p className="text-xs text-slate-500 mt-3 text-center italic">
+              💡 Los números entre corchetes [1] [2] en el texto son clickables
+            </p>
+          )}
         </div>
       )}
     </div>
