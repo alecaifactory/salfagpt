@@ -315,7 +315,7 @@ export async function processForRAG(
   console.log(`\n   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)...`, 'cyan');
   
   const {
-    chunkSize = 512,
+    chunkSize = 1000, // Match webapp default (better for technical docs like SSOMA)
     embeddingModel = 'text-embedding-004',
     uploadedVia = 'cli',
     cliVersion = '0.2.0',

@@ -62,9 +62,9 @@ export const POST: APIRoute = async ({ params, request }) => {
       approach: useAgentSearch ? 'AGENT_SEARCH (optimal)' : 'SOURCE_IDS (legacy)'
     });
 
-    // RAG configuration (RAG is now the ONLY option)
-    const ragTopK = body.ragTopK || 5;
-    const ragMinSimilarity = body.ragMinSimilarity || 0.5;
+    // RAG configuration (RAG is now the ONLY option) - optimized for technical documents like SSOMA
+    const ragTopK = body.ragTopK || 10;
+    const ragMinSimilarity = body.ragMinSimilarity || 0.6;
     const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
 
     // Get conversation history for temp conversations (can do this early)
