@@ -453,8 +453,8 @@ export default function ContextManagementDashboard({
         formData.append('file', item.file);
         formData.append('userId', userId);
         formData.append('name', item.file.name);
-        formData.append('model', item.model || 'gemini-2.5-flash');
-        formData.append('extractionMethod', 'vision-api'); // Use Vision API for better OCR
+        formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
+        formData.append('extractionMethod', 'gemini'); // Use Gemini (Vision API needs more work)
 
         // Upload stage (0-25%)
         setUploadQueue(prev => prev.map(i => 

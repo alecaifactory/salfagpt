@@ -145,7 +145,17 @@ export const POST: APIRoute = async ({ request }) => {
       console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
       console.log(`  Confidence: ${(visionResult.confidence * 100).toFixed(1)}%`);
       
-    } else {
+      // If Vision API returned no text, fallback to Gemini Pro
+      if (!extractedText || extractedText.trim().length < 100) {
+        console.warn('⚠️ Vision API returned insufficient text, falling back to Gemini Pro...');
+        console.warn('   This PDF may be scanned images requiring Gemini\'s multimodal capabilities');
+        
+        // Fall through to Gemini extraction
+        extractionMethod = 'gemini';
+      }
+    }
+    
+    if (extractionMethod === 'gemini' || extractedText.trim().length < 100) {
       // Use Gemini AI (default)
       console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
       pipelineLogs.push({
