@@ -127,7 +127,7 @@ export const POST: APIRoute = async ({ request }) => {
       sourceName: source.name,
       text: textToIndex!,  // We already checked it exists above
       chunkSize: 1000,      // ~1000 tokens per chunk
-      overlap: 200,         // 200 tokens overlap
+      overlap: 250,         // 250 tokens overlap (maximum context preservation)
     });
 
     console.log(`✅ Indexing complete: ${result.chunksCreated} chunks created`);
