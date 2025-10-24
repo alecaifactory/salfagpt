@@ -75,7 +75,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     const pipelineLogs = [...existingLogs];
 
     // 2. Chunk the text
-    const { chunkTextSmart } = await import('../../../../lib/chunking.js');
+    const { chunkText } = await import('../../../../lib/chunking.js');
     const startChunkTime = Date.now();
     
     pipelineLogs.push({
@@ -85,7 +85,7 @@ export const POST: APIRoute = async ({ params, request }) => {
       message: 'Dividiendo documento en chunks...',
     });
     
-    const chunks = chunkTextSmart(extractedText, chunkSize);
+    const chunks = chunkText(extractedText, chunkSize, overlap);
     const chunkTime = Date.now() - startChunkTime;
     
     pipelineLogs[pipelineLogs.length - 1] = {
