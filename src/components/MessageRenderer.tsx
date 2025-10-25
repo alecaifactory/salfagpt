@@ -48,8 +48,8 @@ export default function MessageRenderer({
 
     let processed = content;
     
-    // Track which references have been shown (to show percentage only on first occurrence)
-    const shownReferences = new Set<number>();
+    // ✅ OPTIMIZED: Show reference badge only on FIRST occurrence (cleaner UX)
+    const MAX_OCCURRENCES_PER_REFERENCE = 1; // Show each reference badge max 1 time
     
     // First, try to replace existing [1], [2] markers if AI included them
     references.forEach(ref => {
@@ -62,12 +62,18 @@ export default function MessageRenderer({
         : 'bg-orange-100 text-orange-700 border-orange-400 hover:bg-orange-200'
         : 'bg-blue-100 text-blue-700 border-blue-400 hover:bg-blue-200';
       
-      // Custom replacer function to show percentage only on first occurrence
+      // Custom replacer function: Show badge only on first occurrence, remove others
       let replacementCount = 0;
       processed = processed.replace(
         pattern, 
         (match) => {
           replacementCount++;
+          
+          if (replacementCount > MAX_OCCURRENCES_PER_REFERENCE) {
+            // Remove subsequent occurrences completely for cleaner text
+            return '';
+          }
+          
           const isFirstOccurrence = replacementCount === 1;
           
           // Only show percentage badge on first occurrence

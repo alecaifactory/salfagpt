@@ -401,28 +401,64 @@ export const POST: APIRoute = async ({ params, request }) => {
               let references: any[] = [];
               
               if (ragUsed && ragResults.length > 0) {
-                // RAG mode: Map chunks to references
-                references = ragResults.map((result, index) => ({
-                  id: index + 1,
-                  sourceId: result.sourceId,
-                  sourceName: result.sourceName,
-                  chunkIndex: result.chunkIndex, // Real chunk index from document
-                  similarity: result.similarity, // Real similarity score (0-1)
-                  snippet: result.text.substring(0, 300),
-                  fullText: result.text,
-                  metadata: {
-                    startChar: result.metadata.startChar || 0,
-                    endChar: result.metadata.endChar || result.text.length,
-                    tokenCount: result.metadata.tokenCount || Math.ceil(result.text.length / 4),
-                    ...(result.metadata.startPage !== undefined && { startPage: result.metadata.startPage }),
-                    ...(result.metadata.endPage !== undefined && { endPage: result.metadata.endPage }),
-                    isRAGChunk: true, // NEW: Explicitly mark as RAG chunk
+                // ✅ NEW: Group chunks by source document (consolidate references)
+                const sourceGroups = new Map<string, typeof ragResults>();
+                ragResults.forEach(result => {
+                  const key = result.sourceId || result.sourceName;
+                  if (!sourceGroups.has(key)) {
+                    sourceGroups.set(key, []);
                   }
-                }));
+                  sourceGroups.get(key)!.push(result);
+                });
                 
-                console.log('📚 Built RAG references from chunks:');
+                // Create ONE reference per unique source document
+                let refId = 1;
+                references = Array.from(sourceGroups.values()).map(chunks => {
+                  // Sort chunks by similarity (highest first)
+                  chunks.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+                  
+                  // Use highest similarity chunk as representative
+                  const primaryChunk = chunks[0];
+                  
+                  // Calculate average similarity across all chunks from this source
+                  const avgSimilarity = chunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / chunks.length;
+                  
+                  // Combine all chunk texts (for full context in modal)
+                  const combinedText = chunks.map(c => c.text).join('\n\n---\n\n');
+                  
+                  // Total tokens across all chunks from this source
+                  const totalTokens = chunks.reduce((sum, c) => 
+                    sum + (c.metadata.tokenCount || Math.ceil(c.text.length / 4)), 0
+                  );
+                  
+                  const reference = {
+                    id: refId++,
+                    sourceId: primaryChunk.sourceId,
+                    sourceName: primaryChunk.sourceName,
+                    chunkIndex: primaryChunk.chunkIndex, // Show primary chunk index
+                    similarity: avgSimilarity, // ✅ Use AVERAGE similarity (more accurate)
+                    snippet: primaryChunk.text.substring(0, 300), // Preview from best chunk
+                    fullText: combinedText, // ✅ ALL chunks combined for modal view
+                    metadata: {
+                      startChar: primaryChunk.metadata.startChar || 0,
+                      endChar: primaryChunk.metadata.endChar || primaryChunk.text.length,
+                      tokenCount: totalTokens, // ✅ Total tokens from all chunks
+                      ...(primaryChunk.metadata.startPage !== undefined && { startPage: primaryChunk.metadata.startPage }),
+                      ...(primaryChunk.metadata.endPage !== undefined && { endPage: primaryChunk.metadata.endPage }),
+                      isRAGChunk: true,
+                      chunkCount: chunks.length, // ✅ NEW: How many chunks consolidated
+                    }
+                  };
+                  
+                  return reference;
+                });
+                
+                console.log('📚 Built RAG references (consolidated by source):');
                 references.forEach(ref => {
-                  console.log(`  [${ref.id}] Fragmento ${ref.chunkIndex} de ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% similar - ${ref.metadata.tokenCount} tokens`);
+                  const chunkInfo = ref.metadata.chunkCount > 1 
+                    ? ` (${ref.metadata.chunkCount} chunks consolidated)` 
+                    : '';
+                  console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% avg${chunkInfo} - ${ref.metadata.tokenCount} tokens`);
                 });
               } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
                 // Emergency fallback mode: Create references from full documents
