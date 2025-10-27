@@ -1,0 +1,49 @@
+{
+  "name": "@flow/feedback-widget",
+  "version": "0.1.0",
+  "description": "🔒 CONFIDENTIAL - Embeddable Stella feedback widget with viral sharing",
+  "private": true,
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "feedback",
+    "widget",
+    "viral",
+    "annotations",
+    "stella"
+  ],
+  "author": "Flow AI (Confidential)",
+  "license": "PROPRIETARY",
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "dependencies": {
+    "html2canvas": "^1.4.1",
+    "lucide-react": "latest"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "rollup": "^4.0.0",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.0",
+    "typescript": "^5.3.0"
+  },
+  "confidential": true,
+  "proprietary": true,
+  "distribution": "internal-only"
+}
+

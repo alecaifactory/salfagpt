@@ -205,6 +205,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   
+  // Delete confirmation state
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{
+    conversationId: string;
+    conversationTitle: string;
+  } | null>(null);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
+  
   // Per-agent processing state
   const [agentProcessing, setAgentProcessing] = useState<Record<string, {
     isProcessing: boolean;
@@ -2653,6 +2660,59 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     }
   };
 
+  // Admin-only: Open delete confirmation modal
+  const openDeleteConfirmation = (conversationId: string) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (!conversation) return;
+    
+    setDeleteConfirmation({
+      conversationId: conversation.id,
+      conversationTitle: conversation.title,
+    });
+    setDeleteConfirmationInput('');
+  };
+
+  // Admin-only: Delete conversation permanently
+  const deleteConversationPermanently = async () => {
+    if (!deleteConfirmation) return;
+    
+    // Double-check user typed the exact name
+    if (deleteConfirmationInput !== deleteConfirmation.conversationTitle) {
+      alert('El nombre no coincide. Por favor, escribe el nombre exacto del agente.');
+      return;
+    }
+
+    try {
+      // Call DELETE endpoint
+      const response = await fetch(`/api/conversations/${deleteConfirmation.conversationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete conversation');
+      }
+
+      // Remove from local state
+      setConversations(prev => prev.filter(c => c.id !== deleteConfirmation.conversationId));
+
+      // If we deleted the current conversation, clear selection
+      if (currentConversation === deleteConfirmation.conversationId) {
+        setCurrentConversation(null);
+        setMessages([]);
+      }
+
+      console.log('🗑️ Agente eliminado permanentemente:', deleteConfirmation.conversationId);
+      
+      // Close modal
+      setDeleteConfirmation(null);
+      setDeleteConfirmationInput('');
+    } catch (error) {
+      console.error('❌ Error al eliminar agente:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'No se pudo eliminar el agente'}`);
+    }
+  };
+
   const handleReExtract = async (sourceId: string, newConfig: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro' }) => {
     console.log('Re-extracting source:', sourceId, 'with config:', newConfig);
     
@@ -2977,6 +3037,34 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
+                      
+                      {/* Admin-only: Archive button */}
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveConversation(agent.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900 rounded"
+                          title="Archivar (solo admin)"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      
+                      {/* Admin-only: Delete button */}
+                      {userRole === 'admin' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDeleteConfirmation(agent.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
+                          title="Eliminar permanentemente (solo admin)"
+                        >
+                          <XIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       
                       {/* NEW: New chat icon - creates a chat for this agent (LAST position) */}
                       <button

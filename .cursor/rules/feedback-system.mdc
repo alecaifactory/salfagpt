@@ -1,0 +1,1104 @@
+# Feedback & Roadmap Management System - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the comprehensive feedback, backlog, and roadmap management system that enables users to submit feedback, request features, and have AI-powered roadmap planning based on CSAT, NPS, and OKR alignment.
+
+---
+
+## 🏗️ System Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│            FEEDBACK & ROADMAP SYSTEM                     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  USER SIDE                                              │
+│  ├─ Feedback Chat Widget (floating right side)         │
+│  ├─ Screenshot & Annotation Tools                      │
+│  ├─ AI Agent (context-aware, memory-enabled)           │
+│  └─ Real-time conversation threading                   │
+│                                                         │
+│  ADMIN SIDE                                             │
+│  ├─ Feedback Review Panel                              │
+│  ├─ Kanban Backlog Board                               │
+│  ├─ AI Roadmap Analyzer                                │
+│  ├─ Worktree Management Integration                    │
+│  └─ Analytics Dashboard (CSAT, NPS, OKR impact)        │
+│                                                         │
+│  DEVELOPER SIDE                                         │
+│  ├─ CLI Commands (feedback, backlog, roadmap)          │
+│  ├─ MCP Server Foundation                              │
+│  └─ Embeddable Widget SDK                              │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📊 Data Schema
+
+### 1. feedback_sessions
+
+**Purpose:** Track complete user feedback conversations with AI agent
+
+**Collection Path:** `feedback_sessions/{sessionId}`
+
+```typescript
+interface FeedbackSession {
+  id: string;                       // Document ID (auto-generated)
+  userId: string;                   // User providing feedback (indexed)
+  companyId: string;                // User's company (indexed)
+  
+  // Session Context
+  sessionType: 'feature_request' | 'bug_report' | 'general_feedback' | 'ui_improvement';
+  status: 'active' | 'submitted' | 'under_review' | 'accepted' | 'rejected' | 'implemented';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  
+  // Conversation
+  messages: FeedbackMessage[];      // Full conversation thread
+  
+  // User Input
+  title?: string;                   // User-provided summary
+  description?: string;             // Detailed description
+  screenshots: Screenshot[];        // Annotated screenshots
+  annotations: Annotation[];        // UI annotations
+  
+  // AI Analysis
+  aiSummary?: string;               // AI-generated summary
+  extractedRequirements?: string[]; // Key requirements
+  useCaseDefinition?: string;       // Use case description
+  successCriteria?: string[];       // Definition of success
+  expectedCSATImpact?: number;      // Estimated CSAT improvement (1-5)
+  expectedNPSImpact?: number;       // Estimated NPS improvement (-100 to 100)
+  
+  // Admin Review
+  adminNotes?: string;              // Admin comments
+  reviewedBy?: string;              // Admin user ID
+  reviewedAt?: Date;                // Review timestamp
+  
+  // Roadmap Integration
+  backlogItemId?: string;           // Associated backlog item
+  roadmapItemId?: string;           // Associated roadmap item
+  worktreeId?: string;              // Git worktree if assigned
+  
+  // Metadata
+  createdAt: Date;                  // Session start (indexed)
+  updatedAt: Date;                  // Last activity
+  submittedAt?: Date;               // When user submitted
+  source: 'localhost' | 'production';
+}
+
+interface FeedbackMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: Date;
+  metadata?: {
+    screenshot?: string;            // Screenshot reference if included
+    annotation?: string;            // Annotation reference if included
+  };
+}
+
+interface Screenshot {
+  id: string;
+  url: string;                      // GCS URL
+  gcsPath: string;                  // gs://bucket/path
+  annotations: Annotation[];        // Annotations on this screenshot
+  capturedAt: Date;
+  pageUrl: string;                  // Which page was captured
+  viewport: {
+    width: number;
+    height: number;
+  };
+}
+
+interface Annotation {
+  id: string;
+  type: 'arrow' | 'box' | 'circle' | 'text' | 'highlight';
+  position: {
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+  };
+  color: string;
+  text?: string;                    // Text annotation content
+  screenshotId?: string;            // If annotation is on screenshot
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, createdAt DESC
+- companyId ASC, status ASC, createdAt DESC
+- status ASC, priority DESC, createdAt DESC
+```
+
+---
+
+### 2. backlog_items
+
+**Purpose:** Kanban-style backlog items generated from feedback
+
+**Collection Path:** `backlog_items/{itemId}`
+
+```typescript
+interface BacklogItem {
+  id: string;                       // Document ID
+  companyId: string;                // Company this belongs to (indexed)
+  
+  // Content
+  title: string;                    // Short description
+  description: string;              // Detailed description
+  userStory: string;                // As a [user], I want [feature], so that [benefit]
+  acceptanceCriteria: string[];     // List of acceptance criteria
+  
+  // Source
+  feedbackSessionIds: string[];     // Related feedback sessions (indexed)
+  createdBy: 'user' | 'admin' | 'ai'; // Who created this item
+  createdByUserId?: string;         // User ID if user-created
+  
+  // Classification
+  type: 'feature' | 'enhancement' | 'bug' | 'technical_debt' | 'research';
+  category: 'ui' | 'api' | 'performance' | 'security' | 'integration' | 'other';
+  tags: string[];                   // Flexible tagging
+  
+  // Priority & Impact
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  estimatedEffort: 'xs' | 's' | 'm' | 'l' | 'xl'; // T-shirt sizing
+  estimatedCSATImpact: number;      // 1-5 scale
+  estimatedNPSImpact: number;       // -100 to 100
+  affectedUsers: number;            // Estimated user count
+  
+  // OKR Alignment
+  alignedOKRs: string[];            // Company OKR IDs
+  okrImpactScore: number;           // 1-10 scale
+  
+  // Kanban State
+  status: 'new' | 'groomed' | 'ready' | 'in_progress' | 'review' | 'done' | 'rejected';
+  lane: 'backlog' | 'next' | 'now' | 'done';
+  position: number;                 // Position in lane (for ordering)
+  
+  // Assignment
+  assignedTo?: string;              // User ID
+  worktreeId?: string;              // Git worktree if work started
+  branchName?: string;              // Git branch name
+  prUrl?: string;                   // Pull request URL
+  
+  // Timeline
+  createdAt: Date;                  // Created (indexed)
+  updatedAt: Date;                  // Last updated
+  startedAt?: Date;                 // Work started
+  completedAt?: Date;               // Completed
+  targetReleaseDate?: Date;         // Target completion
+  
+  // Source tracking
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- companyId ASC, status ASC, priority DESC
+- companyId ASC, lane ASC, position ASC
+- status ASC, priority DESC, createdAt DESC
+```
+
+---
+
+### 3. roadmap_items
+
+**Purpose:** High-level roadmap planning with AI analysis
+
+**Collection Path:** `roadmap_items/{itemId}`
+
+```typescript
+interface RoadmapItem {
+  id: string;                       // Document ID
+  companyId: string;                // Company this belongs to (indexed)
+  
+  // Content
+  title: string;                    // Epic/Initiative name
+  description: string;              // Detailed description
+  objectives: string[];             // What this achieves
+  
+  // Composition
+  backlogItemIds: string[];         // Related backlog items
+  feedbackSessionIds: string[];     // Related feedback
+  
+  // Planning
+  quarter: string;                  // 'Q1 2025', 'Q2 2025', etc.
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled';
+  progress: number;                 // 0-100 percentage
+  
+  // Impact Analysis
+  estimatedCSATImpact: number;      // Aggregate from backlog items
+  estimatedNPSImpact: number;       // Aggregate from backlog items
+  affectedUsers: number;            // Total affected users
+  estimatedRevenue?: number;        // Revenue impact (optional)
+  
+  // OKR Alignment
+  alignedOKRs: string[];            // Company OKR IDs
+  okrImpactScore: number;           // 1-10 aggregate
+  strategicValue: 'low' | 'medium' | 'high' | 'critical';
+  
+  // AI Analysis
+  aiRationale?: string;             // Why AI suggests this
+  aiPriorityScore?: number;         // AI-calculated priority (0-100)
+  aiRecommendedQuarter?: string;    // AI suggested timeline
+  
+  // Admin Review
+  adminApproved: boolean;           // Admin approval
+  approvedBy?: string;              // Admin user ID
+  approvedAt?: Date;                // Approval date
+  adminNotes?: string;              // Admin comments
+  
+  // Timeline
+  createdAt: Date;                  // Created (indexed)
+  updatedAt: Date;                  // Last updated
+  startedAt?: Date;                 // Work started
+  completedAt?: Date;               // Completed
+  
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- companyId ASC, quarter ASC, status ASC
+- companyId ASC, status ASC, aiPriorityScore DESC
+- adminApproved ASC, quarter ASC
+```
+
+---
+
+### 4. feedback_agent_memory
+
+**Purpose:** Persistent memory for feedback AI agent per user
+
+**Collection Path:** `feedback_agent_memory/{userId}`
+
+```typescript
+interface FeedbackAgentMemory {
+  id: string;                       // Document ID (userId)
+  userId: string;                   // User
+  companyId: string;                // Company
+  
+  // Context Awareness
+  previousFeedback: Array<{
+    sessionId: string;
+    summary: string;
+    submittedAt: Date;
+  }>;
+  
+  // User Preferences
+  preferredCommunicationStyle: 'concise' | 'detailed' | 'visual';
+  commonPainPoints: string[];       // Patterns in feedback
+  frequentFeatureRequests: string[]; // Recurring requests
+  
+  // Interaction Stats
+  totalSessions: number;
+  averageSessionLength: number;     // Messages per session
+  lastInteractionAt: Date;
+  
+  // Source
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+---
+
+### 5. company_okrs
+
+**Purpose:** Store company OKRs for alignment analysis
+
+**Collection Path:** `company_okrs/{okrId}`
+
+```typescript
+interface CompanyOKR {
+  id: string;                       // Document ID
+  companyId: string;                // Company (indexed)
+  
+  // OKR Definition
+  objective: string;                // The "O" - what we want to achieve
+  keyResults: KeyResult[];          // The "KRs" - how we measure success
+  
+  // Timeline
+  quarter: string;                  // 'Q1 2025', etc.
+  year: number;
+  status: 'active' | 'completed' | 'cancelled';
+  
+  // Tracking
+  currentProgress: number;          // 0-100%
+  targetProgress: number;           // Expected by now
+  onTrack: boolean;                 // Progress >= target
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+
+interface KeyResult {
+  id: string;
+  description: string;              // Measurable outcome
+  metric: string;                   // What we measure
+  baseline: number;                 // Starting value
+  target: number;                   // Goal value
+  current: number;                  // Current value
+  unit: string;                     // Unit of measurement
+}
+```
+
+---
+
+### 6. worktree_assignments
+
+**Purpose:** Track worktrees created from backlog items
+
+**Collection Path:** `worktree_assignments/{worktreeId}`
+
+```typescript
+interface WorktreeAssignment {
+  id: string;                       // Document ID
+  
+  // Worktree Details
+  worktreePath: string;             // Local filesystem path
+  branchName: string;               // Git branch name
+  port: number;                     // Localhost port (3001-3003)
+  
+  // Assignment
+  backlogItemId: string;            // Associated backlog item (indexed)
+  assignedTo: string;               // User ID
+  
+  // Status
+  status: 'setup' | 'in_progress' | 'review' | 'merged' | 'abandoned';
+  progress: number;                 // 0-100%
+  
+  // Git Integration
+  commits: number;                  // Commit count
+  filesChanged: number;             // Files modified
+  lastCommitAt?: Date;              // Last commit
+  prUrl?: string;                   // Pull request URL
+  mergedAt?: Date;                  // Merge timestamp
+  
+  // Timeline
+  createdAt: Date;                  // Created (indexed)
+  updatedAt: Date;                  // Last updated
+  
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- backlogItemId ASC
+- assignedTo ASC, status ASC, createdAt DESC
+```
+
+---
+
+## 🎨 UI Components Architecture
+
+### Feedback Chat Widget
+
+**Location:** Floating button on right side of screen
+
+**States:**
+1. **Collapsed**: Small circular button with badge count
+2. **Expanded**: Full chat interface (400px width)
+3. **Annotation Mode**: Screenshot capture + drawing tools
+
+**Component:** `FeedbackChatWidget.tsx`
+
+```typescript
+interface FeedbackChatWidgetProps {
+  userId: string;
+  companyId: string;
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+}
+```
+
+**Features:**
+- Real-time chat with AI agent
+- Screenshot capture (html2canvas)
+- Annotation tools (arrows, boxes, text, highlight)
+- Session persistence
+- Unread message badge
+- Minimize/maximize animations
+
+---
+
+### Annotation Tools
+
+**Toolbar:**
+```typescript
+type AnnotationTool = 
+  | 'select'      // Default - select/move annotations
+  | 'arrow'       // Draw arrows
+  | 'box'         // Draw rectangles
+  | 'circle'      // Draw circles
+  | 'text'        // Add text
+  | 'highlight'   // Highlight areas
+  | 'pen'         // Free draw
+  | 'eraser';     // Remove annotations
+
+interface AnnotationToolbar {
+  tools: AnnotationTool[];
+  selectedTool: AnnotationTool;
+  colors: string[];               // ['red', 'blue', 'green', 'yellow']
+  selectedColor: string;
+  strokeWidth: number;            // 2-10
+}
+```
+
+---
+
+### Admin Feedback Review Panel
+
+**Component:** `AdminFeedbackPanel.tsx`
+
+**Sections:**
+1. **Pending Review**: New feedback needing admin attention
+2. **In Analysis**: AI analyzing for roadmap impact
+3. **Approved**: Ready for backlog
+4. **Implemented**: Completed items
+
+**Per Session View:**
+```typescript
+interface FeedbackSessionView {
+  // Session Info
+  session: FeedbackSession;
+  
+  // User Context
+  user: User;
+  userHistory: {
+    totalFeedback: number;
+    avgCSAT: number;
+    previousRequests: string[];
+  };
+  
+  // AI Analysis
+  summary: string;
+  requirements: string[];
+  useCaseDefinition: string;
+  successCriteria: string[];
+  
+  // Impact Analysis
+  csatImpact: number;
+  npsImpact: number;
+  okrAlignment: Array<{
+    okrId: string;
+    okrTitle: string;
+    impactScore: number;
+  }>;
+  
+  // Actions
+  onApprove: () => void;
+  onReject: (reason: string) => void;
+  onRequestMoreInfo: (questions: string[]) => void;
+  onConvertToBacklog: () => void;
+}
+```
+
+---
+
+### Kanban Backlog Board
+
+**Component:** `KanbanBacklogBoard.tsx`
+
+**Lanes:**
+1. **Backlog**: Approved, not scheduled
+2. **Next**: Scheduled for next sprint/quarter
+3. **Now**: Currently in progress
+4. **Done**: Completed
+
+**Per Card:**
+```typescript
+interface BacklogCard {
+  item: BacklogItem;
+  
+  // Visual Indicators
+  priorityBadge: React.ReactNode;
+  impactScore: number;              // CSAT + NPS combined
+  effortBadge: React.ReactNode;     // T-shirt size
+  
+  // Quick Actions
+  onViewDetails: () => void;
+  onAssignWorktree: () => void;
+  onEditPriority: () => void;
+  onMoveToLane: (lane: string) => void;
+}
+```
+
+**Drag & Drop:**
+- Between lanes (status change)
+- Within lane (reorder priority)
+- Auto-save to Firestore
+
+---
+
+## 🤖 AI Agent Configuration
+
+### Feedback Agent System Prompt
+
+```typescript
+const FEEDBACK_AGENT_SYSTEM_PROMPT = `
+You are a helpful product feedback assistant for the Flow platform.
+
+Your role:
+1. Help users articulate their feedback, feature requests, and issues
+2. Ask clarifying questions to understand the use case
+3. Guide users to provide screenshots and annotations when helpful
+4. Extract key requirements and success criteria
+5. Estimate potential impact on user satisfaction (CSAT, NPS)
+
+Conversation style:
+- Friendly and professional
+- Ask one question at a time
+- Acknowledge user frustrations with empathy
+- Be solution-oriented
+- Keep responses concise (under 100 words)
+
+When gathering feedback:
+- Ask: "What problem are you trying to solve?"
+- Ask: "How would success look like?"
+- Ask: "How many users would this help?"
+- Ask: "What's the impact if this isn't fixed?" (for bugs)
+- Suggest: "Would a screenshot help explain this?"
+
+When user provides screenshot:
+- Acknowledge: "Thanks for the screenshot! Let me analyze..."
+- Ask: "Can you annotate the specific area you're referring to?"
+
+Before submission:
+- Summarize the feedback clearly
+- List extracted requirements
+- Confirm with user: "Does this capture everything?"
+
+Remember:
+- User feedback is gold - treat it with respect
+- Every frustration is an opportunity to improve
+- Be genuinely curious about the user's needs
+`;
+```
+
+### AI Analysis Prompt (Admin Side)
+
+```typescript
+const ROADMAP_ANALYSIS_PROMPT = `
+You are an AI product analyst for the Flow platform.
+
+Given a batch of user feedback sessions, analyze and generate roadmap recommendations.
+
+Input:
+- Company OKRs and KPIs
+- User feedback sessions (with AI summaries)
+- Current backlog items
+- Historical CSAT and NPS data
+- User impact metrics
+
+Your analysis should include:
+
+1. **Feedback Clustering**: Group similar requests together
+2. **Impact Assessment**: 
+   - Estimated CSAT improvement (1-5 scale)
+   - Estimated NPS improvement (-100 to 100)
+   - Number of affected users
+   - Revenue impact (if applicable)
+
+3. **OKR Alignment**: 
+   - Which OKRs does this support?
+   - Impact score (1-10) per OKR
+   - Strategic value (low/medium/high/critical)
+
+4. **Priority Recommendation**:
+   - Consider: Impact × Users × OKR alignment / Effort
+   - Suggest: Quarter and sprint
+   - Rationale: Clear explanation
+
+5. **Roadmap Changes**:
+   - New items to add
+   - Existing items to reprioritize
+   - Items to remove/postpone
+   - Reasoning for each change
+
+6. **Success Metrics**:
+   - How we'll measure success
+   - Target values
+   - Timeline to achieve
+
+Output format:
+{
+  "clusters": [...],
+  "newBacklogItems": [...],
+  "priorityChanges": [...],
+  "roadmapRecommendations": [...],
+  "rationale": "...",
+  "expectedOutcomes": {
+    "csatImprovement": number,
+    "npsImprovement": number,
+    "okrProgress": {...}
+  }
+}
+`;
+```
+
+---
+
+## 🛠️ CLI Commands
+
+### Feedback Commands
+
+```bash
+# Submit feedback from CLI
+flow-cli feedback submit \
+  --type feature \
+  --title "Add dark mode" \
+  --description "Users want dark mode for night work" \
+  --priority high
+
+# View feedback status
+flow-cli feedback list --status pending
+
+# View specific feedback
+flow-cli feedback view <session-id>
+
+# Add admin note
+flow-cli feedback note <session-id> "Scheduled for Q2 2025"
+```
+
+### Backlog Commands
+
+```bash
+# View backlog
+flow-cli backlog list --company <company-id>
+
+# Create backlog item
+flow-cli backlog create \
+  --title "Dark mode implementation" \
+  --type feature \
+  --priority high
+
+# Move item between lanes
+flow-cli backlog move <item-id> --lane now
+
+# Assign to worktree
+flow-cli backlog assign <item-id> \
+  --worktree worktree-1 \
+  --developer <user-id>
+```
+
+### Roadmap Commands
+
+```bash
+# Analyze feedback for roadmap
+flow-cli roadmap analyze \
+  --company <company-id> \
+  --quarter "Q1 2025"
+
+# View roadmap
+flow-cli roadmap view --quarter "Q1 2025"
+
+# Approve AI suggestions
+flow-cli roadmap approve <roadmap-id>
+
+# Reject with reason
+flow-cli roadmap reject <roadmap-id> \
+  --reason "Conflicting priorities"
+```
+
+### Worktree Commands
+
+```bash
+# Create worktree from backlog item
+flow-cli worktree create <backlog-item-id> \
+  --port 3001 \
+  --path ~/worktrees/flow/dark-mode
+
+# Track worktree progress
+flow-cli worktree status <worktree-id>
+
+# Complete worktree
+flow-cli worktree complete <worktree-id> \
+  --pr-url "https://github.com/..."
+```
+
+---
+
+## 📦 Embeddable Widget SDK
+
+### Installation
+
+```bash
+npm install @flow/feedback-widget
+```
+
+### Basic Usage
+
+```html
+<!-- Option 1: Script tag -->
+<script src="https://cdn.flow.ai/feedback-widget.js"></script>
+<script>
+  FlowFeedback.init({
+    companyId: 'your-company-id',
+    userId: 'current-user-id',
+    apiKey: 'your-public-api-key',
+    position: 'bottom-right',
+    theme: 'light',
+    language: 'es'
+  });
+</script>
+
+<!-- Option 2: React Component -->
+<FlowFeedbackWidget
+  companyId="your-company-id"
+  userId="current-user-id"
+  apiKey="your-public-api-key"
+  position="bottom-right"
+/>
+```
+
+### Widget Configuration
+
+```typescript
+interface FeedbackWidgetConfig {
+  // Required
+  companyId: string;
+  userId: string;
+  apiKey: string;
+  
+  // Optional
+  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
+  theme?: 'light' | 'dark' | 'auto';
+  language?: 'en' | 'es' | 'pt';
+  
+  // Customization
+  primaryColor?: string;
+  buttonLabel?: string;
+  welcomeMessage?: string;
+  
+  // Features
+  enableScreenshots?: boolean;      // Default: true
+  enableAnnotations?: boolean;      // Default: true
+  autoCapturePage?: boolean;        // Default: false
+  
+  // Callbacks
+  onSessionStart?: (sessionId: string) => void;
+  onSessionEnd?: (sessionId: string, summary: string) => void;
+  onFeedbackSubmitted?: (feedbackId: string) => void;
+}
+```
+
+---
+
+## 🔄 Feedback Flow (Complete Lifecycle)
+
+```
+1. USER INITIATES
+   User clicks feedback button
+   ↓
+   FeedbackChatWidget opens
+   ↓
+   Create feedback_sessions document
+   ↓
+   AI Agent greets user
+
+2. CONVERSATION
+   User describes issue/request
+   ↓
+   AI asks clarifying questions
+   ↓
+   AI suggests screenshot if helpful
+   ↓
+   User captures + annotates screenshot
+   ↓
+   Screenshot uploaded to GCS
+   ↓
+   AI analyzes screenshot + annotations
+   ↓
+   AI extracts requirements
+   ↓
+   AI estimates impact (CSAT, NPS)
+   ↓
+   AI generates summary
+   ↓
+   User confirms or refines
+
+3. SUBMISSION
+   User clicks "Submit Feedback"
+   ↓
+   Session status = 'submitted'
+   ↓
+   Admin notification sent
+   ↓
+   Widget shows "Thank you! We'll review this."
+
+4. ADMIN REVIEW
+   Admin opens feedback panel
+   ↓
+   Sees pending feedback with AI analysis
+   ↓
+   Reviews conversation + screenshots
+   ↓
+   Adds admin notes
+   ↓
+   Approves or requests more info
+   ↓
+   If approved → Create backlog item
+
+5. BACKLOG CREATION
+   AI generates backlog item from feedback
+   ↓
+   Title, description, user story
+   ↓
+   Acceptance criteria
+   ↓
+   Impact scores (CSAT, NPS, OKR)
+   ↓
+   Initial priority assignment
+   ↓
+   Added to "Backlog" lane
+
+6. AI ROADMAP ANALYSIS (Weekly/Monthly)
+   Collect all approved feedback
+   ↓
+   Load company OKRs and KPIs
+   ↓
+   AI analyzes impact and alignment
+   ↓
+   AI suggests roadmap changes
+   ↓
+   AI generates rationale
+   ↓
+   Present to admin for approval
+
+7. ADMIN ROADMAP REVIEW
+   Admin sees AI suggestions
+   ↓
+   Reviews rationale and data
+   ↓
+   Approves or modifies
+   ↓
+   Roadmap updated
+   ↓
+   Backlog reprioritized
+
+8. WORKTREE ASSIGNMENT
+   Admin assigns backlog item
+   ↓
+   CLI creates worktree
+   ↓
+   Worktree tracked in system
+   ↓
+   Developer gets notification
+   ↓
+   Work begins
+
+9. DEVELOPMENT
+   Developer works in worktree
+   ↓
+   Progress tracked automatically
+   ↓
+   Commits counted
+   ↓
+   Files changed monitored
+   ↓
+   PR created when ready
+
+10. COMPLETION
+    PR merged to main
+    ↓
+    Backlog item → Done
+    ↓
+    Roadmap item progress updated
+    ↓
+    Worktree cleaned up
+    ↓
+    Original user notified
+    ↓
+    User sees feature in production
+    ↓
+    CSAT/NPS measured post-release
+```
+
+---
+
+## 📊 Analytics & Metrics
+
+### Feedback Metrics
+
+```typescript
+interface FeedbackMetrics {
+  // Volume
+  totalSessions: number;
+  activeSessionsToday: number;
+  submittedThisWeek: number;
+  
+  // By Type
+  featureRequests: number;
+  bugReports: number;
+  generalFeedback: number;
+  uiImprovements: number;
+  
+  // Status Distribution
+  pending: number;
+  underReview: number;
+  accepted: number;
+  implemented: number;
+  
+  // User Engagement
+  avgSessionLength: number;         // Messages per session
+  avgTimeToSubmit: number;          // Minutes
+  screenshotsPerSession: number;
+  
+  // Impact
+  avgCSATImpact: number;
+  avgNPSImpact: number;
+  totalAffectedUsers: number;
+}
+```
+
+### Roadmap Metrics
+
+```typescript
+interface RoadmapMetrics {
+  // By Quarter
+  plannedItems: number;
+  inProgressItems: number;
+  completedItems: number;
+  
+  // Impact
+  totalCSATImpact: number;          // Sum of all items
+  totalNPSImpact: number;
+  totalAffectedUsers: number;
+  
+  // OKR Alignment
+  okrCoverage: number;              // % of OKRs addressed
+  avgOKRImpactScore: number;
+  
+  // Velocity
+  itemsCompletedLastQuarter: number;
+  avgTimeToComplete: number;        // Days
+  velocityTrend: 'up' | 'down' | 'stable';
+}
+```
+
+---
+
+## 🔒 Security & Privacy
+
+### Feedback Data Access
+
+**Rules:**
+1. ✅ Users see only their own feedback
+2. ✅ Admins see all feedback for their company
+3. ✅ AI agent has read-only access to feedback history
+4. ✅ Screenshots stored in GCS with signed URLs
+5. ✅ Sensitive info redacted from AI analysis
+
+**Firestore Security Rules:**
+
+```javascript
+match /feedback_sessions/{sessionId} {
+  // Users can read/write their own feedback
+  allow read, write: if request.auth != null && 
+                      resource.data.userId == request.auth.uid;
+  
+  // Admins can read all feedback for their company
+  allow read: if request.auth != null && 
+              isAdmin(request.auth.uid) &&
+              resource.data.companyId == getUserCompany(request.auth.uid);
+}
+
+match /backlog_items/{itemId} {
+  // Admins only
+  allow read, write: if request.auth != null && 
+                      isAdmin(request.auth.uid);
+}
+
+match /roadmap_items/{itemId} {
+  // Admins only
+  allow read, write: if request.auth != null && 
+                      isAdmin(request.auth.uid);
+}
+```
+
+---
+
+## 🎯 Success Criteria
+
+### User Experience
+- ✅ Feedback submission < 2 minutes
+- ✅ AI response time < 3 seconds
+- ✅ Screenshot capture < 1 second
+- ✅ Widget loads < 500ms
+- ✅ User feels heard and acknowledged
+
+### Admin Experience
+- ✅ Review feedback in < 5 minutes
+- ✅ AI analysis saves 80%+ time
+- ✅ Roadmap analysis < 10 minutes
+- ✅ Clear action items generated
+- ✅ One-click backlog creation
+
+### Product Outcomes
+- ✅ CSAT improvement tracked per feature
+- ✅ NPS improvement tracked per feature
+- ✅ OKR alignment > 90%
+- ✅ Feedback → Production < 30 days (p95)
+- ✅ User sees their feedback implemented
+
+---
+
+## 🚀 Implementation Phases
+
+### Phase 1: Foundation (Week 1)
+- [ ] Data schema in Firestore
+- [ ] Basic chat widget UI
+- [ ] AI agent integration
+- [ ] Screenshot capture
+- [ ] Session persistence
+
+### Phase 2: Admin Tools (Week 2)
+- [ ] Feedback review panel
+- [ ] Admin approval workflow
+- [ ] Backlog item creation
+- [ ] Basic kanban board
+
+### Phase 3: AI Analysis (Week 3)
+- [ ] Impact analysis AI
+- [ ] OKR alignment AI
+- [ ] Roadmap suggestions
+- [ ] Priority scoring
+
+### Phase 4: Integration (Week 4)
+- [ ] Worktree automation
+- [ ] Git integration
+- [ ] Progress tracking
+- [ ] Completion workflow
+
+### Phase 5: CLI & SDK (Week 5)
+- [ ] CLI commands
+- [ ] Embeddable widget
+- [ ] Public API
+- [ ] Documentation
+
+---
+
+## 📚 Related Rules
+
+- `alignment.mdc` - User feedback principles
+- `data.mdc` - Data schema extensions
+- `privacy.mdc` - User data protection
+- `agents.mdc` - AI agent architecture
+- `ui.mdc` - Widget UI components
+
+---
+
+**Last Updated**: 2025-10-27  
+**Version**: 1.0.0  
+**Status**: 🚧 Design Complete, Implementation Starting  
+**Backward Compatible**: Yes (additive only)
