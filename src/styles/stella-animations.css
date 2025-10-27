@@ -1,0 +1,444 @@
+/**
+ * 🔒 CONFIDENTIAL - Stella Animation Library
+ * 
+ * Proprietary animations for the Stella viral feedback loop system.
+ * 
+ * Features:
+ * - Color cycling (purple → yellow → green)
+ * - Pulse animations
+ * - Submit success sequence
+ * - Star explosion
+ * - Slide and fade transitions
+ * 
+ * DO NOT SHARE - Proprietary design
+ */
+
+/* ============================================================================
+   STELLA MARKER ANIMATIONS
+   ============================================================================ */
+
+/* Color Cycling Animation (Proprietary) */
+@keyframes stellaColorCycle {
+  0% {
+    fill: #a855f7; /* Vibrant purple */
+    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
+  }
+  33% {
+    fill: #fbbf24; /* Golden yellow */
+    filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));
+  }
+  66% {
+    fill: #10b981; /* Emerald green */
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6));
+  }
+  100% {
+    fill: #a855f7; /* Back to purple */
+    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
+  }
+}
+
+.stella-marker-cycling {
+  animation: stellaColorCycle 2s infinite ease-in-out;
+}
+
+/* Pulse Animation */
+@keyframes stellaPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.9;
+  }
+}
+
+.stella-marker-pulse {
+  animation: stellaPulse 1.5s infinite ease-in-out;
+}
+
+/* Submit Success Sequence (Proprietary) */
+@keyframes stellaSubmitSpin {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes stellaSubmitScaleDown {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.3);
+    opacity: 1;
+  }
+}
+
+@keyframes stellaSubmitFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.stella-submit-spin {
+  animation: stellaSubmitSpin 0.5s ease-out;
+}
+
+.stella-submit-scale-down {
+  animation: stellaSubmitScaleDown 0.3s ease-in forwards;
+}
+
+.stella-submit-fade-out {
+  animation: stellaSubmitFadeOut 0.4s ease-in forwards;
+}
+
+/* Star Explosion (Proprietary) */
+@keyframes stellaStarExplosion {
+  0% {
+    transform: scale(0) translate(0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1) translate(var(--star-tx), var(--star-ty));
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) translate(calc(var(--star-tx) * 1.5), calc(var(--star-ty) * 1.5));
+    opacity: 0;
+  }
+}
+
+.stella-star {
+  animation: stellaStarExplosion 0.8s ease-out forwards;
+}
+
+/* Generate 8 stars in circle */
+.stella-star-1 { --star-tx: 0px; --star-ty: -60px; }
+.stella-star-2 { --star-tx: 42px; --star-ty: -42px; }
+.stella-star-3 { --star-tx: 60px; --star-ty: 0px; }
+.stella-star-4 { --star-tx: 42px; --star-ty: 42px; }
+.stella-star-5 { --star-tx: 0px; --star-ty: 60px; }
+.stella-star-6 { --star-tx: -42px; --star-ty: 42px; }
+.stella-star-7 { --star-tx: -60px; --star-ty: 0px; }
+.stella-star-8 { --star-tx: -42px; --star-ty: -42px; }
+
+/* ============================================================================
+   FEEDBACK BOX ANIMATIONS
+   ============================================================================ */
+
+/* Slide Up */
+@keyframes stellaSlideUp {
+  from {
+    transform: translateY(20px) translateX(-50%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) translateX(-50%);
+    opacity: 1;
+  }
+}
+
+.stella-feedback-box {
+  animation: stellaSlideUp 0.2s ease-out;
+}
+
+/* Gradient Border Animation */
+@keyframes stellaGradientBorder {
+  0% {
+    border-image-source: linear-gradient(135deg, #a855f7 0%, #fbbf24 100%);
+  }
+  50% {
+    border-image-source: linear-gradient(135deg, #fbbf24 0%, #10b981 100%);
+  }
+  100% {
+    border-image-source: linear-gradient(135deg, #10b981 0%, #a855f7 100%);
+  }
+}
+
+.stella-gradient-border {
+  border-width: 2px;
+  border-style: solid;
+  border-image-slice: 1;
+  animation: stellaGradientBorder 3s infinite ease-in-out;
+}
+
+/* ============================================================================
+   SHARE CARD ANIMATIONS
+   ============================================================================ */
+
+/* Card Entrance */
+@keyframes stellaCardEntrance {
+  from {
+    transform: scale(0.95) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.stella-share-card {
+  animation: stellaCardEntrance 0.3s ease-out;
+}
+
+/* Upvote Animation */
+@keyframes stellaUpvoteBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+.stella-upvote-animation {
+  animation: stellaUpvoteBounce 0.3s ease-in-out;
+}
+
+/* Share Button Ripple */
+@keyframes stellaShareRipple {
+  from {
+    transform: scale(0);
+    opacity: 0.6;
+  }
+  to {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.stella-share-ripple {
+  animation: stellaShareRipple 0.6s ease-out;
+}
+
+/* ============================================================================
+   STATUS TIMELINE ANIMATIONS
+   ============================================================================ */
+
+/* Progress Bar Fill */
+@keyframes stellaProgressFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--progress-width);
+  }
+}
+
+.stella-progress-bar {
+  animation: stellaProgressFill 0.8s ease-out forwards;
+}
+
+/* Step Complete */
+@keyframes stellaStepComplete {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.stella-step-complete {
+  animation: stellaStepComplete 0.4s ease-out;
+}
+
+/* ============================================================================
+   BADGE & NOTIFICATION ANIMATIONS
+   ============================================================================ */
+
+/* Badge Earn */
+@keyframes stellaBadgeEarn {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.3) rotate(20deg);
+  }
+  80% {
+    transform: scale(0.9) rotate(-10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.stella-badge-earn {
+  animation: stellaBadgeEarn 0.6s ease-out;
+}
+
+/* Notification Slide */
+@keyframes stellaNotificationSlide {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.stella-notification {
+  animation: stellaNotificationSlide 0.3s ease-out;
+}
+
+/* ============================================================================
+   NETWORK GRAPH ANIMATIONS
+   ============================================================================ */
+
+/* Node Appear */
+@keyframes stellaNodeAppear {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.stella-network-node {
+  animation: stellaNodeAppear 0.4s ease-out;
+  animation-delay: calc(var(--node-index) * 0.05s);
+}
+
+/* Edge Draw */
+@keyframes stellaEdgeDraw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.stella-network-edge {
+  stroke-dasharray: 100;
+  animation: stellaEdgeDraw 0.6s ease-out forwards;
+  animation-delay: calc(var(--edge-index) * 0.03s);
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.stella-glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
+}
+
+.stella-glow-yellow {
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.4);
+}
+
+.stella-glow-green {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+}
+
+.stella-glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.stella-gradient-text {
+  background: linear-gradient(135deg, #a855f7 0%, #fbbf24 50%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stella-gradient-bg {
+  background: linear-gradient(135deg, #a855f7 0%, #fbbf24 50%, #10b981 100%);
+}
+
+.stella-smooth-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .stella-feedback-box {
+    width: calc(100vw - 2rem);
+    left: 1rem !important;
+    transform: translateX(0) !important;
+  }
+  
+  .stella-marker {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .stella-marker-cycling,
+  .stella-marker-pulse,
+  .stella-submit-spin,
+  .stella-star {
+    animation: none;
+  }
+  
+  .stella-smooth-transition {
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .stella-marker {
+    border: 2px solid currentColor;
+  }
+  
+  .stella-gradient-border {
+    border: 3px solid #a855f7;
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  .stella-marker,
+  .stella-feedback-box,
+  .stella-share-card {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   PROPRIETARY NOTICE
+   ============================================================================ */
+
+/*
+ * CONFIDENTIAL - PROPRIETARY ANIMATIONS
+ * 
+ * Copyright © 2025 Flow AI. All rights reserved.
+ * 
+ * These animations are proprietary and confidential.
+ * Unauthorized use, copying, or distribution is prohibited.
+ * 
+ * Patent Pending: [Application Number TBD]
+ */
+

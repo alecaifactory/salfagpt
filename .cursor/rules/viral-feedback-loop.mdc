@@ -1,0 +1,1399 @@
+# 🔒 CONFIDENTIAL - Viral Feedback Loop System
+
+## ⚠️ PROPRIETARY INFORMATION - INTERNAL USE ONLY
+
+**Classification:** Highly Confidential  
+**Distribution:** Internal development team only  
+**Patent Potential:** High - Novel viral loop mechanics  
+**Competitive Advantage:** Critical differentiator
+
+---
+
+## 🎯 Purpose
+
+This rule documents a **proprietary viral feedback loop system** that creates network effects through social sharing, expert validation, and gamified prioritization. This system transforms product feedback into a collaborative, viral growth mechanism.
+
+**Key Innovation:** Feedback becomes sharable social proof that drives adoption, validation, and prioritization through internal network effects.
+
+---
+
+## 💡 Core Innovation: The Viral Feedback Loop
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              VIRAL FEEDBACK LOOP MECHANICS              │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  User A selects UI element with annotation tool        │
+│         ↓                                               │
+│  Vibrant purple/yellow/green circulating marker        │
+│         ↓                                               │
+│  Feedback box surfaces                                 │
+│         ↓                                               │
+│  User writes feedback + submits                        │
+│         ↓                                               │
+│  Circle animates blue → minimizes                      │
+│         ↓                                               │
+│  Ticket created with tracking ID                       │
+│         ↓                                               │
+│  SHAREABLE CARD generated (privacy-first)              │
+│         ↓                                               │
+│  Card shared → Slack/Teams/WhatsApp                    │
+│         ↓                                               │
+│  Recipients see: "User A requests Company Feature"     │
+│                  "Login to view details & upvote"      │
+│         ↓                                               │
+│  User B clicks → Authenticated access required         │
+│         ↓                                               │
+│  User B views full context + tests feature idea        │
+│         ↓                                               │
+│  User B upvotes + adds feedback                        │
+│         ↓                                               │
+│  User B shares to their network                        │
+│         ↓                                               │
+│  Chain reaction: More views → More upvotes             │
+│                   More feedback → Higher priority      │
+│                   More validation → Faster implementation│
+│                                                         │
+│  RESULT: Organic prioritization through collective     │
+│          intelligence and network effects              │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🎨 UI Annotation Tool - "Stella Marker"
+
+### Visual Design Specifications
+
+**Name:** Stella (Star) Marker  
+**Purpose:** Beautiful, attention-grabbing UI annotation tool
+
+**Appearance:**
+
+#### 1. Idle State (Stella Tool Selected)
+```
+Cursor becomes: Stella shape
+- Core: Bright vibrant purple (#a855f7)
+- Tail: Golden yellow (#fbbf24)
+- Size: 24px × 24px
+- Glow effect: Subtle purple shadow
+```
+
+#### 2. Placement State (After Click)
+```
+Marker Animation: Circulating colors
+- Frame 1 (0-33%): Vibrant purple (#a855f7)
+- Frame 2 (33-66%): Golden yellow (#fbbf24)
+- Frame 3 (66-100%): Emerald green (#10b981)
+- Duration: 2s infinite
+- Effect: Smooth color transition
+- Pulse: Gentle scale 1.0 → 1.1 → 1.0
+```
+
+#### 3. Feedback Entry State
+```
+Feedback Box surfaces:
+- Position: Above marker (or below if near top)
+- Width: 320px
+- Animation: Slide up + fade in (200ms)
+- Shadow: Large purple glow
+- Border: 2px solid with gradient (purple → yellow)
+```
+
+#### 4. Submitting State
+```
+Marker transforms:
+- Color: Circulating → Solid blue (#3b82f6)
+- Animation: Gentle spin (360° over 1s)
+- Size: Slightly larger (1.2x)
+- Effect: Pulsing glow
+```
+
+#### 5. Submitted State
+```
+Marker minimizes:
+- Animation: Scale down + fade out
+- Duration: 500ms
+- Effect: Explodes into small stars that fade
+- Final state: Small blue checkmark badge
+- Badge shows ticket number
+```
+
+### Stella Marker Component
+
+```typescript
+interface StellaMarker {
+  id: string;
+  position: { x: number; y: number };
+  state: 'idle' | 'placed' | 'active' | 'submitting' | 'submitted';
+  feedbackText?: string;
+  ticketId?: string;
+  animationPhase: number;           // 0-1 for color cycling
+}
+```
+
+---
+
+## 📝 Feedback Annotation Workflow
+
+### Step 1: Activate Stella Tool
+
+```typescript
+// Toolbar button
+<button
+  onClick={activateStellaTool}
+  className={`p-3 rounded-lg transition-all ${
+    stellaToolActive 
+      ? 'bg-purple-600 text-white shadow-lg shadow-purple-500/50' 
+      : 'bg-white text-slate-700 hover:bg-purple-50'
+  }`}
+>
+  <Pencil className="w-5 h-5" />
+  <span className="text-xs font-semibold mt-1">Stella Marker</span>
+</button>
+```
+
+**Active state:**
+- Cursor changes to Stella shape
+- All clickable elements highlight on hover
+- Purple overlay: `rgba(168, 85, 247, 0.05)`
+
+### Step 2: Place Marker
+
+```typescript
+function handleUIClick(event: MouseEvent) {
+  if (!stellaToolActive) return;
+  
+  const { clientX, clientY } = event;
+  
+  const marker: StellaMarker = {
+    id: `marker-${Date.now()}`,
+    position: { x: clientX, y: clientY },
+    state: 'placed',
+    animationPhase: 0,
+  };
+  
+  setMarkers(prev => [...prev, marker]);
+  
+  // Start color cycling animation
+  animateMarker(marker.id);
+  
+  // Surface feedback box after 300ms
+  setTimeout(() => {
+    setActiveMarkerId(marker.id);
+  }, 300);
+}
+```
+
+**Marker DOM:**
+```html
+<div 
+  class="stella-marker"
+  style={{
+    position: 'absolute',
+    left: `${marker.position.x}px`,
+    top: `${marker.position.y}px`,
+    transform: 'translate(-50%, -50%)',
+  }}
+>
+  <!-- SVG Stella with circulating colors -->
+  <svg width="32" height="32" viewBox="0 0 32 32">
+    <circle 
+      cx="16" 
+      cy="16" 
+      r="12"
+      fill={getCurrentColor(marker.animationPhase)}
+      filter="url(#glow)"
+    />
+    <path 
+      d="M 16 4 L 18 8 L 16 10 L 14 8 Z" 
+      fill="#fbbf24"
+    />
+    <defs>
+      <filter id="glow">
+        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+        <feMerge>
+          <feMergeNode in="coloredBlur"/>
+          <feMergeNode in="SourceGraphic"/>
+        </feMerge>
+      </filter>
+    </defs>
+  </svg>
+</div>
+```
+
+### Step 3: Feedback Entry
+
+```typescript
+interface FeedbackBoxProps {
+  marker: StellaMarker;
+  onSubmit: (feedback: string) => void;
+  onCancel: () => void;
+}
+
+function FeedbackBox({ marker, onSubmit, onCancel }: FeedbackBoxProps) {
+  const [feedback, setFeedback] = useState('');
+  
+  return (
+    <div 
+      className="absolute z-50 w-80 bg-white rounded-xl shadow-2xl border-2 border-purple-400"
+      style={{
+        left: `${marker.position.x}px`,
+        top: `${marker.position.y - 200}px`, // Above marker
+        transform: 'translateX(-50%)',
+        boxShadow: '0 0 30px rgba(168, 85, 247, 0.4)',
+      }}
+    >
+      {/* Header with gradient */}
+      <div className="bg-gradient-to-r from-purple-600 via-yellow-500 to-green-500 p-3 rounded-t-xl">
+        <h3 className="text-white font-bold flex items-center gap-2">
+          <Sparkles className="w-5 h-5" />
+          ¿Qué sugieres?
+        </h3>
+      </div>
+      
+      {/* Input */}
+      <div className="p-4">
+        <textarea
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          placeholder="Describe tu sugerencia o problema..."
+          rows={4}
+          className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+          autoFocus
+        />
+        
+        {/* Character count */}
+        <div className="text-xs text-slate-500 text-right mt-1">
+          {feedback.length} / 500
+        </div>
+      </div>
+      
+      {/* Actions */}
+      <div className="p-4 pt-0 flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={() => onSubmit(feedback)}
+          disabled={!feedback.trim()}
+          className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold"
+        >
+          Enviar Feedback
+        </button>
+      </div>
+    </div>
+  );
+}
+```
+
+### Step 4: Submit Animation
+
+```typescript
+async function handleSubmitFeedback(markerId: string, feedback: string) {
+  const marker = markers.find(m => m.id === markerId);
+  if (!marker) return;
+  
+  // Update marker state
+  updateMarker(markerId, { state: 'submitting' });
+  
+  try {
+    // Submit to API
+    const response = await fetch('/api/feedback/ui-annotations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        companyId,
+        position: marker.position,
+        feedback,
+        pageUrl: window.location.href,
+        elementPath: getElementPath(marker.position),
+      }),
+    });
+    
+    if (!response.ok) throw new Error('Submit failed');
+    
+    const result = await response.json();
+    
+    // Marker turns blue and spins
+    updateMarker(markerId, { 
+      state: 'submitted',
+      ticketId: result.ticketId 
+    });
+    
+    // Show success animation
+    await playSuccessAnimation(markerId);
+    
+    // Show ticket preview
+    showTicketPreview(result.ticketId, result.shareCard);
+    
+  } catch (error) {
+    console.error('Failed to submit:', error);
+    // Show error state
+    updateMarker(markerId, { state: 'placed' }); // Reset
+  }
+}
+
+async function playSuccessAnimation(markerId: string) {
+  return new Promise((resolve) => {
+    // 1. Blue spin (500ms)
+    // 2. Scale down (300ms)
+    // 3. Explode to stars (200ms)
+    // 4. Stars fade out (400ms)
+    setTimeout(resolve, 1400);
+  });
+}
+```
+
+---
+
+## 🎫 Ticket & Sharing System
+
+### Ticket Creation
+
+```typescript
+interface FeedbackTicket {
+  id: string;                       // Unique ticket ID (e.g., "FEAT-1234")
+  sessionId: string;                // Associated feedback session
+  userId: string;                   // Creator
+  companyId: string;                // Company
+  
+  // Content (minimal for privacy)
+  type: 'feature_request' | 'bug_report' | 'improvement';
+  title: string;                    // Auto-generated or user-provided
+  
+  // Status Tracking
+  status: 'submitted' | 'backlog' | 'roadmap' | 'in_progress' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  
+  // Backlog Integration
+  backlogItemId?: string;
+  roadmapItemId?: string;
+  targetQuarter?: string;
+  
+  // Social Features
+  upvotes: number;                  // Total upvotes
+  upvotedBy: string[];              // User IDs who upvoted
+  views: number;                    // View count
+  viewedBy: string[];               // User IDs who viewed
+  shares: number;                   // Share count
+  sharedBy: string[];               // User IDs who shared
+  
+  // Network Effect Tracking
+  shareChain: ShareNode[];          // Chain of shares
+  viralCoefficient: number;         // shares / views
+  
+  // Privacy
+  isPublic: boolean;                // false = company-internal only
+  requiresAuth: boolean;            // true = must login to view
+  
+  // Timeline
+  createdAt: Date;
+  updatedAt: Date;
+  
+  source: 'localhost' | 'production';
+}
+
+interface ShareNode {
+  sharedBy: string;                 // User who shared
+  sharedTo: string;                 // Platform (slack, teams, whatsapp)
+  sharedAt: Date;
+  resultingUpvotes: number;         // Upvotes from this share
+  resultingShares: number;          // Re-shares from this share
+  depth: number;                    // Share chain depth (0 = original)
+}
+```
+
+### Shareable Card Design
+
+**Privacy-First Card:**
+
+```typescript
+interface ShareableCard {
+  ticketId: string;
+  
+  // Visible without auth (public preview)
+  preview: {
+    emoji: string;                  // 🚀 ⚡ 🎨 🐛
+    type: 'Feature Request' | 'Bug Report' | 'Improvement';
+    createdBy: string;              // "User from Engineering" (anonymized)
+    company: string;                // Company name
+    upvotes: number;
+    timeAgo: string;                // "2 hours ago"
+  };
+  
+  // Visible only after auth
+  authenticated: {
+    title: string;
+    description: string;
+    screenshots: string[];          // URLs
+    aiAnalysis: string;
+    impactScores: {
+      csat: number;
+      nps: number;
+      affectedUsers: number;
+    };
+    currentStatus: string;
+    targetQuarter?: string;
+  };
+  
+  // Sharing metadata
+  shareUrl: string;                 // Unique share URL
+  ogImage: string;                  // Open Graph preview image
+  deepLink: string;                 // app://flow/tickets/FEAT-1234
+}
+```
+
+### Card Rendering (Public Preview)
+
+```html
+<!-- Slack/Teams/WhatsApp Preview -->
+<div class="share-card">
+  <div class="card-header">
+    <span class="emoji">🚀</span>
+    <h3>Feature Request from Your Team</h3>
+  </div>
+  
+  <div class="card-body">
+    <p class="requester">Requested by: User from Engineering Team</p>
+    <p class="company">Company: Salfa Corp</p>
+    <div class="stats">
+      <span>👍 {upvotes} upvotes</span>
+      <span>⏰ {timeAgo}</span>
+    </div>
+  </div>
+  
+  <div class="card-footer">
+    <div class="auth-required">
+      🔒 Login with company credentials to:
+      • View full details
+      • Test the feature concept
+      • Upvote this request
+      • Share with your network
+    </div>
+    
+    <a href="{shareUrl}" class="cta-button">
+      View Details (Secure Login Required)
+    </a>
+  </div>
+</div>
+```
+
+### Card Rendering (Authenticated View)
+
+```html
+<!-- After authentication -->
+<div class="ticket-detail">
+  <div class="header">
+    <div class="ticket-id">FEAT-1234</div>
+    <div class="status-badge">{status}</div>
+  </div>
+  
+  <h1>{title}</h1>
+  <p class="description">{description}</p>
+  
+  <!-- Screenshots with annotations -->
+  <div class="screenshots">
+    {screenshots.map(screenshot => (
+      <img src={screenshot} alt="Annotated feedback" />
+    ))}
+  </div>
+  
+  <!-- AI Analysis -->
+  <div class="ai-analysis">
+    <h3>AI Impact Analysis</h3>
+    <div class="metrics">
+      <div>CSAT Impact: +{csat}/5</div>
+      <div>NPS Impact: +{nps}</div>
+      <div>Affected Users: ~{affectedUsers}</div>
+    </div>
+    <p>{aiAnalysis}</p>
+  </div>
+  
+  <!-- Current Status -->
+  <div class="status-timeline">
+    <div class="step completed">✓ Submitted</div>
+    <div class="step completed">✓ Reviewed</div>
+    <div class="step current">● In Backlog</div>
+    <div class="step">Scheduled: Q1 2025</div>
+    <div class="step">In Development</div>
+    <div class="step">Released</div>
+  </div>
+  
+  <!-- Actions -->
+  <div class="actions">
+    <button class="upvote-btn" onclick={handleUpvote}>
+      {userHasUpvoted ? '👍 Upvoted' : '👍 Upvote'} ({upvotes})
+    </button>
+    
+    <button class="share-btn" onclick={handleShare}>
+      🔗 Share with Team
+    </button>
+    
+    <button class="feedback-btn" onclick={addFeedback}>
+      💬 Add Feedback
+    </button>
+  </div>
+  
+  <!-- Share Chain Visualization (if expanded) -->
+  <div class="share-chain">
+    <h4>Share Network</h4>
+    <!-- Tree visualization of shares -->
+  </div>
+</div>
+```
+
+---
+
+## 🔗 Social Sharing Integration
+
+### Share Card Generation
+
+```typescript
+async function generateShareCard(ticketId: string): Promise<ShareableCard> {
+  const ticket = await getTicket(ticketId);
+  
+  // Generate OG image (visual card preview)
+  const ogImage = await generateOGImage({
+    emoji: getEmojiForType(ticket.type),
+    type: ticket.type,
+    upvotes: ticket.upvotes,
+    company: ticket.companyId,
+  });
+  
+  // Create shareable URL with tracking
+  const shareUrl = `https://flow.ai/share/ticket/${ticketId}?ref=${userId}`;
+  
+  // Deep link for mobile
+  const deepLink = `flow://tickets/${ticketId}`;
+  
+  return {
+    ticketId,
+    preview: {
+      emoji: getEmojiForType(ticket.type),
+      type: formatType(ticket.type),
+      createdBy: anonymizeUser(ticket.userId),
+      company: getCompanyName(ticket.companyId),
+      upvotes: ticket.upvotes,
+      timeAgo: formatTimeAgo(ticket.createdAt),
+    },
+    authenticated: {
+      title: ticket.title,
+      description: ticket.description,
+      screenshots: ticket.screenshots,
+      aiAnalysis: ticket.aiAnalysis,
+      impactScores: ticket.impactScores,
+      currentStatus: ticket.status,
+      targetQuarter: ticket.targetQuarter,
+    },
+    shareUrl,
+    ogImage,
+    deepLink,
+  };
+}
+```
+
+### Share Tracking
+
+```typescript
+interface ShareEvent {
+  ticketId: string;
+  sharedBy: string;                 // User ID
+  sharedTo: SharePlatform;
+  sharedAt: Date;
+  
+  // Results (tracked over 7 days)
+  resultingViews: number;
+  resultingUpvotes: number;
+  resultingShares: number;          // Re-shares (viral coefficient)
+  resultingFeedback: number;        // Additional feedback items
+  
+  // Attribution
+  parentShareId?: string;           // If this was a re-share
+  depth: number;                    // 0 = original share
+}
+
+type SharePlatform = 
+  | 'slack' 
+  | 'microsoft-teams' 
+  | 'whatsapp' 
+  | 'email' 
+  | 'copy-link';
+```
+
+### Slack Integration (Example)
+
+```typescript
+async function shareToSlack(ticketId: string, userId: string, channelId: string) {
+  const card = await generateShareCard(ticketId);
+  
+  const slackMessage = {
+    channel: channelId,
+    blocks: [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*${card.preview.emoji} ${card.preview.type}*\nRequested by: ${card.preview.createdBy}\nCompany: ${card.preview.company}`
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `👍 *${card.preview.upvotes} upvotes* • ⏰ ${card.preview.timeAgo}`
+        }
+      },
+      {
+        type: 'divider'
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '🔒 *Authentication Required*\nLogin with your company credentials to:\n• View full details and screenshots\n• Test the feature concept\n• Upvote this request\n• Add your feedback\n• Share with your network'
+        }
+      },
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: '🔍 View Details (Secure Login)' },
+            url: card.shareUrl,
+            style: 'primary'
+          }
+        ]
+      }
+    ]
+  };
+  
+  // Track share
+  await trackShare({
+    ticketId,
+    sharedBy: userId,
+    sharedTo: 'slack',
+    channelId,
+  });
+  
+  return slackMessage;
+}
+```
+
+---
+
+## 🎮 Gamification & Viral Mechanics
+
+### Upvote System
+
+```typescript
+interface UpvoteAction {
+  ticketId: string;
+  userId: string;
+  upvotedAt: Date;
+  
+  // Attribution
+  referredBy?: string;              // Who shared the link
+  shareChainDepth: number;          // How many shares deep
+  
+  // Context
+  viewedDuration: number;           // Seconds before upvote
+  testedFeature: boolean;           // Did they test it?
+  addedFeedback: boolean;           // Did they add comments?
+  shared: boolean;                  // Did they re-share?
+}
+
+// Upvote gives points to original requester
+const POINTS = {
+  directUpvote: 10,                 // From original share
+  secondDegreeUpvote: 5,            // From re-share
+  thirdDegreeUpvote: 2,             // From re-re-share
+  withFeedback: 20,                 // Upvote + added feedback
+  withShare: 30,                    // Upvote + re-shared
+  tested: 15,                       // Actually tested feature
+};
+```
+
+### Viral Coefficient Calculation
+
+```typescript
+function calculateViralCoefficient(ticket: FeedbackTicket): number {
+  // Viral coefficient = (shares + upvotes) / views
+  // > 1.0 = exponential growth
+  // 0.5-1.0 = linear growth  
+  // < 0.5 = declining interest
+  
+  const engagement = ticket.shares + (ticket.upvotes * 0.5);
+  const views = ticket.views || 1;
+  
+  return engagement / views;
+}
+
+function getViralityLevel(coefficient: number): string {
+  if (coefficient > 1.5) return '🔥 VIRAL';
+  if (coefficient > 1.0) return '🚀 Growing';
+  if (coefficient > 0.5) return '📈 Moderate';
+  return '📊 Low';
+}
+```
+
+### Priority Boosting from Virality
+
+```typescript
+function calculateDynamicPriority(
+  ticket: FeedbackTicket,
+  backlogItem: BacklogItem
+): FeedbackPriority {
+  // Base priority from admin/AI
+  let score = basePriorityScore(backlogItem.priority);
+  
+  // Boost from upvotes (democratic signal)
+  score += Math.log10(ticket.upvotes + 1) * 10;
+  
+  // Boost from viral coefficient (organic interest)
+  score += calculateViralCoefficient(ticket) * 20;
+  
+  // Boost from expert upvotes (weighted higher)
+  const expertUpvotes = ticket.upvotedBy.filter(isExpert).length;
+  score += expertUpvotes * 15;
+  
+  // Boost from shares (advocacy signal)
+  score += ticket.shares * 5;
+  
+  // Convert score to priority
+  if (score > 100) return 'critical';
+  if (score > 70) return 'high';
+  if (score > 40) return 'medium';
+  return 'low';
+}
+```
+
+---
+
+## 🔐 Privacy & Security (Critical)
+
+### Privacy Layers
+
+#### Layer 1: Public Preview (No Auth)
+**Visible to anyone with link:**
+- ✅ Type of request (Feature/Bug/Improvement)
+- ✅ Emoji indicator
+- ✅ Anonymized creator ("User from Engineering")
+- ✅ Company name
+- ✅ Upvote count
+- ✅ Time ago
+
+**Hidden:**
+- ❌ User identity
+- ❌ Specific details
+- ❌ Screenshots
+- ❌ Full description
+- ❌ AI analysis
+
+#### Layer 2: Company-Authenticated Access
+**Visible after company SSO login:**
+- ✅ Full title and description
+- ✅ All screenshots with annotations
+- ✅ AI analysis and impact scores
+- ✅ Current status and roadmap
+- ✅ Ability to upvote
+- ✅ Ability to add feedback
+- ✅ Ability to share
+
+**Access Control:**
+```typescript
+async function verifyTicketAccess(
+  ticketId: string,
+  userId: string
+): Promise<boolean> {
+  const ticket = await getTicket(ticketId);
+  const user = await getUser(userId);
+  
+  // Check 1: Same company
+  if (ticket.companyId !== user.companyId) {
+    return false; // Cross-company access denied
+  }
+  
+  // Check 2: User authenticated
+  if (!user.isAuthenticated) {
+    return false; // Must login
+  }
+  
+  // Check 3: Company domain verified
+  if (!user.emailVerified || !user.email.endsWith(company.domain)) {
+    return false; // Must use company email
+  }
+  
+  return true; // Access granted
+}
+```
+
+### Share URL Security
+
+```typescript
+// Generate secure, trackable share URL
+function generateSecureShareUrl(
+  ticketId: string,
+  sharedBy: string
+): string {
+  // Create tracking token
+  const trackingToken = generateTrackingToken({
+    ticketId,
+    sharedBy,
+    expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
+  });
+  
+  // URL with tracking
+  return `https://flow.ai/t/${ticketId}?ref=${trackingToken}`;
+}
+
+// Verify share URL access
+async function verifyShareUrl(ticketId: string, trackingToken: string) {
+  const decoded = verifyTrackingToken(trackingToken);
+  
+  if (!decoded || decoded.ticketId !== ticketId) {
+    throw new Error('Invalid share link');
+  }
+  
+  if (decoded.expiresAt < new Date()) {
+    throw new Error('Share link expired');
+  }
+  
+  // Track view
+  await trackTicketView(ticketId, decoded.sharedBy);
+  
+  return decoded;
+}
+```
+
+---
+
+## 📊 Network Effect Analytics
+
+### Virality Metrics Dashboard
+
+```typescript
+interface ViralityMetrics {
+  // Per Ticket
+  ticketId: string;
+  viralCoefficient: number;         // shares / views
+  shareDepth: number;               // Max chain depth
+  totalReach: number;               // Unique viewers
+  conversionRate: number;           // upvotes / views
+  
+  // Share Chain
+  originalShares: number;           // First-degree shares
+  secondDegreeShares: number;       // Re-shares
+  thirdDegreeShares: number;        // Re-re-shares
+  
+  // Engagement
+  avgTimeToUpvote: number;          // Seconds
+  avgTimeToShare: number;           // Seconds
+  feedbackRate: number;             // % who add feedback
+  testRate: number;                 // % who test feature
+  
+  // Outcome
+  priorityBoost: number;            // How much priority increased
+  implementationSpeed: number;      // Days to completion
+  finalCSAT: number;                // Post-release CSAT
+  finalNPS: number;                 // Post-release NPS
+}
+```
+
+### Network Graph Visualization
+
+```typescript
+interface ShareNetworkNode {
+  userId: string;
+  userName: string;                 // Anonymized
+  department: string;
+  actions: {
+    viewed: boolean;
+    upvoted: boolean;
+    addedFeedback: boolean;
+    shared: boolean;
+  };
+  children: ShareNetworkNode[];     // Users they shared to
+}
+
+// Visualization shows:
+// - Tree structure of shares
+// - Node size = engagement level
+// - Node color = department
+// - Edges thickness = resulting engagement
+```
+
+---
+
+## 🎯 Viral Loop Optimization
+
+### A/B Testing Variables
+
+**Test variations:**
+1. **Card Design**: Simple vs rich preview
+2. **Call-to-Action**: "View Details" vs "Vote & View" vs "Help Prioritize"
+3. **Social Proof**: Show upvotes vs hide until auth
+4. **Scarcity**: "Top 10% of requests" badge
+5. **Urgency**: "Team reviewing this week" timer
+6. **Gamification**: Points for sharing, leaderboard
+
+### Optimal Share Triggers
+
+```typescript
+// When to encourage sharing
+const SHARE_TRIGGERS = {
+  highImpact: {
+    condition: (ticket) => ticket.expectedCSATImpact > 2,
+    message: '🌟 This has high impact! Share to accelerate.',
+  },
+  
+  expertValidation: {
+    condition: (ticket) => hasExpertUpvote(ticket),
+    message: '✅ Validated by expert! Share with your team.',
+  },
+  
+  criticalMass: {
+    condition: (ticket) => ticket.upvotes > 10,
+    message: '🔥 Trending! Already {upvotes} upvotes.',
+  },
+  
+  quickWin: {
+    condition: (ticket) => ticket.estimatedEffort === 'xs' || ticket.estimatedEffort === 's',
+    message: '⚡ Quick win! Low effort, high value.',
+  },
+};
+```
+
+### Share Incentives
+
+```typescript
+interface ShareIncentive {
+  type: 'points' | 'badge' | 'priority_boost' | 'early_access';
+  
+  // Points
+  pointsEarned?: number;            // Gamification points
+  
+  // Badges
+  badge?: {
+    name: string;                   // "Influencer", "Advocate", "Catalyst"
+    icon: string;
+    description: string;
+  };
+  
+  // Priority
+  priorityBoost?: number;           // +10 priority score per 5 shares
+  
+  // Early Access
+  earlyAccess?: {
+    feature: string;
+    daysEarly: number;              // Days before general release
+  };
+}
+
+// Award incentives based on share performance
+function awardShareIncentives(userId: string, ticket: FeedbackTicket) {
+  const userShares = ticket.sharedBy.filter(id => id === userId).length;
+  const resultingUpvotes = calculateResultingUpvotes(userId, ticket);
+  
+  const incentives: ShareIncentive[] = [];
+  
+  // Points for each share
+  incentives.push({
+    type: 'points',
+    pointsEarned: userShares * 10,
+  });
+  
+  // Badge for influential shares
+  if (resultingUpvotes > 10) {
+    incentives.push({
+      type: 'badge',
+      badge: {
+        name: 'Influencer',
+        icon: '🌟',
+        description: 'Your shares drive action',
+      },
+    });
+  }
+  
+  // Priority boost for creator if viral
+  if (ticket.viralCoefficient > 1.0 && ticket.userId === userId) {
+    incentives.push({
+      type: 'priority_boost',
+      priorityBoost: 20,
+    });
+  }
+  
+  // Early access for top contributors
+  if (resultingUpvotes > 20) {
+    incentives.push({
+      type: 'early_access',
+      earlyAccess: {
+        feature: ticket.title,
+        daysEarly: 7,
+      },
+    });
+  }
+  
+  return incentives;
+}
+```
+
+---
+
+## 🔄 Viral Loop Metrics
+
+### Key Performance Indicators
+
+```typescript
+interface ViralLoopKPIs {
+  // Acquisition
+  newUsersFromShares: number;       // Users who joined via share link
+  signupConversion: number;         // % of share viewers who signup
+  
+  // Activation
+  shareRate: number;                // % of users who share
+  avgSharesPerUser: number;
+  avgShareDepth: number;            // Chain length
+  
+  // Retention
+  shareRetention: number;           // % who share again
+  upvoteRetention: number;          // % who upvote again
+  
+  // Referral (Viral Coefficient)
+  viralCoefficient: number;         // > 1.0 = exponential growth
+  
+  // Revenue (Indirect)
+  featuresShippedFromViral: number; // Features that went viral
+  csatImprovementFromViral: number; // CSAT boost from viral features
+  
+  // Network
+  avgNetworkSize: number;           // Avg share recipients per user
+  networkDensity: number;           // Interconnection level
+  influencers: number;              // Users with >10 resulting upvotes
+}
+```
+
+### Target Metrics (Success Criteria)
+
+```typescript
+const VIRAL_LOOP_TARGETS = {
+  shareRate: 0.15,                  // 15% of users share
+  viralCoefficient: 1.2,            // 20% exponential growth
+  avgShareDepth: 2.5,               // Reaches 2.5 levels deep
+  upvoteConversion: 0.30,           // 30% of viewers upvote
+  feedbackRate: 0.10,               // 10% add feedback
+  timeToImplement: 21,              // Days (3 weeks)
+  csatBoost: 1.5,                   // +1.5 CSAT on average
+  npsBoost: 15,                     // +15 NPS on average
+};
+```
+
+---
+
+## 🛡️ Anti-Abuse Mechanisms
+
+### Prevent Spam & Gaming
+
+```typescript
+// Rate limiting
+const LIMITS = {
+  maxUpvotesPerDay: 20,             // Prevent bot upvoting
+  maxSharesPerDay: 10,              // Prevent spam sharing
+  maxFeedbackPerDay: 5,             // Prevent feedback flooding
+  minTimeBetweenUpvotes: 2000,      // 2 seconds (prevent bots)
+  minTimeBetweenShares: 5000,       // 5 seconds
+};
+
+// Validation
+async function validateUpvote(userId: string, ticketId: string): Promise<boolean> {
+  // Check 1: Not already upvoted
+  const ticket = await getTicket(ticketId);
+  if (ticket.upvotedBy.includes(userId)) {
+    return false;
+  }
+  
+  // Check 2: Rate limit
+  const recentUpvotes = await getRecentUpvotes(userId, '24h');
+  if (recentUpvotes.length >= LIMITS.maxUpvotesPerDay) {
+    return false;
+  }
+  
+  // Check 3: Time since last upvote
+  const lastUpvote = recentUpvotes[0];
+  if (lastUpvote && (Date.now() - lastUpvote.timestamp) < LIMITS.minTimeBetweenUpvotes) {
+    return false;
+  }
+  
+  // Check 4: User is authenticated
+  const user = await getUser(userId);
+  if (!user.isAuthenticated || !user.emailVerified) {
+    return false;
+  }
+  
+  return true;
+}
+```
+
+### Fraud Detection
+
+```typescript
+interface FraudSignal {
+  type: 'bot_behavior' | 'coordinated_upvoting' | 'fake_shares' | 'suspicious_pattern';
+  severity: 'low' | 'medium' | 'high';
+  details: string;
+}
+
+async function detectFraud(ticket: FeedbackTicket): Promise<FraudSignal[]> {
+  const signals: FraudSignal[] = [];
+  
+  // Bot detection: Too fast, too consistent
+  const upvoteTimes = await getUpvoteTimes(ticket.id);
+  if (areTimesTooRegular(upvoteTimes)) {
+    signals.push({
+      type: 'bot_behavior',
+      severity: 'high',
+      details: 'Upvotes happening at regular intervals',
+    });
+  }
+  
+  // Coordinated upvoting: Same IP, same time
+  const upvoteIPs = await getUpvoteIPs(ticket.id);
+  if (hasSuspiciousIPPattern(upvoteIPs)) {
+    signals.push({
+      type: 'coordinated_upvoting',
+      severity: 'high',
+      details: 'Multiple upvotes from same IP',
+    });
+  }
+  
+  // Fake shares: Shares but no resulting views
+  if (ticket.shares > 5 && ticket.views < ticket.shares * 2) {
+    signals.push({
+      type: 'fake_shares',
+      severity: 'medium',
+      details: 'Low view/share ratio',
+    });
+  }
+  
+  return signals;
+}
+```
+
+---
+
+## 📱 Mobile Experience
+
+### Share via Mobile
+
+```typescript
+// Native share API
+async function handleNativeShare(ticket: FeedbackTicket) {
+  if (!navigator.share) {
+    // Fallback to copy link
+    await handleCopyLink(ticket);
+    return;
+  }
+  
+  const card = await generateShareCard(ticket.id);
+  
+  try {
+    await navigator.share({
+      title: `${card.preview.emoji} ${card.preview.type}`,
+      text: `Check out this ${card.preview.type.toLowerCase()} from ${card.preview.company}. ${card.preview.upvotes} upvotes!`,
+      url: card.shareUrl,
+    });
+    
+    // Track share
+    await trackShare({
+      ticketId: ticket.id,
+      sharedBy: userId,
+      sharedTo: 'native-share',
+    });
+    
+  } catch (error) {
+    // User cancelled or error
+    console.log('Share cancelled');
+  }
+}
+```
+
+---
+
+## 🎨 Animation Specifications
+
+### Stella Marker Color Cycling
+
+```css
+@keyframes stellaColorCycle {
+  0% {
+    fill: #a855f7; /* Vibrant purple */
+    filter: drop-shadow(0 0 8px #a855f7);
+  }
+  33% {
+    fill: #fbbf24; /* Golden yellow */
+    filter: drop-shadow(0 0 8px #fbbf24);
+  }
+  66% {
+    fill: #10b981; /* Emerald green */
+    filter: drop-shadow(0 0 8px #10b981);
+  }
+  100% {
+    fill: #a855f7; /* Back to purple */
+    filter: drop-shadow(0 0 8px #a855f7);
+  }
+}
+
+.stella-marker {
+  animation: stellaColorCycle 2s infinite ease-in-out;
+}
+```
+
+### Submit Success Animation
+
+```css
+@keyframes stellaSubmitSuccess {
+  0% {
+    fill: #3b82f6; /* Blue */
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(180deg);
+  }
+  70% {
+    transform: scale(0.8) rotate(360deg);
+  }
+  100% {
+    transform: scale(0) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stellaStarExplosion {
+  0% {
+    transform: scale(0) translate(0, 0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1) translate(var(--tx), var(--ty));
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) translate(calc(var(--tx) * 2), calc(var(--ty) * 2));
+    opacity: 0;
+  }
+}
+
+.stella-submit {
+  animation: stellaSubmitSuccess 1s ease-out forwards;
+}
+
+.stella-star {
+  animation: stellaStarExplosion 0.8s ease-out forwards;
+}
+```
+
+---
+
+## 🚀 Implementation Roadmap
+
+### Milestone 1: Core Stella Tool (Week 1)
+- [ ] Stella marker component with color cycling
+- [ ] UI element selection
+- [ ] Feedback box surfacing
+- [ ] Submit animation
+- [ ] Ticket creation
+
+### Milestone 2: Social Sharing (Week 2)
+- [ ] Share card generation
+- [ ] Privacy-first preview
+- [ ] Slack integration
+- [ ] Teams integration
+- [ ] WhatsApp web link sharing
+
+### Milestone 3: Viral Mechanics (Week 3)
+- [ ] Upvote system
+- [ ] Share tracking
+- [ ] Viral coefficient calculation
+- [ ] Priority boosting algorithm
+- [ ] Network graph visualization
+
+### Milestone 4: Advanced Features (Week 4)
+- [ ] Expert validation system
+- [ ] Points and badges
+- [ ] Early access rewards
+- [ ] Leaderboard
+- [ ] Network analytics
+
+---
+
+## 🔒 Confidentiality Notice
+
+### Protection Measures
+
+**Code:**
+- ✅ Proprietary algorithms obfuscated
+- ✅ Viral coefficient formula not exposed in client
+- ✅ Share tracking server-side only
+- ✅ No public API for viral metrics
+
+**Documentation:**
+- ✅ This rule marked CONFIDENTIAL
+- ✅ Internal team access only
+- ✅ No external sharing
+- ✅ Patent documentation in progress
+
+**Deployment:**
+- ✅ Feature flag controlled
+- ✅ Gradual rollout strategy
+- ✅ A/B testing isolated groups
+- ✅ Metrics closely monitored
+
+### Competitive Moat
+
+**Why this is defensible:**
+1. **Network effects**: Value increases with users
+2. **Data flywheel**: More feedback → Better AI → Better prioritization
+3. **Integration depth**: Embedded in product workflow
+4. **User habit**: Becomes natural feedback channel
+5. **Social proof**: Internal validation drives adoption
+
+---
+
+## ✅ Success Criteria
+
+### Viral Loop Active
+- ✅ Viral coefficient > 1.2 (exponential growth)
+- ✅ 15%+ share rate
+- ✅ 30%+ upvote conversion
+- ✅ Avg share depth 2.5+
+- ✅ 3+ week implementation time reduction
+
+### User Satisfaction
+- ✅ CSAT +1.5 average from viral features
+- ✅ NPS +15 average from viral features
+- ✅ 80%+ prediction accuracy
+- ✅ > 90% OKR alignment
+
+### Business Impact
+- ✅ 40%+ reduction in "wrong feature" builds
+- ✅ 50%+ faster feature validation
+- ✅ 3x more user input per feature
+- ✅ Organic prioritization accuracy > 85%
+
+---
+
+**Last Updated**: 2025-10-27  
+**Version**: 1.0.0  
+**Status**: 🔒 CONFIDENTIAL - Implementation Ready  
+**Patent Status**: Documentation in progress  
+**Competitive Value**: CRITICAL
+
+---
+
+**⚠️ REMINDER: This document contains proprietary viral loop mechanics. Do not share outside authorized personnel. This is a key competitive differentiator and must be protected.**
