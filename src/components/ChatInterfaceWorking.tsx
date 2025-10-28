@@ -319,7 +319,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showRightPanel, setShowRightPanel] = useState(false); // Hidden by default
 
   // Panel resizing state
-  const [leftPanelWidth, setLeftPanelWidth] = useState(320); // 80 * 4 = 320px (w-80)
+  const [leftPanelWidth, setLeftPanelWidth] = useState(420); // Increased from 320px to 420px for better visibility
   const [rightPanelWidth, setRightPanelWidth] = useState(320);
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
