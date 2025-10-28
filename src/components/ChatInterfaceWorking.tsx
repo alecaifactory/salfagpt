@@ -20,7 +20,7 @@ import RAGConfigPanel from './RAGConfigPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
-import StellaMarkerTool from './StellaMarkerTool';
+import StellaMarkerTool from './StellaMarkerTool_v2';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';

@@ -28,13 +28,22 @@ import {
   MessageSquare
 } from 'lucide-react';
 
+type StellaMode = 'point' | 'area' | 'fullscreen';
+
+interface StellaSelection {
+  mode: StellaMode;
+  point?: { x: number; y: number };
+  area?: { x: number; y: number; width: number; height: number };
+}
+
 interface StellaMarker {
   id: string;
-  position: { x: number; y: number };
-  state: 'idle' | 'placed' | 'active' | 'submitting' | 'submitted';
+  selection: StellaSelection;
+  state: 'idle' | 'selecting' | 'active' | 'submitting' | 'submitted';
   feedbackText?: string;
   ticketId?: string;
-  animationPhase: number;           // 0-1 for color cycling
+  screenshot?: string;              // Full page screenshot URL
+  selectedAreaScreenshot?: string;  // Selected area screenshot URL
 }
 
 interface StellaMarkerToolProps {
@@ -50,8 +59,14 @@ export default function StellaMarkerTool({
 }: StellaMarkerToolProps) {
   // Tool state
   const [isActive, setIsActive] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<StellaMode>('point');
   const [markers, setMarkers] = useState<StellaMarker[]>([]);
   const [activeMarkerId, setActiveMarkerId] = useState<string | null>(null);
+  
+  // Area selection state
+  const [isDrawingArea, setIsDrawingArea] = useState(false);
+  const [areaStart, setAreaStart] = useState<{ x: number; y: number } | null>(null);
+  const [currentArea, setCurrentArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   
   // Feedback state
   const [feedbackText, setFeedbackText] = useState('');
@@ -60,9 +75,6 @@ export default function StellaMarkerTool({
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
   const [currentTicket, setCurrentTicket] = useState<any>(null);
-  
-  // Animation refs
-  const animationFrameRef = useRef<number>();
   
   // Simple violet color - no cycling
   function getCurrentColor(): string {
@@ -73,33 +85,191 @@ export default function StellaMarkerTool({
   function toggleStellaTool() {
     setIsActive(!isActive);
     if (isActive) {
-      // Deactivating - clear markers
+      // Deactivating - clear everything
       setMarkers([]);
       setActiveMarkerId(null);
+      setCurrentArea(null);
+      setAreaStart(null);
+      setIsDrawingArea(false);
     }
   }
   
-  // Handle click on page
-  function handlePageClick(event: MouseEvent) {
+  // Handle mouse down - start selection
+  function handleMouseDown(event: MouseEvent) {
     if (!isActive) return;
+    
+    // Prevent default to avoid triggering UI actions
+    event.preventDefault();
+    event.stopPropagation();
     
     const { clientX, clientY } = event;
     
-    // Create new marker
+    if (selectedMode === 'point') {
+      // Point mode - simple click
+      createPointMarker(clientX, clientY);
+    } else if (selectedMode === 'area') {
+      // Area mode - start drawing rectangle
+      setIsDrawingArea(true);
+      setAreaStart({ x: clientX, y: clientY });
+      setCurrentArea({ x: clientX, y: clientY, width: 0, height: 0 });
+    } else if (selectedMode === 'fullscreen') {
+      // Fullscreen mode - capture entire page
+      createFullscreenMarker();
+    }
+  }
+  
+  // Handle mouse move - update area selection
+  function handleMouseMove(event: MouseEvent) {
+    if (!isDrawingArea || !areaStart) return;
+    
+    const { clientX, clientY } = event;
+    
+    const width = clientX - areaStart.x;
+    const height = clientY - areaStart.y;
+    
+    setCurrentArea({
+      x: width < 0 ? clientX : areaStart.x,
+      y: height < 0 ? clientY : areaStart.y,
+      width: Math.abs(width),
+      height: Math.abs(height),
+    });
+  }
+  
+  // Handle mouse up - finalize area selection
+  function handleMouseUp(event: MouseEvent) {
+    if (!isDrawingArea || !currentArea) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    setIsDrawingArea(false);
+    
+    // Minimum area size (20x20px)
+    if (currentArea.width < 20 || currentArea.height < 20) {
+      // Too small - treat as point
+      createPointMarker(areaStart!.x, areaStart!.y);
+      setAreaStart(null);
+      setCurrentArea(null);
+      return;
+    }
+    
+    // Create area marker
+    createAreaMarker(currentArea);
+    setAreaStart(null);
+  }
+  
+  // Create point marker
+  function createPointMarker(x: number, y: number) {
     const marker: StellaMarker = {
       id: `stella-${Date.now()}`,
-      position: { x: clientX, y: clientY },
-      state: 'placed',
-      animationPhase: 0,
+      selection: {
+        mode: 'point',
+        point: { x, y },
+      },
+      state: 'selecting',
     };
     
-    setMarkers(prev => [...prev, marker]);
+    setMarkers([marker]); // Only one marker at a time
     
-    // Activate feedback box after brief animation
-    setTimeout(() => {
+    // Capture screenshots and show feedback box
+    captureScreenshots(marker);
+  }
+  
+  // Create area marker
+  function createAreaMarker(area: { x: number; y: number; width: number; height: number }) {
+    const marker: StellaMarker = {
+      id: `stella-${Date.now()}`,
+      selection: {
+        mode: 'area',
+        area,
+      },
+      state: 'selecting',
+    };
+    
+    setMarkers([marker]); // Only one marker at a time
+    setCurrentArea(null);
+    
+    // Capture screenshots and show feedback box
+    captureScreenshots(marker);
+  }
+  
+  // Create fullscreen marker
+  function createFullscreenMarker() {
+    const marker: StellaMarker = {
+      id: `stella-${Date.now()}`,
+      selection: {
+        mode: 'fullscreen',
+      },
+      state: 'selecting',
+    };
+    
+    setMarkers([marker]); // Only one marker at a time
+    
+    // Capture screenshots and show feedback box
+    captureScreenshots(marker);
+  }
+  
+  // Capture screenshots based on selection
+  async function captureScreenshots(marker: StellaMarker) {
+    try {
+      // Dynamic import html2canvas
+      const { default: html2canvas } = await import('html2canvas');
+      
+      // Hide Stella UI before capture
+      const stellaElements = document.querySelectorAll('[data-stella-ui]');
+      stellaElements.forEach(el => (el as HTMLElement).style.display = 'none');
+      
+      // Capture full page for context
+      const fullCanvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: true,
+      });
+      
+      const fullScreenshot = fullCanvas.toDataURL('image/png');
+      
+      let selectedAreaScreenshot = fullScreenshot;
+      
+      // If area mode, crop to selected area
+      if (marker.selection.mode === 'area' && marker.selection.area) {
+        const area = marker.selection.area;
+        const cropCanvas = document.createElement('canvas');
+        cropCanvas.width = area.width;
+        cropCanvas.height = area.height;
+        const ctx = cropCanvas.getContext('2d');
+        
+        if (ctx) {
+          ctx.drawImage(
+            fullCanvas,
+            area.x, area.y, area.width, area.height,
+            0, 0, area.width, area.height
+          );
+          selectedAreaScreenshot = cropCanvas.toDataURL('image/png');
+        }
+      }
+      
+      // Restore Stella UI
+      stellaElements.forEach(el => (el as HTMLElement).style.display = '');
+      
+      // Update marker with screenshots
+      setMarkers(prev => prev.map(m =>
+        m.id === marker.id
+          ? {
+              ...m,
+              screenshot: fullScreenshot,
+              selectedAreaScreenshot,
+              state: 'active',
+            }
+          : m
+      ));
+      
+      setActiveMarkerId(marker.id);
+      
+    } catch (error) {
+      console.error('Failed to capture screenshots:', error);
+      // Show feedback box anyway
       setActiveMarkerId(marker.id);
       updateMarkerState(marker.id, 'active');
-    }, 300);
+    }
   }
   
   // Calculate feedback box position (keep within viewport)
@@ -240,24 +410,41 @@ export default function StellaMarkerTool({
     return path.join(' > ');
   }
   
-  // Setup/cleanup click listener
+  // Setup/cleanup event listeners
   useEffect(() => {
     if (isActive) {
-      document.addEventListener('click', handlePageClick as any);
+      // Add pointer-events-none to all interactive elements except Stella UI
+      const interactiveElements = document.querySelectorAll('button:not([data-stella-ui]), a:not([data-stella-ui]), input:not([data-stella-ui]), select:not([data-stella-ui]), textarea:not([data-stella-ui])');
+      interactiveElements.forEach(el => {
+        (el as HTMLElement).style.pointerEvents = 'none';
+      });
+      
+      document.addEventListener('mousedown', handleMouseDown as any, true);
+      document.addEventListener('mousemove', handleMouseMove as any, true);
+      document.addEventListener('mouseup', handleMouseUp as any, true);
     }
     
     return () => {
-      document.removeEventListener('click', handlePageClick as any);
+      // Restore pointer events
+      const interactiveElements = document.querySelectorAll('button, a, input, select, textarea');
+      interactiveElements.forEach(el => {
+        (el as HTMLElement).style.pointerEvents = '';
+      });
+      
+      document.removeEventListener('mousedown', handleMouseDown as any, true);
+      document.removeEventListener('mousemove', handleMouseMove as any, true);
+      document.removeEventListener('mouseup', handleMouseUp as any, true);
     };
-  }, [isActive]);
+  }, [isActive, isDrawingArea, areaStart]);
   
   const activeMarker = markers.find(m => m.id === activeMarkerId);
   
   return (
     <>
-      {/* Toolbar Button */}
+      {/* Toolbar - Main Button */}
       <button
         onClick={toggleStellaTool}
+        data-stella-ui
         className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all ${
           isActive
             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/50 scale-110'
@@ -268,21 +455,97 @@ export default function StellaMarkerTool({
         <Pencil className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
       </button>
       
-      {/* Active indicator overlay */}
+      {/* Mode Selector - Appears when Stella is active */}
+      {isActive && (
+        <div 
+          data-stella-ui
+          className="fixed top-36 right-6 z-40 bg-white rounded-lg shadow-xl border-2 border-violet-200 p-2 space-y-1"
+        >
+          <p className="text-xs font-semibold text-violet-900 px-2 py-1">Modo de Selección:</p>
+          
+          <button
+            onClick={() => setSelectedMode('point')}
+            data-stella-ui
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
+              selectedMode === 'point'
+                ? 'bg-violet-600 text-white'
+                : 'text-slate-700 hover:bg-violet-50'
+            }`}
+          >
+            <div className="w-3 h-3 rounded-full bg-current" />
+            Punto
+          </button>
+          
+          <button
+            onClick={() => setSelectedMode('area')}
+            data-stella-ui
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
+              selectedMode === 'area'
+                ? 'bg-violet-600 text-white'
+                : 'text-slate-700 hover:bg-violet-50'
+            }`}
+          >
+            <div className="w-3 h-3 border-2 border-current" />
+            Área
+          </button>
+          
+          <button
+            onClick={() => setSelectedMode('fullscreen')}
+            data-stella-ui
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
+              selectedMode === 'fullscreen'
+                ? 'bg-violet-600 text-white'
+                : 'text-slate-700 hover:bg-violet-50'
+            }`}
+          >
+            <Camera className="w-3 h-3" />
+            Pantalla Completa
+          </button>
+        </div>
+      )}
+      
+      {/* Active indicator overlay - Non-interactive */}
       {isActive && (
         <div className="fixed inset-0 z-30 bg-violet-500/5 pointer-events-none">
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto">
+          {/* Top Banner */}
+          <div 
+            data-stella-ui
+            className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto"
+          >
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 animate-pulse" />
-              <span className="font-semibold">Modo Stella Activo - Click en cualquier elemento para anotar</span>
+              <span className="font-semibold">
+                {selectedMode === 'point' && 'Click para anotar punto específico'}
+                {selectedMode === 'area' && 'Arrastra para seleccionar área'}
+                {selectedMode === 'fullscreen' && 'Click para capturar pantalla completa'}
+              </span>
               <button
                 onClick={toggleStellaTool}
+                data-stella-ui
                 className="ml-4 hover:bg-white/20 p-1 rounded"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
+          
+          {/* Area Selection Rectangle */}
+          {isDrawingArea && currentArea && (
+            <div
+              className="absolute border-4 border-violet-600 bg-violet-600/20 pointer-events-none"
+              style={{
+                left: `${currentArea.x}px`,
+                top: `${currentArea.y}px`,
+                width: `${currentArea.width}px`,
+                height: `${currentArea.height}px`,
+                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.3)',
+              }}
+            >
+              <div className="absolute -top-6 left-0 bg-violet-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                {Math.round(currentArea.width)} × {Math.round(currentArea.height)} px
+              </div>
+            </div>
+          )}
         </div>
       )}
       
