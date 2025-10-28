@@ -20,6 +20,7 @@ import RAGConfigPanel from './RAGConfigPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
+import StellaMarkerTool from './StellaMarkerTool';
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
@@ -5298,6 +5299,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Stella Marker Tool - Available for ALL users (including admins) */}
+      {currentUser && (
+        <StellaMarkerTool
+          userId={currentUser.id}
+          companyId={currentUser.company || 'demo'}
+          onTicketCreated={(ticketId, shareUrl) => {
+            console.log('🎫 Stella ticket created:', ticketId);
+            console.log('🔗 Share URL:', shareUrl);
+            // Optional: Show toast notification
+          }}
+        />
       )}
     </div>
   );
