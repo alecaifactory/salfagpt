@@ -50,13 +50,13 @@ async function reindexAgent(agentName: string, agentId: string) {
   console.log(`${'='.repeat(60)}\n`);
   
   try {
-    const response = await fetch(`${BASE_URL}/api/admin/reindex-agent`, {
+    const response = await fetch(`${BASE_URL}/api/admin/reindex-agent-noauth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        agentId,
+        agentTitle: agentName, // Use title instead of ID
       })
     });
     
