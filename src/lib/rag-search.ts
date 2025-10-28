@@ -38,8 +38,8 @@ export async function searchRelevantChunks(
   options: RAGSearchOptions = {}
 ): Promise<RAGSearchResult[]> {
   const {
-    topK = 5, // Top 5 most relevant chunks
-    minSimilarity = 0, // Show ALL chunks to see similarity distribution (TODO: raise to 0.3 after testing)
+    topK = 8, // ✅ Increased from 5 to 8 for better coverage
+    minSimilarity = 0.25, // ✅ Lowered from 0 to 0.25 (filter very low similarity but catch more)
     activeSourceIds
   } = options;
 
@@ -194,6 +194,7 @@ export function buildRAGContext(results: RAGSearchResult[]): string {
 
   // Build formatted context
   let context = '';
+  let globalFragmentNumber = 1; // ✅ FIX: Start at 1, not 0
   
   for (const [sourceId, { name, chunks }] of Object.entries(bySource)) {
     context += `\n\n=== ${name} (RAG: ${chunks.length} fragmentos relevantes) ===\n`;
@@ -203,9 +204,11 @@ export function buildRAGContext(results: RAGSearchResult[]): string {
     
     chunks.forEach((chunk, i) => {
       const relevance = (chunk.similarity * 100).toFixed(1);
-      context += `\n[Fragmento ${chunk.chunkIndex}, Relevancia: ${relevance}%]\n`;
+      // ✅ FIX: Use 1-based numbering (not chunkIndex which is 0-based)
+      context += `\n[Fragmento ${globalFragmentNumber}, Relevancia: ${relevance}%]\n`;
       context += chunk.text;
       context += '\n';
+      globalFragmentNumber++; // Increment for next fragment
     });
   }
 
