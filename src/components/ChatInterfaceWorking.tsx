@@ -5221,6 +5221,84 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           }}
         />
       )}
+      
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmation && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full">
+            {/* Header */}
+            <div className="bg-red-600 p-6 rounded-t-xl">
+              <div className="flex items-center gap-3 text-white">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">⚠️ Eliminar Agente</h2>
+                  <p className="text-sm text-red-100">Esta acción no se puede deshacer</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <p className="text-slate-700 dark:text-slate-300 mb-4">
+                Estás a punto de <strong>eliminar permanentemente</strong> el agente:
+              </p>
+              
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                <p className="font-bold text-red-900 dark:text-red-300 text-lg text-center">
+                  {deleteConfirmation.conversationTitle}
+                </p>
+              </div>
+              
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                  <strong>⚠️ Advertencia:</strong> Se eliminarán todos los mensajes, contexto y configuración asociados. Esta acción es irreversible.
+                </p>
+              </div>
+              
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                Para confirmar, escribe el nombre exacto del agente:
+              </p>
+              
+              <input
+                type="text"
+                value={deleteConfirmationInput}
+                onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+                placeholder={deleteConfirmation.conversationTitle}
+                className="w-full px-4 py-3 border-2 border-red-300 dark:border-red-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                autoFocus
+              />
+              
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                Escribe exactamente: <code className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono text-xs">{deleteConfirmation.conversationTitle}</code>
+              </p>
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 pt-0 flex gap-3">
+              <button
+                onClick={() => {
+                  setDeleteConfirmation(null);
+                  setDeleteConfirmationInput('');
+                }}
+                className="flex-1 px-4 py-2 border-2 border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                onClick={deleteConversationPermanently}
+                disabled={deleteConfirmationInput !== deleteConfirmation.conversationTitle}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-2"
+              >
+                <XIcon className="w-5 h-5" />
+                Eliminar Permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
