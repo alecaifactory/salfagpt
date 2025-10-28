@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2 } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -21,6 +21,9 @@ import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
 import StellaMarkerTool from './StellaMarkerTool_v2';
+import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
+import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
+import { combineDomainAndAgentPrompts } from '../lib/firestore'; // ✅ NEW
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
@@ -238,6 +241,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // NEW: Agent sharing state
   const [showAgentSharingModal, setShowAgentSharingModal] = useState(false);
   const [agentToShare, setAgentToShare] = useState<Conversation | null>(null);
+  
+  // ✅ NEW: Domain and Agent Prompt modals
+  const [showDomainPromptModal, setShowDomainPromptModal] = useState(false);
+  const [showAgentPromptModal, setShowAgentPromptModal] = useState(false);
+  const [currentDomainPrompt, setCurrentDomainPrompt] = useState<string>('');
+  const [currentAgentPrompt, setCurrentAgentPrompt] = useState<string>('');
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
@@ -1630,6 +1639,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         sources: contextSources.filter(s => s.enabled).map(s => s.name)
       });
       
+      // ✅ NEW: Combine domain and agent prompts
+      const finalSystemPrompt = combineDomainAndAgentPrompts(
+        currentDomainPrompt,
+        currentAgentPrompt || currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt
+      );
+      
+      console.log('🔗 Using combined prompt:', {
+        hasDomain: !!currentDomainPrompt,
+        hasAgent: !!currentAgentPrompt,
+        finalLength: finalSystemPrompt.length
+      });
+      
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
         method: 'POST',
@@ -1638,7 +1659,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           userId,
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
-          systemPrompt: currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt,
+          systemPrompt: finalSystemPrompt, // ✅ UPDATED: Use combined prompt
           useAgentSearch: true, // ✅ OPTIMAL: Backend queries BigQuery by agentId!
           activeSourceIds: activeSourceIds, // ✅ FIX: Send for reference creation & legacy fallback
           ragEnabled: true,
@@ -2337,6 +2358,81 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     }
   };
 
+  // ✅ NEW: Handle domain prompt save
+  const handleSaveDomainPrompt = async (domainPrompt: string) => {
+    try {
+      // For now, we'll use a default organization ID
+      // In future, user.organizationId would come from user settings
+      const organizationId = 'default-org';
+      
+      await fetch(`/api/organizations/${organizationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Mi Organización', // TODO: Get from org settings
+          domainPrompt,
+        }),
+      });
+      
+      setCurrentDomainPrompt(domainPrompt);
+      console.log('✅ Domain prompt saved');
+    } catch (error) {
+      console.error('❌ Error saving domain prompt:', error);
+      throw error;
+    }
+  };
+
+  // ✅ NEW: Handle agent prompt save
+  const handleSaveAgentPrompt = async (agentPrompt: string) => {
+    if (!currentConversation) return;
+    
+    try {
+      await fetch(`/api/conversations/${currentConversation}/prompt`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          agentPrompt,
+          userId,
+          model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
+        }),
+      });
+      
+      setCurrentAgentPrompt(agentPrompt);
+      console.log('✅ Agent prompt saved');
+    } catch (error) {
+      console.error('❌ Error saving agent prompt:', error);
+      throw error;
+    }
+  };
+
+  // ✅ NEW: Load domain and agent prompts when selecting agent
+  const loadPromptsForAgent = async (conversationId: string) => {
+    try {
+      // Load organization domain prompt
+      // For now using default-org, in future would be from user.organizationId
+      const orgResponse = await fetch('/api/organizations/default-org');
+      if (orgResponse.ok) {
+        const org = await orgResponse.json();
+        setCurrentDomainPrompt(org.domainPrompt || '');
+      }
+      
+      // Load agent prompt
+      const agentResponse = await fetch(`/api/conversations/${conversationId}/prompt`);
+      if (agentResponse.ok) {
+        const promptData = await agentResponse.json();
+        setCurrentAgentPrompt(promptData.agentPrompt || '');
+      }
+    } catch (error) {
+      console.error('❌ Error loading prompts:', error);
+    }
+  };
+
+  // ✅ NEW: Load all conversation data (including prompts)
+  const selectConversation = async (conversationId: string) => {
+    setCurrentConversation(conversationId);
+    await loadPromptsForAgent(conversationId);
+  };
+
   const handleAgentConfigSaved = async (config: AgentConfiguration) => {
     if (!currentConversation) {
       console.warn('⚠️ No current conversation to save config');
@@ -2987,6 +3083,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       setSelectedAgent(agent.id);
                       // ✅ AUTO-CREATE: Create new chat instead of using agent as conversation
                       await createNewChatForAgent(agent.id);
+                      // ✅ NEW: Load prompts for this agent
+                      await loadPromptsForAgent(agent.id);
                     }}
                     className="flex-1 flex items-center gap-2 text-left min-w-0 cursor-pointer"
                   >
@@ -3829,6 +3927,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       <span className="font-medium">Configuración</span>
                     </button>
+                    
+                    {/* ✅ NEW: Domain Prompt Button */}
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowDomainPromptModal(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium">Prompt de Dominio</span>
+                    </button>
+                    
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
@@ -5254,6 +5365,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           agentId={agentForContextConfig}
           agentName={conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
           userId={userId}
+          onEditPrompt={() => {
+            // Close context modal and open agent prompt modal
+            setShowAgentContextModal(false);
+            setShowAgentPromptModal(true);
+            // Load current agent prompt
+            loadPromptsForAgent(agentForContextConfig);
+          }}
         />
       )}
 
@@ -5284,6 +5402,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         currentSettings={globalUserSettings}
         userName={userName}
         userEmail={userEmail}
+      />
+
+      {/* ✅ NEW: Domain Prompt Modal */}
+      <DomainPromptModal
+        isOpen={showDomainPromptModal}
+        onClose={() => setShowDomainPromptModal(false)}
+        organizationId="default-org"
+        organizationName="Mi Organización"
+        currentDomainPrompt={currentDomainPrompt}
+        onSave={handleSaveDomainPrompt}
+      />
+
+      {/* ✅ NEW: Agent Prompt Modal */}
+      <AgentPromptModal
+        isOpen={showAgentPromptModal}
+        onClose={() => setShowAgentPromptModal(false)}
+        agentId={currentConversation || ''}
+        agentName={conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
+        currentAgentPrompt={currentAgentPrompt}
+        domainPrompt={currentDomainPrompt}
+        onSave={handleSaveAgentPrompt}
       />
 
       {/* Context Source Settings Modal - Simplified */}

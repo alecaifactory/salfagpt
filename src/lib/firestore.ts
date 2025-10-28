@@ -89,6 +89,7 @@ export const COLLECTIONS = {
   USAGE_LOGS: 'usage_logs',                    // NEW: Usage tracking
   AGENT_SHARES: 'agent_shares',                // NEW: Agent sharing permissions
   MESSAGE_RATINGS: 'message_ratings',          // ✅ NEW: Message ratings and effectiveness tracking
+  ORGANIZATIONS: 'organizations',               // ✅ NEW: Organization/domain settings
 } as const;
 
 // Types
@@ -249,11 +250,22 @@ export interface AgentShare {
   source?: 'localhost' | 'production';
 }
 
+// NEW: Organization - Domain-level settings shared across organization
+export interface Organization {
+  id: string;                                  // Document ID (organization ID)
+  name: string;                                // Organization name
+  domainPrompt?: string;                       // Optional domain-level prompt inherited by all agents
+  createdAt: Date;
+  updatedAt: Date;
+  source?: 'localhost' | 'production';
+}
+
 // NEW: User Settings - Global preferences for each user
 export interface UserSettings {
   userId: string;                              // Document ID
+  organizationId?: string;                     // ✅ NEW: Link to organization for domain prompt
   preferredModel: 'gemini-2.5-flash' | 'gemini-2.5-pro';
-  systemPrompt: string;
+  systemPrompt: string;                        // User-level default (deprecated in favor of domainPrompt)
   language: string;
   theme?: 'light' | 'dark';                    // Theme preference (default: 'light')
   createdAt: Date;
@@ -267,7 +279,8 @@ export interface AgentConfig {
   conversationId: string;                      // Which conversation/agent this config belongs to
   userId: string;                              // Owner
   model: 'gemini-2.5-flash' | 'gemini-2.5-pro';
-  systemPrompt: string;
+  agentPrompt?: string;                        // ✅ NEW: Agent-specific prompt (renamed from systemPrompt)
+  systemPrompt?: string;                       // ✅ DEPRECATED: Kept for backward compatibility
   temperature?: number;
   maxOutputTokens?: number;
   createdAt: Date;
@@ -2747,6 +2760,112 @@ export async function getEffectivenessStats(
       completeRate: 0,
     };
   }
+}
+
+// ========================================
+// Organization Operations (NEW)
+// ========================================
+
+/**
+ * Get organization by ID
+ */
+export async function getOrganization(organizationId: string): Promise<Organization | null> {
+  try {
+    const doc = await firestore
+      .collection(COLLECTIONS.ORGANIZATIONS)
+      .doc(organizationId)
+      .get();
+    
+    if (!doc.exists) {
+      return null;
+    }
+    
+    const data = doc.data();
+    if (!data) return null;
+    
+    return {
+      id: doc.id,
+      name: data.name,
+      domainPrompt: data.domainPrompt,
+      createdAt: data.createdAt?.toDate() || new Date(),
+      updatedAt: data.updatedAt?.toDate() || new Date(),
+      source: data.source,
+    };
+  } catch (error) {
+    console.error('Error getting organization:', error);
+    return null;
+  }
+}
+
+/**
+ * Create or update organization
+ */
+export async function saveOrganization(
+  organizationId: string,
+  data: { name: string; domainPrompt?: string }
+): Promise<Organization> {
+  const now = new Date();
+  
+  const orgData = {
+    name: data.name,
+    domainPrompt: data.domainPrompt || '',
+    updatedAt: now,
+    source: getEnvironmentSource(),
+  };
+  
+  const docRef = firestore.collection(COLLECTIONS.ORGANIZATIONS).doc(organizationId);
+  const doc = await docRef.get();
+  
+  if (doc.exists) {
+    // Update existing
+    await docRef.update(orgData);
+  } else {
+    // Create new
+    await docRef.set({
+      ...orgData,
+      createdAt: now,
+    });
+  }
+  
+  console.log('✅ Organization saved:', organizationId);
+  
+  return {
+    id: organizationId,
+    ...orgData,
+    createdAt: doc.exists ? (doc.data()?.createdAt?.toDate() || now) : now,
+  };
+}
+
+/**
+ * Helper function: Combine domain and agent prompts
+ * Hierarchy: Domain Prompt → Agent Prompt → Combined
+ * 
+ * @param domainPrompt - Organization-level prompt (optional)
+ * @param agentPrompt - Agent-specific prompt (optional)
+ * @returns Combined system instruction for AI
+ */
+export function combineDomainAndAgentPrompts(
+  domainPrompt: string | undefined,
+  agentPrompt: string | undefined
+): string {
+  const parts: string[] = [];
+  
+  // Add domain prompt (organization-level guidance)
+  if (domainPrompt && domainPrompt.trim()) {
+    parts.push(`# Contexto de Dominio\n${domainPrompt.trim()}`);
+  }
+  
+  // Add agent prompt (agent-specific behavior)
+  if (agentPrompt && agentPrompt.trim()) {
+    parts.push(`# Instrucciones del Agente\n${agentPrompt.trim()}`);
+  }
+  
+  // If no prompts, use default
+  if (parts.length === 0) {
+    return 'Eres un asistente de IA útil y profesional que responde en español.';
+  }
+  
+  return parts.join('\n\n');
 }
 
 

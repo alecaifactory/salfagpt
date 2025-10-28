@@ -8,7 +8,8 @@ import {
   Grid,
   Download,
   Trash2,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Sparkles
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import type { ContextSource } from '../types/context';
@@ -19,6 +20,7 @@ interface AgentContextModalProps {
   agentId: string;
   agentName: string;
   userId: string;
+  onEditPrompt?: () => void; // ✅ NEW: Callback to open agent prompt editor
 }
 
 export default function AgentContextModal({
@@ -26,7 +28,8 @@ export default function AgentContextModal({
   onClose,
   agentId,
   agentName,
-  userId
+  userId,
+  onEditPrompt
 }: AgentContextModalProps) {
   
   const [sources, setSources] = useState<ContextSource[]>([]);
@@ -202,9 +205,23 @@ export default function AgentContextModal({
         </div>
 
         {/* Agent Info */}
-        <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-slate-200 dark:border-slate-700">
-          <p className="text-xs text-slate-600 dark:text-slate-400">Agente ID:</p>
-          <p className="text-sm font-mono text-slate-700 dark:text-slate-300">{agentId}</p>
+        <div className="px-6 py-3 bg-blue-50 dark:bg-blue-900/20 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-600 dark:text-slate-400">Agente ID:</p>
+            <p className="text-sm font-mono text-slate-700 dark:text-slate-300">{agentId}</p>
+          </div>
+          
+          {/* ✅ NEW: Edit Agent Prompt Button */}
+          {onEditPrompt && (
+            <button
+              onClick={onEditPrompt}
+              className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 flex items-center gap-1 transition-colors"
+              title="Editar Prompt del Agente"
+            >
+              <Sparkles className="w-3 h-3" />
+              Editar Prompt
+            </button>
+          )}
         </div>
 
         {/* Content - Split View */}
