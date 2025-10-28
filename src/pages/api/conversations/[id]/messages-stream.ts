@@ -393,6 +393,17 @@ export const POST: APIRoute = async ({ params, request }) => {
           }
 
           sendStatus('generating', 'complete');
+          
+          // 🔧 FIX FB-002: Post-process to remove phantom reference numbers
+          // If AI mentions citation numbers that don't have corresponding badges,
+          // we need to remove them to prevent confusion
+          if (ragUsed && ragResults.length > 0) {
+            const originalLength = fullResponse.length;
+            
+            // We'll know the valid reference numbers after building references array
+            // For now, store original response for later cleanup
+            console.log('📝 Response length before cleanup:', originalLength);
+          }
 
           // Save complete AI message to Firestore (for persistent conversations)
           if (!conversationId.startsWith('temp-')) {
@@ -410,6 +421,8 @@ export const POST: APIRoute = async ({ params, request }) => {
                   }
                   sourceGroups.get(key)!.push(result);
                 });
+                
+                console.log(`📊 Chunks grouped by source: ${sourceGroups.size} unique documents from ${ragResults.length} chunks`);
                 
                 // Create ONE reference per unique source document
                 let refId = 1;
@@ -491,6 +504,41 @@ export const POST: APIRoute = async ({ params, request }) => {
                 const chunkInfo = ref.chunkIndex >= 0 ? `Chunk #${ref.chunkIndex + 1}` : 'Full Document';
                 console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - ${chunkInfo}`);
               });
+              
+              // 🔧 FIX FB-002: Clean phantom reference numbers
+              // Remove citation numbers [N] that don't have corresponding badges
+              if (references.length > 0) {
+                const validNumbers = references.map(ref => ref.id);
+                console.log(`🧹 Cleaning phantom references. Valid numbers: ${validNumbers.join(', ')}`);
+                
+                const originalResponse = fullResponse;
+                
+                // Replace invalid citation numbers with empty string
+                // Regex: \[(\d+)\] captures [1], [2], [10], etc.
+                fullResponse = fullResponse.replace(/\[(\d+)\]/g, (match, numStr) => {
+                  const num = parseInt(numStr);
+                  if (validNumbers.includes(num)) {
+                    return match; // Keep valid citations like [1], [2], [3]
+                  } else {
+                    console.log(`  ❌ Removing phantom citation: ${match}`);
+                    return ''; // Remove invalid citations like [9], [10]
+                  }
+                });
+                
+                // Clean up extra whitespace and empty lines
+                fullResponse = fullResponse
+                  .replace(/\s+/g, ' ') // Multiple spaces → single space
+                  .replace(/\n\s*\n\s*\n/g, '\n\n') // Triple+ newlines → double
+                  .trim();
+                
+                const removedCount = (originalResponse.match(/\[(\d+)\]/g) || []).length - 
+                                    (fullResponse.match(/\[(\d+)\]/g) || []).length;
+                
+                if (removedCount > 0) {
+                  console.log(`✅ Removed ${removedCount} phantom citations`);
+                  console.log(`   Response length: ${originalResponse.length} → ${fullResponse.length} chars`);
+                }
+              }
 
               // Calculate total response time
               const totalResponseTime = Date.now() - streamStartTime; // ✅ Time from start to completion
