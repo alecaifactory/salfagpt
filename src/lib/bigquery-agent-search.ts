@@ -66,8 +66,8 @@ export async function searchByAgent(
   options: AgentSearchOptions = {}
 ): Promise<AgentVectorSearchResult[]> {
   const {
-    topK = 5,
-    minSimilarity = 0.3
+    topK = 8, // ✅ Increased from 5 to 8 for better coverage
+    minSimilarity = 0.25 // ✅ Lowered from 0.3 to 0.25 to catch more relevant docs
   } = options;
 
   try {
