@@ -56,6 +56,8 @@ export default defineConfig({
         '@google-cloud/logging',
         '@google-cloud/error-reporting',
       ],
+      // Handle whatwg-url ESM issues
+      noExternal: ['whatwg-url', 'tr46', 'webidl-conversions'],
     },
   },
 });
