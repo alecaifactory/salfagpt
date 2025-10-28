@@ -17,16 +17,16 @@ export const POST: APIRoute = async ({ params, request }) => {
   try {
     const sourceId = params.id;
     const body = await request.json();
-    const { userId, chunkSize = 2000, overlap = 500 } = body;
+    const { userId, chunkSize = 2000, overlap = 500, forceReindex = false } = body;
 
-    if (!sourceId || !userId) {
+    if (!sourceId) {
       return new Response(
-        JSON.stringify({ error: 'sourceId and userId are required' }),
+        JSON.stringify({ error: 'sourceId is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`🔍 Enabling RAG for source ${sourceId}...`);
+    console.log(`🔍 Enabling RAG for source ${sourceId}${forceReindex ? ' (force reindex)' : ''}...`);
 
     // 1. Load source from Firestore
     const sourceDoc = await firestore
@@ -50,13 +50,27 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // Verify ownership
-    if (sourceData.userId !== userId) {
+    // ✅ FIX: Get userId from source if not provided (for re-indexing scripts)
+    const actualUserId = userId || sourceData.userId;
+    
+    if (!actualUserId) {
+      return new Response(
+        JSON.stringify({ error: 'userId not found in request or source' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ✅ FIX: Skip ownership verification for forceReindex (admin re-indexing)
+    // Verify ownership only for normal operations, not force reindex
+    if (userId && !forceReindex && sourceData.userId !== userId) {
       return new Response(
         JSON.stringify({ error: 'Forbidden' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    
+    // Use source's userId for indexing (maintains proper attribution)
+    const userIdForIndexing = sourceData.userId;
 
     const extractedText = sourceData.extractedData || '';
 
@@ -75,7 +89,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     const pipelineLogs = [...existingLogs];
 
     // 2. Chunk the text
-    const { chunkText } = await import('../../../../lib/chunking.js');
+    const { chunkText, filterGarbageChunks } = await import('../../../../lib/chunking.js');
     const startChunkTime = Date.now();
     
     pipelineLogs.push({
@@ -85,7 +99,12 @@ export const POST: APIRoute = async ({ params, request }) => {
       message: 'Dividiendo documento en chunks...',
     });
     
-    const chunks = chunkText(extractedText, chunkSize, overlap);
+    const rawChunks = chunkText(extractedText, chunkSize, overlap);
+    
+    // ✅ NEW: Apply garbage filter
+    const chunks = filterGarbageChunks(rawChunks);
+    const chunksFiltered = rawChunks.length - chunks.length;
+    
     const chunkTime = Date.now() - startChunkTime;
     
     pipelineLogs[pipelineLogs.length - 1] = {
@@ -93,14 +112,20 @@ export const POST: APIRoute = async ({ params, request }) => {
       status: 'success',
       endTime: new Date(Date.now()),
       duration: chunkTime,
-      message: `Documento dividido en ${chunks.length} chunks`,
+      message: `Documento dividido en ${chunks.length} chunks útiles (${chunksFiltered} basura filtrada)`,
       details: {
+        rawChunkCount: rawChunks.length,
         chunkCount: chunks.length,
-        avgChunkSize: Math.round(chunks.reduce((sum, c) => sum + c.tokenCount, 0) / chunks.length),
+        chunksFiltered: chunksFiltered,
+        avgChunkSize: chunks.length > 0 ? Math.round(chunks.reduce((sum, c) => sum + c.tokenCount, 0) / chunks.length) : 0,
       }
     };
     
-    console.log(`  📄 Created ${chunks.length} chunks in ${chunkTime}ms`);
+    console.log(`  📄 Created ${rawChunks.length} raw chunks`);
+    if (chunksFiltered > 0) {
+      console.log(`  🗑️ Filtered ${chunksFiltered} garbage chunks`);
+      console.log(`  ✅ ${chunks.length} useful chunks remaining`);
+    }
 
     // 3. Generate embeddings for each chunk
     const { generateEmbeddingsBatch } = await import('../../../../lib/embeddings.js');
@@ -147,7 +172,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         const chunkDoc = firestore.collection('document_chunks').doc();
         batch.set(chunkDoc, {
           sourceId,
-          userId,
+          userId: userIdForIndexing, // ✅ Use source's userId (not requester)
           chunkIndex: globalIndex,
           text: chunk.text,
           embedding: embeddings[globalIndex],
@@ -203,11 +228,12 @@ export const POST: APIRoute = async ({ params, request }) => {
     return new Response(
       JSON.stringify({
         success: true,
-        chunksCreated: chunks.length,
+        chunksCount: chunks.length, // ✅ Match expected field name
+        chunksFiltered: chunksFiltered, // ✅ Add filtered count
         totalTokens: chunks.reduce((sum, c) => sum + c.tokenCount, 0),
         indexingTime: totalTime,
         estimatedCost: (extractedText.length / 1_000_000) * 0.025, // $0.025 per 1M chars
-        message: `RAG enabled successfully with ${chunks.length} chunks`,
+        message: `RAG enabled successfully with ${chunks.length} useful chunks (${chunksFiltered} garbage filtered)`,
         pipelineLogs, // ✅ Return updated pipeline logs
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
