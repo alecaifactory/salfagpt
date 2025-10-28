@@ -3086,7 +3086,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       // ✅ NEW: Load prompts for this agent
                       await loadPromptsForAgent(agent.id);
                     }}
-                    className="flex-1 flex items-center gap-2 text-left min-w-0 cursor-pointer"
+                    className="flex-1 flex items-center gap-2 text-left cursor-pointer"
+                    style={{ maxWidth: '90%' }}
                   >
                     <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200">
                       {agent.title}
@@ -3309,14 +3310,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 });
                               }}
                               className="flex items-center gap-2 flex-1 text-left"
+                              style={{ maxWidth: '90%' }}
                             >
                               <span className={`transform transition-transform text-slate-500 dark:text-slate-400 ${isExpanded ? 'rotate-90' : ''}`}>
                                 ▶
                               </span>
-                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
                                 {folder.name}
                               </span>
-                              <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold">
+                              <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold whitespace-nowrap">
                                 {folderChats.length}
                               </span>
                             </button>
@@ -3369,7 +3371,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 
                                 {/* Chat Title and Actions */}
                                 <div className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
+                                  <div className="flex-1" style={{ maxWidth: '90%' }}>
                                     <span className="text-sm font-medium text-slate-700 dark:text-slate-200 block truncate">
                                       {chat.title}
                                     </span>
@@ -3531,7 +3533,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             <div className="flex items-center justify-between">
                               <div
                                 onClick={() => setCurrentConversation(chat.id)}
-                                className="flex-1 text-left min-w-0 cursor-pointer"
+                                className="flex-1 text-left cursor-pointer"
+                                style={{ maxWidth: '90%' }}
                               >
                                 <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200 block">
                                   {chat.title}
