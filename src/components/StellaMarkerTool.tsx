@@ -64,49 +64,9 @@ export default function StellaMarkerTool({
   // Animation refs
   const animationFrameRef = useRef<number>();
   
-  // Color cycling animation
-  useEffect(() => {
-    if (markers.some(m => m.state === 'placed' || m.state === 'active')) {
-      animateColors();
-    }
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [markers]);
-  
-  function animateColors() {
-    const animate = () => {
-      setMarkers(prev => prev.map(marker => {
-        if (marker.state === 'placed' || marker.state === 'active') {
-          return {
-            ...marker,
-            animationPhase: (marker.animationPhase + 0.01) % 1,
-          };
-        }
-        return marker;
-      }));
-      
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-    
-    animationFrameRef.current = requestAnimationFrame(animate);
-  }
-  
-  // Get current color based on animation phase
-  function getCurrentColor(phase: number): string {
-    if (phase < 0.33) {
-      // Purple
-      return '#a855f7';
-    } else if (phase < 0.66) {
-      // Yellow
-      return '#fbbf24';
-    } else {
-      // Green
-      return '#10b981';
-    }
+  // Simple violet color - no cycling
+  function getCurrentColor(): string {
+    return '#8b5cf6'; // Violet
   }
   
   // Activate/deactivate tool
@@ -140,6 +100,35 @@ export default function StellaMarkerTool({
       setActiveMarkerId(marker.id);
       updateMarkerState(marker.id, 'active');
     }, 300);
+  }
+  
+  // Calculate feedback box position (keep within viewport)
+  function calculateFeedbackBoxPosition(markerPos: { x: number; y: number }) {
+    const boxWidth = 320; // 80 * 4 = 320px (w-80)
+    const boxHeight = 250; // Approximate height
+    const margin = 16; // Minimum margin from edges
+    
+    let left = markerPos.x;
+    let top = markerPos.y - boxHeight - 20; // Default: above marker
+    
+    // Keep within horizontal bounds
+    if (left - boxWidth / 2 < margin) {
+      left = boxWidth / 2 + margin;
+    } else if (left + boxWidth / 2 > window.innerWidth - margin) {
+      left = window.innerWidth - boxWidth / 2 - margin;
+    }
+    
+    // If too close to top, show below marker instead
+    if (top < margin) {
+      top = markerPos.y + 40; // Below marker
+    }
+    
+    // If too close to bottom, adjust upward
+    if (top + boxHeight > window.innerHeight - margin) {
+      top = window.innerHeight - boxHeight - margin;
+    }
+    
+    return { left, top };
   }
   
   // Update marker state
@@ -271,8 +260,8 @@ export default function StellaMarkerTool({
         onClick={toggleStellaTool}
         className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all ${
           isActive
-            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/50 scale-110'
-            : 'bg-white text-slate-700 hover:bg-purple-50 border border-slate-200 shadow-md'
+            ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/50 scale-110'
+            : 'bg-white text-slate-700 hover:bg-violet-50 border border-slate-200 shadow-md'
         }`}
         title="Stella Marker - Anotar UI"
       >
@@ -281,8 +270,8 @@ export default function StellaMarkerTool({
       
       {/* Active indicator overlay */}
       {isActive && (
-        <div className="fixed inset-0 z-30 bg-purple-500/5 pointer-events-none">
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-purple-600 to-yellow-500 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto">
+        <div className="fixed inset-0 z-30 bg-violet-500/5 pointer-events-none">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto">
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 animate-pulse" />
               <span className="font-semibold">Modo Stella Activo - Click en cualquier elemento para anotar</span>
@@ -330,7 +319,7 @@ export default function StellaMarkerTool({
               cx="16"
               cy="16"
               r="12"
-              fill={marker.state === 'submitting' ? '#3b82f6' : getCurrentColor(marker.animationPhase)}
+              fill={marker.state === 'submitting' ? '#3b82f6' : '#8b5cf6'}
               filter={`url(#glow-${marker.id})`}
               className={marker.state === 'placed' || marker.state === 'active' ? 'animate-pulse' : ''}
             />
@@ -367,24 +356,25 @@ export default function StellaMarkerTool({
       ))}
       
       {/* Feedback Box */}
-      {activeMarker && (activeMarker.state === 'active') && (
-        <div
-          className="fixed z-50 animate-slideUp"
-          style={{
-            left: `${activeMarker.position.x}px`,
-            top: `${activeMarker.position.y - 220}px`,
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <div 
-            className="w-80 bg-white rounded-xl shadow-2xl border-2"
+      {activeMarker && (activeMarker.state === 'active') && (() => {
+        const boxPos = calculateFeedbackBoxPosition(activeMarker.position);
+        return (
+          <div
+            className="fixed z-50 animate-slideUp"
             style={{
-              borderImage: 'linear-gradient(135deg, #a855f7, #fbbf24) 1',
-              boxShadow: '0 0 30px rgba(168, 85, 247, 0.4)',
+              left: `${boxPos.left}px`,
+              top: `${boxPos.top}px`,
+              transform: 'translateX(-50%)',
             }}
           >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 via-yellow-500 to-green-500 p-3 rounded-t-xl">
+            <div 
+              className="w-80 bg-white rounded-xl shadow-2xl border-2 border-violet-400"
+              style={{
+                boxShadow: '0 0 30px rgba(139, 92, 246, 0.4)',
+              }}
+            >
+              {/* Header */}
+              <div className="bg-violet-600 p-3 rounded-t-xl">
               <div className="flex items-center justify-between">
                 <h3 className="text-white font-bold flex items-center gap-2">
                   <Sparkles className="w-5 h-5" />
@@ -438,7 +428,7 @@ export default function StellaMarkerTool({
               <button
                 onClick={() => handleSubmitFeedback(activeMarkerId!)}
                 disabled={!feedbackText.trim() || isSubmitting}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>
@@ -455,7 +445,8 @@ export default function StellaMarkerTool({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       
       {/* Share Modal (after submission) */}
       {showShareModal && currentTicket && (
@@ -511,11 +502,11 @@ export default function StellaMarkerTool({
               </div>
               
               {/* Share Section */}
-              <div className="bg-gradient-to-r from-purple-50 to-yellow-50 border-2 border-purple-200 rounded-lg p-6">
-                <h3 className="text-lg font-bold text-purple-900 mb-2 flex items-center gap-2">
+              <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-6">
+                <h3 className="text-lg font-bold text-violet-900 mb-2 flex items-center gap-2">
                   🚀 Acelera esta Feature
                 </h3>
-                <p className="text-sm text-purple-800 mb-4">
+                <p className="text-sm text-violet-800 mb-4">
                   Comparte con tu equipo para ganar upvotes y subir prioridad. 
                   ¡Más votos = Implementación más rápida!
                 </p>
@@ -524,7 +515,7 @@ export default function StellaMarkerTool({
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={() => handleShareToSlack(currentTicket.ticketId)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-semibold text-purple-700"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-violet-300 rounded-lg hover:bg-violet-50 text-sm font-semibold text-violet-700"
                   >
                     <Share2 className="w-4 h-4" />
                     Slack
@@ -532,7 +523,7 @@ export default function StellaMarkerTool({
                   
                   <button
                     onClick={() => handleShareToTeams(currentTicket.ticketId)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-semibold text-purple-700"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-violet-300 rounded-lg hover:bg-violet-50 text-sm font-semibold text-violet-700"
                   >
                     <Share2 className="w-4 h-4" />
                     Teams
@@ -540,7 +531,7 @@ export default function StellaMarkerTool({
                   
                   <button
                     onClick={() => handleShareToWhatsApp(currentTicket.ticketId)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-semibold text-purple-700"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-violet-300 rounded-lg hover:bg-violet-50 text-sm font-semibold text-violet-700"
                   >
                     <Share2 className="w-4 h-4" />
                     WhatsApp
@@ -548,7 +539,7 @@ export default function StellaMarkerTool({
                   
                   <button
                     onClick={() => handleCopyLink(currentTicket.shareUrl)}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-semibold text-purple-700"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border-2 border-violet-300 rounded-lg hover:bg-violet-50 text-sm font-semibold text-violet-700"
                   >
                     <Copy className="w-4 h-4" />
                     Copiar Link
@@ -556,12 +547,12 @@ export default function StellaMarkerTool({
                 </div>
                 
                 {/* Viral Preview */}
-                <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200">
-                  <p className="text-xs font-medium text-purple-800 mb-2">Vista Previa del Compartir:</p>
+                <div className="mt-4 p-3 bg-white rounded-lg border border-violet-200">
+                  <p className="text-xs font-medium text-violet-800 mb-2">Vista Previa del Compartir:</p>
                   <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
                     <p className="font-semibold mb-1">🚀 Feature Request from Your Team</p>
                     <p className="mb-2">Requested by: User from Engineering</p>
-                    <p className="text-purple-700 font-medium">🔒 Login required to view details</p>
+                    <p className="text-violet-700 font-medium">🔒 Login required to view details</p>
                   </div>
                 </div>
               </div>
