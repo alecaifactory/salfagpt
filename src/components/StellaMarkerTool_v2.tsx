@@ -179,7 +179,7 @@ export default function StellaMarkerTool({
     try {
       const { default: html2canvas } = await import('html2canvas');
       
-      // Hide Stella UI
+      // Hide Stella UI temporarily
       const stellaElements = document.querySelectorAll('[data-stella-ui]');
       stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'hidden');
       
@@ -209,13 +209,19 @@ export default function StellaMarkerTool({
       // Restore Stella UI
       stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'visible');
       
-      // Update marker
+      // Update marker with screenshots but DON'T activate feedback box yet
+      // Keep in 'selecting' state to show the selection
       setCurrentMarker({
         ...marker,
         screenshot: fullScreenshot,
         selectedAreaScreenshot,
-        state: 'active',
+        state: 'selecting', // Changed from 'active' - don't show feedback box yet
       });
+      
+      // After a brief delay, activate feedback box (keep selection visible)
+      setTimeout(() => {
+        setCurrentMarker(prev => prev ? { ...prev, state: 'active' } : null);
+      }, 300);
       
     } catch (error) {
       console.error('Screenshot failed:', error);
@@ -439,7 +445,7 @@ export default function StellaMarkerTool({
         </div>
       )}
       
-      {/* Point Marker */}
+      {/* Point Marker - Always visible */}
       {currentMarker && currentMarker.selection.mode === 'point' && currentMarker.selection.point && (
         <div
           className="fixed z-35"
@@ -455,18 +461,23 @@ export default function StellaMarkerTool({
         </div>
       )}
       
-      {/* Area Marker */}
+      {/* Area Marker - Always visible, even when feedback box is open */}
       {currentMarker && currentMarker.selection.mode === 'area' && currentMarker.selection.area && (
         <div
-          className="fixed z-35 border-4 border-violet-600 bg-violet-600/10"
+          className="fixed z-35 border-4 border-violet-600 bg-violet-600/10 pointer-events-none"
           style={{
             left: `${currentMarker.selection.area.x}px`,
             top: `${currentMarker.selection.area.y}px`,
             width: `${currentMarker.selection.area.width}px`,
             height: `${currentMarker.selection.area.height}px`,
-            boxShadow: currentMarker.state === 'active' ? '0 0 0 9999px rgba(0, 0, 0, 0.5)' : 'none',
+            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)', // Always show dark overlay
           }}
         >
+          {/* Area label - always visible */}
+          <div className="absolute -top-8 left-0 bg-violet-600 text-white px-3 py-1 rounded-lg text-sm font-bold shadow-lg">
+            Área Seleccionada: {Math.round(currentMarker.selection.area.width)} × {Math.round(currentMarker.selection.area.height)} px
+          </div>
+          
           {currentMarker.state === 'submitted' && currentMarker.ticketId && (
             <div className="absolute bottom-2 right-2 bg-violet-600 text-white px-3 py-1 rounded-lg text-sm font-mono shadow-lg">
               {currentMarker.ticketId}
@@ -475,7 +486,17 @@ export default function StellaMarkerTool({
         </div>
       )}
       
-      {/* Feedback Box */}
+      {/* Fullscreen Marker Indicator */}
+      {currentMarker && currentMarker.selection.mode === 'fullscreen' && (
+        <div className="fixed z-35 top-20 left-1/2 transform -translate-x-1/2">
+          <div className="bg-violet-600 text-white px-4 py-2 rounded-lg shadow-lg font-semibold flex items-center gap-2">
+            <Camera className="w-5 h-5" />
+            Pantalla Completa Capturada
+          </div>
+        </div>
+      )}
+      
+      {/* Feedback Box - High z-index but selection remains visible behind */}
       {currentMarker && currentMarker.state === 'active' && (
         <div
           data-stella-ui
@@ -486,7 +507,11 @@ export default function StellaMarkerTool({
             transform: 'translateX(-50%)',
           }}
         >
-          <div className="w-96 bg-white rounded-xl shadow-2xl border-2 border-violet-400">
+          <div className="w-96 bg-white rounded-xl shadow-2xl border-2 border-violet-400"
+            style={{
+              boxShadow: '0 0 40px rgba(139, 92, 246, 0.5), 0 20px 60px rgba(0, 0, 0, 0.3)',
+            }}
+          >
             {/* Header */}
             <div className="bg-violet-600 p-4 rounded-t-xl">
               <div className="flex items-center justify-between">
