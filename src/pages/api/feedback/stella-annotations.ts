@@ -38,14 +38,27 @@ export const POST: APIRoute = async ({ request }) => {
     // Determine type from feedback content (simple heuristic)
     const sessionType = detectFeedbackType(feedback);
     
-    // Create feedback session first
+    // Create feedback session first - filter undefined values
+    const messageMetadata: any = { pageUrl };
+    if (elementPath) messageMetadata.elementPath = elementPath;
+    if (position) messageMetadata.position = position;
+    
+    const annotationData: any = {
+      id: `annotation-${Date.now()}`,
+      type: 'stella-marker' as const,
+      color: '#8b5cf6', // Violet
+      pageUrl,
+    };
+    if (position) annotationData.position = position;
+    if (elementPath) annotationData.elementPath = elementPath;
+    
     const sessionData = {
       userId,
       companyId,
       sessionType,
       status: 'submitted' as const,
       priority: 'medium' as const,
-      title: feedback.substring(0, 100), // First 100 chars as title
+      title: feedback.substring(0, 100),
       description: feedback,
       messages: [
         {
@@ -53,24 +66,11 @@ export const POST: APIRoute = async ({ request }) => {
           role: 'user' as const,
           content: feedback,
           timestamp: new Date(),
-          metadata: {
-            elementPath,
-            position,
-            pageUrl,
-          },
+          metadata: messageMetadata,
         },
       ],
       screenshots: [],
-      annotations: [
-        {
-          id: `annotation-${Date.now()}`,
-          type: 'stella-marker' as const,
-          position,
-          color: '#a855f7', // Purple (Stella default)
-          pageUrl,
-          elementPath,
-        },
-      ],
+      annotations: [annotationData],
       createdAt: new Date(),
       updatedAt: new Date(),
       submittedAt: new Date(),
