@@ -407,20 +407,29 @@ ${userMessage}`;
 
 🔍 MODO RAG ACTIVADO - INSTRUCCIONES CRÍTICAS:
 
-Te he proporcionado ${fragmentNumbers.length} fragmentos específicos y relevantes del documento, numerados como: ${fragmentNumbers.join(', ')}.
+Te he proporcionado EXACTAMENTE ${fragmentNumbers.length} fragmentos numerados: ${fragmentNumbers.join(', ')}.
+
+⚠️ REGLA ABSOLUTA - NO NEGOCIABLE:
+- SOLO puedes usar los números: ${fragmentNumbers.join(', ')}
+- ❌ PROHIBIDO usar cualquier otro número (ej: si solo tienes [1][2][3][4][5], NO puedes usar [6], [7], [8], etc.)
+- ❌ PROHIBIDO inventar referencias que no existen
+- ✅ SI un fragmento no contiene la información, di: "No tengo información sobre esto en los documentos proporcionados"
 
 DEBES OBLIGATORIAMENTE:
-1. ✅ Citar cada fragmento que uses con su número exacto entre corchetes [N]
-2. ✅ Colocar la cita INMEDIATAMENTE después del dato específico que proviene de ese fragmento
-3. ✅ Si un dato específico viene de múltiples fragmentos, cita todos: [1][2]
+1. ✅ SOLO citar fragmentos que existen: ${fragmentNumbers.join(', ')}
+2. ✅ Colocar la cita INMEDIATAMENTE después del dato específico
+3. ✅ Si un dato viene de múltiples fragmentos, cita todos: [1][2]
 4. ✅ Cada afirmación factual del documento DEBE tener su referencia
 5. ❌ NO inventes información que no esté en los fragmentos
-6. ❌ Si la información no está en los fragmentos, di explícitamente "No tengo información sobre..."
+6. ❌ NO uses números fuera del rango ${fragmentNumbers.join(', ')}
 
-FORMATO REQUERIDO DE RESPUESTA:
+EJEMPLO CORRECTO (si solo tienes fragmentos 1-5):
 "La Ley N°19.537 derogó expresamente la Ley N°6.071[1]. Esta ley se aplica a las 
-comunidades de copropietarios que estaban acogidas a la ley anterior[2]. Las construcciones 
-en subterráneo deben cumplir con distanciamientos[3]."
+comunidades de copropietarios[2]. Las construcciones en subterráneo deben cumplir 
+con distanciamientos[3]."
+
+EJEMPLO INCORRECTO:
+"... según el artículo 4.14.2 [7]" ❌ (NO existe fragmento 7)
 
 Al FINAL de tu respuesta, SIEMPRE incluye una sección de referencias con este formato EXACTO:
 
@@ -428,8 +437,8 @@ Al FINAL de tu respuesta, SIEMPRE incluye una sección de referencias con este f
 ### Referencias
 ${fragmentNumbers.map((num, idx) => `[${num}] Fragmento de [Nombre del documento] (similitud: XX%)`).join('\n')}
 
-Fragmentos disponibles para citar: ${fragmentNumbers.join(', ')}
-RECUERDA: Cada dato del documento DEBE llevar su número de fragmento entre corchetes Y debes incluir la sección de referencias al final.`;
+NÚMEROS VÁLIDOS PARA CITAR: ${fragmentNumbers.join(', ')}
+NO USES NINGÚN OTRO NÚMERO.`;
       } else {
         // Modo Full-Text (documento completo)
         fullUserMessage = `DOCUMENTO COMPLETO:

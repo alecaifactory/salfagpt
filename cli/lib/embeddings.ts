@@ -153,6 +153,65 @@ function estimateTokens(text: string): number {
 }
 
 /**
+ * Filter out low-quality chunks (headers, footers, TOC, page numbers, etc.)
+ * 
+ * ✅ Prevents garbage chunks from polluting RAG search results
+ */
+export function filterGarbageChunks(chunks: TextChunk[]): TextChunk[] {
+  const GARBAGE_PATTERNS = [
+    /^[\d\s\.]+$/,                          // Only numbers and dots (TOC)
+    /^página\s+\d+\s+de\s+\d+$/i,           // "Página X de Y"
+    /^page\s+\d+\s+of\s+\d+$/i,             // "Page X of Y"
+    /^[\.\s]{20,}$/,                        // Only dots and spaces (20+ chars)
+    /^[-=_]{10,}$/,                         // Only separators (10+ chars)
+    /^\d+\.\s+[A-ZÁÉÍÓÚ\s]{1,50}\.{5,}$/,   // TOC entries: "1. INTRODUCCIÓN ........"
+    /^índice$/i,                            // "ÍNDICE"
+    /^tabla\s+de\s+contenido/i,             // "Tabla de contenido"
+    /^introducción\s*\.{5,}$/i,             // "INTRODUCCIÓN ........"
+  ];
+  
+  const MIN_MEANINGFUL_CHARS = 50; // Minimum 50 chars for a chunk to be useful
+  const MAX_DOT_RATIO = 0.3;        // Max 30% dots in text
+  
+  const filtered = chunks.filter(chunk => {
+    const text = chunk.text.trim();
+    
+    // 1. Too short - probably not useful
+    if (text.length < MIN_MEANINGFUL_CHARS) {
+      return false;
+    }
+    
+    // 2. Matches garbage pattern
+    if (GARBAGE_PATTERNS.some(pattern => pattern.test(text))) {
+      return false;
+    }
+    
+    // 3. Too many dots (TOC formatting)
+    const dotCount = (text.match(/\./g) || []).length;
+    const dotRatio = dotCount / text.length;
+    if (dotRatio > MAX_DOT_RATIO) {
+      return false;
+    }
+    
+    // 4. Only whitespace and punctuation
+    const contentChars = text.replace(/[\s\.\-=_]/g, '').length;
+    if (contentChars < 30) {
+      return false;
+    }
+    
+    // ✅ Chunk passed all filters
+    return true;
+  });
+  
+  const filteredCount = chunks.length - filtered.length;
+  if (filteredCount > 0) {
+    console.log(`   🗑️ Filtered ${filteredCount} low-quality chunks`);
+  }
+  
+  return filtered;
+}
+
+/**
  * Generate embeddings for chunks
  */
 export async function generateEmbeddings(
@@ -324,7 +383,16 @@ export async function processForRAG(
   
   try {
     // Step 1: Chunk the text
-    const chunks = chunkText(extractedText, chunkSize);
+    const rawChunks = chunkText(extractedText, chunkSize);
+    
+    // ✅ NEW: Filter garbage chunks
+    const chunks = filterGarbageChunks(rawChunks);
+    const filteredCount = rawChunks.length - chunks.length;
+    
+    if (filteredCount > 0) {
+      console.log(`   🗑️ Filtrados ${filteredCount} chunks de baja calidad`);
+      console.log(`   ✅ ${chunks.length} chunks útiles restantes`);
+    }
     
     // Step 2: Generate embeddings
     const embeddings = await generateEmbeddings(chunks, embeddingModel);
