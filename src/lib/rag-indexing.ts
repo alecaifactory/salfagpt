@@ -48,8 +48,18 @@ export async function chunkAndIndexDocument(
 
     // 1. Chunk the document
     console.log('  Step 1/3: Chunking document...');
-    const chunks = chunkText(text, chunkSize, overlap);
-    console.log(`  ✓ Created ${chunks.length} chunks`);
+    const rawChunks = chunkText(text, chunkSize, overlap);
+    console.log(`  ✓ Created ${rawChunks.length} raw chunks`);
+    
+    // ✅ NEW: Filter garbage chunks (headers, footers, TOC, page numbers)
+    const { filterGarbageChunks } = await import('./chunking.js');
+    const chunks = filterGarbageChunks(rawChunks);
+    const filteredCount = rawChunks.length - chunks.length;
+    
+    if (filteredCount > 0) {
+      console.log(`  🗑️ Filtered ${filteredCount} garbage chunks`);
+      console.log(`  ✓ ${chunks.length} quality chunks remaining`);
+    }
 
     // 2. Delete existing chunks for this source (if re-indexing)
     console.log('  Step 2/3: Clearing old chunks...');
