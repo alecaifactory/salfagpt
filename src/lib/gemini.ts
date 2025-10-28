@@ -407,38 +407,43 @@ ${userMessage}`;
 
 🔍 MODO RAG ACTIVADO - INSTRUCCIONES CRÍTICAS:
 
-Te he proporcionado EXACTAMENTE ${fragmentNumbers.length} fragmentos numerados: ${fragmentNumbers.join(', ')}.
+⚠️ ATENCIÓN: Los fragmentos se consolidan por documento.
+- Fragmentos recibidos: ${fragmentNumbers.length}
+- Estos se agruparán en ~${Math.ceil(fragmentNumbers.length / 2)}-${Math.ceil(fragmentNumbers.length / 3)} referencias finales por documento único
+- En tu lista de referencias, SOLO incluye los documentos únicos (NO repitas el mismo documento)
 
-⚠️ REGLA ABSOLUTA - NO NEGOCIABLE:
-- SOLO puedes usar los números: ${fragmentNumbers.join(', ')}
-- ❌ PROHIBIDO usar cualquier otro número (ej: si solo tienes [1][2][3][4][5], NO puedes usar [6], [7], [8], etc.)
+🚨 REGLA ABSOLUTA - NUMERACIÓN:
+- Usa SOLO los números que aparecen en la sección "### Referencias" al final
+- ❌ PROHIBIDO usar [${fragmentNumbers.length + 1}], [${fragmentNumbers.length + 2}], o números mayores
 - ❌ PROHIBIDO inventar referencias que no existen
-- ✅ SI un fragmento no contiene la información, di: "No tengo información sobre esto en los documentos proporcionados"
+- ✅ Si un fragmento no contiene la información, di claramente que no está disponible
 
-DEBES OBLIGATORIAMENTE:
-1. ✅ SOLO citar fragmentos que existen: ${fragmentNumbers.join(', ')}
-2. ✅ Colocar la cita INMEDIATAMENTE después del dato específico
-3. ✅ Si un dato viene de múltiples fragmentos, cita todos: [1][2]
-4. ✅ Cada afirmación factual del documento DEBE tener su referencia
-5. ❌ NO inventes información que no esté en los fragmentos
-6. ❌ NO uses números fuera del rango ${fragmentNumbers.join(', ')}
+INSTRUCCIONES OBLIGATORIAS:
+1. ✅ Cita usando [N] INMEDIATAMENTE después del dato específico
+2. ✅ Si un dato viene de múltiples fragmentos del MISMO documento, usa una sola cita
+3. ✅ Cada afirmación factual DEBE tener su referencia
+4. ❌ NO inventes información
+5. ❌ NO uses números inexistentes
 
-EJEMPLO CORRECTO (si solo tienes fragmentos 1-5):
-"La Ley N°19.537 derogó expresamente la Ley N°6.071[1]. Esta ley se aplica a las 
-comunidades de copropietarios[2]. Las construcciones en subterráneo deben cumplir 
-con distanciamientos[3]."
+EJEMPLO CORRECTO (3 documentos únicos de 10 fragmentos):
+"La gestión del combustible requiere control diario[1]. El informe se genera en SAP 
+con la transacción ZMM_IE[2]. Este proceso es responsabilidad de JBOD[3]."
 
-EJEMPLO INCORRECTO:
-"... según el artículo 4.14.2 [7]" ❌ (NO existe fragmento 7)
-
-Al FINAL de tu respuesta, SIEMPRE incluye una sección de referencias con este formato EXACTO:
-
----
 ### Referencias
-${fragmentNumbers.map((num, idx) => `[${num}] Fragmento de [Nombre del documento] (similitud: XX%)`).join('\n')}
+[1] Fragmento de Gestión Combustible Rev.05.pdf (similitud: 80%)
+[2] Fragmento de Imprimir Resumen Petróleo Rev.02.pdf (similitud: 79%)
+[3] Fragmento de Reporte Seguimiento ST.pdf (similitud: 76%)
 
-NÚMEROS VÁLIDOS PARA CITAR: ${fragmentNumbers.join(', ')}
-NO USES NINGÚN OTRO NÚMERO.`;
+❌ EJEMPLO INCORRECTO:
+"... según procedimiento [4]" donde [4] no existe en Referencias.
+
+FORMATO OBLIGATORIO para sección Referencias:
+- Una línea por documento ÚNICO
+- NO repitas el mismo nombre de documento
+- Usa solo números consecutivos 1, 2, 3, ... (SIN SALTOS)
+- NO agregues fragmentos extra después del último documento único
+
+NÚMEROS VÁLIDOS: Los que aparecen en tu sección "### Referencias" (típicamente ${Math.ceil(fragmentNumbers.length / 3)}-${Math.ceil(fragmentNumbers.length / 2)} documentos únicos)`;
       } else {
         // Modo Full-Text (documento completo)
         fullUserMessage = `DOCUMENTO COMPLETO:
