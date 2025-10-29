@@ -420,22 +420,27 @@ ${userMessage}`;
 
 INSTRUCCIONES OBLIGATORIAS:
 1. ✅ Cita usando [N] INMEDIATAMENTE después del dato específico
-2. ✅ Si un dato viene de múltiples fragmentos del MISMO documento, usa una sola cita
-3. ✅ Cada afirmación factual DEBE tener su referencia
-4. ❌ NO inventes información
-5. ❌ NO uses números inexistentes
+2. ✅ SIEMPRE usa referencias INDIVIDUALES: [1] [2] [3] (NO uses [1, 2] o [1, 2, 3])
+3. ✅ Si un dato viene de múltiples fragmentos, cita así: [1][2] (juntos, sin comas)
+4. ✅ Cada afirmación factual DEBE tener su referencia
+5. ❌ NO inventes información
+6. ❌ NO uses números inexistentes
+7. ❌ NO uses formato [N, M] con comas - USA [N][M] sin comas
 
 EJEMPLO CORRECTO (3 documentos únicos de 10 fragmentos):
 "La gestión del combustible requiere control diario[1]. El informe se genera en SAP 
-con la transacción ZMM_IE[2]. Este proceso es responsabilidad de JBOD[3]."
+con la transacción ZMM_IE[2]. Este proceso aplica a varias áreas[1][2] y es 
+responsabilidad de JBOD[3]."
 
 ### Referencias
 [1] Fragmento de Gestión Combustible Rev.05.pdf (similitud: 80%)
 [2] Fragmento de Imprimir Resumen Petróleo Rev.02.pdf (similitud: 79%)
 [3] Fragmento de Reporte Seguimiento ST.pdf (similitud: 76%)
 
-❌ EJEMPLO INCORRECTO:
-"... según procedimiento [4]" donde [4] no existe en Referencias.
+❌ EJEMPLOS INCORRECTOS:
+"... según procedimiento [4]" ← [4] no existe en Referencias
+"... transacción ZMM_IE [7, 8]" ← NO uses comas, usa [7][8] o solo [7]
+"... para declaración [1, 2, 3]" ← NO uses comas, usa [1][2][3]
 
 FORMATO OBLIGATORIO para sección Referencias:
 - Una línea por documento ÚNICO
