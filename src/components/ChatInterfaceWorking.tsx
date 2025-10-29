@@ -1649,8 +1649,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   };
 
   const nextSampleQuestion = () => {
-    const currentAgent = conversations.find(c => c.id === currentConversation);
-    const agentCode = getAgentCode(currentAgent?.title);
+    // Get agent for this conversation (same logic as carousel display)
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    const parentAgent = getParentAgent();
+    const agentToUse = parentAgent || currentConv;
+    const agentCode = getAgentCode(agentToUse?.title);
     const questions = getSampleQuestions(agentCode);
     
     if (questions.length > 0) {
@@ -1659,8 +1662,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   };
 
   const prevSampleQuestion = () => {
-    const currentAgent = conversations.find(c => c.id === currentConversation);
-    const agentCode = getAgentCode(currentAgent?.title);
+    // Get agent for this conversation (same logic as carousel display)
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    const parentAgent = getParentAgent();
+    const agentToUse = parentAgent || currentConv;
+    const agentCode = getAgentCode(agentToUse?.title);
     const questions = getSampleQuestions(agentCode);
     
     if (questions.length > 0) {
