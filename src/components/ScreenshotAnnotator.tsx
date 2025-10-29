@@ -55,19 +55,75 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
   };
 
   const captureViewport = async (): Promise<string> => {
-    // This is a placeholder - in production you'd use html2canvas or similar
-    // For MVP, we'll create a white canvas placeholder
+    try {
+      // Import html2canvas dynamically
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Capture the entire body (includes sidebar, chat, and right panel)
+      const bodyElement = document.body;
+      
+      // Hide the screenshot modal temporarily while capturing
+      const modals = document.querySelectorAll('[role="dialog"], .fixed.z-50');
+      modals.forEach(modal => {
+        (modal as HTMLElement).style.display = 'none';
+      });
+
+      console.log('📸 Capturing full UI (body element)...');
+      
+      // Capture with html2canvas
+      const canvas = await html2canvas(bodyElement, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scale: 1, // 1:1 scale for performance
+        logging: false,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        x: 0,
+        y: 0,
+        scrollY: -window.scrollY,
+        scrollX: -window.scrollX,
+      });
+
+      // Restore modals
+      modals.forEach(modal => {
+        (modal as HTMLElement).style.display = '';
+      });
+
+      const dataUrl = canvas.toDataURL('image/png', 0.9);
+      console.log('✅ Full UI captured:', canvas.width, 'x', canvas.height);
+      
+      return dataUrl;
+    } catch (error) {
+      console.error('❌ Error with html2canvas:', error);
+      
+      // Fallback: Use simpler method
+      console.log('⚠️ Falling back to simple screenshot method');
+      return fallbackScreenshot();
+    }
+  };
+
+  const fallbackScreenshot = (): string => {
+    // Fallback: Create placeholder canvas
     const canvas = document.createElement('canvas');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.fillStyle = '#f8fafc';
+      // Draw gradient background
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, '#f8fafc');
+      gradient.addColorStop(1, '#e2e8f0');
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#cbd5e1';
+      
+      // Draw placeholder text
+      ctx.fillStyle = '#64748b';
       ctx.font = '24px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('Captura de Pantalla', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('Captura de Pantalla - UI Completa', canvas.width / 2, canvas.height / 2 - 20);
+      ctx.font = '16px sans-serif';
+      ctx.fillText('(Incluye sidebar, chat y panel derecho)', canvas.width / 2, canvas.height / 2 + 20);
     }
     return canvas.toDataURL('image/png');
   };
