@@ -1,0 +1,81 @@
+{
+  "id": "EVAL-S001-2025-10-29-v1",
+  "agent": "S001",
+  "agentName": "GESTION BODEGAS GPT",
+  "agentId": "AjtQZEIMQvFnPRJRjl4y",
+  "version": "v1",
+  "date": "2025-10-29",
+  "status": "in-progress",
+  
+  "scope": {
+    "totalQuestions": 66,
+    "questionsTested": 1,
+    "coverage": 1.5,
+    "targetCoverage": 15,
+    "targetQuestions": 10
+  },
+  
+  "context": {
+    "totalDocuments": 76,
+    "totalChunks": 1773,
+    "agentType": "Gestión de Bodegas",
+    "expectedQuality": 8.5
+  },
+  
+  "testing": {
+    "methodology": "Sample-based representative testing",
+    "sampleSize": 10,
+    "sampleStrategy": "1-2 questions per category (critical priority)",
+    "automatedValidation": true,
+    "expertValidation": true
+  },
+  
+  "evaluators": [
+    {
+      "name": "Alec",
+      "role": "Technical Validation",
+      "email": "alec@getaifactory.com",
+      "responsibilities": ["RAG system validation", "Phantom refs check", "Reference consistency"]
+    },
+    {
+      "name": "Sebastian",
+      "role": "Expert Validation",
+      "email": "sebastian@salfa.cl",
+      "responsibilities": ["Content accuracy", "Usefulness", "Completeness", "Final approval"]
+    }
+  ],
+  
+  "results": {
+    "averageQuality": null,
+    "qualityDistribution": {
+      "excellent_9_10": 0,
+      "good_7_8": 0,
+      "acceptable_5_6": 0,
+      "poor_below_5": 0
+    },
+    "phantomRefsDetected": 0,
+    "technicalIssues": 0
+  },
+  
+  "expertFeedback": {
+    "totalResponses": 0,
+    "approved": 0,
+    "needsImprovement": 0,
+    "rejected": 0,
+    "averageScore": null
+  },
+  
+  "timeline": {
+    "createdAt": "2025-10-29T12:00:00Z",
+    "testingStartedAt": "2025-10-29T12:15:00Z",
+    "testingCompletedAt": null,
+    "expertReviewStartedAt": null,
+    "expertReviewCompletedAt": null,
+    "finalReportGeneratedAt": null
+  },
+  
+  "createdBy": "alec@getaifactory.com",
+  "createdAt": "2025-10-29T12:00:00Z",
+  "updatedAt": "2025-10-29T12:30:00Z"
+}
+

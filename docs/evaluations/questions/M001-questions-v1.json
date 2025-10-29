@@ -1,0 +1,241 @@
+{
+  "agent": "M001",
+  "agentName": "Asistente Legal Territorial RDI",
+  "version": "v1",
+  "totalQuestions": 19,
+  "createdAt": "2025-10-29T12:00:00Z",
+  "createdBy": "Alec",
+  "source": "Especialistas Salfa - Legal y Territorial",
+  
+  "categories": [
+    {
+      "id": "cat-01",
+      "name": "Conceptos y Diferencias",
+      "count": 2,
+      "priority": "high"
+    },
+    {
+      "id": "cat-02",
+      "name": "Requisitos de Permisos",
+      "count": 3,
+      "priority": "critical"
+    },
+    {
+      "id": "cat-03",
+      "name": "Casos Específicos - Viabilidad",
+      "count": 4,
+      "priority": "high"
+    },
+    {
+      "id": "cat-04",
+      "name": "Normativa y Excepciones",
+      "count": 3,
+      "priority": "high"
+    },
+    {
+      "id": "cat-05",
+      "name": "Diferencias Procedimentales",
+      "count": 2,
+      "priority": "medium"
+    },
+    {
+      "id": "cat-06",
+      "name": "Documentación Específica",
+      "count": 2,
+      "priority": "medium"
+    },
+    {
+      "id": "cat-07",
+      "name": "Conflictos Normativos",
+      "count": 2,
+      "priority": "high"
+    },
+    {
+      "id": "cat-08",
+      "name": "Cálculos y Procedimientos Técnicos",
+      "count": 2,
+      "priority": "medium"
+    }
+  ],
+  
+  "questions": [
+    {
+      "id": "M001-Q001",
+      "number": 1,
+      "category": "cat-01",
+      "priority": "critical",
+      "question": "Me puedes decir la diferencia entre un Loteo DFL2 y un Loteo con Construcción Simultánea?",
+      "expectedTopics": ["DFL2", "loteo", "construcción simultánea", "OGUC", "diferencias"],
+      "tested": true,
+      "testResult": {
+        "quality": 9.5,
+        "phantomRefs": false,
+        "references": 5,
+        "date": "2025-10-29"
+      }
+    },
+    {
+      "id": "M001-Q002",
+      "number": 2,
+      "category": "cat-01",
+      "priority": "high",
+      "question": "Cuál es la diferencia entre condominio tipo a y tipo b.",
+      "expectedTopics": ["condominio", "tipo A", "tipo B", "diferencias", "OGUC"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q003",
+      "number": 3,
+      "category": "cat-02",
+      "priority": "critical",
+      "question": "Qué requisitos se necesitan para aprobar un permiso de edificios, un permiso de urbanización, permiso de subdivisión, permiso de loteo.",
+      "expectedTopics": ["requisitos", "permisos", "edificación", "urbanización", "subdivisión", "loteo"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q004",
+      "number": 4,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "Qué documentos se deben presentar para los trámites de loteo, subdivisión, permiso de edificación.",
+      "expectedTopics": ["documentos", "loteo", "subdivisión", "edificación"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q005",
+      "number": 5,
+      "category": "cat-03",
+      "priority": "high",
+      "question": "¿Es posible aprobar una fusión de terrenos que no se encuentran urbanizados?",
+      "expectedTopics": ["fusión", "terrenos", "urbanización", "viabilidad"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q006",
+      "number": 6,
+      "category": "cat-03",
+      "priority": "high",
+      "question": "¿Es posible aprobar un condominio tipo B dentro de un permiso de edificación acogido a conjunto armónico?",
+      "expectedTopics": ["condominio B", "conjunto armónico", "viabilidad"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q007",
+      "number": 7,
+      "category": "cat-03",
+      "priority": "high",
+      "question": "¿Es posible otorgar un permiso de edificación a un lote no urbanizado dentro de un loteo sin construcción simultánea?",
+      "expectedTopics": ["permiso edificación", "lote no urbanizado", "loteo", "viabilidad"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q008",
+      "number": 8,
+      "category": "cat-03",
+      "priority": "medium",
+      "question": "¿Es posible otorgar un CIP a terrenos que no se encuentran con autorización de enajenar?",
+      "expectedTopics": ["CIP", "autorización enajenar", "viabilidad"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q009",
+      "number": 9,
+      "category": "cat-04",
+      "priority": "medium",
+      "question": "¿Puede una vivienda en un condominio tipo B tener una altura mayor si se trata de una zona con uso de suelo mixto y una rasante permisiva?",
+      "expectedTopics": ["condominio B", "altura", "uso mixto", "rasante"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q010",
+      "number": 10,
+      "category": "cat-04",
+      "priority": "high",
+      "question": "¿Qué jurisprudencia o dictámenes del MINVU existen sobre la exigencia de estacionamientos en proyectos de vivienda social en zonas con plan regulador antiguo?",
+      "expectedTopics": ["jurisprudencia", "MINVU", "estacionamientos", "vivienda social"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q011",
+      "number": 11,
+      "category": "cat-04",
+      "priority": "high",
+      "question": "En una fusión de lotes en zona ZH4 del PRC de Vitacura, ¿puedo mantener derechos adquiridos si uno de los lotes tenía uso de suelo distinto antes de la fusión?",
+      "expectedTopics": ["fusión lotes", "derechos adquiridos", "PRC Vitacura", "uso suelo"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q012",
+      "number": 12,
+      "category": "cat-05",
+      "priority": "high",
+      "question": "¿Cuáles son las diferencias normativas y procedimentales entre un Loteo con Construcción Simultánea y un Proyecto Inmobiliario acogiéndose al Art. 6.1.8 de la OGUC?",
+      "expectedTopics": ["loteo construcción simultánea", "proyecto inmobiliario", "Art 6.1.8", "diferencias"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q013",
+      "number": 13,
+      "category": "cat-05",
+      "priority": "medium",
+      "question": "¿Qué requisitos diferenciados hay entre un permiso de urbanización en zona urbana versus una en extensión urbana, según la LGUC?",
+      "expectedTopics": ["urbanización", "zona urbana", "extensión urbana", "LGUC"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q014",
+      "number": 14,
+      "category": "cat-06",
+      "priority": "medium",
+      "question": "¿Qué documentos necesito presentar para solicitar un permiso de edificación en un terreno afecto a declaratoria de utilidad pública, según la OGUC y los DDU más recientes?",
+      "expectedTopics": ["permiso edificación", "utilidad pública", "documentos", "DDU"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q015",
+      "number": 15,
+      "category": "cat-06",
+      "priority": "medium",
+      "question": "¿Qué requisitos deben incluirse en un informe de mitigación de impacto vial para un centro comercial en zona ZC2 con vías colectoras?",
+      "expectedTopics": ["impacto vial", "centro comercial", "ZC2", "mitigación"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q016",
+      "number": 16,
+      "category": "cat-07",
+      "priority": "high",
+      "question": "¿Qué pasa si el PRC permite un uso de suelo y el Plan Regulador Metropolitano de Santiago lo restringe en una macrozona? ¿Cuál prevalece y en qué casos?",
+      "expectedTopics": ["PRC", "PRMS", "conflicto normativo", "prevalencia"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q017",
+      "number": 17,
+      "category": "cat-07",
+      "priority": "high",
+      "question": "¿Se puede edificar sobre una franja de riesgo declarada por el MINVU si se presenta un estudio geotécnico? ¿Qué dictámenes respaldan esto?",
+      "expectedTopics": ["franja riesgo", "estudio geotécnico", "MINVU", "dictámenes"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q018",
+      "number": 18,
+      "category": "cat-08",
+      "priority": "medium",
+      "question": "¿Cómo se calcula la densidad bruta en un proyecto que abarca varios roles con diferentes normas urbanísticas?",
+      "expectedTopics": ["densidad bruta", "cálculo", "multi-rol", "normas"],
+      "tested": false
+    },
+    {
+      "id": "M001-Q019",
+      "number": 19,
+      "category": "cat-08",
+      "priority": "high",
+      "question": "¿Cuál es el procedimiento para regularizar una construcción antigua en zona no edificable pero consolidada, acogida al Art. 148 de la LGUC?",
+      "expectedTopics": ["regularización", "zona no edificable", "Art 148", "LGUC"],
+      "tested": false
+    }
+  ]
+}
+
