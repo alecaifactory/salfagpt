@@ -1,0 +1,81 @@
+{
+  "id": "EVAL-M001-2025-10-29-v1",
+  "agent": "M001",
+  "agentName": "Asistente Legal Territorial RDI",
+  "agentId": "cjn3bC0HrUYtHqu69CKS",
+  "version": "v1",
+  "date": "2025-10-29",
+  "status": "in-progress",
+  
+  "scope": {
+    "totalQuestions": 19,
+    "questionsTested": 4,
+    "coverage": 21,
+    "targetCoverage": 100,
+    "targetQuestions": 19
+  },
+  
+  "context": {
+    "totalDocuments": 538,
+    "totalChunks": 5000,
+    "agentType": "Legal y Territorial",
+    "expectedQuality": 8.0
+  },
+  
+  "testing": {
+    "methodology": "Sample-based representative testing",
+    "sampleSize": 4,
+    "sampleStrategy": "Representative questions across complexity levels",
+    "automatedValidation": true,
+    "expertValidation": true
+  },
+  
+  "evaluators": [
+    {
+      "name": "Alec",
+      "role": "Technical Validation",
+      "email": "alec@getaifactory.com",
+      "responsibilities": ["RAG system validation", "Phantom refs check", "Reference consistency"]
+    },
+    {
+      "name": "Sebastian",
+      "role": "Expert Validation",
+      "email": "sebastian@salfa.cl",
+      "responsibilities": ["Legal accuracy", "Technical correctness", "Final approval"]
+    }
+  ],
+  
+  "results": {
+    "averageQuality": 9.25,
+    "qualityDistribution": {
+      "excellent_9_10": 4,
+      "good_7_8": 0,
+      "acceptable_5_6": 0,
+      "poor_below_5": 0
+    },
+    "phantomRefsDetected": 0,
+    "technicalIssues": 0
+  },
+  
+  "expertFeedback": {
+    "totalResponses": 0,
+    "approved": 0,
+    "needsImprovement": 0,
+    "rejected": 0,
+    "averageScore": null
+  },
+  
+  "timeline": {
+    "createdAt": "2025-10-29T12:00:00Z",
+    "testingStartedAt": "2025-10-29T12:10:00Z",
+    "testingCompletedAt": "2025-10-29T12:30:00Z",
+    "expertReviewStartedAt": null,
+    "expertReviewCompletedAt": null,
+    "finalReportGeneratedAt": null
+  },
+  
+  "createdBy": "alec@getaifactory.com",
+  "createdAt": "2025-10-29T12:00:00Z",
+  "updatedAt": "2025-10-29T12:30:00Z"
+}
+

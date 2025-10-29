@@ -1,0 +1,677 @@
+{
+  "agent": "S001",
+  "agentName": "GESTION BODEGAS GPT",
+  "version": "v1",
+  "totalQuestions": 66,
+  "createdAt": "2025-10-29T12:00:00Z",
+  "createdBy": "Alec",
+  "source": "Especialistas Salfa - Gestión de Bodegas",
+  
+  "categories": [
+    {
+      "id": "cat-01",
+      "name": "Códigos y Catálogos",
+      "count": 7,
+      "priority": "high"
+    },
+    {
+      "id": "cat-02",
+      "name": "Procedimientos SAP",
+      "count": 18,
+      "priority": "critical"
+    },
+    {
+      "id": "cat-03",
+      "name": "Gestión Combustible",
+      "count": 5,
+      "priority": "critical"
+    },
+    {
+      "id": "cat-04",
+      "name": "Transporte y Logística",
+      "count": 7,
+      "priority": "high"
+    },
+    {
+      "id": "cat-05",
+      "name": "Guías de Despacho",
+      "count": 3,
+      "priority": "critical"
+    },
+    {
+      "id": "cat-06",
+      "name": "Inventarios",
+      "count": 6,
+      "priority": "high"
+    },
+    {
+      "id": "cat-07",
+      "name": "Traspasos",
+      "count": 3,
+      "priority": "high"
+    },
+    {
+      "id": "cat-08",
+      "name": "Bodega Fácil",
+      "count": 8,
+      "priority": "medium"
+    },
+    {
+      "id": "cat-09",
+      "name": "Equipos Terceros",
+      "count": 3,
+      "priority": "medium"
+    },
+    {
+      "id": "cat-10",
+      "name": "Documentación",
+      "count": 7,
+      "priority": "high"
+    }
+  ],
+  
+  "questions": [
+    {
+      "id": "S001-Q001",
+      "number": 1,
+      "category": "cat-01",
+      "priority": "critical",
+      "question": "¿Dónde busco los códigos de materiales?",
+      "expectedTopics": ["SAP", "código material", "transacción", "catálogo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q002",
+      "number": 2,
+      "category": "cat-02",
+      "priority": "critical",
+      "question": "¿Cómo hago una pedido de convenio?",
+      "expectedTopics": ["pedido", "convenio", "SAP", "procedimiento"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q003",
+      "number": 3,
+      "category": "cat-03",
+      "priority": "high",
+      "question": "¿Cuándo debo enviar el informe de consumo de petróleo?",
+      "expectedTopics": ["petróleo", "plazo", "4to día hábil"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q004",
+      "number": 4,
+      "category": "cat-03",
+      "priority": "critical",
+      "question": "¿Cómo genero el informe de consumo de petróleo?",
+      "expectedTopics": ["ZMM_IE", "SAP", "Sociedad", "PEP", "Formulario"],
+      "expectedDocuments": ["PP-009", "I-006"],
+      "tested": true,
+      "testResult": {
+        "quality": 10,
+        "phantomRefs": false,
+        "references": 3,
+        "date": "2025-10-29"
+      }
+    },
+    {
+      "id": "S001-Q005",
+      "number": 5,
+      "category": "cat-03",
+      "priority": "medium",
+      "question": "¿Para qué genero el informe de consumo de petróleo?",
+      "expectedTopics": ["impuesto específico", "recuperación", "declaración"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q006",
+      "number": 6,
+      "category": "cat-01",
+      "priority": "high",
+      "question": "¿Dónde busco los códigos de los diferentes tipos de servicios?",
+      "expectedTopics": ["ZSER", "códigos servicios", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q007",
+      "number": 7,
+      "category": "cat-01",
+      "priority": "high",
+      "question": "¿Dónde busco los códigos de los diferentes tipos de equipo?",
+      "expectedTopics": ["código equipo", "catálogo", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q008",
+      "number": 8,
+      "category": "cat-06",
+      "priority": "critical",
+      "question": "¿Cuál es el calendario de inventarios para el PEP?",
+      "expectedTopics": ["inventario", "calendario", "PEP", "cronograma"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q009",
+      "number": 9,
+      "category": "cat-05",
+      "priority": "critical",
+      "question": "¿Cómo genero una guía de despacho?",
+      "expectedTopics": ["guía despacho", "SAP", "procedimiento"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q010",
+      "number": 10,
+      "category": "cat-04",
+      "priority": "high",
+      "question": "¿Cómo hago una solicitud de transporte?",
+      "expectedTopics": ["transporte", "solicitud", "SAMEX", "LE-TRA"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q011",
+      "number": 11,
+      "category": "cat-04",
+      "priority": "critical",
+      "question": "¿Qué es una ST?",
+      "expectedTopics": ["ST", "solicitud transporte", "definición"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q012",
+      "number": 12,
+      "category": "cat-04",
+      "priority": "critical",
+      "question": "¿Qué es una SIM?",
+      "expectedTopics": ["SIM", "solicitud interna materiales", "formato"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q013",
+      "number": 13,
+      "category": "cat-01",
+      "priority": "high",
+      "question": "¿Dónde busco la información de un PEP, Centro y almacén?",
+      "expectedTopics": ["PEP", "centro", "almacén", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q014",
+      "number": 14,
+      "category": "cat-01",
+      "priority": "medium",
+      "question": "¿Cuál es código de servicio de catering?",
+      "expectedTopics": ["catering", "código servicio", "ZSER"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q015",
+      "number": 15,
+      "category": "cat-01",
+      "priority": "medium",
+      "question": "¿Cuál es el código para solicitar un rotomartillo?",
+      "expectedTopics": ["rotomartillo", "código", "herramienta"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q016",
+      "number": 16,
+      "category": "cat-08",
+      "priority": "high",
+      "question": "¿Cómo solicito los implementos para activar bodega fácil?",
+      "expectedTopics": ["bodega fácil", "implementos", "activación"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q017",
+      "number": 17,
+      "category": "cat-08",
+      "priority": "high",
+      "question": "¿Cómo solicito los equipos para activar bodega fácil?",
+      "expectedTopics": ["bodega fácil", "equipos", "PDA"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q018",
+      "number": 18,
+      "category": "cat-08",
+      "priority": "high",
+      "question": "¿Cómo solicito los insumos para activar bodega fácil?",
+      "expectedTopics": ["bodega fácil", "insumos", "activación"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q019",
+      "number": 19,
+      "category": "cat-08",
+      "priority": "medium",
+      "question": "¿Cómo actualizo las cantidades en bodega fácil, si no me calza el físico con sistema?",
+      "expectedTopics": ["bodega fácil", "ajuste", "inventario", "diferencias"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q020",
+      "number": 20,
+      "category": "cat-08",
+      "priority": "medium",
+      "question": "¿Cómo solicito el arriendo de insumos tecnológicos? Ejemplo: correo, notebook, Smartphone, impresora, router, entre otros.",
+      "expectedTopics": ["insumos tecnológicos", "arriendo", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q021",
+      "number": 21,
+      "category": "cat-08",
+      "priority": "low",
+      "question": "¿Cómo solicito una cuenta PBI para maestro de materiales?",
+      "expectedTopics": ["PBI", "cuenta", "maestro materiales"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q022",
+      "number": 22,
+      "category": "cat-08",
+      "priority": "medium",
+      "question": "¿Cómo solicito una capacitación de bodega fácil (BF)?",
+      "expectedTopics": ["capacitación", "bodega fácil", "training"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q023",
+      "number": 23,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo puedo generar una solicitud de materiales?",
+      "expectedTopics": ["SIM", "solicitud materiales", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q024",
+      "number": 24,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo puedo generar una compra por convenio?",
+      "expectedTopics": ["compra", "convenio", "pedido"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q025",
+      "number": 25,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cuál es el formato de solicitud interna de materiales (SIM)?",
+      "expectedTopics": ["SIM", "formato", "campos"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q026",
+      "number": 26,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cómo se genera una regularización de materiales?",
+      "expectedTopics": ["regularización", "materiales", "ajuste"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q027",
+      "number": 27,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo se realiza la solicitud de \"servicios\"",
+      "expectedTopics": ["servicios", "solicitud", "ZSER"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q028",
+      "number": 28,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cómo se realiza una HES, en relación a un estado de pago?",
+      "expectedTopics": ["HES", "estado pago", "procedimiento"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q029",
+      "number": 29,
+      "category": "cat-02",
+      "priority": "low",
+      "question": "¿Cómo borro las posiciones de una SolPed?",
+      "expectedTopics": ["SolPed", "borrar", "posiciones"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q030",
+      "number": 30,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cómo controlo la entrega de EPP en obra?",
+      "expectedTopics": ["EPP", "control", "entrega", "registro"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q031",
+      "number": 31,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo solicito la creación de Proveedores?",
+      "expectedTopics": ["proveedor", "creación", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q032",
+      "number": 32,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Qué requisitos hay para crear proveedores?",
+      "expectedTopics": ["proveedor", "requisitos", "documentación"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q033",
+      "number": 33,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿A quién se le debe enviar la posible acreditación de un proveedor?",
+      "expectedTopics": ["proveedor", "acreditación", "destinatario", "correo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q034",
+      "number": 34,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo solicito la creación de un código de material?",
+      "expectedTopics": ["código material", "creación", "maestro materiales"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q035",
+      "number": 35,
+      "category": "cat-01",
+      "priority": "high",
+      "question": "¿Cómo puedo revisar los códigos de servicios vigentes para las ZSER?",
+      "expectedTopics": ["ZSER", "códigos servicios", "vigentes"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q036",
+      "number": 36,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo ingreso una guía de despacho (GD) por SAP o PDA de bodega fácil?",
+      "expectedTopics": ["guía despacho", "SAP", "PDA", "ingreso"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q037",
+      "number": 37,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo ingreso un vale de Consumo a SAP o una reserva por bodega fácil?",
+      "expectedTopics": ["vale consumo", "reserva", "SAP", "bodega fácil"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q038",
+      "number": 38,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cómo reviso y soluciono facturas del ZMONITOR?",
+      "expectedTopics": ["ZMONITOR", "facturas", "solución"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q039",
+      "number": 39,
+      "category": "cat-02",
+      "priority": "medium",
+      "question": "¿Cuál es la TRX para revisar las facturas?",
+      "expectedTopics": ["TRX", "transacción", "facturas", "ZMONITOR"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q040",
+      "number": 40,
+      "category": "cat-02",
+      "priority": "high",
+      "question": "¿Cómo solicito el arriendo o compra de un equipo?",
+      "expectedTopics": ["equipo", "arriendo", "compra", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q041",
+      "number": 41,
+      "category": "cat-09",
+      "priority": "medium",
+      "question": "¿Cómo ingreso un equipo de tercero a sistema SAP?",
+      "expectedTopics": ["equipo tercero", "ingreso", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q042",
+      "number": 42,
+      "category": "cat-06",
+      "priority": "medium",
+      "question": "¿Cómo puedo ver mi inventario de equipos?",
+      "expectedTopics": ["inventario equipos", "consulta", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q043",
+      "number": 43,
+      "category": "cat-09",
+      "priority": "low",
+      "question": "¿Cómo puedo sacar de mi inventario de equipos, los que ya se han devuelto al proveedor de tercero?",
+      "expectedTopics": ["inventario", "devolución", "equipos tercero"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q044",
+      "number": 44,
+      "category": "cat-09",
+      "priority": "medium",
+      "question": "¿Cómo se genera una regularización de equipos?",
+      "expectedTopics": ["regularización", "equipos", "ajuste"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q045",
+      "number": 45,
+      "category": "cat-04",
+      "priority": "medium",
+      "question": "¿Cómo solicito el arriendo de un camión SUBCARGO?",
+      "expectedTopics": ["SUBCARGO", "camión", "arriendo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q046",
+      "number": 46,
+      "category": "cat-04",
+      "priority": "medium",
+      "question": "¿Cómo solicito mi usuario LE-TRA?",
+      "expectedTopics": ["LE-TRA", "usuario", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q047",
+      "number": 47,
+      "category": "cat-04",
+      "priority": "high",
+      "question": "¿Cómo solicito un transporte SAMEX?",
+      "expectedTopics": ["SAMEX", "transporte", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q048",
+      "number": 48,
+      "category": "cat-04",
+      "priority": "medium",
+      "question": "¿Cómo solicito una cuenta SAMEX?",
+      "expectedTopics": ["SAMEX", "cuenta", "solicitud"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q049",
+      "number": 49,
+      "category": "cat-03",
+      "priority": "medium",
+      "question": "¿Cómo descargo un reporte de consumo de combustible?",
+      "expectedTopics": ["reporte", "combustible", "descarga", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q050",
+      "number": 50,
+      "category": "cat-03",
+      "priority": "low",
+      "question": "¿Cómo anulo un consumo de petróleo?",
+      "expectedTopics": ["anular", "consumo", "petróleo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q051",
+      "number": 51,
+      "category": "cat-03",
+      "priority": "low",
+      "question": "¿Cómo hago para cargar el petróleo al generador que queda en el edificio (compra de equipo)?",
+      "expectedTopics": ["generador", "petróleo", "carga", "edificio"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q052",
+      "number": 52,
+      "category": "cat-05",
+      "priority": "critical",
+      "question": "¿Cómo puedo generar una guía de despacho?",
+      "expectedTopics": ["guía despacho", "generación", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q053",
+      "number": 53,
+      "category": "cat-05",
+      "priority": "medium",
+      "question": "¿Existe algún instructivo para la emisión de guías de despacho?",
+      "expectedTopics": ["instructivo", "guía despacho", "procedimiento"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q054",
+      "number": 54,
+      "category": "cat-05",
+      "priority": "low",
+      "question": "¿A quién se debe solicitar instructivo para emitir guías de despacho internas?",
+      "expectedTopics": ["instructivo", "guía despacho", "destinatario"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q055",
+      "number": 55,
+      "category": "cat-06",
+      "priority": "high",
+      "question": "¿Cómo puedo descargar un inventario de sistema SAP?",
+      "expectedTopics": ["inventario", "descarga", "SAP", "reporte"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q056",
+      "number": 56,
+      "category": "cat-06",
+      "priority": "high",
+      "question": "¿Cómo realizo un inventario de materiales?",
+      "expectedTopics": ["inventario", "materiales", "procedimiento", "conteo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q057",
+      "number": 57,
+      "category": "cat-06",
+      "priority": "low",
+      "question": "¿Cómo borro una posición del inventario en SAP?",
+      "expectedTopics": ["inventario", "borrar", "posición"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q058",
+      "number": 58,
+      "category": "cat-07",
+      "priority": "critical",
+      "question": "¿Cómo se realiza un traspaso de bodega?",
+      "expectedTopics": ["traspaso", "bodega", "procedimiento", "SAP"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q059",
+      "number": 59,
+      "category": "cat-07",
+      "priority": "medium",
+      "question": "¿Debo copiar a alguien cuando genero un traspaso de bodega?",
+      "expectedTopics": ["traspaso", "copia", "destinatarios", "correo"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q060",
+      "number": 60,
+      "category": "cat-07",
+      "priority": "high",
+      "question": "¿Cómo se puede hacer un traspaso de materiales entre obras?",
+      "expectedTopics": ["traspaso", "obras", "materiales"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q061",
+      "number": 61,
+      "category": "cat-10",
+      "priority": "medium",
+      "question": "¿Cómo puedo obtener una mejor evaluación como jefatura de bodega?",
+      "expectedTopics": ["evaluación", "jefatura bodega", "mejora", "KPIs"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q062",
+      "number": 62,
+      "category": "cat-10",
+      "priority": "high",
+      "question": "¿Cómo encuentro los procedimientos actualizados de SSOMA?",
+      "expectedTopics": ["SSOMA", "procedimientos", "actualizado", "SharePoint"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q063",
+      "number": 63,
+      "category": "cat-10",
+      "priority": "critical",
+      "question": "¿Cómo encuentro un Procedimiento, Instructivo o Paso a Paso?",
+      "expectedTopics": ["procedimiento", "instructivo", "paso a paso", "búsqueda"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q064",
+      "number": 64,
+      "category": "cat-10",
+      "priority": "high",
+      "question": "¿Cómo se si es la última versión de un Procedimiento, Instructivo o Paso a Paso?",
+      "expectedTopics": ["versión", "procedimiento", "actualizado", "revisión"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q065",
+      "number": 65,
+      "category": "cat-10",
+      "priority": "medium",
+      "question": "¿Cómo encuentro un registro de gestión bodegas?",
+      "expectedTopics": ["registro", "gestión bodegas", "formato"],
+      "tested": false
+    },
+    {
+      "id": "S001-Q066",
+      "number": 66,
+      "category": "cat-10",
+      "priority": "medium",
+      "question": "¿Cómo se si es la última versión de un registro de gestión bodegas?",
+      "expectedTopics": ["registro", "versión", "actualizado"],
+      "tested": false
+    }
+  ]
+}
+
