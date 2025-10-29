@@ -640,9 +640,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   const loadMessages = async (conversationId: string) => {
     try {
+      console.log('📥 [LOAD MESSAGES] Loading messages for conversation:', conversationId);
       const response = await fetch(`/api/conversations/${conversationId}/messages`);
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 [LOAD MESSAGES] Received', data.messages?.length || 0, 'messages');
+        
         // Transform messages: extract text from MessageContent object
         const transformedMessages = (data.messages || []).map((msg: any) => ({
           ...msg,
@@ -651,6 +654,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             : msg.content?.text || String(msg.content),
           timestamp: new Date(msg.timestamp)
         }));
+        
+        // Debug: Check message content lengths
+        if (transformedMessages.length > 0) {
+          const lastMsg = transformedMessages[transformedMessages.length - 1];
+          console.log('📥 [LOAD MESSAGES] Last message role:', lastMsg.role);
+          console.log('📥 [LOAD MESSAGES] Last message content length:', lastMsg.content?.length);
+          console.log('📥 [LOAD MESSAGES] Last message preview:', lastMsg.content?.substring(0, 200));
+        }
         
         // Debug: Check for references in loaded messages
         const messagesWithRefs = transformedMessages.filter((m: Message) => m.references && m.references.length > 0);
@@ -663,6 +674,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           console.log('📚 No messages with references found in loaded history');
         }
         
+        console.log('📥 [LOAD MESSAGES] Setting', transformedMessages.length, 'messages to state');
         setMessages(transformedMessages);
       }
     } catch (error) {
@@ -1885,6 +1897,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   
                   // Debug: Check if references were received
                   console.log('✅ Message complete event received');
+                  console.log('🔍 [STREAM COMPLETE] Accumulated content length:', accumulatedContent.length);
+                  console.log('🔍 [STREAM COMPLETE] Content preview:', accumulatedContent.substring(0, 200));
                   console.log('📚 References in completion:', data.references?.length || 0);
                   if (data.references && data.references.length > 0) {
                     console.log('📚 Reference details:', data.references);
@@ -1919,18 +1933,30 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   }
                   
                   // Mark message as no longer streaming and add references
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === streamingId 
-                      ? { 
-                          ...msg, 
-                          id: finalMessageId,
-                          isStreaming: false,
-                          content: accumulatedContent,
-                          references: data.references, // RAG chunk references with real similarity
-                          thinkingSteps: undefined
-                        }
-                      : msg
-                  ));
+                  console.log('🔄 [STREAM COMPLETE] Updating message state with final content');
+                  console.log('🔍 [STREAM COMPLETE] Final message ID:', finalMessageId);
+                  console.log('🔍 [STREAM COMPLETE] Final content length:', accumulatedContent.length);
+                  console.log('🔍 [STREAM COMPLETE] Final content (first 300 chars):', accumulatedContent.substring(0, 300));
+                  
+                  setMessages(prev => {
+                    const updated = prev.map(msg => 
+                      msg.id === streamingId 
+                        ? { 
+                            ...msg, 
+                            id: finalMessageId,
+                            isStreaming: false,
+                            content: accumulatedContent,
+                            references: data.references, // RAG chunk references with real similarity
+                            thinkingSteps: undefined
+                          }
+                        : msg
+                    );
+                    
+                    console.log('🔍 [STREAM COMPLETE] Updated messages count:', updated.length);
+                    console.log('🔍 [STREAM COMPLETE] Last message content length:', updated[updated.length - 1]?.content?.length);
+                    
+                    return updated;
+                  });
 
                   // Calculate response time
                   const responseTime = Date.now() - requestStartTime;
