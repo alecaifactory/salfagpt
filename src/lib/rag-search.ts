@@ -176,11 +176,13 @@ export async function searchRelevantChunks(
 
 /**
  * Build context string from RAG search results
+ * ✅ FIX 2025-10-29: Consolidate by document FIRST, then renumber
+ * This prevents phantom references like [7][8] when final refs are [1][2][3]
  */
 export function buildRAGContext(results: RAGSearchResult[]): string {
   if (results.length === 0) return '';
 
-  // Group by source
+  // ✅ STEP 1: Group by source document FIRST
   const bySource = results.reduce((acc, result) => {
     if (!acc[result.sourceId]) {
       acc[result.sourceId] = {
@@ -192,24 +194,32 @@ export function buildRAGContext(results: RAGSearchResult[]): string {
     return acc;
   }, {} as Record<string, { name: string; chunks: RAGSearchResult[] }>);
 
-  // Build formatted context
+  // ✅ STEP 2: Build formatted context with CONSOLIDATED numbering
+  // Each unique document gets ONE reference number (not per-chunk)
   let context = '';
-  let globalFragmentNumber = 1; // ✅ FIX: Start at 1, not 0
+  let documentRefNumber = 1; // Reference number per DOCUMENT (not per chunk)
   
   for (const [sourceId, { name, chunks }] of Object.entries(bySource)) {
-    context += `\n\n=== ${name} (RAG: ${chunks.length} fragmentos relevantes) ===\n`;
+    // Sort chunks by similarity (highest first) for better context
+    chunks.sort((a, b) => b.similarity - a.similarity);
     
-    // Sort chunks by index for better readability
-    chunks.sort((a, b) => a.chunkIndex - b.chunkIndex);
+    // Calculate average similarity for this document
+    const avgSimilarity = chunks.reduce((sum, c) => sum + c.similarity, 0) / chunks.length;
+    const relevance = (avgSimilarity * 100).toFixed(1);
     
+    // ✅ CRITICAL: Use document reference number, not chunk number
+    context += `\n\n=== [Referencia ${documentRefNumber}] ${name} ===\n`;
+    context += `Relevancia promedio: ${relevance}% (${chunks.length} fragmentos consolidados)\n\n`;
+    
+    // Include all chunks from this document (for full context)
     chunks.forEach((chunk, i) => {
-      const relevance = (chunk.similarity * 100).toFixed(1);
-      // ✅ FIX: Use 1-based numbering (not chunkIndex which is 0-based)
-      context += `\n[Fragmento ${globalFragmentNumber}, Relevancia: ${relevance}%]\n`;
+      const chunkRelevance = (chunk.similarity * 100).toFixed(1);
+      context += `--- Fragmento ${i + 1}/${chunks.length} (Similitud: ${chunkRelevance}%) ---\n`;
       context += chunk.text;
-      context += '\n';
-      globalFragmentNumber++; // Increment for next fragment
+      context += '\n\n';
     });
+    
+    documentRefNumber++; // Next document gets next reference number
   }
 
   return context;
