@@ -48,6 +48,12 @@ Un sistema completo de feedback que permite a usuarios dar calificaciones sobre 
 
 **Componente:** `ScreenshotAnnotator`
 
+**✨ Captura UI COMPLETA (html2canvas):**
+- ✅ Sidebar (agentes, contexto, user menu)
+- ✅ Chat area (mensajes, input)
+- ✅ Panel derecho (workflows, RAG config)
+- ✅ TODO visible en un screenshot
+
 **Herramientas de Dibujo:**
 - ⭕ **Círculo:** Click y arrastra desde centro
 - ▭ **Rectángulo:** Click esquina, arrastra a opuesta
@@ -60,6 +66,8 @@ Un sistema completo de feedback que permite a usuarios dar calificaciones sobre 
 - Deshacer última anotación
 - Limpiar todo
 - Confirmar captura
+
+**Ventaja:** Usuario puede señalar problemas en CUALQUIER parte de la UI, no solo el chat
 
 **Procesamiento AI:**
 - Gemini 2.5 Flash analiza anotaciones

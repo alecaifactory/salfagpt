@@ -5255,6 +5255,30 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 sampleQuestions[(visibleStart + 2) % sampleQuestions.length],
               ];
               
+              // Calculate progress: starts at 3 (showing first 3 questions)
+              // Takes 7 clicks to complete the full cycle (see all 10 questions)
+              // Index 0: showing Q1,Q2,Q3 → progress 3/10 (30%)
+              // Index 1: showing Q2,Q3,Q4 → progress 4/10 (40%) - saw 1 new
+              // Index 2: showing Q3,Q4,Q5 → progress 5/10 (50%) - saw 2 new
+              // ...
+              // Index 7: showing Q8,Q9,Q10 → progress 10/10 (100%) - saw all
+              // Index 8+: wraps back to start → progress 3/10 again
+              const calculateProgress = () => {
+                if (sampleQuestions.length === 0) return 0;
+                
+                // After index 7, we've seen all questions, so wrap back to 3
+                if (sampleQuestionIndex >= sampleQuestions.length - 2) {
+                  // At the end of the list, back to showing 3
+                  return 3 + (sampleQuestionIndex - (sampleQuestions.length - 2));
+                }
+                
+                // Normal progression: 3 + index (0-7 = 3-10)
+                return 3 + sampleQuestionIndex;
+              };
+              
+              const progressCount = calculateProgress();
+              const progressPercent = (progressCount / sampleQuestions.length) * 100;
+              
               return (
                 <div className="mb-3">
                   <div className="flex items-center justify-between mb-2">
@@ -5305,6 +5329,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
+                  </div>
+                  
+                  {/* Progress Bar - Shows how many questions have been seen */}
+                  <div className="mt-2 px-11">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-1 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-medium tabular-nums">
+                        {progressCount}/{sampleQuestions.length}
+                      </span>
+                    </div>
                   </div>
                 </div>
               );
