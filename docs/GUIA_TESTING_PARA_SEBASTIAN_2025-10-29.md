@@ -50,11 +50,14 @@ Validar que TODOS los issues que reportaste están resueltos:
 - [ ] Respuesta menciona **"Formulario"** para imprimir PDF
 - [ ] **Esperado:** Pasos accionables, no solo "consulta PP-009"
 
-#### ✅ **Sin Phantom Refs:**
-- [ ] **NO** aparece [3], [4], [5]... en el texto si solo hay 2-3 badges
-- [ ] Cuenta badges: ¿cuántos ves?
-- [ ] Cuenta menciones [N] en texto: ¿cuántas ves?
-- [ ] **Esperado:** Menciones = Badges (NO más menciones que badges)
+#### ✅ **NUMERACIÓN PERFECTA (FIX PERMANENTE):**
+- [ ] Cuenta badges visibles: ¿cuántos? (ej: 3 badges)
+- [ ] Busca TODOS los números [N] en el texto
+- [ ] Verifica: ¿Todos los [N] son ≤ total de badges?
+- [ ] **CRÍTICO:** Si hay 3 badges, NO debe aparecer [4], [5], [7], [8], [10]
+- [ ] **Esperado:** Números en texto = {1, 2, 3}, Badges = [1][2][3] ✅
+- [ ] **ANTES tenías:** Texto [7][8], Badges [1][2][3] ❌
+- [ ] **AHORA debes ver:** Texto [1][2], Badges [1][2][3] ✅
 
 ### **Criterio PASS:**
 ```

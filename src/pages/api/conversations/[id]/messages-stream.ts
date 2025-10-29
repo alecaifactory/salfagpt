@@ -319,16 +319,36 @@ export const POST: APIRoute = async ({ params, request }) => {
               })}\n\n`;
               controller.enqueue(encoder.encode(chunkData));
               
-              // NEW: Send fragment mapping so frontend knows what to expect
-              const fragmentMapping = ragResults.map((result, index) => ({
-                refId: index + 1,
-                chunkIndex: result.chunkIndex,
-                sourceName: result.sourceName,
-                similarity: result.similarity,
-                tokens: result.metadata.tokenCount
-              }));
+              // ✅ FIX 2025-10-29: Send CONSOLIDATED fragment mapping (by document)
+              // Group chunks by source document first
+              const sourceGroups = new Map<string, typeof ragResults>();
+              ragResults.forEach(result => {
+                const key = result.sourceId || result.sourceName;
+                if (!sourceGroups.has(key)) {
+                  sourceGroups.set(key, []);
+                }
+                sourceGroups.get(key)!.push(result);
+              });
               
-              console.log('🗺️ Sending fragment mapping to client:', fragmentMapping.length, 'chunks');
+              // Create mapping with FINAL reference numbers (one per document)
+              let refId = 1;
+              const fragmentMapping = Array.from(sourceGroups.values()).map(chunks => {
+                // Sort by similarity (highest first)
+                chunks.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+                const avgSimilarity = chunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / chunks.length;
+                const totalTokens = chunks.reduce((sum, c) => sum + (c.metadata.tokenCount || 0), 0);
+                
+                return {
+                  refId: refId++, // ✅ FINAL reference number (1, 2, 3...)
+                  sourceName: chunks[0].sourceName,
+                  sourceId: chunks[0].sourceId,
+                  chunkCount: chunks.length, // How many chunks consolidated
+                  similarity: avgSimilarity, // Average similarity
+                  tokens: totalTokens // Total tokens from all chunks
+                };
+              });
+              
+              console.log('🗺️ Sending CONSOLIDATED fragment mapping to client:', fragmentMapping.length, 'documents (from', ragResults.length, 'chunks)');
               const mappingData = `data: ${JSON.stringify({ 
                 type: 'fragmentMapping',
                 mapping: fragmentMapping

@@ -389,14 +389,17 @@ export async function* streamAIResponse(
       const isRAGContext = userContext.includes('[Fragmento ') || userContext.includes('Relevancia:');
       
       if (isRAGContext) {
-        // Modo RAG: Extraer números de fragmentos del contexto
-        const fragmentMatches = userContext.match(/\[Fragmento (\d+),/g) || [];
-        const fragmentNumbers = fragmentMatches.map(m => {
-          const match = m.match(/\[Fragmento (\d+),/);
-          return match ? match[1] : null;
-        }).filter(Boolean);
+        // ✅ FIX 2025-10-29: Extract REFERENCE numbers (consolidated), not fragment numbers
+        // New format: === [Referencia N] DocumentName ===
+        const referenceMatches = userContext.match(/=== \[Referencia (\d+)\]/g) || [];
+        const referenceNumbers = referenceMatches.map(m => {
+          const match = m.match(/\[Referencia (\d+)\]/);
+          return match ? parseInt(match[1]) : null;
+        }).filter((n): n is number => n !== null);
         
-        fullUserMessage = `FRAGMENTOS RELEVANTES DEL CONTEXTO (ordenados por relevancia):
+        const totalReferences = referenceNumbers.length;
+        
+        fullUserMessage = `DOCUMENTOS RELEVANTES DEL CONTEXTO (ordenados por relevancia):
 ${userContext}
 
 ───────────────────────────────────
@@ -405,50 +408,44 @@ ${userMessage}`;
 
         enhancedSystemInstruction = `${systemInstruction}
 
-🔍 MODO RAG ACTIVADO - INSTRUCCIONES CRÍTICAS:
+🔍 MODO RAG ACTIVADO - REFERENCIAS CONSOLIDADAS:
 
-⚠️ ATENCIÓN: Los fragmentos se consolidan por documento.
-- Fragmentos recibidos: ${fragmentNumbers.length}
-- Estos se agruparán en ~${Math.ceil(fragmentNumbers.length / 2)}-${Math.ceil(fragmentNumbers.length / 3)} referencias finales por documento único
-- En tu lista de referencias, SOLO incluye los documentos únicos (NO repitas el mismo documento)
+✅ YA CONSOLIDADO: Los fragmentos ya están agrupados por documento único.
+- Referencias disponibles: ${totalReferences} documentos
+- Cada referencia [N] representa UN documento completo
+- Los números son finales y correctos: [1] a [${totalReferences}]
 
-🚨 REGLA ABSOLUTA - NUMERACIÓN:
-- Usa SOLO los números que aparecen en la sección "### Referencias" al final
-- ❌ PROHIBIDO usar [${fragmentNumbers.length + 1}], [${fragmentNumbers.length + 2}], o números mayores
+🚨 REGLA ABSOLUTA - USA SOLO ESTOS NÚMEROS:
+- Referencias válidas: ${referenceNumbers.map(n => `[${n}]`).join(', ')}
+- ❌ PROHIBIDO usar números mayores a [${totalReferences}]
 - ❌ PROHIBIDO inventar referencias que no existen
-- ✅ Si un fragmento no contiene la información, di claramente que no está disponible
+- ✅ Si la información no está, di claramente que no está disponible
 
 INSTRUCCIONES OBLIGATORIAS:
 1. ✅ Cita usando [N] INMEDIATAMENTE después del dato específico
-2. ✅ SIEMPRE usa referencias INDIVIDUALES: [1] [2] [3] (NO uses [1, 2] o [1, 2, 3])
-3. ✅ Si un dato viene de múltiples fragmentos, cita así: [1][2] (juntos, sin comas)
+2. ✅ SIEMPRE usa referencias INDIVIDUALES: [1] [2] [3]
+3. ✅ Si un dato viene de múltiples documentos, cita así: [1][2] (juntos, sin espacios ni comas)
 4. ✅ Cada afirmación factual DEBE tener su referencia
 5. ❌ NO inventes información
-6. ❌ NO uses números inexistentes
-7. ❌ NO uses formato [N, M] con comas - USA [N][M] sin comas
+6. ❌ NO uses números que no estén en la lista de referencias válidas arriba
 
-EJEMPLO CORRECTO (3 documentos únicos de 10 fragmentos):
+EJEMPLO CORRECTO (si tienes ${totalReferences} referencias):
 "La gestión del combustible requiere control diario[1]. El informe se genera en SAP 
 con la transacción ZMM_IE[2]. Este proceso aplica a varias áreas[1][2] y es 
-responsabilidad de JBOD[3]."
+responsabilidad de JBOD[${totalReferences > 2 ? '3' : totalReferences}]."
 
 ### Referencias
-[1] Fragmento de Gestión Combustible Rev.05.pdf (similitud: 80%)
-[2] Fragmento de Imprimir Resumen Petróleo Rev.02.pdf (similitud: 79%)
-[3] Fragmento de Reporte Seguimiento ST.pdf (similitud: 76%)
+${referenceNumbers.map((n, i) => `[${n}] Documento ${i + 1} (del contexto arriba)`).join('\n')}
 
 ❌ EJEMPLOS INCORRECTOS:
-"... según procedimiento [4]" ← [4] no existe en Referencias
-"... transacción ZMM_IE [7, 8]" ← NO uses comas, usa [7][8] o solo [7]
+"... según procedimiento [${totalReferences + 1}]" ← Número inválido (mayor que ${totalReferences})
+"... transacción ZMM_IE [1, 2]" ← NO uses comas, usa [1][2]
 "... para declaración [1, 2, 3]" ← NO uses comas, usa [1][2][3]
 
-FORMATO OBLIGATORIO para sección Referencias:
-- Una línea por documento ÚNICO
-- NO repitas el mismo nombre de documento
-- Usa solo números consecutivos 1, 2, 3, ... (SIN SALTOS)
-- NO agregues fragmentos extra después del último documento único
-
-NÚMEROS VÁLIDOS: Los que aparecen en tu sección "### Referencias" (típicamente ${Math.ceil(fragmentNumbers.length / 3)}-${Math.ceil(fragmentNumbers.length / 2)} documentos únicos)`;
+FORMATO OBLIGATORIO para tu sección Referencias:
+- Una línea por documento (máximo ${totalReferences} líneas)
+- Usa EXACTAMENTE los números ${referenceNumbers.map(n => `[${n}]`).join(', ')}
+- NO inventes números adicionales`;
       } else {
         // Modo Full-Text (documento completo)
         fullUserMessage = `DOCUMENTO COMPLETO:
