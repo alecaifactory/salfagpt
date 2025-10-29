@@ -39,6 +39,14 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     const body = await request.json();
     const { agentPrompt, userId, model } = body;
 
+    console.log('🔍 [BACKEND] PUT /api/conversations/:id/prompt');
+    console.log('🔍 [BACKEND] Conversation ID:', id);
+    console.log('🔍 [BACKEND] User ID:', userId);
+    console.log('🔍 [BACKEND] Model:', model);
+    console.log('🔍 [BACKEND] Agent prompt received length:', agentPrompt?.length);
+    console.log('🔍 [BACKEND] Agent prompt received (first 200 chars):', agentPrompt?.substring(0, 200));
+    console.log('🔍 [BACKEND] Full agent prompt received:', agentPrompt);
+
     if (!id) {
       return new Response(
         JSON.stringify({ error: 'Conversation ID is required' }),
@@ -55,15 +63,33 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
 
     // Get existing config or create new
     const existingConfig = await getAgentConfig(id);
+    console.log('🔍 [BACKEND] Existing config:', existingConfig);
     
-    const config = await saveAgentConfig(id, userId, {
+    // Build config object, filtering out undefined values (Firestore doesn't accept them)
+    const configToSave: any = {
       model: model || existingConfig?.model || 'gemini-2.5-flash',
       agentPrompt: agentPrompt || '',
-      temperature: existingConfig?.temperature,
-      maxOutputTokens: existingConfig?.maxOutputTokens,
-    });
+    };
+    
+    // Only include temperature if defined
+    if (existingConfig?.temperature !== undefined) {
+      configToSave.temperature = existingConfig.temperature;
+    }
+    
+    // Only include maxOutputTokens if defined
+    if (existingConfig?.maxOutputTokens !== undefined) {
+      configToSave.maxOutputTokens = existingConfig.maxOutputTokens;
+    }
+    
+    console.log('🔍 [BACKEND] Config to save:', configToSave);
+    console.log('🔍 [BACKEND] Config agentPrompt length:', configToSave.agentPrompt.length);
+    
+    const config = await saveAgentConfig(id, userId, configToSave);
 
-    console.log('✅ Agent prompt updated:', id);
+    console.log('✅ [BACKEND] Agent prompt updated:', id);
+    console.log('🔍 [BACKEND] Saved config from Firestore:', config);
+    console.log('🔍 [BACKEND] Saved agentPrompt length:', config.agentPrompt?.length);
+    console.log('🔍 [BACKEND] Saved agentPrompt:', config.agentPrompt);
 
     return new Response(JSON.stringify({
       agentPrompt: config.agentPrompt,
@@ -73,7 +99,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
       headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
-    console.error('Error updating agent prompt:', error);
+    console.error('❌ [BACKEND] Error updating agent prompt:', error);
     return new Response(
       JSON.stringify({ error: error.message || 'Failed to update agent prompt' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

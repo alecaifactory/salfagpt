@@ -2518,7 +2518,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     if (!currentConversation) return;
     
     try {
-      await fetch(`/api/conversations/${currentConversation}/prompt`, {
+      // 🔑 CRITICAL: Get parent agent ID if this is a chat
+      const currentConv = conversations.find(c => c.id === currentConversation);
+      const agentIdToSave = currentConv?.agentId || currentConversation;
+      
+      console.log('💾 [FRONTEND] Guardando agent prompt...');
+      console.log('🔍 [FRONTEND] Current conversation ID:', currentConversation);
+      console.log('🔍 [FRONTEND] Is chat with parent agent:', !!currentConv?.agentId);
+      console.log('🔍 [FRONTEND] Agent ID to save to:', agentIdToSave);
+      console.log('🔍 [FRONTEND] Agent prompt length:', agentPrompt.length);
+      console.log('🔍 [FRONTEND] Agent prompt (first 200 chars):', agentPrompt.substring(0, 200));
+      console.log('🔍 [FRONTEND] Full agent prompt:', agentPrompt);
+      
+      const response = await fetch(`/api/conversations/${agentIdToSave}/prompt`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2527,6 +2539,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
         }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('✅ [FRONTEND] Agent prompt saved, response:', result);
+      console.log('🔍 [FRONTEND] Saved prompt length:', result.agentPrompt?.length);
+      console.log('🔍 [FRONTEND] Saved prompt:', result.agentPrompt);
       
       setCurrentAgentPrompt(agentPrompt);
       console.log('✅ Agent prompt saved');
@@ -2539,6 +2561,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // ✅ NEW: Load domain and agent prompts when selecting agent
   const loadPromptsForAgent = async (conversationId: string) => {
     try {
+      // 🔑 CRITICAL: Get parent agent ID if this is a chat
+      const currentConv = conversations.find(c => c.id === conversationId);
+      const agentIdToLoad = currentConv?.agentId || conversationId;
+      
+      console.log('📥 [LOAD PROMPTS] Loading prompts for conversation:', conversationId);
+      console.log('🔍 [LOAD PROMPTS] Is chat with parent agent:', !!currentConv?.agentId);
+      console.log('🔍 [LOAD PROMPTS] Agent ID to load from:', agentIdToLoad);
+      
       // Load organization domain prompt
       // For now using default-org, in future would be from user.organizationId
       const orgResponse = await fetch('/api/organizations/default-org');
@@ -2547,10 +2577,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         setCurrentDomainPrompt(org.domainPrompt || '');
       }
       
-      // Load agent prompt
-      const agentResponse = await fetch(`/api/conversations/${conversationId}/prompt`);
+      // Load agent prompt from the AGENT (not the chat)
+      const agentResponse = await fetch(`/api/conversations/${agentIdToLoad}/prompt`);
       if (agentResponse.ok) {
         const promptData = await agentResponse.json();
+        console.log('📥 [LOAD PROMPTS] Prompt data received:', promptData);
+        console.log('🔍 [LOAD PROMPTS] Agent prompt length:', promptData.agentPrompt?.length);
         setCurrentAgentPrompt(promptData.agentPrompt || '');
       }
     } catch (error) {
@@ -5743,8 +5775,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       <AgentPromptModal
         isOpen={showAgentPromptModal}
         onClose={() => setShowAgentPromptModal(false)}
-        agentId={currentConversation || ''}
-        agentName={conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
+        agentId={(() => {
+          // 🔑 CRITICAL: Use parent agent ID if this is a chat
+          const currentConv = conversations.find(c => c.id === currentConversation);
+          return currentConv?.agentId || currentConversation || '';
+        })()}
+        agentName={(() => {
+          // Get name from parent agent if this is a chat
+          const currentConv = conversations.find(c => c.id === currentConversation);
+          const agentId = currentConv?.agentId || currentConversation;
+          return conversations.find(c => c.id === agentId)?.title || 'Agente';
+        })()}
         currentAgentPrompt={currentAgentPrompt}
         domainPrompt={currentDomainPrompt}
         onSave={handleSaveAgentPrompt}
