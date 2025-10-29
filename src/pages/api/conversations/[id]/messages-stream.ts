@@ -510,6 +510,8 @@ export const POST: APIRoute = async ({ params, request }) => {
               if (references.length > 0) {
                 const validNumbers = references.map(ref => ref.id);
                 console.log(`🧹 Cleaning phantom references. Valid numbers: ${validNumbers.join(', ')}`);
+                console.log(`📝 Response length before cleanup: ${fullResponse.length} chars`);
+                console.log(`📋 Citations in original response: ${(fullResponse.match(/\[[\d,\s]+\]/g) || []).join(', ')}`);
                 
                 const originalResponse = fullResponse;
                 
@@ -529,16 +531,21 @@ export const POST: APIRoute = async ({ params, request }) => {
                   }
                 });
                 
+                console.log(`📋 After Step 1: ${(fullResponse.match(/\[[\d,\s]+\]/g) || []).join(', ')}`);
+                
                 // Step 2: Replace single number citations [N]
                 fullResponse = fullResponse.replace(/\[(\d+)\]/g, (match, numStr) => {
                   const num = parseInt(numStr);
                   if (validNumbers.includes(num)) {
+                    console.log(`  ✅ Keeping valid citation: ${match}`);
                     return match; // Keep valid citations like [1], [2], [3]
                   } else {
                     console.log(`  ❌ Removing phantom citation: ${match}`);
                     return ''; // Remove invalid citations like [9], [10]
                   }
                 });
+                
+                console.log(`📋 After Step 2: ${(fullResponse.match(/\[[\d,\s]+\]/g) || []).join(', ')}`);
                 
                 // Clean up extra whitespace and empty lines
                 fullResponse = fullResponse
