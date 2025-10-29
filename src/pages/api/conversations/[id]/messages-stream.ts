@@ -513,8 +513,23 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
                 const originalResponse = fullResponse;
                 
-                // Replace invalid citation numbers with empty string
-                // Regex: \[(\d+)\] captures [1], [2], [10], etc.
+                // Step 1: Replace citations with multiple numbers [7, 8] or [1, 2, 3]
+                // Check if ALL numbers in the list are valid
+                fullResponse = fullResponse.replace(/\[(\d+(?:,\s*\d+)*)\]/g, (match, numsStr) => {
+                  const nums = numsStr.split(',').map(s => parseInt(s.trim()));
+                  const allValid = nums.every(n => validNumbers.includes(n));
+                  
+                  if (allValid) {
+                    // All numbers are valid - keep the citation
+                    return match;
+                  } else {
+                    // At least one number is invalid - remove entire citation
+                    console.log(`  ❌ Removing phantom citation: ${match} (contains invalid numbers)`);
+                    return '';
+                  }
+                });
+                
+                // Step 2: Replace single number citations [N]
                 fullResponse = fullResponse.replace(/\[(\d+)\]/g, (match, numStr) => {
                   const num = parseInt(numStr);
                   if (validNumbers.includes(num)) {
