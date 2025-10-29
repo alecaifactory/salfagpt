@@ -3091,8 +3091,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     const modelWindow = contextWindows[globalUserSettings.preferredModel];
 
     // Calculate total tokens considering RAG modes:
-    // 1. System prompt tokens
-    const systemTokens = Math.ceil(globalUserSettings.systemPrompt.length / 4);
+    // 1. System prompt tokens - 🔑 CRITICAL: Use combined hierarchical prompt
+    const finalSystemPrompt = combineDomainAndAgentPrompts(
+      currentDomainPrompt,
+      currentAgentPrompt || currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt
+    );
+    const systemTokens = Math.ceil(finalSystemPrompt.length / 4);
     
     // 2. Messages tokens
     const messageTokens = messages.reduce((sum, msg) => sum + Math.ceil(msg.content.length / 4), 0);
@@ -4682,18 +4686,43 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                 {/* Content breakdown */}
                 <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
-                  {/* System Prompt */}
+                  {/* System Prompt - 🔑 HIERARCHICAL: Domain + Agent */}
                   <div className="border border-slate-200 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <h5 className="text-xs font-semibold text-slate-700">System Prompt</h5>
                       <span className="text-xs text-slate-500">
-                        ~{Math.ceil(globalUserSettings.systemPrompt.length / 4)} tokens
+                        ~{(() => {
+                          const finalPrompt = combineDomainAndAgentPrompts(
+                            currentDomainPrompt,
+                            currentAgentPrompt || currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt
+                          );
+                          return Math.ceil(finalPrompt.length / 4);
+                        })()} tokens
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded">
-                      {globalUserSettings.systemPrompt.substring(0, 150)}
-                      {globalUserSettings.systemPrompt.length > 150 && '...'}
-                    </p>
+                    {/* Show hierarchical structure */}
+                    <div className="space-y-2">
+                      {currentDomainPrompt && (
+                        <div className="text-xs bg-blue-50 border border-blue-200 p-2 rounded">
+                          <p className="font-semibold text-blue-800 mb-1">📋 Domain Prompt:</p>
+                          <p className="text-slate-700">
+                            {currentDomainPrompt.substring(0, 100)}
+                            {currentDomainPrompt.length > 100 && '...'}
+                          </p>
+                        </div>
+                      )}
+                      <div className="text-xs bg-slate-50 p-2 rounded">
+                        <p className="font-semibold text-slate-700 mb-1">
+                          {currentDomainPrompt ? '✨ Agent Prompt:' : 'System Prompt:'}
+                        </p>
+                        <p className="text-slate-600">
+                          {(() => {
+                            const agentPrompt = currentAgentPrompt || currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt;
+                            return agentPrompt.substring(0, 150) + (agentPrompt.length > 150 ? '...' : '');
+                          })()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Messages */}
