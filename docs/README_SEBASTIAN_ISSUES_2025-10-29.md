@@ -298,3 +298,4 @@ M001: "¿Qué es un OGUC?" (debe decir "no disponible")
 → Usar `PROMPT_NUEVA_SESION_COMPLETO_2025-10-29.md`  
 → o `PROMPT_QUICK_START_2025-10-29.md` para versión rápida
 
+

@@ -33,7 +33,9 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ groups                  # Team groups              │
 │  ├─ context_access_rules    # Sharing permissions      │
 │  ├─ cli_events              # CLI operation events (NEW)│
-│  └─ cli_sessions            # CLI session tracking (NEW)│
+│  ├─ cli_sessions            # CLI session tracking (NEW)│
+│  ├─ message_feedback        # User/Expert feedback (2025-10-29)│
+│  └─ feedback_tickets        # Backlog tickets (2025-10-29)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │

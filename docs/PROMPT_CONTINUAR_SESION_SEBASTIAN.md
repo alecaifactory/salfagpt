@@ -188,3 +188,4 @@ El AI tendrá contexto completo para:
 - Continuar con opción A, B, o C
 - Resolver el issue de numeración o proceder a validación
 
+

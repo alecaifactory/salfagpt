@@ -17,10 +17,13 @@ export const POST: APIRoute = async ({ request }) => {
     const { 
       userId, 
       companyId, 
-      position, 
-      elementPath, 
+      selection,
       feedback, 
       pageUrl,
+      screenshot,
+      selectedAreaScreenshot,
+      annotations,
+      aiInference,
       viewport 
     } = body;
     
@@ -32,32 +35,36 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
     
+    // Determine type from AI inference or feedback content
+    const sessionType = aiInference?.suggestedCategory === 'Bug' ? 'bug' :
+                       aiInference?.suggestedCategory === 'Feature Request' ? 'feature' :
+                       detectFeedbackType(feedback);
+    
+    // Use AI-suggested priority or default to medium
+    const priority = aiInference?.suggestedPriority || 'medium';
+    
     // Generate ticket ID (format: FEAT-XXXX, BUG-XXXX, etc.)
-    const ticketId = await generateTicketId(companyId, 'FEAT');
+    const ticketPrefix = sessionType === 'bug' ? 'BUG' : 
+                        sessionType === 'feature' ? 'FEAT' : 'FB';
+    const ticketId = await generateTicketId(companyId, ticketPrefix);
     
-    // Determine type from feedback content (simple heuristic)
-    const sessionType = detectFeedbackType(feedback);
-    
-    // Create feedback session first - filter undefined values
-    const messageMetadata: any = { pageUrl };
-    if (elementPath) messageMetadata.elementPath = elementPath;
-    if (position) messageMetadata.position = position;
-    
-    const annotationData: any = {
-      id: `annotation-${Date.now()}`,
-      type: 'stella-marker' as const,
-      color: '#8b5cf6', // Violet
+    // Create feedback session with enhanced data
+    const messageMetadata: any = { 
       pageUrl,
+      selection,
+      aiInference,
     };
-    if (position) annotationData.position = position;
-    if (elementPath) annotationData.elementPath = elementPath;
+    
+    const screenshotsArray = [];
+    if (screenshot) screenshotsArray.push({ url: screenshot, type: 'full' });
+    if (selectedAreaScreenshot) screenshotsArray.push({ url: selectedAreaScreenshot, type: 'selected' });
     
     const sessionData = {
       userId,
       companyId,
       sessionType,
       status: 'submitted' as const,
-      priority: 'medium' as const,
+      priority: priority as 'low' | 'medium' | 'high' | 'critical',
       title: feedback.substring(0, 100),
       description: feedback,
       messages: [
@@ -69,8 +76,9 @@ export const POST: APIRoute = async ({ request }) => {
           metadata: messageMetadata,
         },
       ],
-      screenshots: [],
-      annotations: [annotationData],
+      screenshots: screenshotsArray,
+      annotations: annotations || [],
+      aiInference,
       createdAt: new Date(),
       updatedAt: new Date(),
       submittedAt: new Date(),
@@ -116,6 +124,39 @@ export const POST: APIRoute = async ({ request }) => {
     
     console.log('✅ Stella feedback submitted:', ticketId);
     
+    // If user is SuperAdmin (alec@getaifactory.com), create Kanban backlog item
+    if (userId === '114671162830729001607') {
+      try {
+        const backlogItem = {
+          title: aiInference?.identifiedIssue || feedback.substring(0, 100),
+          description: feedback,
+          type: sessionType === 'bug_report' ? 'bug' :
+                sessionType === 'feature_request' ? 'feature' :
+                sessionType === 'ui_improvement' ? 'improvement' : 'task',
+          priority: priority as 'low' | 'medium' | 'high' | 'critical',
+          status: 'backlog' as const,
+          category: aiInference?.suggestedCategory || 'General',
+          source: 'stella-feedback' as const,
+          stellaTicketId: ticketId,
+          stellaSessionId: sessionRef.id,
+          metadata: {
+            pageUrl,
+            pageContext: aiInference?.pageContext,
+            screenshots: screenshotsArray,
+            annotations: annotations || [],
+          },
+          createdBy: userId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        await firestore.collection('backlog_items').add(backlogItem);
+        console.log('📋 Kanban backlog item created for SuperAdmin');
+      } catch (error) {
+        console.warn('Failed to create Kanban item (non-critical):', error);
+      }
+    }
+    
     // Track in analytics (non-blocking)
     trackStellaSubmission({
       ticketId,
@@ -124,6 +165,8 @@ export const POST: APIRoute = async ({ request }) => {
       type: sessionType,
       feedbackLength: feedback.length,
       hasAnnotation: true,
+      hasAIInference: !!aiInference,
+      hasUserAnnotations: (annotations?.length || 0) > 0,
     }).catch(err => console.warn('Analytics tracking failed:', err));
     
     return new Response(
@@ -133,6 +176,7 @@ export const POST: APIRoute = async ({ request }) => {
         sessionId: sessionRef.id,
         shareUrl: shareCard.shareUrl,
         shareCard,
+        createdKanbanItem: userId === '114671162830729001607', // Flag for UI
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );

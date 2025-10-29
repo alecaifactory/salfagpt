@@ -99,6 +99,38 @@ export function AgentSharingModal({
       return;
     }
 
+    // Check if agent has approved evaluation
+    try {
+      const evalResponse = await fetch(`/api/evaluations/check-approval?agentId=${agent.id}&userId=${currentUser.id}`);
+      if (evalResponse.ok) {
+        const { hasApprovedEvaluation, evaluationId } = await evalResponse.json();
+        
+        if (!hasApprovedEvaluation) {
+          // Show warning and option to request approval
+          const needsApproval = confirm(
+            `⚠️ Este agente no tiene una evaluación aprobada.\n\n` +
+            `Para compartirlo con usuarios, necesitas:\n` +
+            `1. Crear una evaluación completa, O\n` +
+            `2. Solicitar aprobación con 3 ejemplos de preguntas\n\n` +
+            `¿Deseas solicitar aprobación ahora?`
+          );
+          
+          if (needsApproval) {
+            // TODO: Show AgentSharingApprovalModal
+            setError('Función de solicitud de aprobación próximamente. Por favor crea una evaluación primero.');
+            return;
+          } else {
+            return; // Cancel sharing
+          }
+        }
+        
+        console.log('✅ Agent has approved evaluation:', evaluationId);
+      }
+    } catch (error) {
+      console.warn('Could not check evaluation status (proceeding):', error);
+      // Continue with sharing even if check fails (graceful degradation)
+    }
+
     try {
       console.log('🔗 Sharing agent:', {
         agentId: agent.id,

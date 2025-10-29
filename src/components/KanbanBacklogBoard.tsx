@@ -33,13 +33,14 @@ interface KanbanBacklogBoardProps {
   companyId: string;
 }
 
-type Lane = 'backlog' | 'next' | 'now' | 'done';
+type Lane = 'backlog' | 'roadmap' | 'expert_review' | 'approval' | 'production';
 
-const LANES: Array<{ id: Lane; title: string; color: string }> = [
-  { id: 'backlog', title: 'Backlog', color: 'slate' },
-  { id: 'next', title: 'Next', color: 'blue' },
-  { id: 'now', title: 'Now', color: 'purple' },
-  { id: 'done', title: 'Done', color: 'green' },
+const LANES: Array<{ id: Lane; title: string; color: string; description: string }> = [
+  { id: 'backlog', title: 'Backlog', color: 'slate', description: 'Ideas pendientes' },
+  { id: 'roadmap', title: 'Roadmap', color: 'blue', description: 'Planificado' },
+  { id: 'expert_review', title: 'Revisión Expertos', color: 'yellow', description: 'En revisión' },
+  { id: 'approval', title: 'Aprobación', color: 'purple', description: 'Pendiente aprobar' },
+  { id: 'production', title: 'Producción', color: 'green', description: 'Implementado' },
 ];
 
 export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProps) {
@@ -152,9 +153,12 @@ export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProp
           <div className="flex items-center gap-3">
             <Target className="w-8 h-8 text-blue-600" />
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Backlog & Roadmap</h1>
+              <h1 className="text-2xl font-bold text-slate-800">Roadmap Flow</h1>
               <p className="text-sm text-slate-600">
-                {items.length} items total • {getItemsForLane('now').length} in progress
+                {items.length} items total • {getItemsForLane('roadmap').length} planeados • {getItemsForLane('production').length} en producción
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Backlog → Roadmap → Revisión → Aprobación → Producción
               </p>
             </div>
           </div>
@@ -164,7 +168,7 @@ export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProp
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2"
           >
             <Sparkles className="w-4 h-4" />
-            New Item
+            Nuevo Item
           </button>
         </div>
       </div>
@@ -182,13 +186,16 @@ export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProp
               >
                 {/* Lane Header */}
                 <div className={`bg-${lane.color}-50 border border-${lane.color}-200 rounded-t-lg p-4`}>
-                  <div className="flex items-center justify-between">
-                    <h2 className={`text-lg font-bold text-${lane.color}-800`}>
-                      {lane.title}
-                    </h2>
-                    <span className={`px-2 py-1 bg-${lane.color}-200 text-${lane.color}-800 rounded-full text-sm font-semibold`}>
-                      {laneItems.length}
-                    </span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <h2 className={`text-lg font-bold text-${lane.color}-800`}>
+                        {lane.title}
+                      </h2>
+                      <span className={`px-2 py-1 bg-${lane.color}-200 text-${lane.color}-800 rounded-full text-sm font-semibold`}>
+                        {laneItems.length}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600">{lane.description}</p>
                   </div>
                 </div>
                 
@@ -556,13 +563,44 @@ export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProp
               </button>
               
               <div className="flex items-center gap-2">
-                {item.lane !== 'done' && (
+                {/* Actions based on lane */}
+                {item.lane === 'backlog' && (
                   <button
-                    onClick={() => {/* Assign to worktree */}}
+                    onClick={() => {/* Move to roadmap */}}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2"
                   >
                     <Target className="w-4 h-4" />
-                    Assign to Worktree
+                    Mover a Roadmap
+                  </button>
+                )}
+                
+                {item.lane === 'roadmap' && (
+                  <button
+                    onClick={() => {/* Send to expert review */}}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Enviar a Revisión
+                  </button>
+                )}
+                
+                {item.lane === 'expert_review' && (
+                  <button
+                    onClick={() => {/* Send to approval */}}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Enviar a Aprobación
+                  </button>
+                )}
+                
+                {item.lane === 'approval' && (
+                  <button
+                    onClick={() => {/* Assign to worktree for production */}}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2"
+                  >
+                    <Target className="w-4 h-4" />
+                    Implementar
                   </button>
                 )}
                 
@@ -570,7 +608,7 @@ export default function KanbanBacklogBoard({ companyId }: KanbanBacklogBoardProp
                   onClick={() => {/* Edit item */}}
                   className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 font-semibold"
                 >
-                  Edit
+                  Editar
                 </button>
               </div>
             </div>

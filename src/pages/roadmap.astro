@@ -1,0 +1,144 @@
+---
+/**
+ * 🔒 SUPERADMIN ONLY - Roadmap & Backlog Management
+ * 
+ * Kanban board for managing feedback, backlog, and roadmap
+ * 
+ * Access: Only alec@getaifactory.com
+ */
+
+import { verifyJWT } from '../lib/auth';
+import '../styles/global.css';
+
+// 🔒 SECURITY: Require authentication
+const token = Astro.cookies.get('flow_session')?.value;
+
+if (!token) {
+  console.warn('⚠️ Unauthorized access attempt to /roadmap - no token');
+  return Astro.redirect('/auth/login?error=unauthorized&redirect=/roadmap');
+}
+
+// Verify token and extract user info
+let userEmail: string;
+let userId: string;
+let userName: string;
+
+try {
+  const decoded = verifyJWT(token);
+  
+  if (!decoded || !decoded.email) {
+    console.warn('⚠️ Invalid JWT token for /roadmap');
+    return Astro.redirect('/auth/login?error=invalid_session&redirect=/roadmap');
+  }
+  
+  userEmail = decoded.email;
+  userId = decoded.id;
+  userName = decoded.name || 'User';
+  
+} catch (error) {
+  console.error('❌ JWT verification failed for /roadmap:', error);
+  return Astro.redirect('/auth/login?error=session_expired&redirect=/roadmap');
+}
+
+// 🔒 CRITICAL: Only allow alec@getaifactory.com
+if (userEmail !== 'alec@getaifactory.com') {
+  console.warn('🚨 Unauthorized access attempt to /roadmap:', {
+    userEmail,
+    userId,
+    timestamp: new Date().toISOString()
+  });
+  
+  return Astro.redirect('/chat?error=forbidden');
+}
+
+console.log('✅ Authorized access to /roadmap:', userEmail);
+
+// Get companyId (will use for filtering backlog items)
+const companyId = 'aifactory'; // Could come from user's company in production
+---
+
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Roadmap & Backlog - Flow</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="bg-slate-50">
+    <div class="min-h-screen flex flex-col">
+      <!-- Navigation -->
+      <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-[1920px] mx-auto px-6">
+          <div class="flex justify-between h-16">
+            <div class="flex items-center gap-4">
+              <h1 class="text-xl font-bold text-slate-900">Flow</h1>
+              <span class="px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
+                🗺️ Roadmap
+              </span>
+              <span class="px-3 py-1 text-xs font-semibold bg-red-100 text-red-700 rounded-full">
+                🔒 SuperAdmin Only
+              </span>
+            </div>
+            
+            <div class="flex items-center gap-4">
+              <span class="text-sm text-slate-600">
+                {userName}
+              </span>
+              
+              <a
+                href="/chat"
+                class="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors"
+              >
+                💬 Chat
+              </a>
+              
+              <a
+                href="/analytics"
+                class="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors"
+              >
+                📊 Analytics
+              </a>
+              
+              <a
+                href="/superadmin"
+                class="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors"
+              >
+                🔧 SuperAdmin
+              </a>
+              
+              <a
+                href="/auth/logout"
+                class="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 text-sm font-medium transition-colors"
+              >
+                Logout
+              </a>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-hidden">
+        <div id="roadmap-root" class="h-full"></div>
+      </main>
+    </div>
+
+    <script>
+      import { createRoot } from 'react-dom/client';
+      import React from 'react';
+      import KanbanBacklogBoard from '../components/KanbanBacklogBoard.tsx';
+
+      const rootElement = document.getElementById('roadmap-root');
+      if (rootElement) {
+        const root = createRoot(rootElement);
+        root.render(
+          React.createElement(KanbanBacklogBoard, {
+            companyId: 'aifactory'
+          })
+        );
+      }
+    </script>
+  </body>
+</html>
+

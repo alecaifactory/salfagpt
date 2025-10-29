@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2 } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -9,6 +9,7 @@ import ContextManagementDashboard from './ContextManagementDashboard';
 import AgentManagementDashboard from './AgentManagementDashboard';
 import AgentConfigurationModal from './AgentConfigurationModal';
 import AgentEvaluationDashboard from './AgentEvaluationDashboard';
+import EvaluationPanel from './EvaluationPanel';
 import AnalyticsDashboard from './AnalyticsDashboard';
 import { AgentSharingModal } from './AgentSharingModal';
 import SalfaAnalyticsDashboard from './SalfaAnalyticsDashboard';
@@ -23,12 +24,48 @@ import ReferencePanel from './ReferencePanel';
 import StellaMarkerTool from './StellaMarkerTool_v2';
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
+import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
+import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
+import FeedbackBacklogDashboard from './FeedbackBacklogDashboard'; // ✅ Backlog management
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
 import type { User as UserType } from '../types/users';
 import type { AgentConfiguration } from '../types/agent-config';
 import type { SourceReference } from '../lib/gemini';
+import type { MessageFeedback } from '../types/feedback';
+
+// ===== SAMPLE QUESTIONS FOR AGENTS =====
+// Expert-validated sample questions for each agent
+const AGENT_SAMPLE_QUESTIONS: Record<string, string[]> = {
+  // M001 - Asistente Legal Territorial RDI (10 sample questions)
+  'M001': [
+    '¿Me puedes decir la diferencia entre un Loteo DFL2 y un Loteo con Construcción Simultánea?',
+    '¿Cuál es la diferencia entre condominio tipo A y tipo B?',
+    '¿Qué requisitos se necesitan para aprobar un permiso de edificios?',
+    '¿Es posible aprobar una fusión de terrenos que no se encuentran urbanizados?',
+    '¿Es posible aprobar un condominio tipo B dentro de un permiso de edificación acogido a conjunto armónico?',
+    '¿Qué pasa si el PRC permite un uso de suelo y el Plan Regulador Metropolitano de Santiago lo restringe?',
+    '¿Se puede edificar sobre una franja de riesgo declarada por el MINVU si se presenta un estudio geotécnico?',
+    '¿Cómo se calcula la densidad bruta en un proyecto que abarca varios roles con diferentes normas urbanísticas?',
+    '¿Cuál es el procedimiento para regularizar una construcción antigua en zona no edificable?',
+    '¿Qué documentos necesito presentar para solicitar un permiso de edificación en un terreno afecto a declaratoria de utilidad pública?',
+  ],
+  
+  // S001 - GESTION BODEGAS GPT (10 sample questions)
+  'S001': [
+    '¿Dónde busco los códigos de materiales?',
+    '¿Cómo hago un pedido de convenio?',
+    '¿Cómo genero el informe de consumo de petróleo?',
+    '¿Cuándo debo enviar el informe de consumo de petróleo?',
+    '¿Cómo genero una guía de despacho?',
+    '¿Cómo hago una solicitud de transporte?',
+    '¿Qué es una ST?',
+    '¿Qué es una SIM?',
+    '¿Cómo se realiza un traspaso de bodega?',
+    '¿Cómo puedo descargar un inventario de sistema SAP?',
+  ],
+};
 
 // ===== PERFORMANCE: Context Sources Cache =====
 // Cache fuentes de contexto por agente para evitar queries repetidos de 16s
@@ -62,6 +99,20 @@ function setCachedSources(agentId: string, sources: ContextSource[], activeIds: 
 function invalidateCache(agentId: string) {
   agentSourcesCache.delete(agentId);
   console.log(`🗑️ Cache invalidated for agent: ${agentId}`);
+}
+
+// ===== SAMPLE QUESTIONS HELPERS =====
+function getAgentCode(agentTitle: string | undefined): string | null {
+  if (!agentTitle) return null;
+  
+  // Extract agent code from title (e.g., "GESTION BODEGAS GPT (S001)" -> "S001")
+  const match = agentTitle.match(/\(([MS]\d{3})\)/);
+  return match ? match[1] : null;
+}
+
+function getSampleQuestions(agentCode: string | null): string[] {
+  if (!agentCode) return [];
+  return AGENT_SAMPLE_QUESTIONS[agentCode] || [];
 }
 
 interface Message {
@@ -256,6 +307,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   } | null>(null); // NEW: Minimal stats for display (no metadata needed!)
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
+  const [sampleQuestionIndex, setSampleQuestionIndex] = useState(0); // NEW: Carousel index
   
   // NEW: Ref to store fragment mapping for current streaming response
   const fragmentMappingRef = useRef<Array<{
@@ -272,11 +324,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showSalfaAnalytics, setShowSalfaAnalytics] = useState(false);
   const [settingsSource, setSettingsSource] = useState<ContextSource | null>(null);
   
+  // ✅ NEW: Feedback system state
+  const [showExpertFeedback, setShowExpertFeedback] = useState(false);
+  const [showUserFeedback, setShowUserFeedback] = useState(false);
+  const [feedbackMessageId, setFeedbackMessageId] = useState<string | null>(null);
+  const [showFeedbackBacklog, setShowFeedbackBacklog] = useState(false);
+  
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showAgentManagement, setShowAgentManagement] = useState(false);
   const [showAgentConfiguration, setShowAgentConfiguration] = useState(false);
   const [showAgentEvaluation, setShowAgentEvaluation] = useState(false);
+  const [showEvaluationSystem, setShowEvaluationSystem] = useState(false); // NEW: Full evaluation system
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
@@ -343,7 +402,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         // Close modals/menus in priority order (most specific to least specific)
-        if (showAddSourceModal) setShowAddSourceModal(false);
+        if (showExpertFeedback) setShowExpertFeedback(false);
+        else if (showUserFeedback) setShowUserFeedback(false);
+        else if (showFeedbackBacklog) setShowFeedbackBacklog(false);
+        else if (showAddSourceModal) setShowAddSourceModal(false);
         else if (showUserSettings) setShowUserSettings(false);
         else if (showContextManagement) setShowContextManagement(false);
         else if (showSalfaAnalytics) setShowSalfaAnalytics(false);
@@ -351,6 +413,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         else if (showAgentManagement) setShowAgentManagement(false);
         else if (showAgentConfiguration) setShowAgentConfiguration(false);
         else if (showAgentEvaluation) setShowAgentEvaluation(false);
+        else if (showEvaluationSystem) setShowEvaluationSystem(false);
         else if (showAnalytics) setShowAnalytics(false);
         else if (showDomainManagement) setShowDomainManagement(false);
         else if (showProviderManagement) setShowProviderManagement(false);
@@ -367,6 +430,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, [
+    showExpertFeedback,
+    showUserFeedback,
+    showFeedbackBacklog,
     showAddSourceModal,
     showUserSettings,
     showContextManagement,
@@ -375,6 +441,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     showAgentManagement,
     showAgentConfiguration,
     showAgentEvaluation,
+    showEvaluationSystem,
     showAnalytics,
     showDomainManagement,
     showProviderManagement,
@@ -1058,6 +1125,37 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     }
   };
 
+  // ✅ NEW: Submit feedback (Expert or User)
+  const handleSubmitFeedback = async (feedback: Omit<MessageFeedback, 'id' | 'timestamp' | 'source'>) => {
+    try {
+      console.log('📝 Submitting feedback:', feedback.feedbackType);
+      
+      const response = await fetch('/api/feedback/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(feedback),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Feedback submitted successfully:', result);
+
+      // Show success message
+      alert(`Feedback enviado exitosamente. ${result.ticketId ? `Ticket creado: ${result.ticketId}` : ''}`);
+      
+      // Close modals
+      setShowExpertFeedback(false);
+      setShowUserFeedback(false);
+      setFeedbackMessageId(null);
+    } catch (error) {
+      console.error('❌ Error submitting feedback:', error);
+      alert('Error al enviar feedback. Intenta nuevamente.');
+    }
+  };
+
   // NEW: Folder management functions
   const createNewFolder = async (name: string) => {
     try {
@@ -1542,6 +1640,33 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   // NEW: Backwards compatibility - keep old function name
   const createNewConversation = createNewAgent;
+
+  // ===== SAMPLE QUESTIONS CAROUSEL HANDLERS =====
+  const handleSampleQuestionClick = (question: string) => {
+    setInput(question);
+    // Optionally auto-send the question
+    // sendMessage();
+  };
+
+  const nextSampleQuestion = () => {
+    const currentAgent = conversations.find(c => c.id === currentConversation);
+    const agentCode = getAgentCode(currentAgent?.title);
+    const questions = getSampleQuestions(agentCode);
+    
+    if (questions.length > 0) {
+      setSampleQuestionIndex((prev) => (prev + 1) % questions.length);
+    }
+  };
+
+  const prevSampleQuestion = () => {
+    const currentAgent = conversations.find(c => c.id === currentConversation);
+    const agentCode = getAgentCode(currentAgent?.title);
+    const questions = getSampleQuestions(agentCode);
+    
+    if (questions.length > 0) {
+      setSampleQuestionIndex((prev) => (prev - 1 + questions.length) % questions.length);
+    }
+  };
 
   const sendMessage = async () => {
     if (!input.trim() || !currentConversation) return;
@@ -3021,7 +3146,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 <span className={`transform transition-transform ${showAgentsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
-                <MessageSquare className="w-4 h-4" />
+                <Bot className="w-4 h-4" />
                 <span>Agentes</span>
                 <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
                   {conversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}
@@ -3809,7 +3934,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       }}
                     >
                       <Award className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Evaluaciones de Agentes</span>
+                      <span className="font-medium">Evaluación Rápida</span>
+                    </button>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => {
+                        setShowEvaluationSystem(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <TestTube className="w-5 h-5 text-blue-600" />
+                      <span className="font-medium">Sistema de Evaluaciones</span>
                     </button>
                     <div className="border-t border-slate-200 my-2" />
                   </>
@@ -3844,6 +3979,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     >
                       <Users className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Usuarios</span>
+                    </button>
+                    
+                    {/* ✅ NEW: Feedback Backlog */}
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      onClick={() => {
+                        setShowFeedbackBacklog(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <ListTodo className="w-5 h-5 text-violet-600" />
+                      <span className="font-medium">Backlog de Feedback</span>
+                      {/* TODO: Add badge with new tickets count */}
                     </button>
                     <div className="h-px bg-slate-200 my-2" />
                   </>
@@ -3896,6 +4044,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       <Globe className="w-5 h-5 text-slate-600 dark:text-slate-400" />
                       <span className="font-medium">Gestión de Dominios</span>
                     </button>
+                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
+                  </>
+                )}
+                
+                {/* Roadmap & Backlog - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <a
+                      href="/roadmap"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                      <div className="flex-1">
+                        <span className="font-medium">Roadmap & Backlog</span>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Kanban feedback</p>
+                      </div>
+                    </a>
                     <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
@@ -4273,6 +4438,43 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           {msg.isStreaming && (
                             <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse" 
                                   style={{ animation: 'blink 1s step-end infinite' }} />
+                          )}
+                          
+                          {/* Feedback Buttons - Only for assistant messages that are not streaming */}
+                          {!msg.isStreaming && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                ¿Te fue útil esta respuesta?
+                              </span>
+                              
+                              {/* Expert Feedback (purple) - Only for admin, expert, superadmin */}
+                              {['admin', 'expert', 'superadmin'].includes(currentUser?.role || '') && (
+                                <button
+                                  onClick={() => {
+                                    setFeedbackMessageId(msg.id);
+                                    setShowExpertFeedback(true);
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xs font-medium"
+                                  title="Feedback Experto"
+                                >
+                                  <Award className="w-3.5 h-3.5" />
+                                  Experto
+                                </button>
+                              )}
+                              
+                              {/* User Feedback (violet-yellow gradient) - For all users */}
+                              <button
+                                onClick={() => {
+                                  setFeedbackMessageId(msg.id);
+                                  setShowUserFeedback(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-100 to-yellow-100 hover:from-violet-200 hover:to-yellow-200 text-violet-700 rounded-lg transition-colors text-xs font-medium"
+                                title="Tu Opinión"
+                              >
+                                <Star className="w-3.5 h-3.5" />
+                                Calificar
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -5027,6 +5229,81 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               </div>
             )}
 
+            {/* Sample Questions Carousel */}
+            {(() => {
+              // Get agent for this conversation (direct agent or parent agent for chats)
+              const currentConv = conversations.find(c => c.id === currentConversation);
+              const parentAgent = getParentAgent();
+              const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
+              const agentCode = getAgentCode(agentToUse?.title);
+              const sampleQuestions = getSampleQuestions(agentCode);
+              
+              // Only show if agent has sample questions and messages is empty or minimal
+              if (sampleQuestions.length === 0 || messages.length > 2) return null;
+              
+              // Calculate visible questions (3 at a time)
+              const visibleStart = sampleQuestionIndex;
+              const visibleQuestions = [
+                sampleQuestions[visibleStart],
+                sampleQuestions[(visibleStart + 1) % sampleQuestions.length],
+                sampleQuestions[(visibleStart + 2) % sampleQuestions.length],
+              ];
+              
+              return (
+                <div className="mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      💡 Preguntas de ejemplo
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      Mostrando {Math.min(3, sampleQuestions.length)} de {sampleQuestions.length} preguntas
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    {/* Previous Button */}
+                    <button
+                      onClick={prevSampleQuestion}
+                      className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                      title="Pregunta anterior"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    
+                    {/* Questions */}
+                    <div className="flex-1 grid grid-cols-3 gap-2 overflow-hidden">
+                      {visibleQuestions.map((question, idx) => (
+                        <button
+                          key={`${visibleStart + idx}-${question}`}
+                          onClick={() => handleSampleQuestionClick(question)}
+                          className="group relative px-3 py-2.5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 rounded-lg hover:shadow-md hover:scale-[1.02] transition-all text-left"
+                          title={question}
+                        >
+                          <p className="text-xs text-slate-700 dark:text-slate-200 font-medium line-clamp-2 leading-snug">
+                            {question}
+                          </p>
+                          <div className="absolute inset-0 bg-blue-600 dark:bg-blue-500 opacity-0 group-hover:opacity-5 rounded-lg transition-opacity" />
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Next Button */}
+                    <button
+                      onClick={nextSampleQuestion}
+                      className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                      title="Siguiente pregunta"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -5428,6 +5705,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         onSave={handleSaveAgentPrompt}
       />
 
+      {/* ✅ NEW: Expert Feedback Panel */}
+      {showExpertFeedback && feedbackMessageId && currentUser && (
+        <ExpertFeedbackPanel
+          messageId={feedbackMessageId}
+          conversationId={currentConversation || ''}
+          userId={currentUser.id}
+          userEmail={currentUser.email}
+          userRole={currentUser.role}
+          onClose={() => {
+            setShowExpertFeedback(false);
+            setFeedbackMessageId(null);
+          }}
+          onSubmit={handleSubmitFeedback}
+        />
+      )}
+
+      {/* ✅ NEW: User Feedback Panel */}
+      {showUserFeedback && feedbackMessageId && currentUser && (
+        <UserFeedbackPanel
+          messageId={feedbackMessageId}
+          conversationId={currentConversation || ''}
+          userId={currentUser.id}
+          userEmail={currentUser.email}
+          userRole={currentUser.role}
+          onClose={() => {
+            setShowUserFeedback(false);
+            setFeedbackMessageId(null);
+          }}
+          onSubmit={handleSubmitFeedback}
+        />
+      )}
+
       {/* Context Source Settings Modal - Simplified */}
       <ContextSourceSettingsModal
         source={settingsSource}
@@ -5526,6 +5835,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           setShowAgentConfiguration(true);
         }}
       />
+
+      {/* NEW: Comprehensive Evaluation System */}
+      {showEvaluationSystem && (
+        <EvaluationPanel
+          currentUserId={userId}
+          currentUserEmail={userEmail || ''}
+          currentUserRole={currentUser?.role || 'user'}
+          onClose={() => setShowEvaluationSystem(false)}
+        />
+      )}
       
       {/* Analytics Dashboard */}
       <AnalyticsDashboard
@@ -5542,6 +5861,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         userEmail={userEmail || ''}
         userRole={currentUser?.role || 'user'}
       />
+
+      {/* ✅ NEW: Feedback Backlog Dashboard (SuperAdmin/Admin only) */}
+      {showFeedbackBacklog && currentUser && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800">Backlog de Feedback</h2>
+              <button
+                onClick={() => setShowFeedbackBacklog(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <FeedbackBacklogDashboard
+                userId={currentUser.id}
+                userRole={currentUser.role}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Agent Sharing Modal */}
       {showAgentSharingModal && agentToShare && currentUser && (
@@ -5586,11 +5928,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         <ReferencePanel
           reference={selectedReference}
           onClose={() => setSelectedReference(null)}
-          onViewFullDocument={(sourceId) => {
-            const source = contextSources.find(s => s.id === sourceId);
-            if (source) {
-              setSettingsSource(source);
+          onViewFullDocument={async (sourceId) => {
+            console.log('📄 Attempting to load full document for reference:', sourceId);
+            
+            // ✅ FIX: Always fetch full source from API, don't rely on contextSources array
+            // The contextSources array might only have metadata or be filtered
+            const fullSource = await loadFullContextSource(sourceId);
+            
+            if (fullSource) {
+              console.log('✅ Loaded full source, opening settings modal:', fullSource.name);
+              setSettingsSource(fullSource);
               setSelectedReference(null); // Close reference panel when opening full document
+            } else {
+              console.error('❌ Could not load full source for:', sourceId);
+              // Show user-friendly error
+              alert('No se pudo cargar el documento completo. Por favor, intenta nuevamente.');
             }
           }}
         />

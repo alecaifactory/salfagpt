@@ -12,9 +12,9 @@
  * DO NOT SHARE - Proprietary competitive advantage
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Pencil, 
+  Wand2, 
   X, 
   Send, 
   Share2, 
@@ -23,15 +23,35 @@ import {
   Check,
   Loader2,
   Camera,
-  Square
+  Square,
+  Circle,
+  ArrowRight,
+  Eraser,
+  Eye,
+  Paintbrush
 } from 'lucide-react';
 
-type StellaMode = 'point' | 'area' | 'fullscreen';
+type StellaMode = 'point' | 'area' | 'fullscreen' | 'magic-brush';
 
 interface StellaSelection {
   mode: StellaMode;
   point?: { x: number; y: number };
   area?: { x: number; y: number; width: number; height: number };
+  brushPath?: Array<{ x: number; y: number; timestamp: number }>; // Free-form path
+}
+
+type AnnotationTool = 'none' | 'circle' | 'rectangle' | 'arrow';
+
+interface Annotation {
+  id: string;
+  type: 'circle' | 'rectangle' | 'arrow';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  endX?: number;
+  endY?: number;
+  color: string;
 }
 
 interface StellaMarker {
@@ -42,6 +62,13 @@ interface StellaMarker {
   ticketId?: string;
   screenshot?: string;              // Full page screenshot
   selectedAreaScreenshot?: string;  // Cropped area screenshot
+  annotations?: Annotation[];       // User annotations on screenshot
+  aiInference?: {                   // AI-generated context
+    pageContext: string;            // What page/feature
+    identifiedIssue: string;        // What problem
+    suggestedPriority: 'low' | 'medium' | 'high' | 'critical';
+    suggestedCategory: string;      // Feature area
+  };
 }
 
 interface StellaMarkerToolProps {
@@ -65,9 +92,23 @@ export default function StellaMarkerTool({
   const [areaStart, setAreaStart] = useState<{ x: number; y: number } | null>(null);
   const [currentArea, setCurrentArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   
+  // Magic brush state
+  const [isDrawingBrush, setIsDrawingBrush] = useState(false);
+  const [brushPath, setBrushPath] = useState<Array<{ x: number; y: number; timestamp: number }>>([]);
+  
   // Feedback state
   const [feedbackText, setFeedbackText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Annotation state
+  const [selectedAnnotationTool, setSelectedAnnotationTool] = useState<AnnotationTool>('none');
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [isDrawingAnnotation, setIsDrawingAnnotation] = useState(false);
+  const [annotationStart, setAnnotationStart] = useState<{ x: number; y: number } | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // AI Inference state
+  const [isGeneratingInference, setIsGeneratingInference] = useState(false);
   
   // Share modal state
   const [showShareModal, setShowShareModal] = useState(false);
@@ -80,64 +121,114 @@ export default function StellaMarkerTool({
     setCurrentArea(null);
     setAreaStart(null);
     setIsDrawingArea(false);
+    setBrushPath([]);
+    setIsDrawingBrush(false);
     setFeedbackText('');
+    setAnnotations([]);
+    setSelectedAnnotationTool('none');
   }
   
   // Handle mouse down
-  function handleMouseDown(event: MouseEvent) {
-    if (!isActive || currentMarker) return; // Only one marker at a time
+  const handleMouseDown = useCallback((event: MouseEvent) => {
+    console.log('🖱️ Mouse down detected - isActive:', isActive, 'currentMarker:', !!currentMarker, 'mode:', selectedMode);
+    
+    if (!isActive || currentMarker) {
+      console.log('⚠️ Ignoring mouse down - isActive:', isActive, 'currentMarker exists:', !!currentMarker);
+      return; // Only one marker at a time
+    }
     
     event.preventDefault();
     event.stopPropagation();
     
     const { clientX, clientY } = event;
+    console.log('📍 Mouse position:', clientX, clientY);
     
     if (selectedMode === 'point') {
+      console.log('👉 Creating point marker');
       createPointMarker(clientX, clientY);
     } else if (selectedMode === 'area') {
+      console.log('📦 Starting area selection');
       setIsDrawingArea(true);
       setAreaStart({ x: clientX, y: clientY });
       setCurrentArea({ x: clientX, y: clientY, width: 0, height: 0 });
+    } else if (selectedMode === 'magic-brush') {
+      console.log('🖌️ Starting magic brush');
+      setIsDrawingBrush(true);
+      setBrushPath([{ x: clientX, y: clientY, timestamp: Date.now() }]);
     } else if (selectedMode === 'fullscreen') {
+      console.log('📸 Creating fullscreen marker');
       createFullscreenMarker();
     }
-  }
+  }, [isActive, currentMarker, selectedMode]);
   
   // Handle mouse move
-  function handleMouseMove(event: MouseEvent) {
-    if (!isDrawingArea || !areaStart) return;
-    
+  const handleMouseMove = useCallback((event: MouseEvent) => {
     const { clientX, clientY } = event;
-    const width = clientX - areaStart.x;
-    const height = clientY - areaStart.y;
     
-    setCurrentArea({
-      x: width < 0 ? clientX : areaStart.x,
-      y: height < 0 ? clientY : areaStart.y,
-      width: Math.abs(width),
-      height: Math.abs(height),
-    });
-  }
+    // Handle area drawing
+    if (isDrawingArea && areaStart) {
+      const width = clientX - areaStart.x;
+      const height = clientY - areaStart.y;
+      
+      setCurrentArea({
+        x: width < 0 ? clientX : areaStart.x,
+        y: height < 0 ? clientY : areaStart.y,
+        width: Math.abs(width),
+        height: Math.abs(height),
+      });
+    }
+    
+    // Handle magic brush drawing
+    if (isDrawingBrush) {
+      setBrushPath(prev => [...prev, { x: clientX, y: clientY, timestamp: Date.now() }]);
+    }
+  }, [isDrawingArea, areaStart, isDrawingBrush]);
   
   // Handle mouse up
-  function handleMouseUp(event: MouseEvent) {
-    if (!isDrawingArea || !currentArea) return;
+  const handleMouseUp = useCallback((event: MouseEvent) => {
+    console.log('🖱️ Mouse up detected - isDrawingArea:', isDrawingArea, 'isDrawingBrush:', isDrawingBrush);
     
     event.preventDefault();
     event.stopPropagation();
     
-    setIsDrawingArea(false);
-    
-    if (currentArea.width < 20 || currentArea.height < 20) {
-      // Too small
+    // Handle area mode
+    if (isDrawingArea && currentArea) {
+      setIsDrawingArea(false);
+      
+      // Allow any selection (even small ones - user intention matters)
+      if (currentArea.width < 1 || currentArea.height < 1) {
+        console.log('⚠️ Selección inválida, ignorando');
+        setAreaStart(null);
+        setCurrentArea(null);
+        return;
+      }
+      
+      console.log('✅ Área seleccionada:', currentArea.width, 'x', currentArea.height, 'px');
+      createAreaMarker(currentArea);
       setAreaStart(null);
-      setCurrentArea(null);
       return;
     }
     
-    createAreaMarker(currentArea);
-    setAreaStart(null);
-  }
+    // Handle magic brush mode
+    if (isDrawingBrush && brushPath.length > 0) {
+      setIsDrawingBrush(false);
+      
+      // Require at least 5 points for a meaningful shape
+      if (brushPath.length < 5) {
+        console.log('⚠️ Path muy corto, ignorando (mínimo 5 puntos)');
+        setBrushPath([]);
+        return;
+      }
+      
+      console.log('✅ Magic brush path:', brushPath.length, 'puntos - cerrando loop');
+      
+      // Close the loop - add first point to end to create closed shape
+      const closedPath = [...brushPath, brushPath[0]];
+      
+      createBrushMarker(closedPath);
+      setBrushPath([]);
+    }
+  }, [isDrawingArea, currentArea, areaStart, isDrawingBrush, brushPath]);
   
   // Create markers
   async function createPointMarker(x: number, y: number) {
@@ -152,14 +243,17 @@ export default function StellaMarkerTool({
   }
   
   async function createAreaMarker(area: { x: number; y: number; width: number; height: number }) {
+    console.log('📍 Creando area marker:', area);
     const marker: StellaMarker = {
       id: `stella-${Date.now()}`,
       selection: { mode: 'area', area },
       state: 'selecting',
     };
     
+    console.log('🔧 Marker creado:', marker);
     setCurrentMarker(marker);
     setCurrentArea(null);
+    console.log('📸 Capturando screenshots para área...');
     await captureScreenshots(marker);
   }
   
@@ -174,60 +268,256 @@ export default function StellaMarkerTool({
     await captureScreenshots(marker);
   }
   
+  async function createBrushMarker(path: Array<{ x: number; y: number; timestamp: number }>) {
+    console.log('🎨 Creando magic brush marker con', path.length, 'puntos');
+    const marker: StellaMarker = {
+      id: `stella-${Date.now()}`,
+      selection: { mode: 'magic-brush', brushPath: path },
+      state: 'selecting',
+    };
+    
+    setCurrentMarker(marker);
+    await captureScreenshots(marker);
+  }
+  
   // Capture screenshots
   async function captureScreenshots(marker: StellaMarker) {
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      
-      // Hide Stella UI temporarily
-      const stellaElements = document.querySelectorAll('[data-stella-ui]');
-      stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'hidden');
-      
-      // Capture full page
-      const fullCanvas = await html2canvas(document.body, {
-        useCORS: true,
-        allowTaint: true,
-      });
-      
-      const fullScreenshot = fullCanvas.toDataURL('image/png');
-      let selectedAreaScreenshot = fullScreenshot;
-      
-      // Crop if area mode
-      if (marker.selection.mode === 'area' && marker.selection.area) {
-        const area = marker.selection.area;
-        const cropCanvas = document.createElement('canvas');
-        cropCanvas.width = area.width;
-        cropCanvas.height = area.height;
-        const ctx = cropCanvas.getContext('2d');
+    console.log('📸 captureScreenshots called for mode:', marker.selection.mode);
+    
+    // Show feedback box immediately (don't wait for screenshots)
+    setCurrentMarker({
+      ...marker,
+      state: 'active',
+    });
+    
+    console.log('✅ Feedback box activado (state: active)');
+    
+    // Capture screenshots in background
+    setTimeout(async () => {
+      try {
+        const { default: html2canvas } = await import('html2canvas');
         
-        if (ctx) {
-          ctx.drawImage(fullCanvas, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
-          selectedAreaScreenshot = cropCanvas.toDataURL('image/png');
+        console.log('📸 Capturando screenshots en background...');
+        
+        // Hide Stella UI temporarily
+        const stellaElements = document.querySelectorAll('[data-stella-ui]');
+        stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'hidden');
+        
+        // Capture full page
+        const fullCanvas = await html2canvas(document.body, {
+          useCORS: true,
+          allowTaint: true,
+        });
+        
+        const fullScreenshot = fullCanvas.toDataURL('image/png');
+        let selectedAreaScreenshot = fullScreenshot;
+        
+        console.log('📸 Full screenshot captured:', fullScreenshot.substring(0, 50) + '...');
+        
+        // Crop if area mode
+        if (marker.selection.mode === 'area' && marker.selection.area) {
+          const area = marker.selection.area;
+          console.log('✂️ Cropping area:', area);
+          
+          const cropCanvas = document.createElement('canvas');
+          cropCanvas.width = area.width;
+          cropCanvas.height = area.height;
+          const ctx = cropCanvas.getContext('2d');
+          
+          if (ctx) {
+            ctx.drawImage(fullCanvas, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
+            selectedAreaScreenshot = cropCanvas.toDataURL('image/png');
+            console.log('✅ Area screenshot cropped:', selectedAreaScreenshot.substring(0, 50) + '...');
+          }
         }
+        
+        // Restore Stella UI
+        stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'visible');
+        
+        // Update marker with screenshots
+        setCurrentMarker(prev => {
+          const updated = prev ? {
+            ...prev,
+            screenshot: fullScreenshot,
+            selectedAreaScreenshot,
+          } : null;
+          console.log('📌 Marker updated with screenshots:', updated?.screenshot ? 'YES' : 'NO', updated?.selectedAreaScreenshot ? 'YES' : 'NO');
+          return updated;
+        });
+        
+        console.log('✅ Screenshots capturados y marker actualizado');
+        
+        // Generate AI inference automatically
+        generateAIInference(marker);
+        
+      } catch (error) {
+        console.error('Screenshot failed (non-critical):', error);
       }
+    }, 100);
+  }
+  
+  // Generate AI Inference of context
+  async function generateAIInference(marker: StellaMarker) {
+    setIsGeneratingInference(true);
+    
+    try {
+      const pageTitle = document.title;
+      const pageUrl = window.location.href;
+      const pageText = document.body.innerText.slice(0, 2000); // First 2000 chars
       
-      // Restore Stella UI
-      stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'visible');
-      
-      // Update marker with screenshots but DON'T activate feedback box yet
-      // Keep in 'selecting' state to show the selection
-      setCurrentMarker({
-        ...marker,
-        screenshot: fullScreenshot,
-        selectedAreaScreenshot,
-        state: 'selecting', // Changed from 'active' - don't show feedback box yet
+      const response = await fetch('/api/stella/generate-inference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageUrl,
+          pageTitle,
+          pageContext: pageText,
+          selectionMode: marker.selection.mode,
+          selectionArea: marker.selection.area,
+        }),
       });
       
-      // After a brief delay, activate feedback box (keep selection visible)
-      setTimeout(() => {
-        setCurrentMarker(prev => prev ? { ...prev, state: 'active' } : null);
-      }, 300);
+      if (!response.ok) throw new Error('Inference failed');
+      
+      const inference = await response.json();
+      
+      setCurrentMarker(prev => prev ? {
+        ...prev,
+        aiInference: inference,
+      } : null);
+      
+      console.log('🤖 AI Inference generada:', inference);
       
     } catch (error) {
-      console.error('Screenshot failed:', error);
-      setCurrentMarker({ ...marker, state: 'active' });
+      console.error('AI Inference failed (non-critical):', error);
+    } finally {
+      setIsGeneratingInference(false);
     }
   }
+  
+  // Handle annotation drawing on canvas
+  function handleAnnotationMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (selectedAnnotationTool === 'none' || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setIsDrawingAnnotation(true);
+    setAnnotationStart({ x, y });
+  }
+  
+  function handleAnnotationMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!isDrawingAnnotation || !annotationStart || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+    
+    // Redraw canvas with current annotation preview
+    redrawCanvas(currentX, currentY);
+  }
+  
+  function handleAnnotationMouseUp(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!isDrawingAnnotation || !annotationStart || !canvasRef.current) return;
+    
+    const rect = canvasRef.current.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+    
+    // Create annotation
+    const annotation: Annotation = {
+      id: `ann-${Date.now()}`,
+      type: selectedAnnotationTool as 'circle' | 'rectangle' | 'arrow',
+      x: annotationStart.x,
+      y: annotationStart.y,
+      width: selectedAnnotationTool === 'rectangle' ? Math.abs(endX - annotationStart.x) : undefined,
+      height: selectedAnnotationTool === 'rectangle' ? Math.abs(endY - annotationStart.y) : undefined,
+      endX: selectedAnnotationTool === 'arrow' ? endX : undefined,
+      endY: selectedAnnotationTool === 'arrow' ? endY : undefined,
+      color: '#ef4444', // Red
+    };
+    
+    setAnnotations(prev => [...prev, annotation]);
+    setIsDrawingAnnotation(false);
+    setAnnotationStart(null);
+    
+    // Update marker
+    setCurrentMarker(prev => prev ? {
+      ...prev,
+      annotations: [...(prev.annotations || []), annotation],
+    } : null);
+  }
+  
+  function redrawCanvas(currentX?: number, currentY?: number) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw existing annotations
+    annotations.forEach(ann => {
+      ctx.strokeStyle = ann.color;
+      ctx.lineWidth = 3;
+      
+      if (ann.type === 'circle') {
+        const radius = 30;
+        ctx.beginPath();
+        ctx.arc(ann.x, ann.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (ann.type === 'rectangle' && ann.width && ann.height) {
+        ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+      } else if (ann.type === 'arrow' && ann.endX && ann.endY) {
+        drawArrow(ctx, ann.x, ann.y, ann.endX, ann.endY);
+      }
+    });
+    
+    // Draw current annotation preview
+    if (isDrawingAnnotation && annotationStart && currentX && currentY) {
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      
+      if (selectedAnnotationTool === 'circle') {
+        const radius = 30;
+        ctx.beginPath();
+        ctx.arc(annotationStart.x, annotationStart.y, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+      } else if (selectedAnnotationTool === 'rectangle') {
+        const width = currentX - annotationStart.x;
+        const height = currentY - annotationStart.y;
+        ctx.strokeRect(annotationStart.x, annotationStart.y, width, height);
+      } else if (selectedAnnotationTool === 'arrow') {
+        drawArrow(ctx, annotationStart.x, annotationStart.y, currentX, currentY);
+      }
+      
+      ctx.setLineDash([]);
+    }
+  }
+  
+  function drawArrow(ctx: CanvasRenderingContext2D, fromX: number, fromY: number, toX: number, toY: number) {
+    const headlen = 10;
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
+    ctx.stroke();
+  }
+  
+  // Redraw canvas when annotations change
+  useEffect(() => {
+    if (currentMarker?.screenshot) {
+      redrawCanvas();
+    }
+  }, [annotations, currentMarker?.screenshot]);
   
   // Submit feedback
   async function handleSubmitFeedback() {
@@ -248,6 +538,8 @@ export default function StellaMarkerTool({
           pageUrl: window.location.href,
           screenshot: currentMarker.screenshot,
           selectedAreaScreenshot: currentMarker.selectedAreaScreenshot,
+          annotations: currentMarker.annotations || [],
+          aiInference: currentMarker.aiInference,
           viewport: {
             width: window.innerWidth,
             height: window.innerHeight,
@@ -287,33 +579,25 @@ export default function StellaMarkerTool({
   
   // Event listeners
   useEffect(() => {
+    console.log('🔧 useEffect triggered - isActive:', isActive, 'currentMarker:', !!currentMarker);
+    
     if (isActive && !currentMarker) {
-      // Disable all page interactivity
-      const style = document.createElement('style');
-      style.id = 'stella-non-interactive';
-      style.textContent = `
-        body * :not([data-stella-ui]) {
-          pointer-events: none !important;
-          user-select: none !important;
-        }
-        [data-stella-ui] {
-          pointer-events: auto !important;
-        }
-      `;
-      document.head.appendChild(style);
+      console.log('✅ Adding event listeners for selection mode:', selectedMode);
       
+      // Add event listeners to capture clicks ANYWHERE on page
       document.addEventListener('mousedown', handleMouseDown as any, true);
       document.addEventListener('mousemove', handleMouseMove as any, true);
       document.addEventListener('mouseup', handleMouseUp as any, true);
+      console.log('👆 Mouse event listeners added (capturing phase)');
       
       return () => {
-        document.getElementById('stella-non-interactive')?.remove();
+        console.log('🧹 Cleaning up event listeners');
         document.removeEventListener('mousedown', handleMouseDown as any, true);
         document.removeEventListener('mousemove', handleMouseMove as any, true);
         document.removeEventListener('mouseup', handleMouseUp as any, true);
       };
     }
-  }, [isActive, currentMarker, isDrawingArea, areaStart]);
+  }, [isActive, currentMarker]); // Remove selectedMode to avoid re-adding listeners
   
   // Calculate feedback box position
   const getFeedbackBoxPosition = () => {
@@ -343,84 +627,108 @@ export default function StellaMarkerTool({
       <button
         onClick={() => setIsActive(!isActive)}
         data-stella-ui
-        className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all ${
+        className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all group ${
           isActive
             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/50'
-            : 'bg-white text-slate-700 hover:bg-violet-50 border border-slate-200 shadow-md hover:shadow-lg'
+            : 'bg-white text-slate-700 hover:bg-violet-50 border border-slate-200 shadow-md hover:shadow-lg hover:shadow-violet-200'
         }`}
-        title="Stella - Feedback Tool"
+        title="Stella your personal Product Agent"
       >
-        <Pencil className="w-5 h-5" />
+        <Wand2 className={`w-5 h-5 ${isActive ? 'stella-magic-wand' : 'group-hover:stella-magic-wand-hover'}`} />
       </button>
       
-      {/* Mode Selector */}
-      {isActive && !currentMarker && (
-        <div 
-          data-stella-ui
-          className="fixed top-36 right-6 z-40 bg-white rounded-lg shadow-xl border-2 border-violet-200 p-3 space-y-2 w-52"
-        >
-          <p className="text-xs font-bold text-violet-900 mb-2">Modo de Selección:</p>
-          
-          <button
-            onClick={() => setSelectedMode('point')}
-            data-stella-ui
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedMode === 'point'
-                ? 'bg-violet-600 text-white shadow-md'
-                : 'text-slate-700 hover:bg-violet-50 border border-slate-200'
-            }`}
-          >
-            <div className="w-4 h-4 rounded-full bg-current flex-shrink-0" />
-            <span>Punto</span>
-          </button>
-          
-          <button
-            onClick={() => setSelectedMode('area')}
-            data-stella-ui
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedMode === 'area'
-                ? 'bg-violet-600 text-white shadow-md'
-                : 'text-slate-700 hover:bg-violet-50 border border-slate-200'
-            }`}
-          >
-            <Square className="w-4 h-4 flex-shrink-0" />
-            <span>Área (Drag)</span>
-          </button>
-          
-          <button
-            onClick={() => setSelectedMode('fullscreen')}
-            data-stella-ui
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedMode === 'fullscreen'
-                ? 'bg-violet-600 text-white shadow-md'
-                : 'text-slate-700 hover:bg-violet-50 border border-slate-200'
-            }`}
-          >
-            <Camera className="w-4 h-4 flex-shrink-0" />
-            <span>Pantalla Completa</span>
-          </button>
-        </div>
-      )}
+      {/* Mode Selector removed from here - now integrated in top banner */}
       
       {/* Overlay when active */}
       {isActive && (
         <div data-stella-ui className="fixed inset-0 z-30 bg-violet-500/5 pointer-events-none">
-          {/* Instructions Banner */}
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto">
-            <div className="flex items-center gap-3">
-              <Sparkles className="w-5 h-5" />
-              <span className="font-medium text-sm">
-                {!currentMarker && selectedMode === 'point' && 'Click donde quieras dar feedback'}
-                {!currentMarker && selectedMode === 'area' && 'Arrastra para seleccionar área'}
-                {!currentMarker && selectedMode === 'fullscreen' && 'Click para capturar toda la pantalla'}
-                {currentMarker && 'Escribe tu feedback'}
-              </span>
+          {/* Compact Mode Selector - Right side */}
+          <div className="absolute top-4 right-6 bg-violet-600 text-white px-3 py-1.5 rounded-full shadow-lg pointer-events-auto">
+            <div className="flex items-center gap-2">
+              {/* Mode Selector - Compact */}
+              {!currentMarker && (
+                <>
+                  <span className="text-[10px] font-semibold opacity-80">Modo:</span>
+                  
+                  <button
+                    onClick={() => setSelectedMode('point')}
+                    data-stella-ui
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      selectedMode === 'point'
+                        ? 'bg-white text-violet-600 shadow-md'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title="Modo Punto"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                    <span>Punto</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setSelectedMode('area')}
+                    data-stella-ui
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      selectedMode === 'area'
+                        ? 'bg-white text-violet-600 shadow-md'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title="Modo Área"
+                  >
+                    <Square className="w-2 h-2" />
+                    <span>Área</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setSelectedMode('magic-brush')}
+                    data-stella-ui
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      selectedMode === 'magic-brush'
+                        ? 'bg-white text-violet-600 shadow-md'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title="Lápiz Mágico"
+                  >
+                    <Paintbrush className="w-2 h-2" />
+                    <span>Lápiz</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setSelectedMode('fullscreen')}
+                    data-stella-ui
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      selectedMode === 'fullscreen'
+                        ? 'bg-white text-violet-600 shadow-md'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title="Pantalla Completa"
+                  >
+                    <Camera className="w-2 h-2" />
+                    <span>Pantalla</span>
+                  </button>
+                  
+                  <div className="w-px h-4 bg-white/30 mx-1" />
+                </>
+              )}
+              
+              {/* Instructions - Compact */}
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3" />
+                <span className="text-[10px] font-medium">
+                  {!currentMarker && selectedMode === 'point' && 'Click donde quieras'}
+                  {!currentMarker && selectedMode === 'area' && 'Arrastra área'}
+                  {!currentMarker && selectedMode === 'magic-brush' && 'Dibuja libremente'}
+                  {!currentMarker && selectedMode === 'fullscreen' && 'Click para capturar'}
+                  {currentMarker && 'Escribe feedback'}
+                </span>
+              </div>
+              
+              {/* Close button */}
               <button
                 onClick={deactivateTool}
                 data-stella-ui
-                className="hover:bg-white/20 p-1 rounded transition-colors"
+                className="hover:bg-white/20 p-0.5 rounded transition-colors ml-1"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           </div>
@@ -486,6 +794,85 @@ export default function StellaMarkerTool({
         </div>
       )}
       
+      {/* Magic Brush - Drawing Path (while drawing) */}
+      {isDrawingBrush && brushPath.length > 0 && (
+        <svg
+          className="fixed inset-0 z-35 pointer-events-none"
+          style={{ width: '100%', height: '100%' }}
+        >
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id="magicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{ stopColor: '#a855f7', stopOpacity: 0.9 }} />
+              <stop offset="50%" style={{ stopColor: '#fbbf24', stopOpacity: 1 }} />
+              <stop offset="100%" style={{ stopColor: '#10b981', stopOpacity: 0.8 }} />
+            </linearGradient>
+          </defs>
+          
+          {/* Draw the path with glow - show live preview of closed shape */}
+          <path
+            d={`M ${brushPath.map(p => `${p.x},${p.y}`).join(' L ')} Z`}
+            stroke="url(#magicGradient)"
+            strokeWidth="6"
+            fill="rgba(251, 191, 36, 0.1)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="magic-brush-path"
+          />
+          
+          {/* Stars along the path - animated */}
+          {brushPath.filter((_, idx) => idx % 8 === 0).map((point, idx) => (
+            <g key={`star-${idx}`} transform={`translate(${point.x}, ${point.y})`}>
+              <polygon
+                points="0,-8 2.5,-2.5 8,0 2.5,2.5 0,8 -2.5,2.5 -8,0 -2.5,-2.5"
+                fill="#fbbf24"
+                className="magic-brush-star"
+                style={{ animationDelay: `${idx * 0.05}s` }}
+              />
+            </g>
+          ))}
+        </svg>
+      )}
+      
+      {/* Magic Brush Marker - Completed closed shape with stars */}
+      {currentMarker && currentMarker.selection.mode === 'magic-brush' && currentMarker.selection.brushPath && (
+        <svg
+          className="fixed inset-0 z-35 pointer-events-none"
+          style={{ width: '100%', height: '100%' }}
+        >
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id="magicGradientStatic" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style={{ stopColor: '#a855f7', stopOpacity: 0.6 }} />
+              <stop offset="50%" style={{ stopColor: '#fbbf24', stopOpacity: 0.7 }} />
+              <stop offset="100%" style={{ stopColor: '#10b981', stopOpacity: 0.5 }} />
+            </linearGradient>
+          </defs>
+          
+          {/* Draw the closed shape with fill */}
+          <path
+            d={`M ${currentMarker.selection.brushPath.map(p => `${p.x},${p.y}`).join(' L ')} Z`}
+            stroke="url(#magicGradientStatic)"
+            strokeWidth="3"
+            fill="rgba(168, 85, 247, 0.15)"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.6"
+          />
+          
+          {/* Subtle stars remain at key points */}
+          {currentMarker.selection.brushPath.filter((_, idx) => idx % 12 === 0).map((point, idx) => (
+            <g key={`star-complete-${idx}`} transform={`translate(${point.x}, ${point.y})`}>
+              <polygon
+                points="0,-5 1.5,-1.5 5,0 1.5,1.5 0,5 -1.5,1.5 -5,0 -1.5,-1.5"
+                fill="#fbbf24"
+                opacity="0.4"
+              />
+            </g>
+          ))}
+        </svg>
+      )}
+      
       {/* Fullscreen Marker Indicator */}
       {currentMarker && currentMarker.selection.mode === 'fullscreen' && (
         <div className="fixed z-35 top-20 left-1/2 transform -translate-x-1/2">
@@ -496,8 +883,128 @@ export default function StellaMarkerTool({
         </div>
       )}
       
-      {/* Feedback Box - High z-index but selection remains visible behind */}
-      {currentMarker && currentMarker.state === 'active' && (
+      {/* Magic Brush Inline Feedback Box - Translucent box near selection */}
+      {currentMarker && currentMarker.state === 'active' && currentMarker.selection.mode === 'magic-brush' && currentMarker.selection.brushPath && currentMarker.selection.brushPath.length > 0 && (
+        <div
+          data-stella-ui
+          className="fixed z-50"
+          style={{
+            left: `${currentMarker.selection.brushPath[Math.floor(currentMarker.selection.brushPath.length / 2)].x}px`,
+            top: `${currentMarker.selection.brushPath[Math.floor(currentMarker.selection.brushPath.length / 2)].y + 60}px`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="w-80 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border-2 border-violet-400 overflow-hidden">
+            {/* Compact Header */}
+            <div className="bg-gradient-to-r from-violet-500 to-purple-600 p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-white" />
+                <span className="text-white font-bold text-sm">Feedback Rápido</span>
+              </div>
+              <button
+                onClick={deactivateTool}
+                data-stella-ui
+                className="text-white hover:bg-white/20 p-1 rounded transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            
+            {/* Annotation Tools - Inline */}
+            <div className="px-3 py-2 bg-slate-50/80 border-b border-violet-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700">Anotar:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setSelectedAnnotationTool('circle')}
+                  data-stella-ui
+                  className={`p-1.5 rounded transition-all ${
+                    selectedAnnotationTool === 'circle'
+                      ? 'bg-red-500 text-white scale-110'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                  title="Circular"
+                >
+                  <Circle className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setSelectedAnnotationTool('rectangle')}
+                  data-stella-ui
+                  className={`p-1.5 rounded transition-all ${
+                    selectedAnnotationTool === 'rectangle'
+                      ? 'bg-red-500 text-white scale-110'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                  title="Recuadrar"
+                >
+                  <Square className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => setSelectedAnnotationTool('arrow')}
+                  data-stella-ui
+                  className={`p-1.5 rounded transition-all ${
+                    selectedAnnotationTool === 'arrow'
+                      ? 'bg-red-500 text-white scale-110'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                  title="Flecha"
+                >
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => {
+                    setAnnotations([]);
+                    setSelectedAnnotationTool('none');
+                    setCurrentMarker(prev => prev ? { ...prev, annotations: [] } : null);
+                  }}
+                  data-stella-ui
+                  className="p-1.5 rounded bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all"
+                  title="Limpiar"
+                >
+                  <Eraser className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Compact Feedback Input */}
+            <div className="p-3">
+              <textarea
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+                placeholder="Describe tu sugerencia aquí..."
+                rows={3}
+                maxLength={500}
+                data-stella-ui
+                className="w-full px-3 py-2 border-2 border-violet-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm bg-white/90"
+                autoFocus
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-xs text-slate-500">{feedbackText.length}/500</span>
+                <button
+                  onClick={handleSubmitFeedback}
+                  disabled={!feedbackText.trim() || isSubmitting}
+                  data-stella-ui
+                  className="px-4 py-1.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-lg hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-bold flex items-center gap-1.5 shadow-md"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Enviando...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3 h-3" />
+                      Enviar
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Standard Feedback Box - For other modes (point, area, fullscreen) */}
+      {currentMarker && currentMarker.state === 'active' && currentMarker.selection.mode !== 'magic-brush' && (
         <div
           data-stella-ui
           className="fixed z-50"
@@ -529,16 +1036,294 @@ export default function StellaMarkerTool({
               </div>
             </div>
             
-            {/* Selected Area Preview */}
-            {currentMarker.selectedAreaScreenshot && currentMarker.selection.mode === 'area' && (
-              <div className="p-4 border-b border-violet-200 bg-violet-50">
-                <p className="text-xs font-semibold text-violet-900 mb-2">Área Seleccionada:</p>
-                <img 
-                  src={currentMarker.selectedAreaScreenshot} 
-                  alt="Selected area" 
-                  className="w-full rounded border-2 border-violet-300"
-                  style={{ maxHeight: '150px', objectFit: 'contain' }}
-                />
+            {/* Screenshot Preview with Annotation Tools */}
+            <div className="p-4 border-b border-violet-200 bg-slate-50">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-violet-900 flex items-center gap-2">
+                  <Eye className="w-3.5 h-3.5" />
+                  Vista Previa
+                </p>
+                <div className="flex items-center gap-1">
+                  {/* Annotation Tools */}
+                  <button
+                    onClick={() => setSelectedAnnotationTool('circle')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'circle'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Circular elemento"
+                  >
+                    <Circle className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedAnnotationTool('rectangle')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'rectangle'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Recuadrar elemento"
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedAnnotationTool('arrow')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'arrow'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Señalar con flecha"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAnnotations([]);
+                      setSelectedAnnotationTool('none');
+                      setCurrentMarker(prev => prev ? { ...prev, annotations: [] } : null);
+                    }}
+                    data-stella-ui
+                    className="p-1.5 rounded bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors"
+                    title="Borrar anotaciones"
+                  >
+                    <Eraser className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Screenshot with Annotation Canvas */}
+              <div className="relative rounded-lg overflow-hidden border-2 border-violet-300 bg-white">
+                {currentMarker.selectedAreaScreenshot ? (
+                  <>
+                    <img 
+                      src={currentMarker.selectedAreaScreenshot} 
+                      alt="Captura" 
+                      className="w-full"
+                      style={{ maxHeight: '300px', objectFit: 'contain' }}
+                      onLoad={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        if (canvasRef.current) {
+                          canvasRef.current.width = img.width;
+                          canvasRef.current.height = img.height;
+                        }
+                      }}
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className="absolute inset-0 cursor-crosshair"
+                      onMouseDown={handleAnnotationMouseDown}
+                      onMouseMove={handleAnnotationMouseMove}
+                      onMouseUp={handleAnnotationMouseUp}
+                      style={{ 
+                        pointerEvents: selectedAnnotationTool !== 'none' ? 'auto' : 'none',
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="w-full h-40 flex items-center justify-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                )}
+              </div>
+              
+              {selectedAnnotationTool !== 'none' && (
+                <p className="text-xs text-slate-600 mt-2 flex items-center gap-1">
+                  <span className="text-red-500">●</span>
+                  {selectedAnnotationTool === 'circle' && 'Click para circular elemento'}
+                  {selectedAnnotationTool === 'rectangle' && 'Arrastra para recuadrar elemento'}
+                  {selectedAnnotationTool === 'arrow' && 'Arrastra para crear flecha'}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Standard Feedback Box is hidden for magic-brush mode - using inline box instead */}
+      {currentMarker && currentMarker.state === 'active' && currentMarker.selection.mode !== 'magic-brush' && (
+        <div
+          data-stella-ui
+          className="fixed z-50"
+          style={{
+            left: `${boxPos.left}px`,
+            top: `${boxPos.top}px`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="w-96 bg-white rounded-xl shadow-2xl border-2 border-violet-400"
+            style={{
+              boxShadow: '0 0 40px rgba(139, 92, 246, 0.5), 0 20px 60px rgba(0, 0, 0, 0.3)',
+            }}
+          >
+            {/* Header */}
+            <div className="bg-violet-600 p-4 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-bold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5" />
+                  Stella Feedback
+                </h3>
+                <button
+                  onClick={deactivateTool}
+                  data-stella-ui
+                  className="text-white hover:bg-white/20 p-1 rounded"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Screenshot Preview with Annotation Tools */}
+            <div className="p-4 border-b border-violet-200 bg-slate-50">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-bold text-violet-900 flex items-center gap-2">
+                  <Eye className="w-3.5 h-3.5" />
+                  Vista Previa
+                </p>
+                <div className="flex items-center gap-1">
+                  {/* Annotation Tools */}
+                  <button
+                    onClick={() => setSelectedAnnotationTool('circle')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'circle'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Circular elemento"
+                  >
+                    <Circle className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedAnnotationTool('rectangle')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'rectangle'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Recuadrar elemento"
+                  >
+                    <Square className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setSelectedAnnotationTool('arrow')}
+                    data-stella-ui
+                    className={`p-1.5 rounded transition-colors ${
+                      selectedAnnotationTool === 'arrow'
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                    title="Señalar con flecha"
+                  >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAnnotations([]);
+                      setSelectedAnnotationTool('none');
+                      setCurrentMarker(prev => prev ? { ...prev, annotations: [] } : null);
+                    }}
+                    data-stella-ui
+                    className="p-1.5 rounded bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors"
+                    title="Borrar anotaciones"
+                  >
+                    <Eraser className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Screenshot with Annotation Canvas */}
+              <div className="relative rounded-lg overflow-hidden border-2 border-violet-300 bg-white">
+                {currentMarker.selectedAreaScreenshot ? (
+                  <>
+                    <img 
+                      src={currentMarker.selectedAreaScreenshot} 
+                      alt="Captura seleccionada" 
+                      className="w-full"
+                      style={{ maxHeight: '300px', objectFit: 'contain' }}
+                      onLoad={(e) => {
+                        // Initialize canvas with same dimensions
+                        const img = e.target as HTMLImageElement;
+                        if (canvasRef.current) {
+                          canvasRef.current.width = img.width;
+                          canvasRef.current.height = img.height;
+                        }
+                      }}
+                    />
+                    <canvas
+                      ref={canvasRef}
+                      className="absolute inset-0 cursor-crosshair"
+                      onMouseDown={handleAnnotationMouseDown}
+                      onMouseMove={handleAnnotationMouseMove}
+                      onMouseUp={handleAnnotationMouseUp}
+                      style={{ 
+                        pointerEvents: selectedAnnotationTool !== 'none' ? 'auto' : 'none',
+                      }}
+                    />
+                  </>
+                ) : (
+                  <div className="w-full h-40 flex items-center justify-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  </div>
+                )}
+              </div>
+              
+              {selectedAnnotationTool !== 'none' && (
+                <p className="text-xs text-slate-600 mt-2 flex items-center gap-1">
+                  <span className="text-red-500">●</span>
+                  {selectedAnnotationTool === 'circle' && 'Click para circular elemento'}
+                  {selectedAnnotationTool === 'rectangle' && 'Arrastra para recuadrar elemento'}
+                  {selectedAnnotationTool === 'arrow' && 'Arrastra para crear flecha'}
+                </p>
+              )}
+            </div>
+            
+            {/* AI Inference Section */}
+            {isGeneratingInference && (
+              <div className="px-4 py-3 border-b border-violet-200 bg-blue-50">
+                <div className="flex items-center gap-2 text-xs text-blue-700">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span className="font-medium">Stella está analizando el contexto...</span>
+                </div>
+              </div>
+            )}
+            
+            {currentMarker.aiInference && !isGeneratingInference && (
+              <div className="px-4 py-3 border-b border-violet-200 bg-gradient-to-r from-blue-50 to-violet-50">
+                <p className="text-xs font-bold text-violet-900 mb-2 flex items-center gap-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Análisis AI de Contexto
+                </p>
+                <div className="space-y-1.5 text-xs">
+                  <div>
+                    <span className="font-semibold text-slate-700">Página:</span>
+                    <span className="ml-2 text-slate-600">{currentMarker.aiInference.pageContext}</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-700">Problema Identificado:</span>
+                    <span className="ml-2 text-slate-600">{currentMarker.aiInference.identifiedIssue}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-700">Prioridad Sugerida:</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      currentMarker.aiInference.suggestedPriority === 'critical' ? 'bg-red-100 text-red-700' :
+                      currentMarker.aiInference.suggestedPriority === 'high' ? 'bg-orange-100 text-orange-700' :
+                      currentMarker.aiInference.suggestedPriority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-green-100 text-green-700'
+                    }`}>
+                      {currentMarker.aiInference.suggestedPriority.toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-700">Categoría:</span>
+                    <span className="ml-2 text-slate-600">{currentMarker.aiInference.suggestedCategory}</span>
+                  </div>
+                </div>
               </div>
             )}
             
@@ -551,7 +1336,7 @@ export default function StellaMarkerTool({
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
                 placeholder="Describe tu sugerencia, problema o mejora..."
-                rows={5}
+                rows={4}
                 maxLength={500}
                 data-stella-ui
                 className="w-full px-3 py-2 border-2 border-violet-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm"

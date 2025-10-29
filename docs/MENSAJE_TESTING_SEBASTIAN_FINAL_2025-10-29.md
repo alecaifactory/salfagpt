@@ -135,3 +135,4 @@ docs/GUIA_TESTING_PARA_SEBASTIAN_2025-10-29.md
 **Impacto:** Alto (elimina confusión completamente)  
 **Backward Compatible:** ✅ Sí
 
+
