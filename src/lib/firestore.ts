@@ -1372,8 +1372,16 @@ export async function saveAgentConfig(
   const now = new Date();
   const source = getEnvironmentSource();
 
+  console.log('🔍 [FIRESTORE] saveAgentConfig called');
+  console.log('🔍 [FIRESTORE] conversationId:', conversationId);
+  console.log('🔍 [FIRESTORE] userId:', userId);
+  console.log('🔍 [FIRESTORE] config received:', config);
+  console.log('🔍 [FIRESTORE] config.agentPrompt length:', config.agentPrompt?.length);
+  console.log('🔍 [FIRESTORE] config.agentPrompt:', config.agentPrompt);
+
   // Check if config already exists
   const existing = await getAgentConfig(conversationId);
+  console.log('🔍 [FIRESTORE] Existing config:', existing);
 
   const agentConfig: AgentConfig = {
     id: conversationId,
@@ -1385,12 +1393,28 @@ export async function saveAgentConfig(
     source,
   };
 
+  console.log('🔍 [FIRESTORE] Final agentConfig to save:', agentConfig);
+  console.log('🔍 [FIRESTORE] Final agentPrompt length:', agentConfig.agentPrompt?.length);
+  console.log('🔍 [FIRESTORE] Final agentPrompt:', agentConfig.agentPrompt);
+
   await firestore
     .collection(COLLECTIONS.AGENT_CONFIGS)
     .doc(conversationId)
     .set(agentConfig);
 
-  console.log(`✅ Agent config saved from ${source}:`, conversationId);
+  console.log(`✅ [FIRESTORE] Agent config saved from ${source}:`, conversationId);
+  
+  // Verify what was actually saved
+  const savedDoc = await firestore
+    .collection(COLLECTIONS.AGENT_CONFIGS)
+    .doc(conversationId)
+    .get();
+  
+  const savedData = savedDoc.data();
+  console.log('🔍 [FIRESTORE] Verification - data saved in Firestore:', savedData);
+  console.log('🔍 [FIRESTORE] Verification - agentPrompt length:', savedData?.agentPrompt?.length);
+  console.log('🔍 [FIRESTORE] Verification - agentPrompt:', savedData?.agentPrompt);
+  
   return agentConfig;
 }
 
