@@ -9,8 +9,8 @@
   
   "scope": {
     "totalQuestions": 66,
-    "questionsTested": 1,
-    "coverage": 1.5,
+    "questionsTested": 4,
+    "coverage": 6.1,
     "targetCoverage": 15,
     "targetQuestions": 10
   },
@@ -46,10 +46,10 @@
   ],
   
   "results": {
-    "averageQuality": null,
+    "averageQuality": 9.25,
     "qualityDistribution": {
-      "excellent_9_10": 0,
-      "good_7_8": 0,
+      "excellent_9_10": 3,
+      "good_7_8": 1,
       "acceptable_5_6": 0,
       "poor_below_5": 0
     },
@@ -67,15 +67,16 @@
   
   "timeline": {
     "createdAt": "2025-10-29T12:00:00Z",
-    "testingStartedAt": "2025-10-29T12:15:00Z",
-    "testingCompletedAt": null,
+    "testingStartedAt": "2025-10-29T20:10:00Z",
+    "testingCompletedAt": "2025-10-29T20:30:00Z",
     "expertReviewStartedAt": null,
     "expertReviewCompletedAt": null,
-    "finalReportGeneratedAt": null
+    "finalReportGeneratedAt": "2025-10-29T20:30:00Z"
   },
   
   "createdBy": "alec@getaifactory.com",
   "createdAt": "2025-10-29T12:00:00Z",
-  "updatedAt": "2025-10-29T12:30:00Z"
+  "updatedAt": "2025-10-29T20:30:00Z"
 }
+
 

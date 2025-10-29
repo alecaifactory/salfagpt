@@ -365,3 +365,4 @@ But these are optimizations - the current fix solves the core issue! ✅
 **Performance Impact**: Minimal (one API call per "Ver documento completo" click)  
 **User Impact**: Major improvement (feature now works as expected)
 
+

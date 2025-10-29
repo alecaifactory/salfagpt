@@ -250,3 +250,4 @@ Si eliges Opción A:
 **Calidad:** 100% verificada ✅  
 **Listo para:** Validación final o cierre directo
 
+

@@ -429,3 +429,4 @@ sleep 10
 
 **Criterio:** Si logs muestran "CONSOLIDATED" y números coinciden → ✅ LISTO para Sebastian
 
+

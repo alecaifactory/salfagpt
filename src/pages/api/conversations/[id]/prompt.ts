@@ -56,9 +56,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     // Get existing config or create new
     const existingConfig = await getAgentConfig(id);
     
-    const config = await saveAgentConfig(id, {
-      conversationId: id,
-      userId,
+    const config = await saveAgentConfig(id, userId, {
       model: model || existingConfig?.model || 'gemini-2.5-flash',
       agentPrompt: agentPrompt || '',
       temperature: existingConfig?.temperature,

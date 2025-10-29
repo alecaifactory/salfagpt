@@ -16,7 +16,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Pencil, 
+  Wand2, 
   X, 
   Send, 
   Share2, 
@@ -25,7 +25,9 @@ import {
   Check,
   Loader2,
   Copy,
-  MessageSquare
+  MessageSquare,
+  Camera,
+  Square
 } from 'lucide-react';
 
 type StellaMode = 'point' | 'area' | 'fullscreen';
@@ -445,86 +447,91 @@ export default function StellaMarkerTool({
       <button
         onClick={toggleStellaTool}
         data-stella-ui
-        className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all ${
+        className={`fixed top-20 right-6 z-40 p-3 rounded-lg transition-all group ${
           isActive
             ? 'bg-violet-600 text-white shadow-lg shadow-violet-500/50 scale-110'
-            : 'bg-white text-slate-700 hover:bg-violet-50 border border-slate-200 shadow-md'
+            : 'bg-white text-slate-700 hover:bg-violet-50 border border-slate-200 shadow-md hover:shadow-violet-200'
         }`}
-        title="Stella Marker - Anotar UI"
+        title="Stella your personal Product Agent"
       >
-        <Pencil className={`w-5 h-5 ${isActive ? 'animate-pulse' : ''}`} />
+        <Wand2 className={`w-5 h-5 ${isActive ? 'animate-pulse stella-magic-wand' : 'group-hover:stella-magic-wand-hover'}`} />
       </button>
       
-      {/* Mode Selector - Appears when Stella is active */}
-      {isActive && (
-        <div 
-          data-stella-ui
-          className="fixed top-36 right-6 z-40 bg-white rounded-lg shadow-xl border-2 border-violet-200 p-2 space-y-1"
-        >
-          <p className="text-xs font-semibold text-violet-900 px-2 py-1">Modo de Selección:</p>
-          
-          <button
-            onClick={() => setSelectedMode('point')}
-            data-stella-ui
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-              selectedMode === 'point'
-                ? 'bg-violet-600 text-white'
-                : 'text-slate-700 hover:bg-violet-50'
-            }`}
-          >
-            <div className="w-3 h-3 rounded-full bg-current" />
-            Punto
-          </button>
-          
-          <button
-            onClick={() => setSelectedMode('area')}
-            data-stella-ui
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-              selectedMode === 'area'
-                ? 'bg-violet-600 text-white'
-                : 'text-slate-700 hover:bg-violet-50'
-            }`}
-          >
-            <div className="w-3 h-3 border-2 border-current" />
-            Área
-          </button>
-          
-          <button
-            onClick={() => setSelectedMode('fullscreen')}
-            data-stella-ui
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium transition-colors ${
-              selectedMode === 'fullscreen'
-                ? 'bg-violet-600 text-white'
-                : 'text-slate-700 hover:bg-violet-50'
-            }`}
-          >
-            <Camera className="w-3 h-3" />
-            Pantalla Completa
-          </button>
-        </div>
-      )}
+      {/* Mode Selector removed - now integrated in top banner */}
       
       {/* Active indicator overlay - Non-interactive */}
       {isActive && (
         <div className="fixed inset-0 z-30 bg-violet-500/5 pointer-events-none">
-          {/* Top Banner */}
+          {/* Compact Mode Selector - Right side */}
           <div 
             data-stella-ui
-            className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white px-6 py-3 rounded-full shadow-lg pointer-events-auto"
+            className="absolute top-4 right-6 bg-violet-600 text-white px-3 py-1.5 rounded-full shadow-lg pointer-events-auto"
           >
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 animate-pulse" />
-              <span className="font-semibold">
-                {selectedMode === 'point' && 'Click para anotar punto específico'}
-                {selectedMode === 'area' && 'Arrastra para seleccionar área'}
-                {selectedMode === 'fullscreen' && 'Click para capturar pantalla completa'}
-              </span>
+              {/* Mode Selector - Compact */}
+              <span className="text-[10px] font-semibold opacity-80">Modo:</span>
+              
+              <button
+                onClick={() => setSelectedMode('point')}
+                data-stella-ui
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                  selectedMode === 'point'
+                    ? 'bg-white text-violet-600 shadow-md'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Modo Punto"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-current" />
+                <span>Punto</span>
+              </button>
+              
+              <button
+                onClick={() => setSelectedMode('area')}
+                data-stella-ui
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                  selectedMode === 'area'
+                    ? 'bg-white text-violet-600 shadow-md'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Modo Área"
+              >
+                <Square className="w-2 h-2" />
+                <span>Área</span>
+              </button>
+              
+              <button
+                onClick={() => setSelectedMode('fullscreen')}
+                data-stella-ui
+                className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                  selectedMode === 'fullscreen'
+                    ? 'bg-white text-violet-600 shadow-md'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title="Pantalla Completa"
+              >
+                <Camera className="w-2 h-2" />
+                <span>Pantalla</span>
+              </button>
+              
+              <div className="w-px h-4 bg-white/30 mx-1" />
+              
+              {/* Instructions - Compact */}
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 animate-pulse" />
+                <span className="text-[10px] font-medium">
+                  {selectedMode === 'point' && 'Click donde quieras'}
+                  {selectedMode === 'area' && 'Arrastra área'}
+                  {selectedMode === 'fullscreen' && 'Click capturar'}
+                </span>
+              </div>
+              
+              {/* Close button */}
               <button
                 onClick={toggleStellaTool}
                 data-stella-ui
-                className="ml-4 hover:bg-white/20 p-1 rounded"
+                className="hover:bg-white/20 p-0.5 rounded transition-colors ml-1"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           </div>

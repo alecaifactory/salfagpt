@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3 } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Bot } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -2235,8 +2235,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName }: Ch
           {/* Agentes Section */}
           {conversationGroups.agents.length > 0 && (
             <div>
-              <div className="px-2 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">
-                🤖 Agentes ({conversationGroups.agents.length})
+              <div className="px-2 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                <Bot className="w-4 h-4" />
+                Agentes ({conversationGroups.agents.length})
               </div>
               <div className="space-y-1">
                 {conversationGroups.agents.map(conv => (
