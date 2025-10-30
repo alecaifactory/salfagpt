@@ -691,3 +691,4 @@ await fetch('/api/backlog/create', {
 ---
 
 **¿Está claro ahora?** El Roadmap es todo el flow de 5 columnas, no solo una sección. Y solo tú puedes acceder. 🎯🔒
+

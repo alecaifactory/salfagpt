@@ -184,3 +184,4 @@ function extractAttachments(messages: any[]): any[] {
   return allAttachments;
 }
 
+
