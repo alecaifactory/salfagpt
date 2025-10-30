@@ -30,6 +30,7 @@ import RoadmapModal from './RoadmapModal'; // ✅ NEW: Roadmap system
 import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
 import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
 import MyFeedbackView from './MyFeedbackView'; // ✅ User's own feedback tracking
+import FeedbackSuccessToast from './FeedbackSuccessToast'; // ✅ Success notification
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -334,6 +335,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [feedbackMessageId, setFeedbackMessageId] = useState<string | null>(null);
   const [showMyFeedback, setShowMyFeedback] = useState(false);
   const [highlightTicketId, setHighlightTicketId] = useState<string | null>(null);
+  const [feedbackSuccessToast, setFeedbackSuccessToast] = useState<{
+    ticketId: string;
+    feedbackType: 'expert' | 'user';
+  } | null>(null);
   
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
@@ -1175,17 +1180,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       setShowUserFeedback(false);
       setFeedbackMessageId(null);
 
-      // Show success with ticket info
-      const ticketInfo = result.ticketId 
-        ? `\n\n🎫 Ticket ID: ${result.ticketId.substring(0, 12)}...\n\n✨ Abriendo tu seguimiento de feedback...`
-        : '';
-      
-      alert(`✅ ¡Feedback enviado exitosamente!${ticketInfo}`);
-      
-      // Open "My Feedback" view with highlighted ticket
+      // Show success toast (elegant notification instead of alert)
       if (result.ticketId) {
+        setFeedbackSuccessToast({
+          ticketId: result.ticketId,
+          feedbackType: feedback.feedbackType,
+        });
         setHighlightTicketId(result.ticketId);
-        setShowMyFeedback(true);
       }
     } catch (error) {
       console.error('❌ Error submitting feedback:', error);
@@ -6096,6 +6097,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             setHighlightTicketId(null);
           }}
           highlightTicketId={highlightTicketId}
+        />
+      )}
+
+      {/* ✅ NEW: Feedback Success Toast (Elegant notification) */}
+      {feedbackSuccessToast && (
+        <FeedbackSuccessToast
+          ticketId={feedbackSuccessToast.ticketId}
+          feedbackType={feedbackSuccessToast.feedbackType}
+          onClose={() => setFeedbackSuccessToast(null)}
+          onViewTicket={() => {
+            setFeedbackSuccessToast(null);
+            setShowMyFeedback(true);
+          }}
         />
       )}
       

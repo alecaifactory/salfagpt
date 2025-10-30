@@ -43,7 +43,7 @@ export default function AgentConfigurationModal({
   agentName,
   onConfigSaved,
 }: AgentConfigurationModalProps) {
-  const [uploadMode, setUploadMode] = useState<'file' | 'prompt'>('file');
+  const [uploadMode, setUploadMode] = useState<'file' | 'prompt' | 'enhance'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<ExtractionProgress | null>(null);
@@ -515,7 +515,7 @@ export default function AgentConfigurationModal({
                 <label className="block text-sm font-semibold text-slate-700 mb-3">
                   ¿Cómo deseas configurar el agente?
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <button
                     onClick={() => setUploadMode('file')}
                     className={`p-4 rounded-lg border-2 transition-all ${
@@ -543,6 +543,21 @@ export default function AgentConfigurationModal({
                     <p className="font-semibold text-slate-800">Describir con Prompts</p>
                     <p className="text-xs text-slate-600 mt-1">
                       Guía paso a paso con ejemplos
+                    </p>
+                  </button>
+                  
+                  <button
+                    onClick={() => setUploadMode('enhance')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      uploadMode === 'enhance'
+                        ? 'border-purple-500 bg-purple-50'
+                        : 'border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <Sparkles className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+                    <p className="font-semibold text-slate-800">Mejorar Prompt</p>
+                    <p className="text-xs text-slate-600 mt-1">
+                      IA mejora el prompt usando Ficha
                     </p>
                   </button>
                 </div>
@@ -720,6 +735,127 @@ export default function AgentConfigurationModal({
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none text-sm"
                       rows={2}
                     />
+                  </div>
+                </div>
+              )}
+              
+              {/* ✅ NEW: Enhance Mode - Upload Ficha for Prompt Improvement */}
+              {uploadMode === 'enhance' && (
+                <div className="space-y-4">
+                  {/* Info Banner */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <Sparkles className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-purple-900 mb-1">
+                          🎯 Mejora Automática del Prompt del Agente
+                        </p>
+                        <p className="text-xs text-purple-800 mb-2">
+                          Sube una <strong>"Ficha de Asistente Virtual"</strong> con las especificaciones completas
+                          del agente. La IA analizará el documento y generará un prompt optimizado siguiendo
+                          mejores prácticas de prompt engineering.
+                        </p>
+                        <p className="text-xs text-purple-700">
+                          El prompt mejorado se aplicará directamente al agente y el documento quedará guardado
+                          como referencia en Cloud Storage.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upload Area */}
+                  <div 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-purple-300 rounded-xl p-8 text-center hover:border-purple-400 hover:bg-purple-50/50 transition-all cursor-pointer"
+                  >
+                    <Upload className="w-12 h-12 text-purple-400 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-slate-700 mb-1">
+                      Click para subir Ficha de Asistente Virtual
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      PDF o Word (.doc, .docx) - Máximo 50MB
+                    </p>
+                    
+                    {file && (
+                      <div className="mt-4 bg-purple-100 border border-purple-300 rounded-lg p-3 inline-block">
+                        <p className="text-sm font-semibold text-purple-900">{file.name}</p>
+                        <p className="text-xs text-purple-700">
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    )}
+                    
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {/* What to Include */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-slate-600" />
+                      Contenido de la Ficha (10 elementos clave):
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">1.</span>
+                        <span>Nombre del Asistente</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">6.</span>
+                        <span>Preguntas Tipo (ejemplos)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">2.</span>
+                        <span>Objetivo y Descripción</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">7.</span>
+                        <span>Nivel de Detalle esperado</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">3.</span>
+                        <span>Usuarios Piloto</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">8.</span>
+                        <span>Documentos de Referencia</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">4.</span>
+                        <span>Usuarios Finales</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">9.</span>
+                        <span>Restricciones y Límites</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">5.</span>
+                        <span>Encargado del Proyecto</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-purple-600 font-bold">10.</span>
+                        <span>Tono y Formato</span>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-slate-300">
+                      <p className="text-[10px] text-slate-500 italic">
+                        💡 Usa la plantilla: <code className="bg-slate-200 px-1 rounded">docs/templates/Ficha-Asistente-Virtual-Template.md</code>
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Note about prompt-only enhancement */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-yellow-800">
+                      <strong>Nota:</strong> Esta opción mejora SOLO el prompt del agente. Si necesitas configurar
+                      inputs/outputs esperados completos, usa la opción "Subir Documento" (ARD).
+                    </p>
                   </div>
                 </div>
               )}
@@ -1436,6 +1572,27 @@ export default function AgentConfigurationModal({
               >
                 <Brain className="w-4 h-4" />
                 Generar Configuración
+              </button>
+            )}
+            
+            {!uploading && !extractedConfig && uploadMode === 'enhance' && (
+              <button
+                onClick={async () => {
+                  if (!file) return;
+                  
+                  // This will call the AgentPromptEnhancer flow
+                  // For now, show message that this opens the enhancer
+                  alert('Esta funcionalidad abrirá el modal de mejora de prompt con el documento subido.');
+                  
+                  // TODO: Integrate with AgentPromptEnhancer or handle here
+                  // Option 1: Open AgentPromptEnhancer modal with pre-loaded file
+                  // Option 2: Process directly here similar to file mode
+                }}
+                disabled={!file}
+                className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Mejorar Prompt con IA
               </button>
             )}
             

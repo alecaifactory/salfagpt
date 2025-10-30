@@ -471,45 +471,150 @@ export default function MyFeedbackView({
                             </div>
                           </div>
 
-                          {/* Original Feedback */}
+                          {/* Original Feedback - EXPANDED with all details */}
                           {ticket.originalFeedback && (
                             <div>
-                              <h5 className="font-semibold text-slate-800 mb-2">Tu Feedback Original</h5>
-                              <div className={`p-4 rounded-lg ${
+                              <h5 className="font-semibold text-slate-800 mb-3">📝 Tu Feedback Original</h5>
+                              <div className={`rounded-lg border-2 overflow-hidden ${
                                 ticket.originalFeedback.type === 'expert'
-                                  ? 'bg-purple-50 border-2 border-purple-200'
-                                  : 'bg-gradient-to-r from-violet-50 to-yellow-50 border-2 border-violet-200'
+                                  ? 'bg-purple-50 border-purple-200'
+                                  : 'bg-gradient-to-r from-violet-50 to-yellow-50 border-violet-200'
                               }`}>
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-semibold">
-                                    {ticket.originalFeedback.type === 'expert' ? '👑 Experto' : '⭐ Usuario'}
-                                  </span>
-                                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                    ticket.originalFeedback.type === 'expert'
-                                      ? ticket.originalFeedback.rating === 'inaceptable'
+                                {/* Header with rating */}
+                                <div className="p-4 border-b border-slate-200 bg-white bg-opacity-50">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-slate-700">
+                                        {ticket.originalFeedback.type === 'expert' ? '👑 Evaluación Experta' : '⭐ Calificación Usuario'}
+                                      </span>
+                                    </div>
+                                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${
+                                      ticket.originalFeedback.type === 'expert'
+                                        ? ticket.originalFeedback.rating === 'inaceptable'
+                                          ? 'bg-red-600 text-white'
+                                          : ticket.originalFeedback.rating === 'aceptable'
+                                          ? 'bg-yellow-600 text-white'
+                                          : 'bg-purple-600 text-white'
+                                        : ticket.originalFeedback.rating <= 2
                                         ? 'bg-red-600 text-white'
-                                        : ticket.originalFeedback.rating === 'aceptable'
+                                        : ticket.originalFeedback.rating === 3
                                         ? 'bg-yellow-600 text-white'
-                                        : 'bg-purple-600 text-white'
-                                      : ticket.originalFeedback.rating <= 2
-                                      ? 'bg-red-600 text-white'
-                                      : ticket.originalFeedback.rating === 3
-                                      ? 'bg-yellow-600 text-white'
-                                      : 'bg-violet-600 text-white'
-                                  }`}>
-                                    {typeof ticket.originalFeedback.rating === 'string' 
-                                      ? ticket.originalFeedback.rating 
-                                      : `${ticket.originalFeedback.rating}/5 ⭐`}
-                                  </span>
+                                        : 'bg-violet-600 text-white'
+                                    }`}>
+                                      {typeof ticket.originalFeedback.rating === 'string' 
+                                        ? ticket.originalFeedback.rating.toUpperCase()
+                                        : `${ticket.originalFeedback.rating}/5 ⭐`}
+                                    </span>
+                                  </div>
+
+                                  {/* Expert-specific scores */}
+                                  {ticket.originalFeedback.type === 'expert' && (
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                      {/* NPS Score */}
+                                      {(ticket as any).npsScore !== undefined && (
+                                        <div className="bg-white bg-opacity-70 rounded-lg p-3 border border-purple-200">
+                                          <div className="text-purple-600 font-medium mb-1">NPS Score</div>
+                                          <div className="text-2xl font-bold text-purple-900">
+                                            {(ticket as any).npsScore}/10
+                                          </div>
+                                          <div className="text-purple-500 text-[10px] mt-1">
+                                            {(ticket as any).npsScore >= 9 && '😍 Promotor'}
+                                            {(ticket as any).npsScore >= 7 && (ticket as any).npsScore < 9 && '😊 Pasivo'}
+                                            {(ticket as any).npsScore < 7 && '😞 Detractor'}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* CSAT Score */}
+                                      {(ticket as any).csatScore !== undefined && (
+                                        <div className="bg-white bg-opacity-70 rounded-lg p-3 border border-purple-200">
+                                          <div className="text-purple-600 font-medium mb-1">CSAT Score</div>
+                                          <div className="text-2xl font-bold text-purple-900">
+                                            {(ticket as any).csatScore}/5
+                                          </div>
+                                          <div className="text-purple-500 text-[10px] mt-1">
+                                            {'⭐'.repeat((ticket as any).csatScore)}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* User star visualization */}
+                                  {ticket.originalFeedback.type === 'user' && typeof ticket.originalFeedback.rating === 'number' && (
+                                    <div className="bg-white bg-opacity-70 rounded-lg p-3 border border-violet-200">
+                                      <div className="flex items-center justify-center gap-1 text-2xl">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                          <span key={star} className={
+                                            star <= ticket.originalFeedback.rating 
+                                              ? 'text-violet-500' 
+                                              : 'text-slate-300'
+                                          }>
+                                            ★
+                                          </span>
+                                        ))}
+                                      </div>
+                                      <div className="text-center text-xs text-violet-600 mt-2 font-medium">
+                                        {ticket.originalFeedback.rating === 0 && 'Sin calificar'}
+                                        {ticket.originalFeedback.rating === 1 && 'Muy mala'}
+                                        {ticket.originalFeedback.rating === 2 && 'Mala'}
+                                        {ticket.originalFeedback.rating === 3 && 'Regular'}
+                                        {ticket.originalFeedback.rating === 4 && 'Buena'}
+                                        {ticket.originalFeedback.rating === 5 && 'Excelente'}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
+
+                                {/* Comment/Notes */}
                                 {ticket.originalFeedback.comment && (
-                                  <p className="text-sm text-slate-700 italic">
-                                    "{ticket.originalFeedback.comment}"
-                                  </p>
+                                  <div className="p-4 border-b border-slate-200 bg-white bg-opacity-30">
+                                    <div className="text-xs font-semibold text-slate-600 mb-2">
+                                      {ticket.originalFeedback.type === 'expert' ? '📋 Notas de Evaluación:' : '💬 Comentario:'}
+                                    </div>
+                                    <p className="text-sm text-slate-800 italic leading-relaxed">
+                                      "{ticket.originalFeedback.comment}"
+                                    </p>
+                                  </div>
                                 )}
+
+                                {/* Screenshots */}
                                 {ticket.originalFeedback.screenshots && ticket.originalFeedback.screenshots.length > 0 && (
-                                  <div className="mt-2 text-xs text-slate-600">
-                                    📸 {ticket.originalFeedback.screenshots.length} captura(s) incluida(s)
+                                  <div className="p-4 bg-white bg-opacity-30">
+                                    <div className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-2">
+                                      📸 Capturas de Pantalla ({ticket.originalFeedback.screenshots.length})
+                                      {ticket.originalFeedback.screenshotAnalysis && (
+                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-semibold">
+                                          ✨ Analizado por AI
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      {ticket.originalFeedback.screenshots.map((screenshot, idx) => (
+                                        <div key={idx} className="border-2 border-slate-200 rounded-lg overflow-hidden bg-white">
+                                          <img
+                                            src={screenshot.imageDataUrl}
+                                            alt={`Screenshot ${idx + 1}`}
+                                            className="w-full h-auto"
+                                          />
+                                          <div className="p-2 bg-slate-50 text-[10px] text-slate-600 text-center">
+                                            {screenshot.annotations?.length || 0} anotación(es)
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    {/* AI Analysis of Screenshots */}
+                                    {ticket.originalFeedback.screenshotAnalysis && (
+                                      <div className="mt-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-lg">
+                                        <div className="text-xs font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                                          🤖 Análisis AI de las Capturas
+                                        </div>
+                                        <p className="text-xs text-blue-800 leading-relaxed">
+                                          {ticket.originalFeedback.screenshotAnalysis}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
