@@ -28,16 +28,32 @@ import {
   ArrowRight,
   Eraser,
   Eye,
-  Paintbrush
+  Paintbrush,
+  Video,
+  Bug,
+  Lightbulb,
+  TrendingUp
 } from 'lucide-react';
 
-type StellaMode = 'point' | 'area' | 'fullscreen' | 'magic-brush';
+type StellaMode = 'point' | 'area' | 'fullscreen' | 'magic-brush' | 'clip';
+type FeedbackCategory = 'bug' | 'feature' | 'improvement';
+
+interface ClipFrame {
+  timestamp: number;
+  dataUrl: string;           // Base64 screenshot
+  cursor?: { x: number; y: number };
+}
 
 interface StellaSelection {
   mode: StellaMode;
   point?: { x: number; y: number };
   area?: { x: number; y: number; width: number; height: number };
   brushPath?: Array<{ x: number; y: number; timestamp: number }>; // Free-form path
+  clip?: {
+    frames: ClipFrame[];
+    duration: number;         // milliseconds
+    fps: number;              // 24
+  };
 }
 
 type AnnotationTool = 'none' | 'circle' | 'rectangle' | 'arrow';
@@ -59,6 +75,7 @@ interface StellaMarker {
   selection: StellaSelection;
   state: 'selecting' | 'active' | 'submitting' | 'submitted';
   feedbackText?: string;
+  feedbackCategory?: FeedbackCategory; // User-selected category
   ticketId?: string;
   screenshot?: string;              // Full page screenshot
   selectedAreaScreenshot?: string;  // Cropped area screenshot
@@ -87,17 +104,27 @@ export default function StellaMarkerTool({
   const [selectedMode, setSelectedMode] = useState<StellaMode>('area'); // Default to area
   const [currentMarker, setCurrentMarker] = useState<StellaMarker | null>(null);
   
-  // Area selection state
-  const [isDrawingArea, setIsDrawingArea] = useState(false);
-  const [areaStart, setAreaStart] = useState<{ x: number; y: number } | null>(null);
+  // Area selection state - Use refs for immediate updates in event handlers
+  const isDrawingAreaRef = useRef(false);
+  const areaStartRef = useRef<{ x: number; y: number } | null>(null);
   const [currentArea, setCurrentArea] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [isDrawingAreaDisplay, setIsDrawingAreaDisplay] = useState(false); // For render only
   
-  // Magic brush state
-  const [isDrawingBrush, setIsDrawingBrush] = useState(false);
-  const [brushPath, setBrushPath] = useState<Array<{ x: number; y: number; timestamp: number }>>([]);
+  // Magic brush state - Use refs for immediate updates
+  const isDrawingBrushRef = useRef(false);
+  const brushPathRef = useRef<Array<{ x: number; y: number; timestamp: number }>>([]);
+  const [brushPathDisplay, setBrushPathDisplay] = useState<Array<{ x: number; y: number; timestamp: number }>>([]);
+  
+  // Clip recording state
+  const [isRecordingClip, setIsRecordingClip] = useState(false);
+  const [clipFrames, setClipFrames] = useState<ClipFrame[]>([]);
+  const [clipStartTime, setClipStartTime] = useState<number>(0);
+  const clipIntervalRef = useRef<number | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState<number>(0);
   
   // Feedback state
   const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackCategory, setFeedbackCategory] = useState<FeedbackCategory>('bug');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Annotation state
@@ -119,21 +146,37 @@ export default function StellaMarkerTool({
     setIsActive(false);
     setCurrentMarker(null);
     setCurrentArea(null);
-    setAreaStart(null);
-    setIsDrawingArea(false);
-    setBrushPath([]);
-    setIsDrawingBrush(false);
+    areaStartRef.current = null;
+    isDrawingAreaRef.current = false;
+    setIsDrawingAreaDisplay(false);
+    brushPathRef.current = [];
+    setBrushPathDisplay([]);
+    isDrawingBrushRef.current = false;
     setFeedbackText('');
     setAnnotations([]);
     setSelectedAnnotationTool('none');
   }
   
-  // Handle mouse down
+  // Use refs to avoid stale closures in event handlers
+  const isActiveRef = useRef(isActive);
+  const currentMarkerRef = useRef(currentMarker);
+  const selectedModeRef = useRef(selectedMode);
+  const isRecordingClipRef = useRef(isRecordingClip);
+  const currentAreaRef = useRef(currentArea);
+  
+  useEffect(() => {
+    isActiveRef.current = isActive;
+    currentMarkerRef.current = currentMarker;
+    selectedModeRef.current = selectedMode;
+    isRecordingClipRef.current = isRecordingClip;
+    currentAreaRef.current = currentArea;
+  }, [isActive, currentMarker, selectedMode, isRecordingClip, currentArea]);
+  
   const handleMouseDown = useCallback((event: MouseEvent) => {
-    console.log('🖱️ Mouse down detected - isActive:', isActive, 'currentMarker:', !!currentMarker, 'mode:', selectedMode);
+    console.log('🖱️ Mouse down detected - isActive:', isActiveRef.current, 'currentMarker:', !!currentMarkerRef.current, 'mode:', selectedModeRef.current);
     
-    if (!isActive || currentMarker) {
-      console.log('⚠️ Ignoring mouse down - isActive:', isActive, 'currentMarker exists:', !!currentMarker);
+    if (!isActiveRef.current || currentMarkerRef.current) {
+      console.log('⚠️ Ignoring mouse down - isActive:', isActiveRef.current, 'currentMarker exists:', !!currentMarkerRef.current);
       return; // Only one marker at a time
     }
     
@@ -143,92 +186,110 @@ export default function StellaMarkerTool({
     const { clientX, clientY } = event;
     console.log('📍 Mouse position:', clientX, clientY);
     
-    if (selectedMode === 'point') {
+    if (selectedModeRef.current === 'point') {
       console.log('👉 Creating point marker');
       createPointMarker(clientX, clientY);
-    } else if (selectedMode === 'area') {
+    } else if (selectedModeRef.current === 'area') {
       console.log('📦 Starting area selection');
-      setIsDrawingArea(true);
-      setAreaStart({ x: clientX, y: clientY });
+      isDrawingAreaRef.current = true;
+      setIsDrawingAreaDisplay(true);
+      areaStartRef.current = { x: clientX, y: clientY };
       setCurrentArea({ x: clientX, y: clientY, width: 0, height: 0 });
-    } else if (selectedMode === 'magic-brush') {
+    } else if (selectedModeRef.current === 'magic-brush') {
       console.log('🖌️ Starting magic brush');
-      setIsDrawingBrush(true);
-      setBrushPath([{ x: clientX, y: clientY, timestamp: Date.now() }]);
-    } else if (selectedMode === 'fullscreen') {
+      isDrawingBrushRef.current = true;
+      brushPathRef.current = [{ x: clientX, y: clientY, timestamp: Date.now() }];
+      setBrushPathDisplay([{ x: clientX, y: clientY, timestamp: Date.now() }]);
+    } else if (selectedModeRef.current === 'clip') {
+      console.log('🎬 Starting/stopping clip recording');
+      if (!isRecordingClipRef.current) {
+        startClipRecording();
+      } else {
+        stopClipRecording();
+      }
+    } else if (selectedModeRef.current === 'fullscreen') {
       console.log('📸 Creating fullscreen marker');
       createFullscreenMarker();
     }
-  }, [isActive, currentMarker, selectedMode]);
+  }, []);
   
   // Handle mouse move
   const handleMouseMove = useCallback((event: MouseEvent) => {
     const { clientX, clientY } = event;
     
     // Handle area drawing
-    if (isDrawingArea && areaStart) {
-      const width = clientX - areaStart.x;
-      const height = clientY - areaStart.y;
+    if (isDrawingAreaRef.current && areaStartRef.current) {
+      const width = clientX - areaStartRef.current.x;
+      const height = clientY - areaStartRef.current.y;
       
       setCurrentArea({
-        x: width < 0 ? clientX : areaStart.x,
-        y: height < 0 ? clientY : areaStart.y,
+        x: width < 0 ? clientX : areaStartRef.current.x,
+        y: height < 0 ? clientY : areaStartRef.current.y,
         width: Math.abs(width),
         height: Math.abs(height),
       });
     }
     
     // Handle magic brush drawing
-    if (isDrawingBrush) {
-      setBrushPath(prev => [...prev, { x: clientX, y: clientY, timestamp: Date.now() }]);
+    if (isDrawingBrushRef.current) {
+      const newPoint = { x: clientX, y: clientY, timestamp: Date.now() };
+      brushPathRef.current = [...brushPathRef.current, newPoint];
+      setBrushPathDisplay(prev => [...prev, newPoint]);
     }
-  }, [isDrawingArea, areaStart, isDrawingBrush]);
+  }, []);
   
   // Handle mouse up
   const handleMouseUp = useCallback((event: MouseEvent) => {
-    console.log('🖱️ Mouse up detected - isDrawingArea:', isDrawingArea, 'isDrawingBrush:', isDrawingBrush);
+    console.log('🖱️ Mouse up detected - isDrawingArea:', isDrawingAreaRef.current, 'isDrawingBrush:', isDrawingBrushRef.current);
     
     event.preventDefault();
     event.stopPropagation();
     
     // Handle area mode
-    if (isDrawingArea && currentArea) {
-      setIsDrawingArea(false);
+    if (isDrawingAreaRef.current && currentAreaRef.current) {
+      isDrawingAreaRef.current = false;
+      setIsDrawingAreaDisplay(false);
+      
+      const area = currentAreaRef.current;
       
       // Allow any selection (even small ones - user intention matters)
-      if (currentArea.width < 1 || currentArea.height < 1) {
+      if (area.width < 1 || area.height < 1) {
         console.log('⚠️ Selección inválida, ignorando');
-        setAreaStart(null);
+        areaStartRef.current = null;
         setCurrentArea(null);
         return;
       }
       
-      console.log('✅ Área seleccionada:', currentArea.width, 'x', currentArea.height, 'px');
-      createAreaMarker(currentArea);
-      setAreaStart(null);
+      console.log('✅ Área seleccionada:', area.width, 'x', area.height, 'px');
+      createAreaMarker(area);
+      areaStartRef.current = null;
       return;
     }
     
     // Handle magic brush mode
-    if (isDrawingBrush && brushPath.length > 0) {
-      setIsDrawingBrush(false);
+    if (isDrawingBrushRef.current && brushPathRef.current.length > 0) {
+      isDrawingBrushRef.current = false;
+      
+      const path = brushPathRef.current;
       
       // Require at least 5 points for a meaningful shape
-      if (brushPath.length < 5) {
+      if (path.length < 5) {
         console.log('⚠️ Path muy corto, ignorando (mínimo 5 puntos)');
-        setBrushPath([]);
+        brushPathRef.current = [];
+        setBrushPathDisplay([]);
         return;
       }
       
-      console.log('✅ Magic brush path:', brushPath.length, 'puntos - cerrando loop');
+      console.log('✅ Magic brush path:', path.length, 'puntos - cerrando loop');
       
       // Close the loop - add first point to end to create closed shape
-      const closedPath = [...brushPath, brushPath[0]];
+      const closedPath = [...path, path[0]];
       
       createBrushMarker(closedPath);
-      setBrushPath([]);
+      brushPathRef.current = [];
+      setBrushPathDisplay([]);
     }
-  }, [isDrawingArea, currentArea, areaStart, isDrawingBrush, brushPath]);
+  }, []);
   
   // Create markers
   async function createPointMarker(x: number, y: number) {
@@ -278,6 +339,155 @@ export default function StellaMarkerTool({
     
     setCurrentMarker(marker);
     await captureScreenshots(marker);
+  }
+  
+  // Start clip recording
+  async function startClipRecording() {
+    console.log('🎬 Iniciando grabación de clip a 24fps');
+    setIsRecordingClip(true);
+    setClipFrames([]);
+    setClipStartTime(Date.now());
+    setRecordingDuration(0);
+    
+    const FPS = 24;
+    const frameInterval = 1000 / FPS; // ~41.67ms per frame
+    
+    // Start recording frames
+    clipIntervalRef.current = window.setInterval(async () => {
+      try {
+        const { default: html2canvas } = await import('html2canvas');
+        
+        // Hide Stella UI temporarily
+        const stellaElements = document.querySelectorAll('[data-stella-ui]');
+        stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'hidden');
+        
+        // Capture frame
+        const canvas = await html2canvas(document.body, {
+          useCORS: true,
+          allowTaint: true,
+          scale: 0.5, // Lower quality for performance (can adjust)
+        });
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // JPEG for smaller size
+        
+        // Restore Stella UI
+        stellaElements.forEach(el => (el as HTMLElement).style.visibility = 'visible');
+        
+        // Get cursor position if available
+        const cursorPos = { x: 0, y: 0 }; // TODO: Track cursor position
+        
+        const frame: ClipFrame = {
+          timestamp: Date.now(),
+          dataUrl,
+          cursor: cursorPos,
+        };
+        
+        setClipFrames(prev => [...prev, frame]);
+        setRecordingDuration(Date.now() - clipStartTime);
+        
+        console.log('📸 Frame captured:', clipFrames.length + 1);
+        
+      } catch (error) {
+        console.error('Frame capture failed:', error);
+      }
+    }, frameInterval);
+  }
+  
+  // Stop clip recording
+  function stopClipRecording() {
+    console.log('🎬 Deteniendo grabación - Total frames:', clipFrames.length);
+    
+    if (clipIntervalRef.current) {
+      clearInterval(clipIntervalRef.current);
+      clipIntervalRef.current = null;
+    }
+    
+    setIsRecordingClip(false);
+    
+    if (clipFrames.length < 5) {
+      console.log('⚠️ Clip muy corto, ignorando');
+      setClipFrames([]);
+      return;
+    }
+    
+    // Create clip marker
+    const duration = Date.now() - clipStartTime;
+    createClipMarker(clipFrames, duration);
+  }
+  
+  async function createClipMarker(frames: ClipFrame[], duration: number) {
+    console.log('🎥 Creando clip marker:', frames.length, 'frames en', duration, 'ms');
+    
+    const marker: StellaMarker = {
+      id: `stella-${Date.now()}`,
+      selection: { 
+        mode: 'clip', 
+        clip: { 
+          frames, 
+          duration, 
+          fps: 24 
+        } 
+      },
+      state: 'selecting',
+    };
+    
+    setCurrentMarker(marker);
+    setClipFrames([]);
+    
+    // Generate AI inference from clip sequence
+    await generateClipInference(marker);
+  }
+  
+  // Generate AI inference from clip sequence
+  async function generateClipInference(marker: StellaMarker) {
+    if (!marker.selection.clip) return;
+    
+    setIsGeneratingInference(true);
+    
+    try {
+      const clip = marker.selection.clip;
+      const pageTitle = document.title;
+      const pageUrl = window.location.href;
+      
+      // Send first, middle, and last frames for analysis
+      const keyFrames = [
+        clip.frames[0],
+        clip.frames[Math.floor(clip.frames.length / 2)],
+        clip.frames[clip.frames.length - 1]
+      ];
+      
+      const response = await fetch('/api/stella/analyze-clip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pageUrl,
+          pageTitle,
+          keyFrames,
+          totalFrames: clip.frames.length,
+          duration: clip.duration,
+          fps: clip.fps,
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Clip analysis failed');
+      
+      const inference = await response.json();
+      
+      setCurrentMarker(prev => prev ? {
+        ...prev,
+        aiInference: inference,
+        state: 'active', // Activate feedback box
+      } : null);
+      
+      console.log('🤖 Clip AI Inference generada:', inference);
+      
+    } catch (error) {
+      console.error('Clip AI Inference failed (non-critical):', error);
+      // Still show feedback box even if AI fails
+      setCurrentMarker(prev => prev ? { ...prev, state: 'active' } : null);
+    } finally {
+      setIsGeneratingInference(false);
+    }
   }
   
   // Capture screenshots
@@ -693,6 +903,20 @@ export default function StellaMarkerTool({
                   </button>
                   
                   <button
+                    onClick={() => setSelectedMode('clip')}
+                    data-stella-ui
+                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
+                      selectedMode === 'clip'
+                        ? 'bg-white text-violet-600 shadow-md'
+                        : 'bg-white/20 text-white hover:bg-white/30'
+                    }`}
+                    title="Grabar Clip (24fps)"
+                  >
+                    <Video className="w-2 h-2" />
+                    <span>Clip</span>
+                  </button>
+                  
+                  <button
                     onClick={() => setSelectedMode('fullscreen')}
                     data-stella-ui
                     className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${
@@ -717,6 +941,8 @@ export default function StellaMarkerTool({
                   {!currentMarker && selectedMode === 'point' && 'Click donde quieras'}
                   {!currentMarker && selectedMode === 'area' && 'Arrastra área'}
                   {!currentMarker && selectedMode === 'magic-brush' && 'Dibuja libremente'}
+                  {!currentMarker && selectedMode === 'clip' && !isRecordingClip && 'Click para iniciar grabación'}
+                  {!currentMarker && selectedMode === 'clip' && isRecordingClip && `Grabando... ${Math.floor(recordingDuration / 1000)}s (Click para detener)`}
                   {!currentMarker && selectedMode === 'fullscreen' && 'Click para capturar'}
                   {currentMarker && 'Escribe feedback'}
                 </span>
@@ -734,7 +960,7 @@ export default function StellaMarkerTool({
           </div>
           
           {/* Drawing Area Rectangle */}
-          {isDrawingArea && currentArea && currentArea.width > 0 && currentArea.height > 0 && (
+          {isDrawingAreaDisplay && currentArea && currentArea.width > 0 && currentArea.height > 0 && (
             <div
               className="absolute border-4 border-violet-600 bg-violet-600/10"
               style={{
@@ -795,7 +1021,7 @@ export default function StellaMarkerTool({
       )}
       
       {/* Magic Brush - Drawing Path (while drawing) */}
-      {isDrawingBrush && brushPath.length > 0 && (
+      {isDrawingBrushRef.current && brushPathDisplay.length > 0 && (
         <svg
           className="fixed inset-0 z-35 pointer-events-none"
           style={{ width: '100%', height: '100%' }}
@@ -811,7 +1037,7 @@ export default function StellaMarkerTool({
           
           {/* Draw the path with glow - show live preview of closed shape */}
           <path
-            d={`M ${brushPath.map(p => `${p.x},${p.y}`).join(' L ')} Z`}
+            d={`M ${brushPathDisplay.map(p => `${p.x},${p.y}`).join(' L ')} Z`}
             stroke="url(#magicGradient)"
             strokeWidth="6"
             fill="rgba(251, 191, 36, 0.1)"
@@ -821,7 +1047,7 @@ export default function StellaMarkerTool({
           />
           
           {/* Stars along the path - animated */}
-          {brushPath.filter((_, idx) => idx % 8 === 0).map((point, idx) => (
+          {brushPathDisplay.filter((_, idx) => idx % 8 === 0).map((point, idx) => (
             <g key={`star-${idx}`} transform={`translate(${point.x}, ${point.y})`}>
               <polygon
                 points="0,-8 2.5,-2.5 8,0 2.5,2.5 0,8 -2.5,2.5 -8,0 -2.5,-2.5"
@@ -965,8 +1191,51 @@ export default function StellaMarkerTool({
               </div>
             </div>
             
+            {/* Categorías de Feedback */}
+            <div className="px-3 pt-3 pb-2">
+              <span className="text-xs font-semibold text-slate-700 block mb-2">Tipo de Feedback:</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFeedbackCategory('bug')}
+                  data-stella-ui
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    feedbackCategory === 'bug'
+                      ? 'bg-red-500 text-white shadow-md'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Bug className="w-3 h-3" />
+                  <span>Reportar Bug</span>
+                </button>
+                <button
+                  onClick={() => setFeedbackCategory('feature')}
+                  data-stella-ui
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    feedbackCategory === 'feature'
+                      ? 'bg-blue-500 text-white shadow-md'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Lightbulb className="w-3 h-3" />
+                  <span>Solicitar Feature</span>
+                </button>
+                <button
+                  onClick={() => setFeedbackCategory('improvement')}
+                  data-stella-ui
+                  className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    feedbackCategory === 'improvement'
+                      ? 'bg-green-500 text-white shadow-md'
+                      : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <TrendingUp className="w-3 h-3" />
+                  <span>Sugerir Mejora</span>
+                </button>
+              </div>
+            </div>
+            
             {/* Compact Feedback Input */}
-            <div className="p-3">
+            <div className="px-3 pb-3">
               <textarea
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}

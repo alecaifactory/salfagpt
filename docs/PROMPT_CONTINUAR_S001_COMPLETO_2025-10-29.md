@@ -6,6 +6,62 @@
 
 ---
 
+## 📊 SYSTEM STATUS (Localhost)
+
+```
+╔════════════════════════════════════════════════════════════════╗
+║               FLOW PLATFORM - SYSTEM STATUS                    ║
+║                  2025-10-29 21:42:10                           ║
+╠════════════════════════════════════════════════════════════════╣
+║                                                                ║
+║  🖥️  SYSTEM                                                    ║
+║  ├─ Uptime:        8 days, 6:26h                               ║
+║  ├─ Load Avg:      11.21, 6.16, 4.57                           ║
+║  └─ Platform:      macOS (darwin 24.1.0)                       ║
+║                                                                ║
+║  🚀 DEV SERVER (localhost:3000)                                ║
+║  ├─ Status:        🟢 Running                                  ║
+║  ├─ Uptime:        01:47:49                                    ║
+║  ├─ CPU Usage:     0.0%                                        ║
+║  ├─ Memory:        0.2% (225MB)                                ║
+║  └─ Port:          3000 (OAuth configured)                     ║
+║                                                                ║
+║  📦 PROJECT                                                     ║
+║  ├─ Branch:        main                                        ║
+║  ├─ Commits:       429                                         ║
+║  ├─ Uncommitted:   15 files (feedback system)                 ║
+║  ├─ Total Files:   240                                         ║
+║  ├─ TS Files:      224                                         ║
+║  └─ Components:    65                                          ║
+║                                                                ║
+║  🏗️  BUILD                                                      ║
+║  ├─ Last Build:    ✅ Yes (2025-10-29 21:41:13)                ║
+║  ├─ Build Size:    3.8M                                        ║
+║  ├─ Build Time:    6.56s                                       ║
+║  └─ Status:        ✅ Successful                               ║
+║                                                                ║
+║  ⚡ RECENT FIXES                                                ║
+║  ├─ Fix 1:         RoadmapModal.tsx JSX syntax                 ║
+║  │  └─ Status:     ✅ Fixed 21:41                              ║
+║  ├─ Fix 2:         StellaSidebarChat.tsx TDZ error             ║
+║  │  ├─ Cause:      currentSession used before declaration      ║
+║  │  └─ Status:     ✅ Fixed 23:02                              ║
+║  └─ Chat Status:   ✅ Loading normally now                     ║
+║                                                                ║
+╚════════════════════════════════════════════════════════════════╝
+```
+
+**To refresh stats, run:**
+```bash
+cd /Users/alec/salfagpt && ./scripts/system-stats.sh
+```
+
+**Script location:** `/Users/alec/salfagpt/scripts/system-stats.sh`  
+**Auto-detects:** Dev server PID, TypeScript errors, Firestore connection  
+**Updates:** All metrics in real-time
+
+---
+
 ## 📋 PROMPT PARA NUEVA CONVERSACIÓN
 
 ```

@@ -1,0 +1,1316 @@
+# CLI & Developer Ecosystem - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the CLI and npm/npx package ecosystem for Flow AI Platform, ensuring consistent developer experience, security practices, and extensible architecture for all developer-facing tools.
+
+---
+
+## 🏗️ Package Architecture
+
+### Current Packages (v0.1.0)
+
+**Primary Package:**
+```
+@flow-ai/cli - Flow AI Platform CLI
+├─ Version: 0.1.0
+├─ Type: Command-line interface
+├─ Purpose: Read-only access to platform analytics
+├─ Target: Domain admins, integration developers
+└─ Status: ✅ Production ready
+```
+
+### Future Packages (Planned)
+
+```
+@flow-ai/sdk           # JavaScript/TypeScript SDK (v0.4.0)
+@flow-ai/core          # Shared utilities and types (v0.4.0)
+@flow-ai/react         # React components (v0.5.0)
+@flow-ai/vue           # Vue components (v0.5.0)
+@flow-ai/webpack       # Webpack plugin (v0.5.0)
+@flow-ai/vite          # Vite plugin (v0.5.0)
+```
+
+---
+
+## 🔐 Security Model
+
+### API Key Architecture
+
+**Generation:**
+```typescript
+// 1. Generate 32-byte random key
+const apiKey = crypto.randomBytes(32).toString('base64url');
+// Format: <REDACTED_API_KEY>
+
+// 2. Hash before storage (SHA-256)
+const hashedKey = crypto
+  .createHash('sha256')
+  .update(apiKey)
+  .digest('hex');
+
+// 3. Store in Firestore
+await firestore.collection('api_keys').add({
+  key: hashedKey,              // Never plaintext
+  keyPreview: apiKey.slice(-8), // Last 8 chars for display
+  assignedTo: 'admin@domain.com',
+  domain: '@domain.com',
+  permissions: { canReadUsageStats: true },
+  expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+  isActive: true,
+});
+```
+
+**Critical Rules:**
+- ✅ ALWAYS hash API keys before storage (SHA-256)
+- ✅ NEVER store plaintext API keys
+- ✅ ALWAYS show key only once (after creation)
+- ✅ ALWAYS enforce domain isolation
+- ✅ ALWAYS check expiration on every request
+- ✅ ALWAYS log API usage for audit
+
+---
+
+### Authentication Flow
+
+```
+1. Developer runs: flow login <api-key>
+2. CLI saves to ~/.flow-cli/config.json (0600 permissions)
+3. CLI hashes key for verification
+4. CLI calls: GET /api/cli/auth/verify with X-API-Key header
+5. Server hashes received key
+6. Server queries: WHERE key == hash AND isActive == true
+7. Server checks expiration
+8. Server returns user info
+9. CLI caches user data
+10. All subsequent commands include X-API-Key header
+```
+
+---
+
+### Permission Model
+
+**v0.1.0 (Current):**
+```typescript
+interface APIKeyPermissions {
+  canReadUsageStats: boolean;     // ✅ View domain statistics
+}
+```
+
+**v0.2.0 (Planned):**
+```typescript
+interface APIKeyPermissions {
+  canReadUsageStats: boolean;     // View statistics
+  canReadAgents: boolean;         // View agent data
+  canReadContext: boolean;        // View context data
+  canSearchConversations: boolean; // Search capability
+}
+```
+
+**v0.3.0 (Planned):**
+```typescript
+interface APIKeyPermissions {
+  // Read permissions (from v0.2.0)
+  canReadUsageStats: boolean;
+  canReadAgents: boolean;
+  canReadContext: boolean;
+  canSearchConversations: boolean;
+  
+  // Write permissions (new)
+  canManageAgents: boolean;       // Create/update/delete agents
+  canManageContext: boolean;      // Upload/delete context
+  canRunEvaluations: boolean;     // Execute evaluations
+  canDeployAgents: boolean;       // Deploy to production
+}
+```
+
+---
+
+## 📦 Package Standards
+
+### Package Structure
+
+```
+@flow-ai/<package-name>/
+├── package.json           # NPM configuration
+├── tsconfig.json          # TypeScript config
+├── .npmignore             # Exclude from npm publish
+├── .gitignore             # Exclude from git
+├── LICENSE                # MIT license
+├── README.md              # User documentation
+├── CHANGELOG.md           # Version history
+├── src/
+│   ├── index.ts           # Main entry point
+│   ├── types.ts           # TypeScript definitions
+│   ├── config.ts          # Configuration management
+│   ├── api-client.ts      # API client (if applicable)
+│   └── commands/          # Command modules (for CLI)
+├── dist/                  # Compiled output
+├── docs/                  # Additional docs
+└── test/                  # Test files
+    ├── unit/
+    ├── integration/
+    └── e2e/
+```
+
+---
+
+### TypeScript Configuration
+
+**Standard tsconfig.json:**
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test"]
+}
+```
+
+**Why These Settings:**
+- `strict: true` - Catch errors early
+- `declaration: true` - Generate .d.ts files
+- `sourceMap: true` - Enable debugging
+- `ESNext` - Modern JavaScript features
+
+---
+
+### package.json Standards
+
+**Required Fields:**
+```json
+{
+  "name": "@flow-ai/<package-name>",
+  "version": "0.1.0",
+  "description": "Clear description of purpose",
+  "keywords": ["flow", "ai", "relevant-keywords"],
+  "author": "Flow AI Platform <hello@getaifactory.com>",
+  "license": "MIT",
+  "type": "module",
+  
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "prepublishOnly": "npm run build && npm test"
+  }
+}
+```
+
+---
+
+### .npmignore Standards
+
+**Always exclude:**
+```
+# Source files
+src/
+tsconfig.json
+*.test.ts
+*.spec.ts
+
+# Environment
+.env
+.env.*
+*.local
+config.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Documentation source (keep README.md)
+docs/
+
+# Development
+coverage/
+.nyc_output/
+```
+
+**Why:**
+- Reduces package size
+- Prevents secret leaks (.env files)
+- Professional package contents
+- Faster installs
+
+---
+
+## 🎨 Developer Experience Standards
+
+### 1. **CLI Output Standards**
+
+**Use chalk for colors:**
+```typescript
+import chalk from 'chalk';
+
+console.log(chalk.blue('🔐 Flow CLI Authentication'));
+console.log(chalk.green('✅ Success!'));
+console.log(chalk.red('❌ Error occurred'));
+console.log(chalk.yellow('⚠️  Warning'));
+console.log(chalk.dim('   Additional info...'));
+```
+
+**Use ora for spinners:**
+```typescript
+import ora from 'ora';
+
+const spinner = ora('Loading...').start();
+// Do work...
+spinner.succeed('Done!');  // ✅
+// or
+spinner.fail('Failed!');   // ❌
+```
+
+**Use table for data:**
+```typescript
+import { table } from 'table';
+
+const data = [
+  ['Name', 'Value'],
+  ['Users', '45'],
+  ['Cost', '$3.00']
+];
+
+console.log(table(data));
+```
+
+---
+
+### 2. **Error Message Standards**
+
+**Template:**
+```
+❌ [Clear problem statement]
+
+[Explanation of what went wrong]
+
+To fix:
+1. [First step to try]
+2. [Second step to try]
+3. [Third step to try]
+
+Still having issues?
+- Check: [relevant docs URL]
+- Email: hello@getaifactory.com
+```
+
+**Example:**
+```
+❌ Cannot connect to Flow API
+
+The CLI couldn't reach the Flow platform API endpoint.
+
+To fix:
+1. Check endpoint: flow config
+2. Verify platform is running: curl <endpoint>/health
+3. Update endpoint: flow login <key> --endpoint <url>
+
+Still having issues?
+- Check: https://docs.flow.ai/troubleshooting
+- Email: hello@getaifactory.com
+```
+
+---
+
+### 3. **Help Text Standards**
+
+**Template:**
+```
+Usage: flow <command> <args> [options]
+
+<Clear description of what this command does>
+
+Arguments:
+  <arg1>          Description of arg1
+  <arg2>          Description of arg2
+
+Options:
+  -o, --option    Description of option (default: value)
+  -h, --help      Display help
+
+Examples:
+  $ flow command arg1
+  $ flow command arg1 --option value
+  $ flow command arg1 --option value > output.json
+
+Learn more: https://docs.flow.ai/cli/command
+```
+
+---
+
+## 🔌 API Endpoint Standards
+
+### Endpoint Naming
+
+**Pattern**: `/api/cli/<resource>/<action>`
+
+**Examples:**
+```
+/api/cli/auth/verify          # Authentication
+/api/cli/usage-stats          # Statistics
+/api/cli/agents/list          # Future: List agents
+/api/cli/agents/:id           # Future: Get agent
+/api/cli/context/upload       # Future: Upload context
+```
+
+---
+
+### Request/Response Format
+
+**Request Headers:**
+```
+X-API-Key: <api-key>          # Required for all CLI endpoints
+Content-Type: application/json
+Accept: application/json
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": { ... },
+  "timestamp": "2025-10-30T10:00:00Z"
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "error": "Human-readable error message",
+  "code": "ERROR_CODE",
+  "details": "Technical details for debugging",
+  "suggestions": [
+    "First thing to try",
+    "Second thing to try"
+  ],
+  "timestamp": "2025-10-30T10:00:00Z"
+}
+```
+
+---
+
+### Authentication Middleware
+
+**Standard pattern for all CLI endpoints:**
+
+```typescript
+import type { APIRoute } from 'astro';
+import crypto from 'crypto';
+import { firestore } from '../../../lib/firestore';
+
+/**
+ * Verify API key and return user info
+ */
+async function verifyAPIKey(apiKey: string) {
+  const hashedKey = crypto
+    .createHash('sha256')
+    .update(apiKey)
+    .digest('hex');
+  
+  const snapshot = await firestore
+    .collection('api_keys')
+    .where('key', '==', hashedKey)
+    .where('isActive', '==', true)
+    .limit(1)
+    .get();
+  
+  if (snapshot.empty) {
+    return { valid: false };
+  }
+  
+  const keyData = snapshot.docs[0].data();
+  
+  // Check expiration
+  if (keyData.expiresAt && keyData.expiresAt.toDate() < new Date()) {
+    return { valid: false, error: 'expired' };
+  }
+  
+  // Update usage
+  await snapshot.docs[0].ref.update({
+    lastUsedAt: new Date(),
+    requestCount: (keyData.requestCount || 0) + 1,
+  });
+  
+  return {
+    valid: true,
+    assignedTo: keyData.assignedTo,
+    domain: keyData.domain,
+    permissions: keyData.permissions,
+  };
+}
+
+export const GET: APIRoute = async ({ request }) => {
+  // 1. Extract API key
+  const apiKey = request.headers.get('X-API-Key');
+  
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: 'Missing API key' }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // 2. Verify API key
+  const auth = await verifyAPIKey(apiKey);
+  
+  if (!auth.valid) {
+    return new Response(
+      JSON.stringify({ 
+        error: auth.error === 'expired' 
+          ? 'API key expired' 
+          : 'Invalid API key' 
+      }),
+      { status: 401, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // 3. Check permissions
+  if (!auth.permissions?.canDoSomething) {
+    return new Response(
+      JSON.stringify({ error: 'Insufficient permissions' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+  
+  // 4. Continue with authenticated request...
+};
+```
+
+---
+
+## 📊 CLI Command Standards
+
+### Command Structure
+
+**Template:**
+```typescript
+import chalk from 'chalk';
+import ora from 'ora';
+import { FlowAPIClient } from '../api-client.js';
+
+interface CommandOptions {
+  option1?: string;
+  option2?: boolean;
+}
+
+export async function myCommand(
+  requiredArg: string,
+  options: CommandOptions = {}
+): Promise<void> {
+  const client = new FlowAPIClient();
+  
+  // 1. Check authentication
+  if (!client.isAuthenticated()) {
+    console.log(chalk.red('❌ Not authenticated'));
+    console.log(chalk.dim('\nRun: flow login <your-api-key>'));
+    process.exit(1);
+  }
+  
+  // 2. Validate input
+  if (!requiredArg) {
+    console.log(chalk.red('❌ Missing required argument'));
+    console.log(chalk.dim('\nUsage: flow my-command <arg>'));
+    process.exit(1);
+  }
+  
+  // 3. Show progress
+  const spinner = ora({
+    text: `Processing ${requiredArg}...`,
+    color: 'blue',
+  }).start();
+  
+  try {
+    // 4. Make API call
+    const result = await client.request('/api/cli/my-endpoint', {
+      method: 'POST',
+      body: JSON.stringify({ arg: requiredArg, ...options }),
+    });
+    
+    spinner.stop();
+    
+    // 5. Handle errors
+    if (!result.success) {
+      console.log(chalk.red(`❌ Failed: ${result.error}`));
+      process.exit(1);
+    }
+    
+    // 6. Display results
+    console.log(chalk.green('\n✅ Success!'));
+    displayResults(result.data);
+    
+  } catch (error) {
+    spinner.stop();
+    console.log(chalk.red(`❌ Error: ${error.message}`));
+    process.exit(1);
+  }
+}
+
+function displayResults(data: any) {
+  // Format output nicely
+  console.log(chalk.blue.bold('\n📊 Results'));
+  // ... table or formatted output
+}
+```
+
+---
+
+### Command Registration
+
+**In src/index.ts:**
+```typescript
+import { Command } from 'commander';
+import { myCommand } from './commands/my-command.js';
+
+const program = new Command();
+
+program
+  .command('my-command <required-arg>')
+  .description('Clear description of what this does')
+  .option('-o, --option <value>', 'Option description', 'default')
+  .option('-f, --flag', 'Boolean flag description')
+  .action((arg, options) => myCommand(arg, options));
+```
+
+---
+
+## 🔧 Configuration Management
+
+### Config File Location
+
+**Path**: `~/.flow-cli/config.json`  
+**Permissions**: `0600` (owner read/write only)
+
+**Schema:**
+```typescript
+interface CLIConfig {
+  apiKey?: string;                  // Encrypted API key
+  apiEndpoint: string;              // Platform URL
+  userId?: string;                  // Cached user ID
+  userEmail?: string;               // Cached email
+  userRole?: string;                // Cached role
+  lastUpdated: string;              // ISO timestamp
+}
+```
+
+**Default Values:**
+```typescript
+{
+  apiEndpoint: 'http://localhost:3000',
+  lastUpdated: new Date().toISOString()
+}
+```
+
+---
+
+### Config Functions
+
+**Read config:**
+```typescript
+export function readConfig(): CLIConfig {
+  const configPath = join(homedir(), '.flow-cli', 'config.json');
+  
+  if (!existsSync(configPath)) {
+    return DEFAULT_CONFIG;
+  }
+  
+  try {
+    const data = readFileSync(configPath, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.warn('Failed to read config, using defaults');
+    return DEFAULT_CONFIG;
+  }
+}
+```
+
+**Write config:**
+```typescript
+export function writeConfig(config: CLIConfig): void {
+  const configDir = join(homedir(), '.flow-cli');
+  const configPath = join(configDir, 'config.json');
+  
+  // Ensure directory exists with secure permissions
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true, mode: 0o700 });
+  }
+  
+  // Write with owner-only permissions
+  writeFileSync(
+    configPath,
+    JSON.stringify({ ...config, lastUpdated: new Date().toISOString() }, null, 2),
+    { encoding: 'utf-8', mode: 0o600 }
+  );
+}
+```
+
+---
+
+## 🎯 Developer Use Cases
+
+### Use Case 1: Daily Cost Monitoring
+
+**Goal**: Track daily costs automatically
+
+**Implementation:**
+```bash
+#!/bin/bash
+# daily-cost-check.sh
+
+# Get today's stats
+STATS=$(flow usage-stats @company.com --days 1 --format json)
+
+# Extract cost
+COST=$(echo $STATS | jq -r '.totalCost')
+
+# Log to file
+echo "$(date +%Y-%m-%d),$COST" >> costs.csv
+
+# Alert if high
+if (( $(echo "$COST > 10.00" | bc -l) )); then
+  echo "⚠️  High cost: \$$COST" | mail -s "Flow Cost Alert" admin@company.com
+fi
+```
+
+**Schedule:**
+```cron
+0 9 * * * /path/to/daily-cost-check.sh
+```
+
+---
+
+### Use Case 2: Analytics Dashboard
+
+**Goal**: Display Flow stats in internal dashboard
+
+**Backend:**
+```typescript
+// api/routes/flow-stats.ts
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+export async function getFlowStats(req, res) {
+  const { domain, days = 7 } = req.query;
+  
+  try {
+    const { stdout } = await execAsync(
+      `flow usage-stats ${domain} --days ${days} --format json`
+    );
+    
+    const stats = JSON.parse(stdout);
+    
+    // Add to cache
+    cache.set(`flow-stats-${domain}`, stats, 300); // 5 min
+    
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+```
+
+**Frontend:**
+```typescript
+// Dashboard.tsx
+function FlowStatsWidget() {
+  const [stats, setStats] = useState(null);
+  
+  useEffect(() => {
+    fetch('/api/flow-stats?domain=@company.com&days=30')
+      .then(r => r.json())
+      .then(setStats);
+  }, []);
+  
+  if (!stats) return <Loading />;
+  
+  return (
+    <div className="stats-widget">
+      <h3>Flow Usage (Last 30 Days)</h3>
+      <Metric label="Active Users" value={stats.activeUsers} />
+      <Metric label="Messages" value={stats.totalMessages} />
+      <Metric label="Cost" value={`$${stats.totalCost.toFixed(2)}`} />
+      <Chart data={stats.modelUsage} />
+    </div>
+  );
+}
+```
+
+---
+
+### Use Case 3: CI/CD Integration
+
+**Goal**: Deploy agent from CI pipeline
+
+**GitHub Actions:**
+```yaml
+name: Deploy Agent
+
+on:
+  push:
+    paths:
+      - 'agents/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+      
+      - name: Install Flow CLI
+        run: npm install -g @flow-ai/cli@latest
+      
+      - name: Authenticate
+        run: flow login ${{ secrets.FLOW_API_KEY }}
+        env:
+          FLOW_API_KEY: ${{ secrets.FLOW_API_KEY }}
+      
+      - name: Deploy Agent (Future v0.3.0)
+        run: |
+          flow agents deploy ./agents/customer-service.yaml
+          flow agents verify customer-service
+      
+      - name: Run Tests (Future v0.3.0)
+        run: |
+          flow evaluate customer-service --suite tests/regression.json
+```
+
+---
+
+### Use Case 4: Bulk Operations
+
+**Goal**: Upload 100+ PDFs to agent context
+
+**Script:**
+```bash
+#!/bin/bash
+# bulk-upload.sh
+
+AGENT_ID="customer-service-bot"
+DOCS_DIR="./knowledge-base"
+
+echo "📁 Bulk Upload to Agent: $AGENT_ID"
+echo "Source: $DOCS_DIR"
+echo ""
+
+# Count files
+TOTAL=$(find $DOCS_DIR -name "*.pdf" | wc -l)
+echo "Found $TOTAL PDF files"
+echo ""
+
+# Upload each file (Future v0.3.0)
+COUNT=0
+for file in $DOCS_DIR/**/*.pdf; do
+  COUNT=$((COUNT + 1))
+  echo "[$COUNT/$TOTAL] Uploading: $(basename $file)"
+  
+  flow context upload "$file" --agent $AGENT_ID --model flash
+  
+  if [ $? -eq 0 ]; then
+    echo "  ✅ Success"
+  else
+    echo "  ❌ Failed"
+  fi
+done
+
+echo ""
+echo "✅ Bulk upload complete!"
+echo "   Uploaded: $COUNT files"
+echo "   Agent: $AGENT_ID"
+```
+
+---
+
+## 📚 Documentation Standards
+
+### README.md Structure
+
+**Required Sections:**
+```markdown
+# Package Name
+
+Brief description (1-2 sentences)
+
+## Installation
+
+npm install -g @flow-ai/package
+
+## Quick Start
+
+Minimal example (< 10 lines)
+
+## Usage
+
+All commands with examples
+
+## API Reference
+
+All functions/methods documented
+
+## Configuration
+
+All options explained
+
+## Troubleshooting
+
+Common issues + solutions
+
+## Support
+
+Where to get help
+
+## License
+
+MIT
+```
+
+---
+
+### API Documentation
+
+**Use JSDoc comments:**
+```typescript
+/**
+ * Get domain usage statistics
+ * 
+ * @param domain - Domain to query (e.g., '@mydomain.com')
+ * @param options - Query options
+ * @param options.days - Number of days to analyze (default: 7)
+ * @param options.format - Output format: 'table' | 'json' (default: 'table')
+ * @returns Promise<UsageStats>
+ * 
+ * @example
+ * ```typescript
+ * const stats = await getUsageStats('@company.com', { days: 30 });
+ * console.log('Total cost:', stats.totalCost);
+ * ```
+ * 
+ * @throws {Error} If API key is invalid or expired
+ * @throws {Error} If domain access is denied
+ */
+export async function getUsageStats(
+  domain: string,
+  options: UsageStatsOptions = {}
+): Promise<UsageStats> {
+  // Implementation...
+}
+```
+
+---
+
+## 🧪 Testing Standards
+
+### Test Coverage Requirements
+
+**Minimum:**
+- Unit tests: 80% coverage
+- Integration tests: Key flows covered
+- E2E tests: Happy path + error cases
+
+---
+
+### Test Structure
+
+```
+test/
+├── unit/
+│   ├── config.test.ts
+│   ├── api-client.test.ts
+│   └── utils.test.ts
+├── integration/
+│   ├── auth.test.ts
+│   └── commands.test.ts
+└── e2e/
+    └── full-flow.test.ts
+```
+
+---
+
+### Test Patterns
+
+**Unit Test:**
+```typescript
+// config.test.ts
+import { describe, it, expect } from 'vitest';
+import { readConfig, writeConfig } from '../src/config';
+
+describe('Config Management', () => {
+  it('should return default config if none exists', () => {
+    const config = readConfig();
+    expect(config.apiEndpoint).toBe('http://localhost:3000');
+  });
+  
+  it('should save and retrieve config', () => {
+    writeConfig({ apiKey: 'test-key' });
+    const config = readConfig();
+    expect(config.apiKey).toBe('test-key');
+  });
+});
+```
+
+---
+
+## 🚀 Release Process
+
+### Version Bumping
+
+**Semver Rules:**
+- **Patch** (0.1.0 → 0.1.1): Bug fixes
+- **Minor** (0.1.0 → 0.2.0): New features, backward compatible
+- **Major** (0.1.0 → 1.0.0): Breaking changes
+
+**Example:**
+```bash
+# Bug fix release
+npm version patch -m "fix: Resolve authentication issue"
+
+# Feature release
+npm version minor -m "feat: Add agent management commands"
+
+# Breaking change (avoid if possible)
+npm version major -m "BREAKING: Change API response format"
+```
+
+---
+
+### Pre-Release Checklist
+
+```markdown
+- [ ] All tests passing
+- [ ] TypeScript compiles (0 errors)
+- [ ] Documentation updated
+- [ ] CHANGELOG.md updated
+- [ ] Version bumped in package.json
+- [ ] README.md examples verified
+- [ ] Breaking changes documented (if any)
+- [ ] Migration guide provided (if breaking)
+```
+
+---
+
+### Publishing
+
+```bash
+# 1. Build
+npm run build
+
+# 2. Test locally
+npm link
+flow --version
+
+# 3. Test in new project
+npm pack
+npm install -g ./flow-ai-cli-0.1.0.tgz
+flow --version
+
+# 4. Dry run publish
+npm publish --dry-run
+
+# 5. Actually publish
+npm publish --access public
+
+# 6. Verify
+npm view @flow-ai/cli
+npm install -g @flow-ai/cli@latest
+
+# 7. Tag release
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+---
+
+## 🎯 Developer Onboarding
+
+### New Developer Checklist
+
+**Week 1:**
+- [ ] Install Flow CLI
+- [ ] Get API key from admin
+- [ ] Run first usage-stats command
+- [ ] Integrate into one internal tool
+
+**Week 2:**
+- [ ] Build small integration (dashboard widget)
+- [ ] Automate one workflow (cost monitoring)
+- [ ] Provide feedback on DX
+
+**Month 1:**
+- [ ] Build production integration
+- [ ] Contribute to documentation
+- [ ] Share use case with community
+
+---
+
+## 📖 Reference Documentation
+
+### Internal Docs
+- `docs/CLI_API_KEY_SYSTEM_2025-10-30.md` - Complete system
+- `docs/CLI_QUICK_START.md` - User quick start
+- `docs/CLI_VISUAL_GUIDE_2025-10-30.md` - Visual diagrams
+- `packages/flow-cli/README.md` - Package documentation
+
+### External Resources
+- [npm CLI Best Practices](https://docs.npmjs.com/cli/v10/using-npm/developers)
+- [Commander.js Documentation](https://github.com/tj/commander.js)
+- [TypeScript for CLI Tools](https://www.typescriptlang.org/)
+
+---
+
+## ✅ Success Criteria
+
+A well-built developer package should:
+
+### User Experience
+- ✅ Install in < 30 seconds
+- ✅ First use in < 5 minutes
+- ✅ Clear error messages
+- ✅ Beautiful output
+- ✅ Fast responses (< 3s)
+
+### Code Quality
+- ✅ TypeScript strict mode
+- ✅ 80%+ test coverage
+- ✅ 0 npm vulnerabilities
+- ✅ < 500 KB bundle size
+- ✅ Tree-shakeable
+
+### Documentation
+- ✅ Comprehensive README
+- ✅ Quick start guide
+- ✅ API reference
+- ✅ Examples for every command
+- ✅ Troubleshooting section
+
+### Security
+- ✅ No secrets in package
+- ✅ Secure config storage
+- ✅ Input validation
+- ✅ Error messages don't leak data
+- ✅ Audit logging
+
+### Community
+- ✅ Open source (MIT license)
+- ✅ GitHub repository
+- ✅ Issue tracker
+- ✅ Contributing guide
+- ✅ Code of conduct
+
+---
+
+## 🌟 Best Practices Summary
+
+### DO's ✅
+
+1. ✅ **Hash API keys** before storage (SHA-256)
+2. ✅ **Validate all input** from users
+3. ✅ **Provide helpful errors** with recovery steps
+4. ✅ **Use standard tools** (commander, chalk, ora)
+5. ✅ **Test thoroughly** before publishing
+6. ✅ **Document everything** with examples
+7. ✅ **Version semver** (backward compatibility)
+8. ✅ **Secure by default** (read-only first, permissions)
+
+---
+
+### DON'Ts ❌
+
+1. ❌ **Never store plaintext secrets** in package
+2. ❌ **Never publish .env files** to npm
+3. ❌ **Never make breaking changes** without major version
+4. ❌ **Never skip input validation**
+5. ❌ **Never show stack traces** to users
+6. ❌ **Never hardcode credentials** in code
+7. ❌ **Never deploy without tests**
+8. ❌ **Never publish without .npmignore**
+
+---
+
+## 📊 Monitoring & Analytics
+
+### Track Package Health
+
+**NPM Metrics:**
+```bash
+# Weekly downloads
+npm info @flow-ai/cli --json | jq '.time, .downloads'
+
+# Version distribution
+npm info @flow-ai/cli versions
+
+# Dependent packages
+npm info @flow-ai/cli --json | jq '.dependents'
+```
+
+**GitHub Metrics:**
+- Stars, forks, watchers
+- Open vs closed issues
+- PR merge rate
+- Contributor count
+
+---
+
+### Track API Usage
+
+**Firestore Query:**
+```typescript
+// Get API key usage stats
+const apiKeysSnapshot = await firestore
+  .collection('api_keys')
+  .where('isActive', '==', true)
+  .get();
+
+const stats = apiKeysSnapshot.docs.map(doc => {
+  const data = doc.data();
+  return {
+    name: data.name,
+    assignedTo: data.assignedTo,
+    requestCount: data.requestCount,
+    lastUsedAt: data.lastUsedAt?.toDate(),
+  };
+});
+
+// Sort by usage
+stats.sort((a, b) => b.requestCount - a.requestCount);
+console.table(stats);
+```
+
+---
+
+## 🎓 Key Lessons
+
+### From v0.1.0 Implementation
+
+1. ✅ **Start simple**: Single use case (usage stats) was perfect
+2. ✅ **Security first**: Hashing from day 1 prevents retrofitting
+3. ✅ **Beautiful UX**: Professional output increases adoption
+4. ✅ **Read-only first**: Safer, faster to ship, immediate value
+5. ✅ **Comprehensive docs**: Reduces support burden
+
+---
+
+### For Future Versions
+
+1. 🔜 **Streaming for large data**: Don't load everything in memory
+2. 🔜 **Pagination**: Limit query sizes for performance
+3. 🔜 **Caching**: Reduce API calls, faster responses
+4. 🔜 **Webhooks**: Real-time updates instead of polling
+5. 🔜 **SDK over CLI**: Better for programmatic access
+
+---
+
+## 🔮 Future Vision
+
+### Year 1: CLI Maturity
+
+**Goals:**
+- ✅ v0.1.0: Read-only stats (Done!)
+- 🔜 v0.2.0: Read agents & context
+- 🔜 v0.3.0: Write operations
+- 🔜 v0.4.0: JavaScript/TypeScript SDK
+
+**Metrics:**
+- 1,000+ npm downloads/month
+- 50+ active API keys
+- 10+ integrations built
+- 4.5+ / 5 npm rating
+
+---
+
+### Year 2: Ecosystem Growth
+
+**Goals:**
+- Plugin system for extensions
+- React/Vue component libraries
+- Marketplace for community packages
+- Developer certification program
+
+**Metrics:**
+- 10,000+ npm downloads/month
+- 100+ active developers
+- 50+ community packages
+- 100+ GitHub stars
+
+---
+
+### Year 3: Platform Standard
+
+**Goals:**
+- Flow SDK in multiple languages (Python, Go, Ruby)
+- Enterprise developer program
+- Partner ecosystem
+- Flow-as-a-Service (white-label)
+
+**Metrics:**
+- 100,000+ npm downloads/month
+- 1,000+ active developers
+- 500+ integrations
+- Industry-standard tool
+
+---
+
+## ✅ Current Status (v0.1.0)
+
+**Package**: ✅ `@flow-ai/cli` built and tested  
+**Security**: ✅ Enterprise-grade (SHA-256, domain isolation, expiration)  
+**DX**: ✅ Beautiful terminal output, clear errors  
+**Docs**: ✅ Comprehensive (8 files)  
+**Testing**: ✅ Ready for user testing  
+
+**Next**: Deploy → Publish → Developer adoption! 🚀
+
+---
+
+**Last Updated**: 2025-10-30  
+**Version**: 1.0.0  
+**Status**: ✅ Active Development  
+**Package Version**: v0.1.0 (Read-Only Usage Stats)
+
+---
+
+**Remember**: Developers are key users. Make their experience delightful, and they'll build amazing things with Flow! 🎉

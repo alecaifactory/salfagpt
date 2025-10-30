@@ -1,98 +1,88 @@
+/**
+ * API Endpoint: Get Feedback Tickets
+ * GET /api/feedback/tickets?companyId={companyId}
+ * 
+ * Returns all feedback tickets for the roadmap system
+ * 
+ * 🔒 Security: Only accessible by alec@getaifactory.com
+ */
+
 import type { APIRoute } from 'astro';
 import { firestore } from '../../../lib/firestore';
-import { getSession } from '../../../lib/auth';
-import type { FeedbackTicket } from '../../../types/feedback';
+import { verifyJWT } from '../../../lib/auth';
 
-/**
- * GET /api/feedback/tickets
- * 
- * List all feedback tickets (SuperAdmin/Admin only)
- * Supports filtering by status, priority, category
- */
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
-    // 1. Authenticate
-    const session = getSession({ cookies });
-    if (!session) {
+    // 1. Verify authentication
+    const token = cookies.get('flow_session')?.value;
+    
+    if (!token) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
-
-    // 2. Check permissions (admin, expert, or superadmin only)
-    const url = new URL(request.url);
-    const userId = url.searchParams.get('userId');
-
-    if (!userId || session.id !== userId) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if user has admin permissions
-    const userDoc = await firestore.collection('users').doc(userId).get();
-    const userData = userDoc.data();
     
-    if (!userData || !['admin', 'expert'].includes(userData.role)) {
+    const session = verifyJWT(token);
+    
+    if (!session) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Admin access required' }),
+        JSON.stringify({ error: 'Invalid session' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // 2. CRITICAL: Only allow alec@getaifactory.com
+    if (session.email !== 'alec@getaifactory.com') {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
-
-    // 3. Get filter parameters
-    const status = url.searchParams.get('status');
-    const priority = url.searchParams.get('priority');
-    const category = url.searchParams.get('category');
-
-    // 4. Build query
-    let query = firestore.collection('feedback_tickets').orderBy('createdAt', 'desc');
-
-    if (status && status !== 'all') {
-      query = query.where('status', '==', status) as any;
+    
+    // 3. Get companyId from query
+    const url = new URL(request.url);
+    const companyId = url.searchParams.get('companyId');
+    
+    if (!companyId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing companyId parameter' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
-    if (priority && priority !== 'all') {
-      query = query.where('priority', '==', priority) as any;
-    }
-    if (category && category !== 'all') {
-      query = query.where('category', '==', category) as any;
-    }
-
-    // 5. Execute query
-    const snapshot = await query.limit(100).get();
-
-    const tickets: FeedbackTicket[] = snapshot.docs.map((doc) => ({
+    
+    // 4. Load feedback tickets
+    const ticketsSnapshot = await firestore
+      .collection('feedback_tickets')
+      .where('companyId', '==', companyId)
+      .orderBy('createdAt', 'desc')
+      .limit(100) // Limit for performance
+      .get();
+    
+    // 5. Transform data
+    const tickets = ticketsSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-      resolvedAt: doc.data().resolvedAt?.toDate(),
-    })) as FeedbackTicket[];
-
-    console.log(`✅ Loaded ${tickets.length} tickets for user ${userId}`);
-
-    // 6. Return tickets
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
+    }));
+    
+    console.log(`✅ Loaded ${tickets.length} feedback tickets for ${companyId}`);
+    
     return new Response(
-      JSON.stringify({ tickets }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      JSON.stringify(tickets),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
+    
   } catch (error) {
-    console.error('❌ Error loading tickets:', error);
+    console.error('❌ Error loading feedback tickets:', error);
+    
     return new Response(
       JSON.stringify({
-        error: 'Internal server error',
-        details: error instanceof Error ? error.message : 'Unknown error',
+        error: 'Failed to load feedback tickets',
+        details: error instanceof Error ? error.message : String(error)
       }),
-      {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
 };
-
