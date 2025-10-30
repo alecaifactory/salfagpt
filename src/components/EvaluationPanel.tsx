@@ -387,9 +387,19 @@ function CreateEvaluationModal({
       if (!response.ok) throw new Error('Failed to load agents');
       const data = await response.json();
       
-      // Extract agents from groups
+      // Extract agents from groups and filter only active (not archived or deleted)
       const allAgents = data.groups?.flatMap((g: any) => g.conversations || []) || [];
-      setAgents(allAgents);
+      
+      // Filter: Only active agents (status !== 'archived' and not deleted)
+      const activeAgents = allAgents.filter((agent: any) => 
+        agent.status !== 'archived' && 
+        agent.status !== 'deleted' &&
+        !agent.isArchived && // Alternative field name
+        !agent.isDeleted     // Alternative field name
+      );
+      
+      setAgents(activeAgents);
+      console.log('📋 Loaded agents:', activeAgents.length, 'active (filtered from', allAgents.length, 'total)');
     } catch (error) {
       console.error('Error loading agents:', error);
     }

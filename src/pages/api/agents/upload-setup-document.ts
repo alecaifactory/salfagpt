@@ -34,7 +34,8 @@ export const POST: APIRoute = async ({ request }) => {
     console.log('📄 File:', file.name, file.type, file.size, 'bytes');
 
     // 1. Upload to Cloud Storage
-    const bucketName = `${process.env.GOOGLE_CLOUD_PROJECT}-agent-setup-docs`;
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
+    const bucketName = `${projectId}-agent-setup-docs`;
     const bucket = storage.bucket(bucketName);
     
     // Create bucket if doesn't exist
