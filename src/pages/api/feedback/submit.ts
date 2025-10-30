@@ -109,21 +109,36 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     console.log(`✅ Feedback created: ${feedbackId} (${feedbackType})`);
 
-    // 7. Create basic ticket (simplified - no AI for MVP)
+    // 7. Create ticket with complete metadata for roadmap integration
     let ticketId: string | undefined;
     try {
+      // Extract domain from email
+      const userDomain = userEmail.split('@')[1] || 'unknown';
+      
+      // Determine feedback category based on type and content
+      const feedbackCategory = determineFeedbackCategory(feedbackType, expertRating, userStars, expertNotes || userComment);
+      
       const ticketData: any = {
         feedbackId,
         messageId,
         conversationId,
-        title: generateBasicTitle(feedbackType, expertRating || userStars),
+        
+        // ✅ Title and description
+        title: generateDetailedTitle(feedbackType, expertRating || userStars, expertNotes || userComment),
         description: expertNotes || userComment || 'Sin descripción',
-        category: 'other',
+        
+        // ✅ Categorization for roadmap
+        category: feedbackCategory,
+        feedbackSource: feedbackType, // 'expert' or 'user'
         priority: determinePriority(feedbackType, expertRating, userStars),
         status: 'new',
+        lane: 'backlog', // ✅ Always starts in backlog
+        
+        // ✅ User information for prioritization
         reportedBy: userId,
         reportedByEmail: userEmail,
         reportedByRole: userRole,
+        userDomain: userDomain,
         
         // ✅ CRITICAL: originalFeedback must always be present
         originalFeedback: {
@@ -140,8 +155,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           csatScore,
         }),
         
-        userImpact: 'medium',
+        // ✅ Roadmap metadata
+        userImpact: determineUserImpact(feedbackType, expertRating, userStars),
         estimatedEffort: 'm',
+        upvotes: 0,
+        upvotedBy: [],
+        shares: 0,
+        
+        // ✅ Timestamps
         createdAt: new Date(),
         updatedAt: new Date(),
         source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
@@ -194,6 +215,78 @@ function generateBasicTitle(feedbackType: string, rating: any): string {
   const type = feedbackType === 'expert' ? 'Experto' : 'Usuario';
   const ratingText = typeof rating === 'string' ? rating : `${rating}/5`;
   return `Feedback ${type}: ${ratingText}`;
+}
+
+function generateDetailedTitle(feedbackType: string, rating: any, comment?: string): string {
+  const type = feedbackType === 'expert' ? 'Experto' : 'Usuario';
+  
+  // Try to extract meaningful title from comment
+  if (comment && comment.length > 0) {
+    const firstLine = comment.split('\n')[0];
+    const titleText = firstLine.length > 60 
+      ? firstLine.substring(0, 57) + '...'
+      : firstLine;
+    return `${titleText}`;
+  }
+  
+  const ratingText = typeof rating === 'string' 
+    ? rating.charAt(0).toUpperCase() + rating.slice(1)
+    : `${rating}/5 estrellas`;
+  
+  return `Feedback ${type}: ${ratingText}`;
+}
+
+function determineFeedbackCategory(
+  feedbackType: string, 
+  expertRating: any, 
+  userStars: any, 
+  comment?: string
+): string {
+  const lowerComment = (comment || '').toLowerCase();
+  
+  // Detect category from comment keywords
+  if (lowerComment.includes('error') || lowerComment.includes('bug') || lowerComment.includes('falla')) {
+    return 'bug';
+  }
+  if (lowerComment.includes('lento') || lowerComment.includes('performance') || lowerComment.includes('demora')) {
+    return 'performance';
+  }
+  if (lowerComment.includes('ui') || lowerComment.includes('interfaz') || lowerComment.includes('diseño')) {
+    return 'ui-improvement';
+  }
+  if (lowerComment.includes('feature') || lowerComment.includes('funcionalidad') || lowerComment.includes('agregar')) {
+    return 'feature-request';
+  }
+  if (lowerComment.includes('respuesta') || lowerComment.includes('contexto') || lowerComment.includes('pdf')) {
+    return 'content-quality';
+  }
+  if (lowerComment.includes('agente') || lowerComment.includes('comportamiento')) {
+    return 'agent-behavior';
+  }
+  
+  // Default by rating
+  if (feedbackType === 'expert') {
+    if (expertRating === 'inaceptable') return 'bug';
+    if (expertRating === 'sobresaliente') return 'feature-request';
+  } else {
+    if (userStars <= 2) return 'bug';
+    if (userStars >= 4) return 'feature-request';
+  }
+  
+  return 'other';
+}
+
+function determineUserImpact(feedbackType: string, expertRating: any, userStars: any): string {
+  if (feedbackType === 'expert') {
+    if (expertRating === 'inaceptable') return 'high';
+    if (expertRating === 'aceptable') return 'medium';
+    return 'low'; // sobresaliente = positive feedback
+  } else {
+    const stars = userStars || 0;
+    if (stars <= 2) return 'high'; // Negative feedback = high impact
+    if (stars === 3) return 'medium';
+    return 'low'; // Positive feedback = low priority (already working well)
+  }
 }
 
 function determinePriority(feedbackType: string, expertRating: any, userStars: any): string {

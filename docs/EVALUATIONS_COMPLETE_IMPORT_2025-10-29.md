@@ -673,3 +673,4 @@ npm run dev
 **S001:** 66 sample questions ✅  
 **Ready:** Testing sistemático o exploración
 
+

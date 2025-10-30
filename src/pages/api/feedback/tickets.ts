@@ -40,34 +40,35 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       );
     }
     
-    // 3. Get companyId from query
+    // 3. Get companyId from query (optional - if not provided, load all)
     const url = new URL(request.url);
     const companyId = url.searchParams.get('companyId');
     
-    if (!companyId) {
-      return new Response(
-        JSON.stringify({ error: 'Missing companyId parameter' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    // 4. Load feedback tickets (without orderBy to avoid index requirement)
+    let query: any = firestore.collection('feedback_tickets');
+    
+    // Filter by domain if provided
+    if (companyId && companyId !== 'all') {
+      query = query.where('userDomain', '==', companyId);
     }
     
-    // 4. Load feedback tickets
-    const ticketsSnapshot = await firestore
-      .collection('feedback_tickets')
-      .where('companyId', '==', companyId)
-      .orderBy('createdAt', 'desc')
-      .limit(100) // Limit for performance
-      .get();
+    const ticketsSnapshot = await query.limit(200).get();
     
-    // 5. Transform data
-    const tickets = ticketsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || new Date(),
-      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(),
-    }));
+    // 5. Transform data and sort in memory
+    const tickets = ticketsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
+      };
+    });
     
-    console.log(`✅ Loaded ${tickets.length} feedback tickets for ${companyId}`);
+    // Sort by createdAt desc in memory
+    tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    
+    console.log(`✅ Loaded ${tickets.length} feedback tickets${companyId ? ` for ${companyId}` : ''}`);
     
     return new Response(
       JSON.stringify(tickets),

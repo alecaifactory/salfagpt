@@ -136,3 +136,4 @@ docs/GUIA_TESTING_PARA_SEBASTIAN_2025-10-29.md
 **Backward Compatible:** ✅ Sí
 
 
+
