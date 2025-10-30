@@ -27,7 +27,8 @@
     "build:cli": "tsc cli/index.ts --outDir dist/cli --module esnext --target es2022 --moduleResolution bundler",
     "prepublishOnly": "npm run build:cli",
     "verify:agents": "tsx scripts/verify-agents.ts",
-    "fix:mark-agents": "tsx scripts/fix-mark-agents.ts"
+    "fix:mark-agents": "tsx scripts/fix-mark-agents.ts",
+    "test:mcp": "tsx scripts/test-mcp-server.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

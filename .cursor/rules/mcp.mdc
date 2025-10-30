@@ -1,0 +1,1289 @@
+---
+alwaysApply: true
+---
+
+# MCP (Model Context Protocol) Development Rules - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the MCP (Model Context Protocol) architecture, development patterns, and best practices for building AI assistant integrations with the Flow platform.
+
+---
+
+## 🏗️ MCP Architecture Overview
+
+### What is MCP?
+
+**Model Context Protocol (MCP)** is a standard protocol for providing secure, structured access to data for AI assistants like Cursor.
+
+**Flow's MCP Implementation:**
+```
+┌─────────────────────────────────────────────────────────┐
+│                 MCP SERVER ECOSYSTEM                     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  AI Assistant (Cursor, etc.)                            │
+│      ↓ (MCP Protocol - JSON-RPC 2.0)                    │
+│  MCP Server (Flow Platform)                             │
+│      ├─ Authentication (Session + API Key)              │
+│      ├─ Authorization (Role + Domain)                   │
+│      ├─ Resource Providers                              │
+│      │   ├─ usage-stats (v1.0.0)                        │
+│      │   ├─ agent-health (planned)                      │
+│      │   └─ custom-resources (extensible)               │
+│      └─ Tool Providers (future)                         │
+│          ├─ create-agent                                │
+│          └─ update-config                               │
+│                                                         │
+│  Firestore Database                                     │
+│      ├─ mcp_servers (server configs)                    │
+│      ├─ mcp_api_keys (authentication)                   │
+│      └─ [platform collections]                          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🚨 Critical MCP Rules
+
+### 1. ✅ ALWAYS Implement Three-Layer Security
+
+**Layer 1: Session Authentication**
+```typescript
+// ALWAYS verify session first
+const session = getSession({ cookies });
+if (!session) {
+  return unauthorized();
+}
+```
+
+**Layer 2: API Key Verification**
+```typescript
+// ALWAYS verify API key
+const apiKey = request.headers.get('Authorization')?.replace('Bearer ', '');
+const server = await verifyAPIKey(apiKey);
+if (!server || !server.isActive || isExpired(server)) {
+  return unauthorized();
+}
+```
+
+**Layer 3: Role & Domain Authorization**
+```typescript
+// ALWAYS verify role and domain access
+const user = await getUser(session.id);
+if (!['superadmin', 'admin'].includes(user.role)) {
+  return forbidden();
+}
+
+// Admin: Verify domain match
+if (user.role === 'admin') {
+  const userDomain = user.email.split('@')[1];
+  const requestedDomain = extractDomainFromURI(uri);
+  if (userDomain !== requestedDomain) {
+    return forbidden('Domain mismatch');
+  }
+}
+```
+
+**Why?**
+- Defense in depth
+- Multiple failure points
+- Clear security boundaries
+- Audit trail at each layer
+
+---
+
+### 2. ✅ ALWAYS Follow MCP Protocol Standard
+
+**Request Format (JSON-RPC 2.0):**
+```typescript
+interface MCPRequest {
+  jsonrpc: '2.0';
+  method: 'resources/list' | 'resources/read' | 'tools/list' | 'tools/call';
+  params?: {
+    uri?: string;
+    name?: string;
+    arguments?: Record<string, any>;
+  };
+  id: string | number;
+}
+```
+
+**Response Format:**
+```typescript
+// Success
+{
+  jsonrpc: '2.0',
+  result: any,
+  id: string | number
+}
+
+// Error
+{
+  jsonrpc: '2.0',
+  error: {
+    code: number,
+    message: string,
+    data?: any
+  },
+  id: string | number
+}
+```
+
+**Never:**
+- ❌ Deviate from JSON-RPC 2.0 spec
+- ❌ Return non-standard responses
+- ❌ Use custom error formats
+- ❌ Skip `id` field
+
+---
+
+### 3. ✅ ALWAYS Use TypeScript Interfaces
+
+**Define types for everything:**
+```typescript
+// src/types/mcp.ts
+
+// Server configuration
+export interface MCPServer {
+  id: string;
+  name: string;
+  type: string;
+  assignedDomains: string[];
+  allowedRoles: ('superadmin' | 'admin')[];
+  resources: string[];
+  // ... all fields typed
+}
+
+// API key
+export interface MCPAPIKey {
+  id: string;
+  serverId: string;
+  keyHash: string;
+  // ... all fields typed
+}
+
+// Resource data
+export interface UsageSummary {
+  domain: string;
+  totalAgents: number;
+  // ... all fields typed
+}
+```
+
+**Why?**
+- Compile-time safety
+- Better IDE autocomplete
+- Self-documenting code
+- Easier refactoring
+
+---
+
+### 4. ✅ ALWAYS Enforce Domain Isolation
+
+**Pattern:**
+```typescript
+async function getDataForDomain(
+  domainId: string,
+  userId: string
+): Promise<any> {
+  // 1. Get user to check role
+  const user = await getUser(userId);
+  
+  // 2. Verify domain access
+  const userDomain = user.email.split('@')[1];
+  
+  if (user.role !== 'superadmin' && domainId !== userDomain) {
+    throw new Error('Forbidden - Domain mismatch');
+  }
+  
+  // 3. Query data for domain (not all data)
+  const users = await getUsersInDomain(domainId); // Filtered!
+  const data = await getData(users.map(u => u.id));
+  
+  return data;
+}
+```
+
+**Never:**
+- ❌ Return cross-domain data
+- ❌ Skip domain verification
+- ❌ Trust client-provided domain
+- ❌ Query all data without filtering
+
+---
+
+### 5. ✅ ALWAYS Return Structured, AI-Friendly Data
+
+**Good - Structured for AI:**
+```typescript
+// Clear, nested structure
+{
+  domain: 'getaifactory.com',
+  summary: {
+    totalAgents: 45,
+    totalMessages: 234,
+    activeUsers: 3
+  },
+  breakdown: {
+    byModel: {
+      flash: { count: 40, percentage: 88.9 },
+      pro: { count: 5, percentage: 11.1 }
+    }
+  },
+  metadata: {
+    timestamp: '2025-10-30T10:00:00Z',
+    period: 'all-time'
+  }
+}
+```
+
+**Bad - Unstructured:**
+```typescript
+// Flat, unclear
+{
+  d: 'getaifactory.com',
+  ta: 45,
+  tm: 234,
+  au: 3,
+  fc: 40,
+  fp: 88.9,
+  pc: 5,
+  pp: 11.1,
+  ts: 1698667200
+}
+```
+
+**Why?**
+- AI can understand structure
+- Field names are descriptive
+- Nested for context
+- Metadata included
+
+---
+
+## 📋 MCP Server Development Patterns
+
+### Creating a New MCP Server
+
+**File Structure:**
+```
+src/
+├── mcp/
+│   ├── README.md
+│   ├── usage-stats.ts           # Existing
+│   └── your-server.ts            # New server
+├── pages/api/mcp/
+│   ├── usage-stats.ts           # Existing endpoint
+│   └── your-server.ts            # New endpoint
+└── types/
+    └── mcp.ts                    # Add your types here
+```
+
+**Implementation Template:**
+
+```typescript
+// src/mcp/your-server.ts
+import { firestore } from '../lib/firestore';
+import type { YourResource } from '../types/mcp';
+
+// Authentication (reuse)
+async function verifyAccess(
+  apiKey: string, 
+  requesterId: string
+): Promise<AuthResult> {
+  // Same pattern as usage-stats.ts
+}
+
+// List resources
+export async function listResources(
+  apiKey: string,
+  requesterId: string
+): Promise<MCPResource[]> {
+  const auth = await verifyAccess(apiKey, requesterId);
+  if (!auth.valid) return unauthorized();
+
+  const domains = auth.role === 'superadmin' 
+    ? await getAllDomains()
+    : [auth.domain];
+
+  return domains.flatMap(domain => [
+    {
+      uri: `your-protocol://${domain}/resource1`,
+      name: `Resource 1 - ${domain}`,
+      description: 'Description',
+      mimeType: 'application/json',
+    },
+    // ... more resources
+  ]);
+}
+
+// Read resource
+export async function readResource(
+  uri: string,
+  apiKey: string,
+  requesterId: string
+): Promise<any> {
+  const auth = await verifyAccess(apiKey, requesterId);
+  if (!auth.valid) return unauthorized();
+
+  // Parse URI
+  const match = uri.match(/^your-protocol:\/\/([^/]+)\/(.+)$/);
+  if (!match) return invalidURI();
+
+  const [, domainId, resource] = match;
+
+  // Verify domain access
+  if (!canAccessDomain(auth, domainId)) {
+    return forbidden('Domain access denied');
+  }
+
+  // Fetch data
+  switch (resource) {
+    case 'resource1':
+      return await getResource1(domainId);
+    case 'resource2':
+      return await getResource2(domainId);
+    default:
+      return notFound();
+  }
+}
+
+// Main handler
+export async function handleMCPRequest(
+  request: MCPRequest
+): Promise<MCPResponse> {
+  const { method, params, apiKey, requesterId } = request;
+
+  try {
+    switch (method) {
+      case 'resources/list':
+        return { resources: await listResources(apiKey, requesterId) };
+      
+      case 'resources/read':
+        if (!params?.uri) return invalidRequest();
+        return { content: await readResource(params.uri, apiKey, requesterId) };
+      
+      default:
+        return methodNotSupported();
+    }
+  } catch (error) {
+    console.error('❌ MCP error:', error);
+    return internalError(error);
+  }
+}
+```
+
+---
+
+### Creating API Endpoint
+
+```typescript
+// src/pages/api/mcp/your-server.ts
+import type { APIRoute } from 'astro';
+import { handleMCPRequest } from '../../../mcp/your-server';
+import { getSession } from '../../../lib/auth';
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    // 1. Get session
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return mcpError(-32600, 'Unauthorized');
+    }
+
+    // 2. Parse request
+    const body = await request.json();
+    const { method, params, id } = body;
+
+    // 3. Get API key
+    const apiKey = request.headers
+      .get('Authorization')
+      ?.replace('Bearer ', '') || '';
+
+    if (!apiKey) {
+      return mcpError(-32600, 'Missing API key');
+    }
+
+    // 4. Handle request
+    const response = await handleMCPRequest({
+      method,
+      params,
+      apiKey,
+      requesterId: session.id,
+    });
+
+    // 5. Return MCP response
+    return new Response(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        result: response.data || response.resources,
+        id,
+      }),
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  } catch (error) {
+    return mcpError(-32603, 'Internal server error');
+  }
+};
+
+function mcpError(code: number, message: string) {
+  return new Response(
+    JSON.stringify({
+      jsonrpc: '2.0',
+      error: { code, message },
+      id: null,
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
+}
+```
+
+---
+
+## 🔒 Security Patterns
+
+### API Key Generation
+
+```typescript
+// ALWAYS use cryptographically secure random
+function generateMCPAPIKey(environment: 'localhost' | 'production'): string {
+  const random = crypto.getRandomValues(new Uint8Array(32));
+  const hex = Array.from(random)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  return `mcp_${environment}_${hex}`;
+}
+
+// Result: mcp_localhost_a1b2c3d4e5f6...
+// Length: 72 characters
+```
+
+---
+
+### API Key Hashing
+
+```typescript
+// Development: Simple hash (for speed)
+function hashAPIKeyDev(apiKey: string): string {
+  return Buffer.from(apiKey).toString('base64');
+}
+
+// Production: Secure hash (bcrypt)
+import bcrypt from 'bcrypt';
+
+async function hashAPIKeyProd(apiKey: string): Promise<string> {
+  return bcrypt.hash(apiKey, 10);
+}
+
+async function verifyAPIKeyProd(
+  apiKey: string, 
+  hash: string
+): Promise<boolean> {
+  return bcrypt.compare(apiKey, hash);
+}
+```
+
+**Rule:** Use bcrypt in production, simple hash in dev
+
+---
+
+### Domain Extraction
+
+```typescript
+// ALWAYS extract domain from authenticated user
+function getUserDomain(userEmail: string): string {
+  const domain = userEmail.split('@')[1];
+  
+  if (!domain) {
+    throw new Error('Invalid email format');
+  }
+  
+  return domain.toLowerCase();
+}
+
+// NEVER trust client-provided domain
+// ❌ const domain = request.params.domain; // Trusting client
+// ✅ const domain = getUserDomain(user.email); // From auth
+```
+
+---
+
+### Access Control
+
+```typescript
+function canAccessDomain(
+  user: { role: string; email: string },
+  requestedDomain: string
+): boolean {
+  // SuperAdmin: All domains
+  if (user.role === 'superadmin') {
+    return true;
+  }
+  
+  // Admin: Own domain only
+  if (user.role === 'admin') {
+    const userDomain = getUserDomain(user.email);
+    return userDomain === requestedDomain;
+  }
+  
+  // Others: No access
+  return false;
+}
+```
+
+---
+
+## 📊 Resource Design Patterns
+
+### Resource URI Format
+
+**Standard:**
+```
+protocol://domain/resource[/subresource]
+
+Examples:
+✅ usage-stats://getaifactory.com/summary
+✅ usage-stats://getaifactory.com/agents
+✅ agent-health://clientdomain.com/alerts
+✅ custom://domain.com/nested/resource
+```
+
+**Parsing:**
+```typescript
+function parseResourceURI(uri: string): {
+  protocol: string;
+  domain: string;
+  resource: string;
+  subresource?: string;
+} {
+  const match = uri.match(/^([^:]+):\/\/([^/]+)\/(.+)$/);
+  
+  if (!match) {
+    throw new Error('Invalid URI format');
+  }
+  
+  const [, protocol, domain, path] = match;
+  const [resource, subresource] = path.split('/');
+  
+  return { protocol, domain, resource, subresource };
+}
+```
+
+---
+
+### Resource Metadata
+
+**ALWAYS include:**
+```typescript
+interface MCPResource {
+  uri: string;              // Unique identifier
+  name: string;             // Human-readable name
+  description: string;      // What this resource provides
+  mimeType: string;         // 'application/json' typically
+  annotations?: {           // Optional metadata
+    audience?: string[];    // ['developers', 'admins']
+    priority?: number;      // 1-10
+    version?: string;       // '1.0.0'
+  };
+}
+```
+
+---
+
+## 🔧 Data Fetching Patterns
+
+### Pattern 1: Single Domain Query
+
+```typescript
+async function getStatsForDomain(domainId: string) {
+  // 1. Get users in domain
+  const usersSnapshot = await firestore
+    .collection('users')
+    .where('email', '>=', `@${domainId}`)
+    .where('email', '<=', `@${domainId}\uf8ff`)
+    .get();
+
+  const userIds = usersSnapshot.docs.map(doc => doc.id);
+
+  if (userIds.length === 0) {
+    return emptyStats(domainId);
+  }
+
+  // 2. Query user data (handle Firestore 'in' limit of 10)
+  const chunks = chunkArray(userIds, 10);
+  const allData = [];
+
+  for (const chunk of chunks) {
+    const snapshot = await firestore
+      .collection('conversations')
+      .where('userId', 'in', chunk)
+      .get();
+    
+    allData.push(...snapshot.docs);
+  }
+
+  // 3. Aggregate
+  return aggregateStats(allData, domainId);
+}
+```
+
+---
+
+### Pattern 2: Aggregation
+
+```typescript
+async function aggregateStats(data: any[], domainId: string) {
+  return {
+    domain: domainId,
+    total: data.length,
+    sum: data.reduce((acc, item) => acc + item.count, 0),
+    average: data.reduce((acc, item) => acc + item.count, 0) / data.length,
+    max: Math.max(...data.map(item => item.count)),
+    min: Math.min(...data.map(item => item.count)),
+    breakdown: groupBy(data, 'category'),
+  };
+}
+```
+
+---
+
+### Pattern 3: Efficient Queries
+
+```typescript
+// ✅ Good - Use indexes, limit results
+const conversations = await firestore
+  .collection('conversations')
+  .where('userId', 'in', userIds)
+  .orderBy('lastMessageAt', 'desc')  // Indexed
+  .limit(50)                         // Prevent massive queries
+  .get();
+
+// ❌ Bad - No limits, unindexed
+const conversations = await firestore
+  .collection('conversations')
+  .get(); // ALL conversations!
+```
+
+---
+
+## 🛡️ Error Handling Patterns
+
+### Comprehensive Error Handler
+
+```typescript
+async function safeReadResource(
+  uri: string,
+  apiKey: string,
+  requesterId: string
+): Promise<MCPResponse> {
+  try {
+    // Validate inputs
+    if (!uri || !apiKey || !requesterId) {
+      return {
+        error: {
+          code: -32602,
+          message: 'Invalid params',
+        },
+      };
+    }
+
+    // Authenticate
+    const auth = await verifyAccess(apiKey, requesterId);
+    if (!auth.valid) {
+      return {
+        error: {
+          code: -32000,
+          message: 'Unauthorized',
+          data: { code: 'UNAUTHORIZED' },
+        },
+      };
+    }
+
+    // Parse URI
+    const parsed = parseResourceURI(uri);
+
+    // Verify domain access
+    if (!canAccessDomain(auth, parsed.domain)) {
+      return {
+        error: {
+          code: -32000,
+          message: 'Forbidden',
+          data: { code: 'FORBIDDEN' },
+        },
+      };
+    }
+
+    // Fetch data
+    const data = await fetchResource(parsed);
+
+    return { content: JSON.stringify(data, null, 2) };
+
+  } catch (error) {
+    console.error('❌ MCP error:', error);
+    
+    // Known errors
+    if (error instanceof InvalidURIError) {
+      return {
+        error: {
+          code: -32602,
+          message: error.message,
+          data: { code: 'INVALID_URI' },
+        },
+      };
+    }
+
+    // Unknown errors
+    return {
+      error: {
+        code: -32603,
+        message: 'Internal server error',
+        data: { 
+          code: 'INTERNAL_ERROR',
+          details: error instanceof Error ? error.message : 'Unknown',
+        },
+      },
+    };
+  }
+}
+```
+
+---
+
+## 📈 Performance Best Practices
+
+### Caching Strategy
+
+```typescript
+// Cache frequently accessed data
+const cache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getCachedResource(uri: string) {
+  const cached = cache.get(uri);
+  
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.data;
+  }
+  
+  const data = await fetchResource(uri);
+  cache.set(uri, { data, timestamp: Date.now() });
+  
+  return data;
+}
+
+// Clear cache on data changes
+export function invalidateCache(pattern: string) {
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
+  }
+}
+```
+
+---
+
+### Query Optimization
+
+```typescript
+// Batch queries
+async function getMultipleStats(domains: string[]) {
+  const results = await Promise.all(
+    domains.map(domain => getStatsForDomain(domain))
+  );
+  
+  return Object.fromEntries(
+    domains.map((domain, i) => [domain, results[i]])
+  );
+}
+
+// Use Firestore transactions for consistency
+async function getConsistentStats(domainId: string) {
+  return await firestore.runTransaction(async (transaction) => {
+    const users = await transaction.get(usersQuery);
+    const conversations = await transaction.get(conversationsQuery);
+    
+    return aggregateStats(users.docs, conversations.docs);
+  });
+}
+```
+
+---
+
+## 🧪 Testing MCP Servers
+
+### Unit Tests
+
+```typescript
+// __tests__/mcp/usage-stats.test.ts
+import { handleMCPRequest } from '../../src/mcp/usage-stats';
+
+describe('MCP Usage Stats', () => {
+  const validAPIKey = 'mcp_test_valid';
+  const validUser = 'user-superadmin';
+
+  it('should list resources', async () => {
+    const response = await handleMCPRequest({
+      method: 'resources/list',
+      apiKey: validAPIKey,
+      requesterId: validUser,
+    });
+
+    expect(response.resources).toBeDefined();
+    expect(response.resources.length).toBeGreaterThan(0);
+  });
+
+  it('should read summary resource', async () => {
+    const response = await handleMCPRequest({
+      method: 'resources/read',
+      params: { uri: 'usage-stats://test.com/summary' },
+      apiKey: validAPIKey,
+      requesterId: validUser,
+    });
+
+    expect(response.content).toBeDefined();
+    const data = JSON.parse(response.content);
+    expect(data).toHaveProperty('totalAgents');
+  });
+
+  it('should reject invalid API key', async () => {
+    const response = await handleMCPRequest({
+      method: 'resources/list',
+      apiKey: 'invalid',
+      requesterId: validUser,
+    });
+
+    expect(response.error).toBeDefined();
+    expect(response.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('should enforce domain isolation', async () => {
+    const response = await handleMCPRequest({
+      method: 'resources/read',
+      params: { uri: 'usage-stats://other-domain.com/summary' },
+      apiKey: validAPIKey,
+      requesterId: 'user-admin-not-superadmin',
+    });
+
+    expect(response.error).toBeDefined();
+    expect(response.error.code).toBe('FORBIDDEN');
+  });
+});
+```
+
+---
+
+### Integration Tests
+
+```typescript
+// __tests__/integration/mcp-e2e.test.ts
+describe('MCP End-to-End', () => {
+  let apiKey: string;
+
+  beforeAll(async () => {
+    // Create test server
+    const server = await createMCPServer({
+      name: 'Test Server',
+      type: 'usage-stats',
+      assignedDomains: ['test.com'],
+    });
+    apiKey = server.apiKey;
+  });
+
+  afterAll(async () => {
+    await deleteMCPServer();
+  });
+
+  it('should complete full flow', async () => {
+    // 1. List resources via API
+    const listResponse = await fetch('/api/mcp/usage-stats', {
+      method: 'POST',
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'resources/list',
+        id: 1,
+      }),
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const listData = await listResponse.json();
+    expect(listData.result.resources).toBeDefined();
+
+    // 2. Read resource
+    const readResponse = await fetch('/api/mcp/usage-stats', {
+      method: 'POST',
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'resources/read',
+        params: { uri: 'usage-stats://test.com/summary' },
+        id: 2,
+      }),
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const readData = await readResponse.json();
+    expect(readData.result).toBeDefined();
+  });
+});
+```
+
+---
+
+## 📚 Documentation Requirements
+
+### For Each MCP Server
+
+**MUST include:**
+
+**1. README in `src/mcp/`**
+```markdown
+# [Server Name] MCP Server
+
+## Purpose
+What this server provides
+
+## Resources
+- `protocol://domain/resource1` - Description
+- `protocol://domain/resource2` - Description
+
+## Authentication
+Required roles and permissions
+
+## Examples
+Sample queries and responses
+```
+
+**2. Setup Guide in `docs/`**
+```markdown
+# [Server Name] Setup Guide
+
+## Quick Start
+5-minute setup
+
+## Complete Guide
+Detailed setup
+
+## API Reference
+All endpoints and types
+
+## Troubleshooting
+Common issues
+```
+
+**3. Developer Guide Updates**
+- Add to `docs/MCP_DEVELOPER_GUIDE.md`
+- Include examples
+- Document new types
+- Show integration patterns
+
+---
+
+## 🔄 Versioning & Compatibility
+
+### API Versioning
+
+```typescript
+// Include version in resource
+interface MCPResource {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: string;
+  annotations: {
+    version: string; // '1.0.0'
+  };
+}
+
+// Support multiple versions
+async function readResource(uri: string) {
+  const { resource, version } = parseURI(uri);
+  
+  switch (version) {
+    case '1.0.0':
+      return readResourceV1(resource);
+    case '2.0.0':
+      return readResourceV2(resource);
+    default:
+      return readResourceV1(resource); // Default to latest stable
+  }
+}
+```
+
+---
+
+### Backward Compatibility
+
+**Rules:**
+1. ✅ **Additive changes only** - Add new fields, don't remove
+2. ✅ **Deprecation path** - Mark old fields as deprecated
+3. ✅ **Version new endpoints** - `/v2/` for breaking changes
+4. ✅ **Support old versions** - For at least 90 days
+
+**Example:**
+```typescript
+// v1.0.0 - Original
+interface UsageSummary {
+  totalAgents: number;
+  totalMessages: number;
+}
+
+// v1.1.0 - Additive (backward compatible)
+interface UsageSummary {
+  totalAgents: number;
+  totalMessages: number;
+  activeUsers: number;        // ✅ New field (optional)
+}
+
+// v2.0.0 - Breaking change (if needed)
+interface UsageSummaryV2 {
+  agents: { total: number; active: number };
+  messages: { total: number; today: number };
+  users: { total: number; active: number };
+}
+```
+
+---
+
+## 🎯 MCP Server Types
+
+### Current Servers
+
+**usage-stats** (v1.0.0)
+- Purpose: Read-only usage statistics
+- Resources: summary, agents, users, costs
+- Access: SuperAdmin (all), Admin (own domain)
+- Status: ✅ Production Ready
+
+---
+
+### Planned Servers
+
+**agent-health** (planned)
+- Purpose: Agent performance monitoring
+- Resources: health, alerts, performance, recommendations
+- Access: SuperAdmin, Admin
+- Status: 🔄 Design phase
+
+**workflow-automation** (planned)
+- Purpose: Execute workflows via MCP
+- Tools: create-agent, update-config, batch-process
+- Access: SuperAdmin only
+- Status: 🔮 Future
+
+**context-management** (planned)
+- Purpose: Manage context sources
+- Resources: sources, extractions, validations
+- Tools: upload-document, re-extract
+- Access: SuperAdmin, Admin, Context roles
+- Status: 🔮 Future
+
+---
+
+## 📋 MCP Development Checklist
+
+### Before Creating New MCP Server
+
+**Design:**
+- [ ] Clear use case defined
+- [ ] Resources mapped out
+- [ ] Data sources identified
+- [ ] Security model designed
+
+**Implementation:**
+- [ ] TypeScript types defined
+- [ ] Core logic implemented
+- [ ] API endpoint created
+- [ ] Authentication added
+- [ ] Domain isolation verified
+
+**Testing:**
+- [ ] Unit tests written
+- [ ] Integration tests pass
+- [ ] Manual testing complete
+- [ ] Security testing done
+- [ ] Cursor integration verified
+
+**Documentation:**
+- [ ] Architecture documented
+- [ ] Setup guide created
+- [ ] API reference complete
+- [ ] Examples provided
+- [ ] Troubleshooting guide written
+
+**Deployment:**
+- [ ] Firestore indexes created
+- [ ] Type check passes
+- [ ] Build succeeds
+- [ ] Deployed to localhost
+- [ ] SuperAdmin approval obtained
+
+---
+
+## 🔗 Integration with Platform Rules
+
+### Aligns with `.cursor/rules/alignment.mdc`
+
+**Principles Applied:**
+1. ✅ **Security by Default** - Multi-layer auth
+2. ✅ **Type Safety** - Full TypeScript coverage
+3. ✅ **Data Persistence** - All configs in Firestore
+4. ✅ **Graceful Degradation** - Comprehensive error handling
+
+### Aligns with `.cursor/rules/privacy.mdc`
+
+**Privacy Guarantees:**
+1. ✅ **User Data Isolation** - Domain filtering
+2. ✅ **Role-Based Access** - SuperAdmin/Admin distinction
+3. ✅ **Audit Trail** - All access logged
+4. ✅ **Data Minimization** - Return only necessary fields
+
+### Aligns with `.cursor/rules/data.mdc`
+
+**Data Standards:**
+1. ✅ **New Collections** - mcp_servers, mcp_api_keys
+2. ✅ **Backward Compatible** - Additive only
+3. ✅ **Indexes Defined** - All queries indexed
+4. ✅ **TypeScript Interfaces** - Complete type coverage
+
+---
+
+## 🚀 Quick Reference
+
+### Common Commands
+
+```bash
+# Test MCP server
+npm run test:mcp
+
+# Deploy indexes
+firebase deploy --only firestore:indexes
+
+# Start dev server
+npm run dev
+
+# Type check
+npm run type-check
+```
+
+---
+
+### URI Templates
+
+```typescript
+// Summary stats
+`usage-stats://${domain}/summary`
+
+// Agent details
+`usage-stats://${domain}/agents`
+
+// User activity
+`usage-stats://${domain}/users`
+
+// Cost breakdown
+`usage-stats://${domain}/costs`
+
+// Custom resource
+`your-protocol://${domain}/your-resource`
+```
+
+---
+
+### Response Templates
+
+```typescript
+// Success
+{
+  jsonrpc: '2.0',
+  result: { ...data },
+  id: requestId
+}
+
+// Error
+{
+  jsonrpc: '2.0',
+  error: {
+    code: -32000,
+    message: 'Error message',
+    data: { code: 'ERROR_CODE' }
+  },
+  id: requestId
+}
+```
+
+---
+
+## 📖 Related Documentation
+
+**Internal:**
+- `docs/MCP_DEVELOPER_GUIDE.md` - Developer integration guide
+- `docs/MCP_SERVER_SETUP_2025-10-30.md` - Setup guide
+- `src/mcp/README.md` - Architecture overview
+
+**Rules:**
+- `.cursor/rules/alignment.mdc` - Core principles
+- `.cursor/rules/privacy.mdc` - Security model
+- `.cursor/rules/data.mdc` - Database schema
+- `.cursor/rules/backend.mdc` - API patterns
+
+**External:**
+- [MCP Specification](https://modelcontextprotocol.io/)
+- [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
+
+---
+
+## ✅ Success Criteria
+
+A well-implemented MCP server should:
+
+**Functional:**
+- ✅ Follows MCP protocol spec
+- ✅ Returns accurate data
+- ✅ Handles all error cases
+- ✅ Works with Cursor/other MCP clients
+
+**Security:**
+- ✅ Multi-layer authentication
+- ✅ Domain isolation enforced
+- ✅ Role-based authorization
+- ✅ Audit logging complete
+
+**Performance:**
+- ✅ Responses < 1s (p95)
+- ✅ Efficient queries (indexed)
+- ✅ Proper caching
+- ✅ Scales to 1000+ users
+
+**Quality:**
+- ✅ TypeScript strict mode
+- ✅ 100% type coverage
+- ✅ Comprehensive tests
+- ✅ Complete documentation
+
+**Developer Experience:**
+- ✅ Easy to integrate
+- ✅ Clear error messages
+- ✅ Good examples
+- ✅ Active support
+
+---
+
+**Last Updated:** 2025-10-30  
+**Version:** 1.0.0  
+**Status:** ✅ Active  
+**Applies To:** All MCP development
+
+---
+
+**Remember:** MCP servers are gateways to platform data for AI assistants. Security, performance, and developer experience are paramount. Every MCP server must follow these patterns to maintain platform integrity and user trust.

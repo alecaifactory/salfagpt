@@ -1,0 +1,1041 @@
+# Stella - AI Product Agent Rules
+
+## 🎯 Purpose
+
+This rule documents the complete Stella system - an AI Product Agent that transforms user feedback into actionable roadmap items through conversational interface, visual context capture, and intelligent categorization.
+
+---
+
+## 🪄 What is Stella?
+
+**Stella** is an AI-powered feedback collection system integrated into SalfaGPT that helps users report bugs, request features, and suggest improvements through natural conversation.
+
+**Core Value Proposition:**
+- Transforms informal feedback → Structured tickets
+- Captures visual context (screenshots, clips, annotations)
+- Provides AI guidance through feedback process
+- Auto-generates Kanban backlog items (Admin/SuperAdmin)
+- Respects user privacy (conversations are private)
+
+---
+
+## 🏗️ Architecture
+
+### Components
+
+```
+┌─────────────────────────────────────────────────────┐
+│              STELLA ARCHITECTURE                     │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Frontend:                                          │
+│  ├─ StellaSidebarChat.tsx (main UI)                │
+│  ├─ StellaMarkerTool_v2.tsx (selection tools)      │
+│  └─ ChatInterfaceWorking.tsx (integration)         │
+│                                                     │
+│  Backend:                                           │
+│  ├─ /api/stella/chat (AI responses)                │
+│  ├─ /api/stella/submit-feedback (ticket gen)       │
+│  ├─ /api/stella/generate-inference (context AI)    │
+│  └─ /api/stella/analyze-clip (clip analysis)       │
+│                                                     │
+│  Data:                                              │
+│  ├─ feedback_sessions (private to user)            │
+│  ├─ feedback_tickets (private to user)             │
+│  └─ backlog_items (Admin/SuperAdmin only)          │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🎨 UI Components
+
+### Stella Sidebar (Right Panel)
+
+**Width:** 384px (24rem)  
+**Position:** Fixed right, full height  
+**Z-index:** 50 (above most content)  
+**Theme:** Violet gradients and subtle colors
+
+**Sections:**
+1. **Header** - Violet gradient, model badge
+2. **Category Selector** - 3 large cards (Bug/Feature/Improvement)
+3. **Active Session** - Chat interface
+4. **Selection Tools** - 5 integrated tools
+5. **Messages** - Conversational feed
+6. **Input Area** - Textarea + buttons
+
+---
+
+### Color Palette
+
+```css
+/* Primary Violet Theme */
+--stella-primary: #7c3aed (violet-600)
+--stella-secondary: #a855f7 (purple-500)
+--stella-light: #f5f3ff (violet-50)
+--stella-border: #ddd6fe (violet-200)
+
+/* Category Colors */
+Bug: red-500 (#ef4444)
+Feature: blue-500 (#3b82f6)
+Improvement: green-500 (#10b981)
+
+/* Gradients */
+Header: from-violet-600 to-purple-600
+Background: from-violet-50 to-white
+```
+
+---
+
+### Typography
+
+```css
+/* Header */
+font-size: 1.125rem (text-lg)
+font-weight: bold
+
+/* Model Badge */
+font-size: 0.75rem (text-xs)
+with Sparkles icon
+
+/* Messages */
+font-size: 0.875rem (text-sm)
+line-height: relaxed
+
+/* Tools */
+font-size: 0.625rem (text-[10px])
+icons: 12px (w-3 h-3)
+```
+
+---
+
+## 🤖 Stella System Prompt
+
+### Identity
+
+```
+Stella - AI Product Agent
+Role: Transform user feedback into structured, actionable reports
+Personality: Friendly, professional, empathetic, efficient
+Model: Gemini 2.5 Flash
+```
+
+### Core Behaviors
+
+**Communication Style:**
+- ✅ Brief responses (2-3 sentences max)
+- ✅ ONE question at a time
+- ✅ Use "tú" (informal but respectful)
+- ✅ Subtle emojis (🪄 ✨ 💡 🎯)
+- ❌ Never long paragraphs
+- ❌ Never multiple questions
+- ❌ Never generic responses
+
+**Conversation Flow:**
+```
+Phase 1: Understand (2-3 messages)
+  - What were you trying to do?
+  - What did you expect?
+  - What actually happened?
+
+Phase 2: Capture Context (1-2 messages)
+  - Suggest visual tools
+  - Confirm evidence captured
+  - Ask technical details (if bug)
+
+Phase 3: Confirm & Submit (1 message)
+  - Summarize feedback
+  - Confirm priority
+  - Ready to submit
+```
+
+**Tool Suggestions:**
+- **Screenshots:** When user describes something visual
+- **Clips:** When mentions flow, sequence, or process
+- **Brush tool:** When elements are dispersed
+- **Area:** When region is rectangular
+- **Point:** When element is specific
+
+---
+
+## 📊 Data Model
+
+### FeedbackSession (Private)
+
+```typescript
+Collection: feedback_sessions
+
+{
+  id: string,
+  userId: string,  // ⭐ OWNER - enables privacy
+  sessionId: string,
+  category: 'bug' | 'feature' | 'improvement',
+  ticketId?: string,
+  messages: Array<{
+    id: string,
+    role: 'user' | 'stella',
+    content: string,
+    timestamp: Date,
+    attachments?: Attachment[],
+  }>,
+  pageContext: {
+    pageUrl: string,
+    agentId?: string,
+    conversationId?: string,
+  },
+  status: 'active' | 'submitted',
+  createdAt: Date,
+  submittedAt?: Date,
+  source: 'localhost' | 'production',
+}
+```
+
+**Indexes:**
+```
+- userId ASC, createdAt DESC
+- userId ASC, status ASC
+- ticketId ASC
+```
+
+---
+
+### FeedbackTicket (Private)
+
+```typescript
+Collection: feedback_tickets
+
+{
+  id: string,
+  userId: string,  // ⭐ OWNER
+  sessionId: string,
+  ticketId: string,  // BUG-0045, FEAT-0123, IMP-0067
+  category: 'bug' | 'feature' | 'improvement',
+  title: string,  // From first user message
+  description: string,  // All user messages combined
+  status: 'submitted' | 'in-review' | 'resolved' | 'closed',
+  priority: 'low' | 'medium' | 'high' | 'critical',
+  attachments: Attachment[],
+  pageContext: any,
+  createdAt: Date,
+  updatedAt: Date,
+  resolvedAt?: Date,
+  source: 'localhost' | 'production',
+}
+```
+
+**Indexes:**
+```
+- userId ASC, createdAt DESC
+- ticketId ASC (unique)
+- status ASC, priority DESC
+```
+
+---
+
+### BacklogItem (Admin/SuperAdmin Only)
+
+```typescript
+Collection: backlog_items
+
+{
+  id: string,
+  stellaTicketId: string,
+  stellaSessionId: string,
+  createdBy: string,  // Original userId
+  title: string,
+  description: string,
+  type: 'bug' | 'feature' | 'improvement' | 'task',
+  priority: 'low' | 'medium' | 'high' | 'critical',
+  status: 'backlog' | 'todo' | 'in-progress' | 'done',
+  category: string,
+  source: 'stella-chat',
+  metadata: {
+    pageContext: any,
+    messageCount: number,
+    hasAttachments: boolean,
+  },
+  assignedTo?: string,
+  createdAt: Date,
+  updatedAt: Date,
+}
+```
+
+**Indexes:**
+```
+- status ASC, priority DESC
+- createdBy ASC
+- stellaTicketId ASC
+```
+
+---
+
+## 🔐 Privacy Rules
+
+### Access Control
+
+**Regular Users:**
+```typescript
+✅ Can do:
+  - Chat with Stella (private)
+  - Create feedback sessions
+  - View OWN sessions/tickets
+  - See their ticket IDs
+
+❌ Cannot do:
+  - View other users' feedback
+  - Access backlog items
+  - See Kanban/Roadmap
+```
+
+**Admin:**
+```typescript
+✅ Can do:
+  - All User permissions
+  - View ALL feedback tickets
+  - View backlog items (read-only)
+  - Comment on backlog
+
+❌ Cannot do:
+  - View private Stella chat transcripts
+  - Edit backlog items
+  - Manage roadmap
+```
+
+**SuperAdmin (alec@getaifactory.com):**
+```typescript
+✅ Can do:
+  - All Admin permissions
+  - View Stella chat summaries
+  - Edit backlog items
+  - Move items in Kanban
+  - Prioritize and assign
+  - Manage roadmap
+```
+
+### API Security
+
+**ALWAYS verify ownership:**
+```typescript
+// ✅ CORRECT
+const session = getSession({ cookies });
+if (!session) return 401;
+
+if (session.id !== userId) return 403;  // Ownership check
+
+const sessions = await firestore
+  .collection('feedback_sessions')
+  .where('userId', '==', userId)  // User isolation
+  .get();
+```
+
+**NEVER query without userId:**
+```typescript
+// ❌ WRONG - Returns all users' data
+const sessions = await firestore
+  .collection('feedback_sessions')
+  .get();
+```
+
+---
+
+## 💬 Conversational AI Guidelines
+
+### System Prompt Structure
+
+**Must include:**
+1. Identity (who Stella is)
+2. Mission (what she does)
+3. Capabilities (what she can help with)
+4. Communication style (how she talks)
+5. Tools available (what user can use)
+6. Process phases (feedback flow)
+7. Examples (good responses)
+
+### Response Format
+
+```typescript
+{
+  response: string,  // Stella's message
+  model: 'gemini-2.5-flash',  // Show model used
+  suggestions?: string[],  // Optional action suggestions
+}
+```
+
+### Streaming (Future)
+
+```typescript
+// Use generateContentStream for progressive display
+const stream = await genAI.models.generateContentStream({
+  model: 'gemini-2.5-flash',
+  contents: message,
+  config: { systemInstruction: STELLA_SYSTEM_PROMPT }
+});
+
+for await (const chunk of stream) {
+  // Stream to client
+}
+```
+
+---
+
+## 🛠️ Selection Tools
+
+### 5 Modes Available
+
+1. **● Punto (Point)**
+   - Click on specific element
+   - Creates circular marker
+   - Best for: Single element issues
+
+2. **□ Área (Area)**
+   - Drag to create rectangle
+   - Crops screenshot to selection
+   - Best for: Defined regions
+
+3. **🖌️ Lápiz (Magic Brush)**
+   - Free-form drawing
+   - Auto-closes loop with stars ⭐
+   - Best for: Irregular shapes
+
+4. **🎬 Clip (Video)**
+   - Records at 24fps
+   - Click to start/stop
+   - Best for: Process flows
+
+5. **📷 Pantalla (Fullscreen)**
+   - Captures entire viewport
+   - Single click
+   - Best for: General layout
+
+### Tool Integration
+
+```typescript
+// When user activates tool from sidebar
+setActiveSelectionTool('area');
+
+// Tool creates attachment
+const attachment: Attachment = {
+  id: `att-${Date.now()}`,
+  type: 'selection',
+  mode: 'area',
+  dataUrl: screenshotBase64,
+  timestamp: Date.now(),
+};
+
+// Attach to next message
+setPendingAttachment(attachment);
+
+// User sends message with attachment
+sendMessage();  // attachment included
+```
+
+---
+
+## 🎫 Ticket Generation
+
+### Ticket ID Format
+
+```typescript
+Bug: BUG-0001, BUG-0002, ...
+Feature: FEAT-0001, FEAT-0002, ...
+Improvement: IMP-0001, IMP-0002, ...
+```
+
+### Counter Management
+
+```typescript
+Collection: ticket_counters
+
+{
+  id: 'BUG' | 'FEAT' | 'IMP',
+  count: number,
+  updatedAt: Date,
+}
+
+// Atomic increment
+const nextId = await incrementCounter(prefix);
+return `${prefix}-${String(nextId).padStart(4, '0')}`;
+```
+
+---
+
+## 📋 Kanban Integration
+
+### When Backlog Item is Created
+
+**Conditions:**
+```typescript
+// Check user role
+const userDoc = await firestore.collection('users').doc(userId).get();
+const userRole = userDoc.data()?.role;
+
+// Create backlog item IF:
+if (userRole === 'admin' || 
+    userRole === 'superadmin' ||
+    userId === '114671162830729001607') {  // SuperAdmin
+  
+  await firestore.collection('backlog_items').add({
+    stellaTicketId: ticketId,
+    stellaSessionId: sessionId,
+    createdBy: userId,
+    source: 'stella-chat',
+    // ... full backlog item
+  });
+}
+```
+
+**Result:**
+- Regular user: Ticket created, NO backlog item
+- Admin: Ticket + backlog item (read-only in Kanban)
+- SuperAdmin: Ticket + backlog item (full edit in Kanban)
+
+---
+
+## 🎨 Design System
+
+### Component Patterns
+
+**Stella Sidebar:**
+```tsx
+<div className="fixed right-0 top-0 bottom-0 w-96 bg-gradient-to-b from-violet-50 to-white border-l border-violet-200 shadow-2xl z-50">
+  {/* Header */}
+  <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-4">
+    <Wand2 className="stella-magic-wand" />
+    <h2>Stella</h2>
+    <p>Powered by Gemini 2.5 Flash</p>
+  </div>
+  
+  {/* Content */}
+  ...
+</div>
+```
+
+**Category Cards:**
+```tsx
+<button className="w-full p-4 rounded-xl bg-white border-2 border-violet-200 hover:border-red-400 hover:bg-red-50">
+  <Bug className="w-5 h-5 text-red-600" />
+  <p className="font-bold">Reportar Bug</p>
+  <p className="text-xs">Algo no funciona correctamente</p>
+</button>
+```
+
+**Message Bubbles:**
+```tsx
+{/* Stella message */}
+<div className="rounded-2xl px-4 py-3 bg-white border border-violet-200">
+  <p className="text-sm">{content}</p>
+  <p className="text-[10px] text-slate-500">{time}</p>
+</div>
+
+{/* User message */}
+<div className="rounded-2xl px-4 py-3 bg-violet-600 text-white">
+  <p className="text-sm">{content}</p>
+  {attachments && <img src={attachment} />}
+  <p className="text-[10px] text-violet-200">{time}</p>
+</div>
+```
+
+---
+
+## 🔧 Implementation Rules
+
+### 1. ✅ ALWAYS Verify User Ownership
+
+```typescript
+// Every API endpoint
+const session = getSession({ cookies });
+if (!session) return 401;
+
+if (session.id !== userId) return 403;  // Critical!
+
+// Every Firestore query
+.where('userId', '==', userId)
+```
+
+### 2. ✅ ALWAYS Use Gemini 2.5 Flash
+
+```typescript
+// Stella conversations
+const result = await genAI.models.generateContent({
+  model: 'gemini-2.5-flash',  // Fast & efficient
+  contents: message,
+  config: {
+    systemInstruction: STELLA_SYSTEM_PROMPT,
+    temperature: 0.7,
+    maxOutputTokens: 300,  // Keep responses concise
+  }
+});
+```
+
+### 3. ✅ ALWAYS Show Model in UI
+
+```tsx
+<p className="text-violet-100 text-xs flex items-center gap-1.5">
+  <Sparkles className="w-3 h-3" />
+  Powered by Gemini 2.5 Flash
+</p>
+```
+
+### 4. ✅ ALWAYS Create Backlog for Admin
+
+```typescript
+if (isAdminOrSuperAdmin(userId)) {
+  await firestore.collection('backlog_items').add({
+    source: 'stella-chat',
+    stellaTicketId,
+    createdBy: userId,
+    // ... full item
+  });
+  
+  console.log('📋 Kanban backlog item created');
+}
+```
+
+### 5. ❌ NEVER Expose Private Conversations
+
+```typescript
+// ❌ WRONG
+const allSessions = await firestore.collection('feedback_sessions').get();
+
+// ✅ CORRECT
+const userSessions = await firestore
+  .collection('feedback_sessions')
+  .where('userId', '==', userId)
+  .get();
+```
+
+---
+
+## 📡 API Endpoints
+
+### POST /api/stella/chat
+
+**Purpose:** Generate Stella's response to user message
+
+**Input:**
+```typescript
+{
+  userId: string,
+  sessionId: string,
+  category: 'bug' | 'feature' | 'improvement',
+  message: string,
+  attachments?: Attachment[],
+  conversationHistory: Message[],
+  pageContext: {
+    pageUrl: string,
+    agentId?: string,
+    conversationId?: string,
+  }
+}
+```
+
+**Output:**
+```typescript
+{
+  response: string,  // Stella's message
+  model: 'gemini-2.5-flash',
+  suggestions?: string[],  // Optional actions
+}
+```
+
+**Security:**
+- Verify session
+- Verify userId ownership
+- Use system prompt
+- Log for monitoring
+
+---
+
+### POST /api/stella/submit-feedback
+
+**Purpose:** Convert conversation to ticket + backlog item
+
+**Input:**
+```typescript
+{
+  userId: string,
+  session: FeedbackSession,  // Full conversation
+  pageContext: any,
+}
+```
+
+**Output:**
+```typescript
+{
+  success: true,
+  ticketId: string,  // BUG-0045
+  sessionId: string,
+  ticketRef: string,
+  kanbanCardUrl?: string,  // If admin
+}
+```
+
+**Process:**
+1. Verify userId ownership
+2. Generate ticket ID (BUG-XXXX, etc)
+3. Create feedback_sessions document
+4. Create feedback_tickets document
+5. IF Admin/SuperAdmin: Create backlog_items
+6. Return ticket info
+
+---
+
+### POST /api/stella/analyze-clip
+
+**Purpose:** Analyze video clip sequence
+
+**Input:**
+```typescript
+{
+  keyFrames: ClipFrame[],  // First, middle, last
+  totalFrames: number,
+  duration: number,
+  fps: 24,
+  pageUrl: string,
+  pageTitle: string,
+}
+```
+
+**Output:**
+```typescript
+{
+  actionSequence: string,
+  identifiedProblem: string,
+  suggestedPriority: 'low' | 'medium' | 'high' | 'critical',
+  suggestedCategory: 'Bug' | 'Feature' | 'UI/UX',
+}
+```
+
+---
+
+## 🎯 User Flows
+
+### Flow 1: Report Bug
+
+```
+1. User clicks "🪄 Launch Stella" (top bar)
+2. Sidebar opens
+3. User selects "🐛 Reportar Bug"
+4. Stella: "¡Hola! Cuéntame sobre el problema..."
+5. User: "El botón de enviar no funciona"
+6. Stella: "¿El botón no responde o muestra error?"
+7. User: "No responde" + [captura screenshot con ○ tool]
+8. Stella: "Perfecto. ¿Pasa siempre o solo a veces?"
+9. User: "Siempre"
+10. Stella: "Entendido. Tengo suficiente info. Click 'Enviar Feedback'"
+11. User clicks "Enviar Feedback"
+12. Ticket created: BUG-0045
+13. IF Admin: Backlog item created in Kanban
+14. Stella: "✅ Ticket BUG-0045 creado!"
+```
+
+### Flow 2: Request Feature
+
+```
+1. Launch Stella
+2. Select "💡 Solicitar Feature"
+3. Chat with Stella about idea
+4. Attach mockup/example (screenshot)
+5. Submit feedback
+6. FEAT-0123 created
+7. IF Admin: Card in backlog
+```
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+```bash
+GOOGLE_AI_API_KEY=...  # For Gemini 2.5 Flash
+```
+
+### Feature Flags (Future)
+
+```typescript
+STELLA_STREAMING=true  # Enable streaming responses
+STELLA_CLIPS_ENABLED=true  # Enable clip recording
+STELLA_MAX_SESSIONS_PER_USER=50  # Limit history
+```
+
+---
+
+## 🧪 Testing Checklist
+
+### UI Components:
+- [ ] Sidebar opens from "Launch Stella" button
+- [ ] Category cards display correctly
+- [ ] Category selection starts session
+- [ ] Selection tools render
+- [ ] Chat messages display (Stella + User)
+- [ ] Attachments show in messages
+- [ ] Input field works
+- [ ] Send button enabled when text present
+- [ ] Sidebar closes on X button
+
+### Functionality:
+- [ ] Stella responds to messages
+- [ ] Gemini 2.5 Flash model shown
+- [ ] Attachments can be added
+- [ ] Feedback can be submitted
+- [ ] Ticket ID generated
+- [ ] Backlog item created (Admin/SuperAdmin)
+- [ ] Multiple sessions supported
+- [ ] Session switching works
+
+### Privacy:
+- [ ] User can only see own sessions
+- [ ] userId in all documents
+- [ ] API rejects cross-user access (403)
+- [ ] Backlog only for admin
+- [ ] Ticket IDs unique
+
+### AI Quality:
+- [ ] Stella responds in <1s
+- [ ] Responses are concise (2-3 sentences)
+- [ ] ONE question at a time
+- [ ] Suggests tools appropriately
+- [ ] Maintains context across messages
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ Privacy is Sacred
+
+**Every Stella conversation is private to the user who created it.**
+
+```typescript
+// In every API endpoint
+if (session.id !== userId) {
+  return new Response(JSON.stringify({ error: 'Forbidden' }), {
+    status: 403
+  });
+}
+```
+
+### 2. ✅ Always Show Model
+
+**Users should know they're talking to Gemini 2.5 Flash.**
+
+```tsx
+<p className="text-violet-100 text-xs flex items-center gap-1.5">
+  <Sparkles className="w-3 h-3" />
+  Powered by Gemini 2.5 Flash
+</p>
+```
+
+### 3. ✅ Violet Theme Consistency
+
+**Use violet colors throughout Stella UI:**
+
+```css
+Primary: violet-600 (#7c3aed)
+Light: violet-50 (#f5f3ff)
+Border: violet-200 (#ddd6fe)
+Text: violet-900 (#4c1d95)
+```
+
+### 4. ✅ Backlog Integration
+
+**Admin/SuperAdmin feedback automatically goes to Kanban:**
+
+```typescript
+if (userRole === 'admin' || userRole === 'superadmin') {
+  const backlogItem = {
+    source: 'stella-chat',
+    stellaTicketId,
+    createdBy: userId,
+    // ... complete item
+  };
+  
+  await firestore.collection('backlog_items').add(backlogItem);
+}
+```
+
+### 5. ✅ Concise Responses
+
+**Stella responses must be brief and focused:**
+
+```typescript
+maxOutputTokens: 300,  // Enforce brevity
+temperature: 0.7,  // Balance creativity/consistency
+```
+
+---
+
+## 📚 Related Documentation
+
+### Internal Docs:
+- `docs/STELLA_SIDEBAR_FINAL_2025-10-30.md` - Complete implementation
+- `docs/STELLA_PRIVACY_ARCHITECTURE_2025-10-30.md` - Privacy model
+- `docs/STELLA_MAGIC_BRUSH_MODE_2025-10-29.md` - Brush tool
+- `docs/STELLA_ANNOTATION_FEATURES_2025-10-29.md` - Annotations
+
+### Related Rules:
+- `.cursor/rules/privacy.mdc` - User data isolation
+- `.cursor/rules/alignment.mdc` - Design principles
+- `.cursor/rules/data.mdc` - Database schema
+
+---
+
+## 🔮 Future Enhancements
+
+### v2.2 (Short-term):
+- [ ] Streaming responses (progressive display)
+- [ ] Voice input option
+- [ ] Attachment annotations
+- [ ] Session export
+
+### v2.3 (Medium-term):
+- [ ] Multi-language support
+- [ ] Stella suggestions (proactive)
+- [ ] Feedback analytics
+- [ ] Integration with design tools
+
+### v3.0 (Long-term):
+- [ ] Stella autonomous bug detection
+- [ ] Predictive feature requests
+- [ ] A/B testing suggestions
+- [ ] User sentiment analysis
+
+---
+
+## ✅ Success Criteria
+
+A properly implemented Stella system should:
+
+1. **User Experience**
+   - ✅ Sidebar opens in <50ms
+   - ✅ Stella responds in <1s
+   - ✅ Intuitive and friendly
+   - ✅ Visual tools easy to use
+
+2. **Privacy**
+   - ✅ Conversations private to user
+   - ✅ No data leakage
+   - ✅ userId verified in APIs
+   - ✅ Backlog attribution clear
+
+3. **Product Impact**
+   - ✅ Structured feedback (not chaos)
+   - ✅ Visual context (screenshots/clips)
+   - ✅ Categorized and prioritized
+   - ✅ Directly in roadmap (admin)
+
+4. **AI Quality**
+   - ✅ Responses concise and helpful
+   - ✅ Context-aware
+   - ✅ Tool suggestions appropriate
+   - ✅ Guides user effectively
+
+---
+
+## 📝 Code Standards
+
+### Component Naming
+
+```
+StellaSidebarChat.tsx  // Main UI
+StellaMarkerTool_v2.tsx  // Selection tools
+/api/stella/*  // All Stella endpoints
+```
+
+### State Naming
+
+```typescript
+showStellaSidebar  // Boolean for sidebar visibility
+currentSessionId  // Active feedback session
+selectedCategory  // bug | feature | improvement
+pendingAttachment  // Attachment to be sent
+```
+
+### Function Naming
+
+```typescript
+startNewFeedback(category)  // Begin session
+sendMessage()  // Send to Stella
+submitFeedback()  // Create ticket
+generateStellaResponse()  // AI response
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Stella doesn't respond
+
+**Check:**
+1. GOOGLE_AI_API_KEY is set
+2. API endpoint returns 200
+3. System prompt is included
+4. userId verification passes
+
+**Debug:**
+```bash
+# Check API logs
+curl -X POST http://localhost:3000/api/stella/chat \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"123","message":"test"}'
+```
+
+### Backlog items not created
+
+**Check:**
+1. User role is admin/superadmin
+2. firestore.collection('backlog_items') accessible
+3. userId correct
+4. No errors in submit-feedback API
+
+**Debug:**
+```typescript
+console.log('User role:', userRole);
+console.log('Is admin?', userRole === 'admin');
+console.log('Backlog item:', backlogItem);
+```
+
+### Privacy violation
+
+**If user sees other users' data:**
+1. Check API has userId verification
+2. Verify Firestore query has .where('userId', '==', ...)
+3. Review security rules
+4. Test with different user accounts
+
+---
+
+## 📊 Monitoring
+
+### Metrics to Track
+
+**Usage:**
+- Stella sessions created per day
+- Messages per session (avg)
+- Feedback submissions per day
+- Category distribution (bug/feature/improvement)
+
+**Quality:**
+- Tickets with screenshots (%)
+- Tickets from clips (%)
+- Average session length
+- User satisfaction (future)
+
+**Performance:**
+- Stella response time (p95)
+- Ticket creation time
+- Sidebar open latency
+- API error rate
+
+---
+
+**Last Updated:** 2025-10-30  
+**Version:** 2.1.0  
+**Status:** ✅ Production Ready  
+**Project:** SalfaGPT (salfagpt)
+
+---
+
+**Remember:** Stella is not just a feedback tool - it's an AI Product Agent that transforms how users communicate product improvements. Maintain her conversational quality, visual capabilities, and privacy guarantees. 🪄✨🔒

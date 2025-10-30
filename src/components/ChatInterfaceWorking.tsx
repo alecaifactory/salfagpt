@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2 } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -22,11 +22,13 @@ import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
 import StellaMarkerTool from './StellaMarkerTool_v2';
+import StellaSidebarChat from './StellaSidebarChat';
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
+import RoadmapModal from './RoadmapModal'; // ✅ NEW: Roadmap system
 import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
 import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
-import FeedbackBacklogDashboard from './FeedbackBacklogDashboard'; // ✅ Backlog management
+import MyFeedbackView from './MyFeedbackView'; // ✅ User's own feedback tracking
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -328,7 +330,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showExpertFeedback, setShowExpertFeedback] = useState(false);
   const [showUserFeedback, setShowUserFeedback] = useState(false);
   const [feedbackMessageId, setFeedbackMessageId] = useState<string | null>(null);
-  const [showFeedbackBacklog, setShowFeedbackBacklog] = useState(false);
+  const [showMyFeedback, setShowMyFeedback] = useState(false);
+  const [highlightTicketId, setHighlightTicketId] = useState<string | null>(null);
   
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
@@ -337,9 +340,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showAgentEvaluation, setShowAgentEvaluation] = useState(false);
   const [showEvaluationSystem, setShowEvaluationSystem] = useState(false); // NEW: Full evaluation system
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showRoadmap, setShowRoadmap] = useState(false); // NEW: Roadmap modal
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
+  const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
   // DISABLED FULL-TEXT MODE: RAG is now the ONLY option
   // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
   const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
@@ -404,7 +409,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         // Close modals/menus in priority order (most specific to least specific)
         if (showExpertFeedback) setShowExpertFeedback(false);
         else if (showUserFeedback) setShowUserFeedback(false);
-        else if (showFeedbackBacklog) setShowFeedbackBacklog(false);
+        else if (showMyFeedback) setShowMyFeedback(false);
         else if (showAddSourceModal) setShowAddSourceModal(false);
         else if (showUserSettings) setShowUserSettings(false);
         else if (showContextManagement) setShowContextManagement(false);
@@ -432,7 +437,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   }, [
     showExpertFeedback,
     showUserFeedback,
-    showFeedbackBacklog,
+    showMyFeedback,
     showAddSourceModal,
     showUserSettings,
     showContextManagement,
@@ -1140,7 +1145,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // ✅ NEW: Submit feedback (Expert or User)
   const handleSubmitFeedback = async (feedback: Omit<MessageFeedback, 'id' | 'timestamp' | 'source'>) => {
     try {
-      console.log('📝 Submitting feedback:', feedback.feedbackType);
+      console.log('📝 Submitting feedback:', {
+        type: feedback.feedbackType,
+        messageId: feedback.messageId,
+        userId: feedback.userId,
+      });
       
       const response = await fetch('/api/feedback/submit', {
         method: 'POST',
@@ -1148,23 +1157,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         body: JSON.stringify(feedback),
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Server error:', errorData);
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
       const result = await response.json();
       console.log('✅ Feedback submitted successfully:', result);
 
-      // Show success message
-      alert(`Feedback enviado exitosamente. ${result.ticketId ? `Ticket creado: ${result.ticketId}` : ''}`);
-      
-      // Close modals
+      // Close feedback input modals
       setShowExpertFeedback(false);
       setShowUserFeedback(false);
       setFeedbackMessageId(null);
+
+      // Show success with ticket info
+      const ticketInfo = result.ticketId 
+        ? `\n\n🎫 Ticket ID: ${result.ticketId.substring(0, 12)}...\n\n✨ Abriendo tu seguimiento de feedback...`
+        : '';
+      
+      alert(`✅ ¡Feedback enviado exitosamente!${ticketInfo}`);
+      
+      // Open "My Feedback" view with highlighted ticket
+      if (result.ticketId) {
+        setHighlightTicketId(result.ticketId);
+        setShowMyFeedback(true);
+      }
     } catch (error) {
       console.error('❌ Error submitting feedback:', error);
-      alert('Error al enviar feedback. Intenta nuevamente.');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      alert(`❌ Error al enviar feedback:\n\n${errorMessage}\n\nRevisa la consola para más detalles.`);
     }
   };
 
@@ -4048,19 +4072,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       <Users className="w-5 h-5 text-slate-600" />
                       <span className="font-medium">Gestión de Usuarios</span>
                     </button>
-                    
-                    {/* ✅ NEW: Feedback Backlog */}
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => {
-                        setShowFeedbackBacklog(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <ListTodo className="w-5 h-5 text-violet-600" />
-                      <span className="font-medium">Backlog de Feedback</span>
-                      {/* TODO: Add badge with new tickets count */}
-                    </button>
                     <div className="h-px bg-slate-200 my-2" />
                   </>
                 )}
@@ -4119,16 +4130,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 {/* Roadmap & Backlog - SuperAdmin Only */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
-                    <a
-                      href="/roadmap"
+                    <button
+                      onClick={() => {
+                        setShowRoadmap(true);
+                        setShowUserMenu(false);
+                      }}
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     >
                       <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      <div className="flex-1">
+                      <div className="flex-1 text-left">
                         <span className="font-medium">Roadmap & Backlog</span>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Kanban feedback</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Kanban + Rudy AI</p>
                       </div>
-                    </a>
+                    </button>
                     <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
@@ -4149,6 +4163,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
+                
+                {/* ✅ NEW: My Feedback - FOR ALL USERS */}
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  onClick={() => {
+                    setShowMyFeedback(true);
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <ListTodo className="w-5 h-5 text-violet-600" />
+                  <span className="font-medium">Mi Feedback</span>
+                </button>
+                
+                <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
                 
                 {/* Settings and Analytics - HIDDEN FOR USER ROLE */}
                 {userRole !== 'user' && (
@@ -4232,18 +4260,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           }
         }}
       >
-        {/* Agent Header */}
-        {currentConversation && (
-          <div 
-            className="border-b border-slate-200 dark:border-slate-700 px-6 py-3 bg-white dark:bg-slate-800 flex items-center justify-between"
-            onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking header
-          >
-            <div className="flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              <div>
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
-                  {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
-                </h2>
+        {/* Top Bar - Always visible */}
+        <div 
+          className="border-b border-slate-200 dark:border-slate-700 px-6 py-3 bg-white dark:bg-slate-800 flex items-center justify-between"
+          onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking header
+        >
+          <div className="flex items-center gap-3">
+            {currentConversation ? (
+              <>
+                <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                    {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
+                  </h2>
                 {/* Agent Tag - Shows which agent is being used for this chat */}
                 {getParentAgent() && (
                   <div className="flex items-center gap-2 mt-1">
@@ -4345,32 +4374,43 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   )}
                 </div>
               )}
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Nuevo Chat Button - Only show when agent is selected - Moved to right */}
-              {selectedAgent && (
-                <button
-                  onClick={() => createNewChatForAgent(selectedAgent)}
-                  className="px-3 py-1.5 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2 font-semibold shadow-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Nuevo Chat
-                </button>
-              )}
-              
-              {/* Configurar Agente Button - Only visible for admin role */}
-              {userRole === 'admin' && (
-                <button
-                  onClick={() => setShowAgentConfiguration(true)}
-                  className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <SettingsIcon className="w-4 h-4" />
-                  Configurar Agente
-                </button>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                    SalfaGPT
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Selecciona un agente o chat para comenzar
+                  </p>
+                </div>
+              </>
+            )}
           </div>
-        )}
+          <div className="flex items-center gap-2 ml-auto">
+            {/* Nuevo Chat Button - Only show when agent is selected - Moved to right */}
+            {selectedAgent && (
+              <button
+                onClick={() => createNewChatForAgent(selectedAgent)}
+                className="px-3 py-1.5 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2 font-semibold shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Nuevo Chat
+              </button>
+            )}
+            
+            {/* Launch Stella Button - Opens sidebar */}
+            <button
+              onClick={() => setShowStellaSidebar(true)}
+              className="px-3 py-1.5 text-sm bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center gap-2 font-semibold shadow-sm"
+            >
+              <Wand2 className="w-4 h-4" />
+              Launch Stella
+            </button>
+          </div>
+        </div>
         
         {/* Messages */}
         <div 
@@ -4516,7 +4556,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                               </span>
                               
                               {/* Expert Feedback (purple) - Only for admin, expert, superadmin */}
-                              {['admin', 'expert', 'superadmin'].includes(currentUser?.role || '') && (
+                              {['admin', 'expert', 'superadmin'].includes(userRole || '') && (
                                 <button
                                   onClick={() => {
                                     setFeedbackMessageId(msg.id);
@@ -5847,13 +5887,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       />
 
       {/* ✅ NEW: Expert Feedback Panel */}
-      {showExpertFeedback && feedbackMessageId && currentUser && (
+      {showExpertFeedback && feedbackMessageId && userId && userEmail && (
         <ExpertFeedbackPanel
           messageId={feedbackMessageId}
           conversationId={currentConversation || ''}
-          userId={currentUser.id}
-          userEmail={currentUser.email}
-          userRole={currentUser.role}
+          userId={userId}
+          userEmail={userEmail}
+          userRole={userRole || 'user'}
           onClose={() => {
             setShowExpertFeedback(false);
             setFeedbackMessageId(null);
@@ -5863,13 +5903,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       )}
 
       {/* ✅ NEW: User Feedback Panel */}
-      {showUserFeedback && feedbackMessageId && currentUser && (
+      {showUserFeedback && feedbackMessageId && userId && userEmail && (
         <UserFeedbackPanel
           messageId={feedbackMessageId}
           conversationId={currentConversation || ''}
-          userId={currentUser.id}
-          userEmail={currentUser.email}
-          userRole={currentUser.role}
+          userId={userId}
+          userEmail={userEmail}
+          userRole={userRole || 'user'}
           onClose={() => {
             setShowUserFeedback(false);
             setFeedbackMessageId(null);
@@ -6003,27 +6043,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         userRole={currentUser?.role || 'user'}
       />
 
-      {/* ✅ NEW: Feedback Backlog Dashboard (SuperAdmin/Admin only) */}
-      {showFeedbackBacklog && currentUser && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[95vh] flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800">Backlog de Feedback</h2>
-              <button
-                onClick={() => setShowFeedbackBacklog(false)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <XIcon className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <FeedbackBacklogDashboard
-                userId={currentUser.id}
-                userRole={currentUser.role}
-              />
-            </div>
-          </div>
-        </div>
+      {/* ✅ NEW: My Feedback View (All users can see their own feedback) */}
+      {userId && userEmail && (
+        <MyFeedbackView
+          userId={userId}
+          userEmail={userEmail}
+          isOpen={showMyFeedback}
+          onClose={() => {
+            setShowMyFeedback(false);
+            setHighlightTicketId(null);
+          }}
+          highlightTicketId={highlightTicketId}
+        />
+      )}
+      
+      {/* ✅ NEW: Roadmap Modal with Rudy AI - SuperAdmin Only */}
+      {showRoadmap && userEmail === 'alec@getaifactory.com' && (
+        <RoadmapModal
+          isOpen={showRoadmap}
+          onClose={() => setShowRoadmap(false)}
+          companyId="aifactory"
+          userEmail={userEmail}
+        />
       )}
 
       {/* Agent Sharing Modal */}
@@ -6167,15 +6208,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         </div>
       )}
       
-      {/* Stella Marker Tool - Available for ALL users (including admins) */}
+      {/* Stella Sidebar Chat - Right sidebar chatbot */}
       {currentUser && (
-        <StellaMarkerTool
+        <StellaSidebarChat
+          isOpen={showStellaSidebar}
+          onClose={() => setShowStellaSidebar(false)}
           userId={currentUser.id}
-          companyId={currentUser.company || 'demo'}
-          onTicketCreated={(ticketId, shareUrl) => {
-            console.log('🎫 Stella ticket created:', ticketId);
-            console.log('🔗 Share URL:', shareUrl);
-            // Optional: Show toast notification
+          userEmail={currentUser.email}
+          userName={currentUser.name}
+          currentPageContext={{
+            pageUrl: window.location.href,
+            agentId: selectedAgent || undefined,
+            conversationId: currentConversation || undefined,
           }}
         />
       )}

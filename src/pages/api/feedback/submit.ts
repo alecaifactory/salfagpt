@@ -1,8 +1,7 @@
 import type { APIRoute } from 'astro';
 import { firestore } from '../../../lib/firestore';
 import { getSession } from '../../../lib/auth';
-import type { MessageFeedback, AnnotatedScreenshot } from '../../../types/feedback';
-import { analyzeScreenshotWithGemini, createTicketFromFeedback } from '../../../lib/feedback-service';
+import type { MessageFeedback } from '../../../types/feedback';
 
 /**
  * POST /api/feedback/submit
@@ -70,66 +69,92 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       );
     }
 
-    // 6. Analyze screenshots with Gemini (if provided)
-    let screenshotAnalysis: string | undefined;
-    if (screenshots && screenshots.length > 0) {
-      try {
-        screenshotAnalysis = await analyzeScreenshotWithGemini(
-          screenshots,
-          feedbackType,
-          expertRating || userStars
-        );
-      } catch (error) {
-        console.warn('⚠️ Screenshot analysis failed (non-critical):', error);
-      }
-    }
-
-    // 7. Create feedback document
-    const feedbackData: Omit<MessageFeedback, 'id'> = {
+    // 6. Create feedback document (simplified - no AI for now)
+    const feedbackData: any = {
       messageId,
       conversationId,
       userId,
       userEmail,
       userRole,
       feedbackType,
-      ...(feedbackType === 'expert' && {
-        expertRating,
-        expertNotes,
-        npsScore,
-        csatScore,
-      }),
-      ...(feedbackType === 'user' && {
-        userStars,
-        userComment,
-      }),
-      screenshots,
-      screenshotAnalysis,
       timestamp: new Date(),
       source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
     };
+
+    // Add type-specific fields
+    if (feedbackType === 'expert') {
+      feedbackData.expertRating = expertRating;
+      if (expertNotes) feedbackData.expertNotes = expertNotes;
+      if (npsScore !== undefined) feedbackData.npsScore = npsScore;
+      if (csatScore !== undefined) feedbackData.csatScore = csatScore;
+    } else {
+      feedbackData.userStars = userStars;
+      if (userComment) feedbackData.userComment = userComment;
+    }
+
+    // Add screenshots if provided
+    if (screenshots && screenshots.length > 0) {
+      feedbackData.screenshots = screenshots;
+    }
+
+    console.log('💾 Saving feedback to Firestore:', {
+      messageId,
+      conversationId,
+      feedbackType,
+      userId: userId.substring(0, 8) + '...',
+    });
 
     const feedbackRef = await firestore.collection('message_feedback').add(feedbackData);
     const feedbackId = feedbackRef.id;
 
     console.log(`✅ Feedback created: ${feedbackId} (${feedbackType})`);
 
-    // 8. Create ticket from feedback (async, non-blocking)
+    // 7. Create basic ticket (simplified - no AI for MVP)
     let ticketId: string | undefined;
     try {
-      ticketId = await createTicketFromFeedback(feedbackId, feedbackData);
-      
+      const ticketData: any = {
+        feedbackId,
+        messageId,
+        conversationId,
+        title: generateBasicTitle(feedbackType, expertRating || userStars),
+        description: expertNotes || userComment || 'Sin descripción',
+        category: 'other',
+        priority: determinePriority(feedbackType, expertRating, userStars),
+        status: 'new',
+        reportedBy: userId,
+        reportedByEmail: userEmail,
+        reportedByRole: userRole,
+        
+        // ✅ CRITICAL: originalFeedback must always be present
+        originalFeedback: {
+          type: feedbackType,
+          rating: feedbackType === 'expert' ? expertRating : userStars,
+          comment: expertNotes || userComment,
+          screenshots: screenshots || [],
+        },
+        
+        userImpact: 'medium',
+        estimatedEffort: 'm',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
+      };
+
+      const ticketRef = await firestore.collection('feedback_tickets').add(ticketData);
+      ticketId = ticketRef.id;
+
       // Update feedback with ticketId
       await feedbackRef.update({
         ticketId,
         ticketCreatedAt: new Date(),
       });
 
-      console.log(`✅ Ticket created from feedback: ${ticketId}`);
+      console.log(`✅ Ticket created: ${ticketId}`);
     } catch (error) {
       console.warn('⚠️ Ticket creation failed (non-critical):', error);
     }
 
-    // 9. Return success
+    // 8. Return success
     return new Response(
       JSON.stringify({
         success: true,
@@ -156,4 +181,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     );
   }
 };
+
+// Helper functions
+function generateBasicTitle(feedbackType: string, rating: any): string {
+  const type = feedbackType === 'expert' ? 'Experto' : 'Usuario';
+  const ratingText = typeof rating === 'string' ? rating : `${rating}/5`;
+  return `Feedback ${type}: ${ratingText}`;
+}
+
+function determinePriority(feedbackType: string, expertRating: any, userStars: any): string {
+  if (feedbackType === 'expert') {
+    if (expertRating === 'inaceptable') return 'high';
+    if (expertRating === 'aceptable') return 'medium';
+    return 'low'; // sobresaliente
+  } else {
+    const stars = userStars || 0;
+    if (stars <= 2) return 'high';
+    if (stars === 3) return 'medium';
+    return 'low';
+  }
+}
 
