@@ -87,16 +87,25 @@ export default function AgentPromptEnhancer({
       formData.append('agentId', agentId);
       formData.append('purpose', 'prompt-enhancement');
 
+      console.log('📤 [FRONTEND] Uploading file:', file.name);
+      console.log('📤 [FRONTEND] Agent ID:', agentId);
+      console.log('📤 [FRONTEND] File size:', file.size, 'bytes');
+
       const uploadResponse = await fetch('/api/agents/upload-setup-document', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('📥 [FRONTEND] Upload response status:', uploadResponse.status);
+      
       if (!uploadResponse.ok) {
-        throw new Error('Error al subir el documento');
+        const errorText = await uploadResponse.text();
+        console.error('❌ [FRONTEND] Upload failed:', errorText);
+        throw new Error(`Error al subir el documento: ${uploadResponse.status} - ${errorText}`);
       }
 
       const uploadData = await uploadResponse.json();
+      console.log('📥 [FRONTEND] Upload data:', uploadData);
       setDocumentUrl(uploadData.documentUrl);
 
       setProgress({
