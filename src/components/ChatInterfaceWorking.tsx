@@ -25,6 +25,7 @@ import StellaMarkerTool from './StellaMarkerTool_v2';
 import StellaSidebarChat from './StellaSidebarChat';
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
+import AgentPromptEnhancer from './AgentPromptEnhancer'; // ✅ NEW: AI-powered prompt enhancement
 import RoadmapModal from './RoadmapModal'; // ✅ NEW: Roadmap system
 import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
 import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
@@ -298,6 +299,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // ✅ NEW: Domain and Agent Prompt modals
   const [showDomainPromptModal, setShowDomainPromptModal] = useState(false);
   const [showAgentPromptModal, setShowAgentPromptModal] = useState(false);
+  const [showAgentPromptEnhancer, setShowAgentPromptEnhancer] = useState(false); // ✅ NEW: Prompt enhancer modal
   const [currentDomainPrompt, setCurrentDomainPrompt] = useState<string>('');
   const [currentAgentPrompt, setCurrentAgentPrompt] = useState<string>('');
   
@@ -2604,6 +2606,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       console.log('✅ Agent prompt saved');
     } catch (error) {
       console.error('❌ Error saving agent prompt:', error);
+      throw error;
+    }
+  };
+
+  // ✅ NEW: Handle enhanced prompt suggestion
+  const handlePromptSuggested = async (enhancedPrompt: string, documentUrl: string) => {
+    try {
+      console.log('✨ Enhanced prompt suggested:', enhancedPrompt.length, 'characters');
+      console.log('📄 Document URL:', documentUrl);
+      
+      // Save the enhanced prompt
+      await handleSaveAgentPrompt(enhancedPrompt);
+      
+      // TODO: Save document URL reference to agent config
+      // This would allow showing "Setup document" link in agent details
+      
+      console.log('✅ Enhanced prompt applied successfully');
+    } catch (error) {
+      console.error('❌ Error applying enhanced prompt:', error);
       throw error;
     }
   };
@@ -5884,6 +5905,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         currentAgentPrompt={currentAgentPrompt}
         domainPrompt={currentDomainPrompt}
         onSave={handleSaveAgentPrompt}
+        onOpenEnhancer={() => {
+          setShowAgentPromptModal(false);
+          setShowAgentPromptEnhancer(true);
+        }}
+      />
+
+      {/* ✅ NEW: Agent Prompt Enhancer Modal */}
+      <AgentPromptEnhancer
+        isOpen={showAgentPromptEnhancer}
+        onClose={() => setShowAgentPromptEnhancer(false)}
+        agentId={(() => {
+          const currentConv = conversations.find(c => c.id === currentConversation);
+          return currentConv?.agentId || currentConversation || '';
+        })()}
+        agentName={(() => {
+          const currentConv = conversations.find(c => c.id === currentConversation);
+          const agentId = currentConv?.agentId || currentConversation;
+          return conversations.find(c => c.id === agentId)?.title || 'Agente';
+        })()}
+        currentPrompt={currentAgentPrompt}
+        onPromptSuggested={handlePromptSuggested}
       />
 
       {/* ✅ NEW: Expert Feedback Panel */}
