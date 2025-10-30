@@ -131,7 +131,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           rating: feedbackType === 'expert' ? expertRating : userStars,
           comment: expertNotes || userComment,
           screenshots: screenshots || [],
+          screenshotAnalysis: feedbackData.screenshotAnalysis,
         },
+        
+        // ✅ Store expert scores at ticket level for easy access
+        ...(feedbackType === 'expert' && {
+          npsScore,
+          csatScore,
+        }),
         
         userImpact: 'medium',
         estimatedEffort: 'm',
