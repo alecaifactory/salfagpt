@@ -275,38 +275,64 @@ export default function AgentPromptEnhancer({
                 )}
               </div>
 
-              {/* What to include */}
+              {/* What to include - Based on Ficha de Asistente Virtual */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                 <p className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-600" />
-                  ¿Qué debe incluir el documento?
+                  ¿Qué debe incluir el documento? (Ficha de Asistente Virtual)
                 </p>
-                <ul className="space-y-2 text-xs text-slate-600">
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Propósito del agente:</strong> Qué hace, qué problemas resuelve</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Audiencia objetivo:</strong> Quiénes lo usarán, roles, departamentos</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Casos de uso:</strong> Ejemplos de preguntas típicas y respuestas esperadas</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Tono y estilo:</strong> Formal, casual, técnico, empático, etc.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Restricciones:</strong> Qué NO debe hacer, información a evitar</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-purple-600">✓</span>
-                    <span><strong>Formato de respuesta:</strong> Estructura preferida (bullets, tablas, etc.)</span>
-                  </li>
-                </ul>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div className="space-y-2 text-xs text-slate-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">1.</span>
+                      <span><strong>Nombre del Asistente:</strong> Identidad única</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">2.</span>
+                      <span><strong>Objetivo y Descripción:</strong> Propósito y alcance</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">3.</span>
+                      <span><strong>Encargado del Proyecto:</strong> Responsable</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">4.</span>
+                      <span><strong>Usuarios Piloto:</strong> Quiénes validarán</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">5.</span>
+                      <span><strong>Usuarios Finales:</strong> Quiénes lo usarán</span>
+                    </li>
+                  </div>
+                  <div className="space-y-2 text-xs text-slate-600">
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">6.</span>
+                      <span><strong>Preguntas Tipo:</strong> Ejemplos de uso</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">7.</span>
+                      <span><strong>Respuestas Tipo:</strong> Nivel de detalle</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">8.</span>
+                      <span><strong>Documentación:</strong> Normativas, manuales</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">9.</span>
+                      <span><strong>Restricciones:</strong> Límites y exclusiones</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-purple-600 font-bold">10.</span>
+                      <span><strong>Tono:</strong> Formal, técnico, empático</span>
+                    </li>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-300">
+                  <p className="text-[10px] text-slate-500 italic">
+                    💡 Tip: Usa la plantilla "Ficha de Asistente Virtual" para obtener mejores resultados.
+                    El sistema reconoce automáticamente esta estructura y extrae toda la información relevante.
+                  </p>
+                </div>
               </div>
 
               {error && (
