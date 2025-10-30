@@ -17,6 +17,7 @@ interface AgentPromptModalProps {
   currentAgentPrompt?: string;
   domainPrompt?: string; // To show hierarchy
   onSave: (agentPrompt: string) => Promise<void>;
+  onOpenEnhancer?: () => void; // ✅ NEW: Open AI enhancer modal
 }
 
 export default function AgentPromptModal({
@@ -27,6 +28,7 @@ export default function AgentPromptModal({
   currentAgentPrompt = '',
   domainPrompt,
   onSave,
+  onOpenEnhancer,
 }: AgentPromptModalProps) {
   const [agentPrompt, setAgentPrompt] = useState(currentAgentPrompt);
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
@@ -259,12 +261,27 @@ export default function AgentPromptModal({
 
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            Cancelar
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              Cancelar
+            </button>
+            
+            {/* ✅ NEW: AI Enhancer Button */}
+            {onOpenEnhancer && (
+              <button
+                onClick={onOpenEnhancer}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                title="Mejorar prompt automáticamente con IA"
+              >
+                <Sparkles className="w-4 h-4" />
+                Mejorar con IA
+              </button>
+            )}
+          </div>
+          
           <button
             onClick={handleSave}
             disabled={saving}
