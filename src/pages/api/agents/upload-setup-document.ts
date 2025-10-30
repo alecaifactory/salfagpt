@@ -18,14 +18,27 @@ const genAI = new GoogleGenAI({
 
 export const POST: APIRoute = async ({ request }) => {
   try {
+    console.log('📥 [UPLOAD] Request received');
+    console.log('📥 [UPLOAD] Content-Type:', request.headers.get('content-type'));
+    
     const formData = await request.formData();
+    console.log('📥 [UPLOAD] FormData parsed');
+    
     const file = formData.get('file') as File;
     const agentId = formData.get('agentId') as string;
     const purpose = formData.get('purpose') as string;
 
+    console.log('📥 [UPLOAD] file:', !!file);
+    console.log('📥 [UPLOAD] agentId:', agentId);
+    console.log('📥 [UPLOAD] purpose:', purpose);
+
     if (!file || !agentId) {
+      console.error('❌ [UPLOAD] Missing required fields - file:', !!file, 'agentId:', agentId);
       return new Response(
-        JSON.stringify({ error: 'File and agentId are required' }),
+        JSON.stringify({ 
+          error: 'File and agentId are required',
+          received: { hasFile: !!file, agentId: agentId || 'missing' }
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
