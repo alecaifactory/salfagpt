@@ -38,6 +38,7 @@ export default function AgentContextModal({
   const [currentPage, setCurrentPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [documentsLoaded, setDocumentsLoaded] = useState(false); // ✅ NEW: Track if documents have been loaded
   
   // Selected document for detail view
   const [selectedDocument, setSelectedDocument] = useState<ContextSource | null>(null);
@@ -46,17 +47,39 @@ export default function AgentContextModal({
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
   
-  // Load first page when modal opens
+  // ✅ CHANGED: Load metadata only (count), NOT documents - better performance
   useEffect(() => {
-    if (isOpen) {
-      loadFirstPage();
+    if (isOpen && agentId) {
+      loadMetadata();
     } else {
       // Reset when closing
       setSources([]);
       setCurrentPage(0);
       setSelectedDocument(null);
+      setDocumentsLoaded(false);
+      setTotalCount(0);
     }
   }, [isOpen, agentId]);
+  
+  // ✅ NEW: Load only metadata (count) - NO documents
+  const loadMetadata = async () => {
+    try {
+      console.log('📊 Loading document count for agent:', agentId);
+      
+      // Get count only - no actual documents
+      const response = await fetch(`/api/agents/${agentId}/context-count`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        setTotalCount(data.total || 0);
+        console.log('✅ Metadata loaded:', data.total, 'documents available');
+      } else {
+        console.warn('⚠️ Count endpoint not available, will load on user request');
+      }
+    } catch (error) {
+      console.error('Error loading metadata:', error);
+    }
+  };
   
   const loadFirstPage = async () => {
     setLoading(true);
@@ -82,6 +105,7 @@ export default function AgentContextModal({
         setSources(data.sources || []);
         setTotalCount(data.total || 0);
         setHasMore(data.hasMore || false);
+        setDocumentsLoaded(true); // ✅ Mark as loaded
         
         console.log('✅ Loaded page 0:', data.sources?.length || 0, 'of', data.total || 0, 'sources');
         
@@ -192,7 +216,7 @@ export default function AgentContextModal({
                 Configuración de Contexto
               </h2>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                {agentName} • {totalCount} documentos
+                {agentName} • {documentsLoaded ? `${sources.length} de ${totalCount}` : `${totalCount}`} documentos
               </p>
             </div>
           </div>
@@ -235,7 +259,10 @@ export default function AgentContextModal({
                     Fuentes de Contexto
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
-                    {sources.length} loaded of {totalCount} total
+                    {documentsLoaded 
+                      ? `${sources.length} cargados de ${totalCount} total`
+                      : `${totalCount} documentos disponibles`
+                    }
                   </p>
                 </div>
                 <button
@@ -249,6 +276,37 @@ export default function AgentContextModal({
             
             {/* Document List - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4">
+              {/* ✅ NEW: Show "Load Documents" button before loading */}
+              {!documentsLoaded && !loading && (
+                <div className="text-center py-12">
+                  <Database className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  <p className="text-sm text-slate-600 mb-4">
+                    {totalCount > 0 ? (
+                      <>
+                        <span className="font-bold text-slate-800">{totalCount}</span> documentos disponibles
+                      </>
+                    ) : (
+                      'Documentos disponibles'
+                    )}
+                  </p>
+                  <button
+                    onClick={loadFirstPage}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 mx-auto transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Cargar Documentos
+                    {totalCount > 0 && (
+                      <span className="ml-1 px-2 py-0.5 bg-blue-500 rounded-full text-xs">
+                        {Math.min(10, totalCount)}
+                      </span>
+                    )}
+                  </button>
+                  <p className="text-xs text-slate-500 mt-3">
+                    {totalCount > 10 ? 'Se cargarán los primeros 10 documentos' : 'Click para cargar'}
+                  </p>
+                </div>
+              )}
+              
               {loading && sources.length === 0 && (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />
@@ -256,7 +314,7 @@ export default function AgentContextModal({
                 </div>
               )}
               
-              {!loading && sources.length === 0 && (
+              {!loading && documentsLoaded && sources.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No hay fuentes de contexto</p>

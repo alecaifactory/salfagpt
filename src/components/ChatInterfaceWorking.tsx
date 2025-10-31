@@ -26,6 +26,7 @@ import StellaSidebarChat from './StellaSidebarChat';
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
 import AgentPromptEnhancer from './AgentPromptEnhancer'; // ✅ NEW: AI-powered prompt enhancement
+import PromptVersionHistory from './PromptVersionHistory'; // ✅ NEW: Prompt version history
 import RoadmapModal from './RoadmapModal'; // ✅ NEW: Roadmap system
 import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
 import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
@@ -287,7 +288,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [showAgentContextModal, setShowAgentContextModal] = useState(false);
-  const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null);
+  const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null); // ✅ Kept as string for backward compat
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
   
   // Multi-select state for agent context modal
@@ -297,12 +298,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showAgentSharingModal, setShowAgentSharingModal] = useState(false);
   const [agentToShare, setAgentToShare] = useState<Conversation | null>(null);
   
+  // ✅ NEW: Agent configuration state (stores agent being configured)
+  const [agentForConfiguration, setAgentForConfiguration] = useState<Conversation | null>(null);
+  const [agentForEnhancer, setAgentForEnhancer] = useState<Conversation | null>(null);
+  
   // ✅ NEW: Domain and Agent Prompt modals
   const [showDomainPromptModal, setShowDomainPromptModal] = useState(false);
   const [showAgentPromptModal, setShowAgentPromptModal] = useState(false);
   const [showAgentPromptEnhancer, setShowAgentPromptEnhancer] = useState(false); // ✅ NEW: Prompt enhancer modal
+  const [showPromptVersionHistory, setShowPromptVersionHistory] = useState(false); // ✅ NEW: Version history modal
   const [currentDomainPrompt, setCurrentDomainPrompt] = useState<string>('');
   const [currentAgentPrompt, setCurrentAgentPrompt] = useState<string>('');
+  const [lastPromptSaveTime, setLastPromptSaveTime] = useState<number>(0); // Track recent saves
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
@@ -2567,7 +2574,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   };
 
   // ✅ NEW: Handle agent prompt save
-  const handleSaveAgentPrompt = async (agentPrompt: string) => {
+  const handleSaveAgentPrompt = async (agentPrompt: string, changeType?: string) => {
     if (!currentConversation) return;
     
     try {
@@ -2580,6 +2587,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       console.log('🔍 [FRONTEND] Is chat with parent agent:', !!currentConv?.agentId);
       console.log('🔍 [FRONTEND] Agent ID to save to:', agentIdToSave);
       console.log('🔍 [FRONTEND] Agent prompt length:', agentPrompt.length);
+      console.log('🔍 [FRONTEND] Change type:', changeType || 'manual_update');
       console.log('🔍 [FRONTEND] Agent prompt (first 200 chars):', agentPrompt.substring(0, 200));
       console.log('🔍 [FRONTEND] Full agent prompt:', agentPrompt);
       
@@ -2590,6 +2598,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           agentPrompt,
           userId,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
+          changeType: changeType || 'manual_update', // ✅ Pass change type
         }),
       });
       
@@ -2602,9 +2611,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       console.log('✅ [FRONTEND] Agent prompt saved, response:', result);
       console.log('🔍 [FRONTEND] Saved prompt length:', result.agentPrompt?.length);
       console.log('🔍 [FRONTEND] Saved prompt:', result.agentPrompt);
+      console.log('📚 [FRONTEND] Version number:', result.promptVersion);
       
+      // Update state and track save time
       setCurrentAgentPrompt(agentPrompt);
-      console.log('✅ Agent prompt saved');
+      setLastPromptSaveTime(Date.now()); // Mark time of save
+      console.log('✅ Agent prompt saved and cached');
     } catch (error) {
       console.error('❌ Error saving agent prompt:', error);
       throw error;
@@ -2614,25 +2626,86 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   // ✅ NEW: Handle enhanced prompt suggestion
   const handlePromptSuggested = async (enhancedPrompt: string, documentUrl: string) => {
     try {
-      console.log('✨ Enhanced prompt suggested:', enhancedPrompt.length, 'characters');
-      console.log('📄 Document URL:', documentUrl);
+      console.log('✨ [SUGGEST] Enhanced prompt suggested:', enhancedPrompt.length, 'characters');
+      console.log('📄 [SUGGEST] Document URL:', documentUrl);
+      console.log('🔍 [SUGGEST] Current conversation:', currentConversation);
+      console.log('🔍 [SUGGEST] Current agent prompt BEFORE:', currentAgentPrompt?.length || 0, 'chars');
+      console.log('📝 [SUGGEST] Enhanced prompt (first 200):', enhancedPrompt.substring(0, 200));
       
-      // Save the enhanced prompt
-      await handleSaveAgentPrompt(enhancedPrompt);
+      // Save the enhanced prompt with AI enhancement marker
+      console.log('💾 [SUGGEST] Saving to Firestore with ai_enhanced...');
+      await handleSaveAgentPrompt(enhancedPrompt, 'ai_enhanced');
+      console.log('✅ [SUGGEST] Saved to Firestore successfully');
+      
+      // Update local state IMMEDIATELY (before any modal operations)
+      console.log('🔄 [SUGGEST] Updating local state to enhanced prompt...');
+      setCurrentAgentPrompt(enhancedPrompt);
+      console.log('✅ [SUGGEST] Local state updated to:', enhancedPrompt.length, 'chars');
+      
+      // Close enhancer
+      console.log('🔄 [SUGGEST] Closing enhancer modal...');
+      setShowAgentPromptEnhancer(false);
+      
+      // Small delay for React state updates to propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Reopen config modal - React will use the updated currentAgentPrompt state
+      console.log('🔄 [SUGGEST] Reopening config modal with updated state...');
+      console.log('🔍 [SUGGEST] currentAgentPrompt state:', enhancedPrompt.length, 'chars');
+      setShowAgentPromptModal(true);
+      
+      console.log('✅ [SUGGEST] Enhanced prompt applied and modal reopened');
+      console.log('💡 [SUGGEST] Modal will display the updated prompt from state');
       
       // TODO: Save document URL reference to agent config
-      // This would allow showing "Setup document" link in agent details
-      
-      console.log('✅ Enhanced prompt applied successfully');
     } catch (error) {
-      console.error('❌ Error applying enhanced prompt:', error);
+      console.error('❌ [SUGGEST] Error applying enhanced prompt:', error);
+      alert('Error al aplicar el prompt mejorado. Revisa la consola para detalles.');
       throw error;
     }
   };
 
-  // ✅ NEW: Load domain and agent prompts when selecting agent
-  const loadPromptsForAgent = async (conversationId: string) => {
+  // ✅ NEW: Handle prompt version revert
+  const handlePromptReverted = async (revertedPrompt: string, versionNumber: number) => {
     try {
+      console.log('🔄 Prompt reverted to version:', versionNumber);
+      console.log('📝 Prompt length:', revertedPrompt.length);
+      
+      // Update local state
+      setCurrentAgentPrompt(revertedPrompt);
+      
+      // Reload prompts to refresh UI
+      if (currentConversation) {
+        await loadPromptsForAgent(currentConversation);
+      }
+      
+      // Close version history and reopen config modal to show the reverted prompt
+      setShowPromptVersionHistory(false);
+      setShowAgentPromptModal(true);
+      
+      console.log('✅ Prompt reverted successfully and modal reopened');
+    } catch (error) {
+      console.error('❌ Error handling reverted prompt:', error);
+    }
+  };
+
+  // ✅ NEW: Load domain and agent prompts when selecting agent
+  const loadPromptsForAgent = async (conversationId: string, skipReload = false) => {
+    try {
+      // 🔑 Skip reload if we recently saved (within last 5 seconds)
+      const timeSinceLastSave = Date.now() - lastPromptSaveTime;
+      if (timeSinceLastSave < 5000 && lastPromptSaveTime > 0) {
+        console.log('⏭️ [LOAD PROMPTS] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
+        console.log('💡 [LOAD PROMPTS] Using cached prompt:', currentAgentPrompt.length, 'chars');
+        return;
+      }
+      
+      // 🔑 Skip reload if explicitly requested
+      if (skipReload) {
+        console.log('⏭️ [LOAD PROMPTS] Skipping reload - skipReload flag set');
+        return;
+      }
+      
       // 🔑 CRITICAL: Get parent agent ID if this is a chat
       const currentConv = conversations.find(c => c.id === conversationId);
       const agentIdToLoad = currentConv?.agentId || conversationId;
@@ -5840,11 +5913,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           agentName={conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
           userId={userId}
           onEditPrompt={() => {
-            // Close context modal and open agent prompt modal
-            setShowAgentContextModal(false);
-            setShowAgentPromptModal(true);
-            // Load current agent prompt
-            loadPromptsForAgent(agentForContextConfig);
+            // ✅ IMPROVED: Store agent object before opening prompt modal
+            const agent = conversations.find(c => c.id === agentForContextConfig);
+            console.log('🔍 [onEditPrompt] agentForContextConfig:', agentForContextConfig);
+            console.log('🔍 [onEditPrompt] Found agent:', agent?.id, agent?.title);
+            if (agent) {
+              setAgentForEnhancer(agent); // ✅ Guardar para uso posterior en enhancer
+              console.log('✅ [onEditPrompt] Stored in agentForEnhancer:', agent.id);
+              setShowAgentContextModal(false);
+              
+              // ✅ Load prompts BEFORE opening modal
+              loadPromptsForAgent(agentForContextConfig); // Load fresh data
+              setShowAgentPromptModal(true);
+            } else {
+              console.error('❌ Agent not found:', agentForContextConfig);
+            }
           }}
         />
       )}
@@ -5905,29 +5988,70 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         })()}
         currentAgentPrompt={currentAgentPrompt}
         domainPrompt={currentDomainPrompt}
+        userId={userId}
         onSave={handleSaveAgentPrompt}
         onOpenEnhancer={() => {
+          // ✅ IMPROVED: Use already stored agent from onEditPrompt
+          console.log('🔍 [onOpenEnhancer] agentForEnhancer:', agentForEnhancer?.id, agentForEnhancer?.title);
+          console.log('🔍 [onOpenEnhancer] currentConversation:', currentConversation);
+          
+          if (agentForEnhancer) {
+            console.log('✅ Opening enhancer with stored agent:', agentForEnhancer.id, agentForEnhancer.title);
+            setShowAgentPromptModal(false);
+            setShowAgentPromptEnhancer(true);
+          } else {
+            console.error('❌ Cannot open enhancer - agentForEnhancer not set');
+            console.log('   currentConversation:', currentConversation);
+            console.log('   Attempting fallback...');
+            // Fallback: try to find from currentConversation
+            const currentConv = conversations.find(c => c.id === currentConversation);
+            const agentId = currentConv?.agentId || currentConversation;
+            const agent = conversations.find(c => c.id === agentId);
+            if (agent) {
+              setAgentForEnhancer(agent);
+              setShowAgentPromptModal(false);
+              setShowAgentPromptEnhancer(true);
+            } else {
+              alert('Error: No se pudo identificar el agente. Cierra y vuelve a intentar.');
+            }
+          }
+        }}
+        onOpenVersionHistory={() => {
           setShowAgentPromptModal(false);
-          setShowAgentPromptEnhancer(true);
+          setShowPromptVersionHistory(true);
         }}
       />
 
       {/* ✅ NEW: Agent Prompt Enhancer Modal */}
-      <AgentPromptEnhancer
-        isOpen={showAgentPromptEnhancer}
-        onClose={() => setShowAgentPromptEnhancer(false)}
-        agentId={(() => {
-          const currentConv = conversations.find(c => c.id === currentConversation);
-          return currentConv?.agentId || currentConversation || '';
-        })()}
-        agentName={(() => {
-          const currentConv = conversations.find(c => c.id === currentConversation);
-          const agentId = currentConv?.agentId || currentConversation;
-          return conversations.find(c => c.id === agentId)?.title || 'Agente';
-        })()}
-        currentPrompt={currentAgentPrompt}
-        onPromptSuggested={handlePromptSuggested}
-      />
+      {agentForEnhancer && ( // ✅ IMPROVED: Use stored agent object
+        <AgentPromptEnhancer
+          isOpen={showAgentPromptEnhancer}
+          onClose={() => {
+            setShowAgentPromptEnhancer(false);
+            setAgentForEnhancer(null); // Clear state
+          }}
+          agentId={agentForEnhancer.id} // ✅ Direct access from stored object
+          agentName={agentForEnhancer.title} // ✅ Direct access from stored object
+          currentPrompt={currentAgentPrompt}
+          onPromptSuggested={handlePromptSuggested}
+        />
+      )}
+
+      {/* ✅ NEW: Prompt Version History Modal */}
+      {agentForEnhancer && (
+        <PromptVersionHistory
+          isOpen={showPromptVersionHistory}
+          onClose={() => {
+            setShowPromptVersionHistory(false);
+            setAgentForEnhancer(null);
+          }}
+          agentId={agentForEnhancer.id}
+          agentName={agentForEnhancer.title}
+          currentPrompt={currentAgentPrompt}
+          userId={userId || ''}
+          onRevert={handlePromptReverted}
+        />
+      )}
 
       {/* ✅ NEW: Expert Feedback Panel */}
       {showExpertFeedback && feedbackMessageId && userId && userEmail && (
@@ -6003,13 +6127,24 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       )}
       
       {/* Agent Configuration Modal */}
-      <AgentConfigurationModal
-        isOpen={showAgentConfiguration}
-        onClose={() => setShowAgentConfiguration(false)}
-        agentId={currentConversation || undefined}
-        agentName={conversations.find(c => c.id === currentConversation)?.title}
-        onConfigSaved={handleAgentConfigSaved}
-      />
+      {agentForConfiguration && ( // ✅ IMPROVED: Use stored agent object
+        <AgentConfigurationModal
+          isOpen={showAgentConfiguration}
+          onClose={() => {
+            setShowAgentConfiguration(false);
+            setAgentForConfiguration(null); // Clear state
+          }}
+          agentId={agentForConfiguration.id}
+          agentName={agentForConfiguration.title}
+          onConfigSaved={handleAgentConfigSaved}
+          onOpenEnhancer={() => {
+            // ✅ Transfer agent context to enhancer
+            setAgentForEnhancer(agentForConfiguration);
+            setShowAgentConfiguration(false);
+            setShowAgentPromptEnhancer(true);
+          }}
+        />
+      )}
       
       {/* User Management Panel - SuperAdmin Only */}
       {showUserManagement && userEmail && (
@@ -6054,9 +6189,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         userRole="admin" // TODO: Get from user profile
         conversations={conversations}
         onNavigateToAgent={(agentId: string) => {
-          setCurrentConversation(agentId);
-          setShowAgentEvaluation(false);
-          setShowAgentConfiguration(true);
+          // ✅ IMPROVED: Store agent object in state for modal
+          const agent = conversations.find(c => c.id === agentId);
+          if (agent) {
+            setAgentForConfiguration(agent); // Store complete agent object
+            setCurrentConversation(agentId); // Also select it
+            setShowAgentEvaluation(false);
+            setShowAgentConfiguration(true);
+          } else {
+            console.error('❌ Agent not found:', agentId);
+          }
         }}
       />
 
@@ -6096,7 +6238,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             setShowMyFeedback(false);
             setHighlightTicketId(null);
           }}
-          highlightTicketId={highlightTicketId}
+          highlightTicketId={highlightTicketId || undefined}
         />
       )}
 

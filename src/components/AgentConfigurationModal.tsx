@@ -34,6 +34,7 @@ interface AgentConfigurationModalProps {
   agentId?: string; // If editing existing agent
   agentName?: string;
   onConfigSaved: (config: AgentConfiguration) => void;
+  onOpenEnhancer?: () => void; // ✅ NEW: Callback to open AgentPromptEnhancer
 }
 
 export default function AgentConfigurationModal({
@@ -42,6 +43,7 @@ export default function AgentConfigurationModal({
   agentId,
   agentName,
   onConfigSaved,
+  onOpenEnhancer, // ✅ NEW: Callback to open enhancer
 }: AgentConfigurationModalProps) {
   const [uploadMode, setUploadMode] = useState<'file' | 'prompt' | 'enhance'>('file');
   const [file, setFile] = useState<File | null>(null);
@@ -1577,18 +1579,16 @@ export default function AgentConfigurationModal({
             
             {!uploading && !extractedConfig && uploadMode === 'enhance' && (
               <button
-                onClick={async () => {
-                  if (!file) return;
-                  
-                  // This will call the AgentPromptEnhancer flow
-                  // For now, show message that this opens the enhancer
-                  alert('Esta funcionalidad abrirá el modal de mejora de prompt con el documento subido.');
-                  
-                  // TODO: Integrate with AgentPromptEnhancer or handle here
-                  // Option 1: Open AgentPromptEnhancer modal with pre-loaded file
-                  // Option 2: Process directly here similar to file mode
+                onClick={() => {
+                  // ✅ NEW: Open AgentPromptEnhancer modal instead of showing alert
+                  if (onOpenEnhancer) {
+                    onClose(); // Close this modal first
+                    onOpenEnhancer(); // Open AgentPromptEnhancer
+                  } else {
+                    alert('Error: onOpenEnhancer callback no está configurado');
+                  }
                 }}
-                disabled={!file}
+                disabled={!onOpenEnhancer}
                 className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 <Sparkles className="w-4 h-4" />

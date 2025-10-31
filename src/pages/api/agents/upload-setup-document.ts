@@ -28,16 +28,22 @@ export const POST: APIRoute = async ({ request }) => {
     const agentId = formData.get('agentId') as string;
     const purpose = formData.get('purpose') as string;
 
-    console.log('📥 [UPLOAD] file:', !!file);
-    console.log('📥 [UPLOAD] agentId:', agentId);
+    console.log('📥 [UPLOAD] file:', !!file, 'name:', file?.name);
+    console.log('📥 [UPLOAD] agentId:', agentId, 'type:', typeof agentId, 'length:', agentId?.length);
     console.log('📥 [UPLOAD] purpose:', purpose);
 
     if (!file || !agentId) {
-      console.error('❌ [UPLOAD] Missing required fields - file:', !!file, 'agentId:', agentId);
+      console.error('❌ [UPLOAD] Missing required fields - file:', !!file, 'agentId:', agentId || 'missing');
       return new Response(
         JSON.stringify({ 
           error: 'File and agentId are required',
-          received: { hasFile: !!file, agentId: agentId || 'missing' }
+          received: { 
+            hasFile: !!file, 
+            fileName: file?.name || 'missing',
+            agentId: agentId || 'missing',
+            agentIdType: typeof agentId,
+            purpose: purpose || 'missing'
+          }
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
@@ -46,7 +52,8 @@ export const POST: APIRoute = async ({ request }) => {
     console.log('📤 Uploading setup document for agent:', agentId);
     console.log('📄 File:', file.name, file.type, file.size, 'bytes');
 
-    // 1. Upload to Cloud Storage
+    // 1. Upload to Cloud Storage (0-30% progress)
+    console.log('📤 [PROGRESS] 5% - Starting upload to Cloud Storage');
     const projectId = process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
     const bucketName = `${projectId}-agent-setup-docs`;
     const bucket = storage.bucket(bucketName);
@@ -61,12 +68,14 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
+    console.log('📤 [PROGRESS] 10% - Preparing file upload');
     const timestamp = Date.now();
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const cloudPath = `agents/${agentId}/setup-docs/${timestamp}-${sanitizedFileName}`;
     const cloudFile = bucket.file(cloudPath);
 
     // Upload file
+    console.log('📤 [PROGRESS] 15% - Uploading file to Cloud Storage');
     const fileBuffer = await file.arrayBuffer();
     await cloudFile.save(Buffer.from(fileBuffer), {
       metadata: {
@@ -85,12 +94,15 @@ export const POST: APIRoute = async ({ request }) => {
     
     const publicUrl = `https://storage.googleapis.com/${bucketName}/${cloudPath}`;
     console.log('✅ File uploaded to Cloud Storage:', publicUrl);
+    console.log('📤 [PROGRESS] 30% - File uploaded successfully');
 
-    // 2. Extract content using Gemini AI
+    // 2. Extract content using Gemini AI (30-100% progress)
     console.log('🔍 Extracting content from document...');
+    console.log('📤 [PROGRESS] 35% - Converting file to base64');
     
-    // Upload file to Gemini File API for processing
-    const fileUri = await uploadFileToGemini(fileBuffer, file.name, file.type);
+    // Convert file to base64 for inline data
+    const base64Data = Buffer.from(fileBuffer).toString('base64');
+    console.log('📤 [PROGRESS] 50% - Sending to Gemini AI for extraction');
     
     // Extract content with Gemini
     const extractionPrompt = `
@@ -109,13 +121,19 @@ NO resumas. NO omitas detalles. Extrae TODO el contenido disponible.
 Formato: Texto plano con estructura clara usando markdown donde sea apropiado.
 `.trim();
 
+    console.log('📤 [PROGRESS] 60% - Processing with Gemini AI...');
     const result = await genAI.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
         {
           role: 'user',
           parts: [
-            { fileData: { mimeType: file.type, fileUri } },
+            { 
+              inlineData: { 
+                mimeType: file.type, 
+                data: base64Data 
+              } 
+            },
             { text: extractionPrompt }
           ]
         }
@@ -128,6 +146,7 @@ Formato: Texto plano con estructura clara usando markdown donde sea apropiado.
 
     const extractedContent = result.text || '';
     console.log(`✅ Content extracted: ${extractedContent.length} characters`);
+    console.log('📤 [PROGRESS] 100% - Extraction complete');
 
     return new Response(
       JSON.stringify({
@@ -158,27 +177,3 @@ Formato: Texto plano con estructura clara usando markdown donde sea apropiado.
     );
   }
 };
-
-/**
- * Helper: Upload file to Gemini File API
- */
-async function uploadFileToGemini(
-  fileBuffer: ArrayBuffer,
-  fileName: string,
-  mimeType: string
-): Promise<string> {
-  // For now, return a mock URI
-  // In production, you'd use Gemini's File API to upload the file
-  // and get back a fileUri that can be used in generateContent
-  
-  // TODO: Implement actual Gemini File API upload
-  // const fileManager = new GoogleAIFileManager(apiKey);
-  // const uploadResult = await fileManager.uploadFile(filePath, { mimeType });
-  // return uploadResult.file.uri;
-  
-  // For now, we'll use a different approach:
-  // Convert to base64 and include inline (works for smaller files)
-  const base64 = Buffer.from(fileBuffer).toString('base64');
-  return `data:${mimeType};base64,${base64}`;
-}
-

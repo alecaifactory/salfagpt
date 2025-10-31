@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Sparkles, AlertCircle, Lightbulb, Copy, Check } from 'lucide-react';
+import { X, Save, Sparkles, AlertCircle, Lightbulb, Copy, Check, Clock } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import { 
   PROMPT_TEMPLATES, 
@@ -16,8 +16,10 @@ interface AgentPromptModalProps {
   agentName: string;
   currentAgentPrompt?: string;
   domainPrompt?: string; // To show hierarchy
+  userId?: string; // For version history
   onSave: (agentPrompt: string) => Promise<void>;
   onOpenEnhancer?: () => void; // ✅ NEW: Open AI enhancer modal
+  onOpenVersionHistory?: () => void; // ✅ NEW: Open version history modal
 }
 
 export default function AgentPromptModal({
@@ -27,8 +29,10 @@ export default function AgentPromptModal({
   agentName,
   currentAgentPrompt = '',
   domainPrompt,
+  userId,
   onSave,
   onOpenEnhancer,
+  onOpenVersionHistory,
 }: AgentPromptModalProps) {
   const [agentPrompt, setAgentPrompt] = useState(currentAgentPrompt);
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null);
@@ -278,6 +282,18 @@ export default function AgentPromptModal({
               >
                 <Sparkles className="w-4 h-4" />
                 Mejorar con IA
+              </button>
+            )}
+            
+            {/* ✅ NEW: Version History Button */}
+            {onOpenVersionHistory && (
+              <button
+                onClick={onOpenVersionHistory}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                title="Ver historial de versiones del prompt"
+              >
+                <Clock className="w-4 h-4" />
+                Ver Historial
               </button>
             )}
           </div>

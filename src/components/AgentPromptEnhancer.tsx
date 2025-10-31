@@ -15,6 +15,7 @@ interface ExtractionProgress {
   stage: 'uploading' | 'extracting' | 'analyzing' | 'generating' | 'complete';
   message: string;
   percentage: number;
+  details?: string; // ✅ NEW: Detailed progress info for tooltip
 }
 
 export default function AgentPromptEnhancer({
@@ -32,6 +33,7 @@ export default function AgentPromptEnhancer({
   const [suggestedPrompt, setSuggestedPrompt] = useState<string>('');
   const [documentUrl, setDocumentUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false); // ✅ NEW: Track applying state
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
@@ -75,12 +77,41 @@ export default function AgentPromptEnhancer({
     setError(null);
 
     try {
-      // Step 1: Upload and extract
+      // Step 1: Upload with very granular progress (0-35%)
       setProgress({
         stage: 'uploading',
-        message: 'Subiendo documento...',
-        percentage: 10,
+        message: 'Preparando archivo...',
+        percentage: 2,
+        details: `Validando ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`,
       });
+
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Create granular upload progress
+      let uploadPercentage = 2;
+      const uploadInterval = setInterval(() => {
+        uploadPercentage = Math.min(uploadPercentage + 1, 30);
+        setProgress(prev => {
+          if (!prev || prev.stage !== 'uploading') return prev;
+          const messages = [
+            { max: 5, msg: 'Preparando archivo...', detail: 'Validando formato y tamaño' },
+            { max: 10, msg: 'Iniciando subida...', detail: 'Conectando con Cloud Storage' },
+            { max: 15, msg: 'Subiendo archivo...', detail: `Transferido ${Math.floor(uploadPercentage * 3.33)}%` },
+            { max: 22, msg: 'Subiendo archivo...', detail: `Transferido ${Math.floor(uploadPercentage * 3.33)}%` },
+            { max: 28, msg: 'Verificando integridad...', detail: 'Confirmando archivo en servidor' },
+            { max: 35, msg: 'Archivo subido', detail: 'Preparando para extracción' },
+          ];
+          
+          const current = messages.find(m => uploadPercentage <= m.max) || messages[messages.length - 1];
+          
+          return {
+            ...prev,
+            percentage: uploadPercentage,
+            message: current.msg,
+            details: current.detail,
+          };
+        });
+      }, 300);
 
       const formData = new FormData();
       formData.append('file', file);
@@ -96,33 +127,87 @@ export default function AgentPromptEnhancer({
         body: formData,
       });
 
-      console.log('📥 [FRONTEND] Upload response status:', uploadResponse.status);
-      
+      clearInterval(uploadInterval);
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error('❌ [FRONTEND] Upload failed:', errorText);
-        throw new Error(`Error al subir el documento: ${uploadResponse.status} - ${errorText}`);
+        throw new Error(`Error al subir el documento: ${uploadResponse.status}`);
       }
 
       const uploadData = await uploadResponse.json();
-      console.log('📥 [FRONTEND] Upload data:', uploadData);
       setDocumentUrl(uploadData.documentUrl);
+
+      // Step 2: Extraction with granular progress (35-55%)
+      let extractPercentage = 35;
+      const extractInterval = setInterval(() => {
+        extractPercentage = Math.min(extractPercentage + 1, 54);
+        setProgress(prev => {
+          if (!prev || prev.stage !== 'extracting') return prev;
+          const details = [
+            { max: 38, detail: 'Convirtiendo documento a formato procesable' },
+            { max: 42, detail: 'Extrayendo texto de páginas (1-5)' },
+            { max: 46, detail: 'Extrayendo texto de páginas (5-10)' },
+            { max: 50, detail: 'Procesando tablas y estructura' },
+            { max: 55, detail: 'Finalizando extracción completa' },
+          ];
+          const current = details.find(d => extractPercentage <= d.max) || details[details.length - 1];
+          return {
+            stage: 'extracting',
+            message: 'Extrayendo contenido completo del documento...',
+            percentage: extractPercentage,
+            details: current.detail,
+          };
+        });
+      }, 400);
 
       setProgress({
         stage: 'extracting',
         message: 'Extrayendo contenido completo del documento...',
-        percentage: 30,
+        percentage: 35,
+        details: 'Iniciando extracción con Gemini AI',
       });
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simular extracción
+      clearInterval(extractInterval);
 
       setExtractedContent(uploadData.extractedContent);
 
-      // Step 2: Analyze and enhance prompt
+      setProgress({
+        stage: 'extracting',
+        message: 'Contenido extraído exitosamente',
+        percentage: 55,
+        details: `${uploadData.extractedContent.length.toLocaleString()} caracteres extraídos`,
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 3: Analysis with granular progress (55-75%)
+      let analyzePercentage = 55;
+      const analysisInterval = setInterval(() => {
+        analyzePercentage = Math.min(analyzePercentage + 1, 74);
+        setProgress(prev => {
+          if (!prev || prev.stage !== 'analyzing') return prev;
+          const details = [
+            { max: 58, detail: 'Identificando secciones clave del documento' },
+            { max: 62, detail: 'Analizando objetivos y audiencia del agente' },
+            { max: 66, detail: 'Extrayendo ejemplos de preguntas y respuestas' },
+            { max: 70, detail: 'Identificando tono y estilo requerido' },
+            { max: 75, detail: 'Detectando restricciones y limitaciones' },
+          ];
+          const current = details.find(d => analyzePercentage <= d.max) || details[details.length - 1];
+          return {
+            ...prev,
+            percentage: analyzePercentage,
+            details: current.detail,
+          };
+        });
+      }, 350);
+
       setProgress({
         stage: 'analyzing',
-        message: 'Analizando contenido y propósito del agente...',
-        percentage: 60,
+        message: 'Analizando contenido y estructura del documento...',
+        percentage: 55,
+        details: 'Preparando análisis inteligente',
       });
 
       const enhanceResponse = await fetch('/api/agents/enhance-prompt', {
@@ -136,26 +221,55 @@ export default function AgentPromptEnhancer({
         }),
       });
 
+      clearInterval(analysisInterval);
+
       if (!enhanceResponse.ok) {
         throw new Error('Error al generar prompt mejorado');
       }
 
       const enhanceData = await enhanceResponse.json();
 
+      // Step 4: Generation with granular progress (75-98%)
+      let generatePercentage = 75;
+      const generationInterval = setInterval(() => {
+        generatePercentage = Math.min(generatePercentage + 1, 98);
+        setProgress(prev => {
+          if (!prev || prev.stage !== 'generating') return prev;
+          const details = [
+            { max: 78, detail: 'Estructurando prompt con mejores prácticas' },
+            { max: 82, detail: 'Incorporando contexto y objetivos claros' },
+            { max: 86, detail: 'Agregando ejemplos y casos de uso' },
+            { max: 90, detail: 'Definiendo tono y estilo de respuesta' },
+            { max: 94, detail: 'Añadiendo restricciones y guías' },
+            { max: 98, detail: 'Optimizando estructura final' },
+          ];
+          const current = details.find(d => generatePercentage <= d.max) || details[details.length - 1];
+          return {
+            ...prev,
+            percentage: generatePercentage,
+            details: current.detail,
+          };
+        });
+      }, 250);
+
       setProgress({
         stage: 'generating',
-        message: 'Generando prompt mejorado con mejores prácticas de prompt engineering...',
-        percentage: 90,
+        message: 'Aplicando mejores prácticas de prompt engineering...',
+        percentage: 75,
+        details: 'Generando prompt optimizado',
       });
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      clearInterval(generationInterval);
 
       setSuggestedPrompt(enhanceData.enhancedPrompt);
 
+      // Final step: Complete (stop at 100%, don't continue)
       setProgress({
         stage: 'complete',
         message: '✅ Prompt mejorado generado exitosamente',
         percentage: 100,
+        details: `Prompt de ${enhanceData.enhancedPrompt.length} caracteres listo`,
       });
 
     } catch (err: any) {
@@ -166,9 +280,25 @@ export default function AgentPromptEnhancer({
     }
   };
 
-  const handleApplySuggestion = () => {
-    onPromptSuggested(suggestedPrompt, documentUrl);
-    onClose();
+  const handleApplySuggestion = async () => {
+    setApplying(true);
+    try {
+      console.log('🔄 [ENHANCER] Applying suggested prompt...');
+      console.log('📝 [ENHANCER] Prompt length:', suggestedPrompt.length);
+      
+      // Call the parent handler and wait for it to complete
+      await onPromptSuggested(suggestedPrompt, documentUrl);
+      
+      console.log('✅ [ENHANCER] Prompt applied successfully');
+      
+      // Only close after successful save
+      onClose();
+    } catch (error) {
+      console.error('❌ [ENHANCER] Error applying prompt:', error);
+      setError('Error al guardar el prompt. Por favor, intenta de nuevo.');
+    } finally {
+      setApplying(false);
+    }
   };
 
   const resetState = () => {
@@ -365,44 +495,86 @@ export default function AgentPromptEnhancer({
                   <p className="text-sm font-medium text-slate-700">{progress.message}</p>
                   <span className="text-sm font-bold text-purple-600">{progress.percentage}%</span>
                 </div>
-                <div className="w-full bg-slate-200 rounded-full h-2">
+                <div className="w-full bg-slate-200 rounded-full h-2 mb-2">
                   <div
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${progress.percentage}%` }}
                   />
                 </div>
+                {/* Real-time details */}
+                {progress.details && (
+                  <div className="flex items-center gap-2 text-xs bg-slate-50 px-3 py-2 rounded border border-slate-200">
+                    {progress.stage !== 'complete' ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
+                        <span className="italic text-slate-600">{progress.details}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3 h-3 text-green-600" />
+                        <span className="font-medium text-green-700">{progress.details}</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Stage Indicator */}
+              {/* Stage Indicator with Tooltips */}
               <div className="flex items-center justify-center gap-8">
-                {['uploading', 'extracting', 'analyzing', 'generating', 'complete'].map((stage, idx) => (
-                  <div key={stage} className="flex flex-col items-center gap-2">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                        progress.stage === stage
-                          ? 'border-purple-600 bg-purple-100'
-                          : idx < ['uploading', 'extracting', 'analyzing', 'generating', 'complete'].indexOf(progress.stage)
-                          ? 'border-green-600 bg-green-100'
-                          : 'border-slate-300 bg-slate-100'
-                      }`}
+                {['uploading', 'extracting', 'analyzing', 'generating', 'complete'].map((stage, idx) => {
+                  const stageLabels = {
+                    uploading: 'Subiendo',
+                    extracting: 'Extrayendo',
+                    analyzing: 'Analizando',
+                    generating: 'Generando',
+                    complete: 'Completo'
+                  };
+                  
+                  const isActive = progress.stage === stage;
+                  const isCompleted = idx < ['uploading', 'extracting', 'analyzing', 'generating', 'complete'].indexOf(progress.stage);
+                  const shouldAnimate = isActive && progress.stage !== 'complete'; // ✅ Stop animation at complete
+                  
+                  return (
+                    <div 
+                      key={stage} 
+                      className="relative flex flex-col items-center gap-2 group"
+                      title={isActive && progress.details ? progress.details : ''}
                     >
-                      {progress.stage === stage ? (
-                        <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
-                      ) : idx < ['uploading', 'extracting', 'analyzing', 'generating', 'complete'].indexOf(progress.stage) ? (
-                        <Check className="w-5 h-5 text-green-600" />
-                      ) : (
-                        <span className="text-slate-400 text-sm font-bold">{idx + 1}</span>
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
+                          isActive
+                            ? 'border-purple-600 bg-purple-100'
+                            : isCompleted
+                            ? 'border-green-600 bg-green-100'
+                            : 'border-slate-300 bg-slate-100'
+                        }`}
+                      >
+                        {shouldAnimate ? (
+                          <Loader2 className="w-5 h-5 text-purple-600 animate-spin" />
+                        ) : progress.stage === 'complete' && stage === 'complete' ? (
+                          <Check className="w-5 h-5 text-green-600" />
+                        ) : isCompleted ? (
+                          <Check className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <span className="text-slate-400 text-sm font-bold">{idx + 1}</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-600 text-center max-w-[60px]">
+                        {stageLabels[stage as keyof typeof stageLabels]}
+                      </p>
+                      
+                      {/* Tooltip with details on hover */}
+                      {isActive && progress.details && (
+                        <div className="absolute top-12 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                          <div className="bg-slate-800 text-white text-xs px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
+                            {progress.details}
+                            <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-600 text-center max-w-[60px]">
-                      {stage === 'uploading' && 'Subiendo'}
-                      {stage === 'extracting' && 'Extrayendo'}
-                      {stage === 'analyzing' && 'Analizando'}
-                      {stage === 'generating' && 'Generando'}
-                      {stage === 'complete' && 'Completo'}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Extracted Content Preview (if available) */}
@@ -554,10 +726,20 @@ export default function AgentPromptEnhancer({
           {suggestedPrompt && (
             <button
               onClick={handleApplySuggestion}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              disabled={applying}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
-              <Check className="w-4 h-4" />
-              Aplicar Prompt Mejorado
+              {applying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Aplicar Prompt Mejorado
+                </>
+              )}
             </button>
           )}
         </div>
