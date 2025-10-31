@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { getAgentConfig, saveAgentConfig } from '../../../../lib/firestore';
+import { getAgentConfig, saveAgentConfig, firestore } from '../../../../lib/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 
 // GET /api/conversations/:id/prompt - Get agent prompt for conversation
 export const GET: APIRoute = async ({ params, request, cookies }) => {
@@ -32,12 +33,12 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
   }
 };
 
-// PUT /api/conversations/:id/prompt - Update agent prompt for conversation
+// PUT /api/conversations/:id/prompt - Update agent prompt for conversation with versioning
 export const PUT: APIRoute = async ({ params, request, cookies }) => {
   try {
     const { id } = params;
     const body = await request.json();
-    const { agentPrompt, userId, model } = body;
+    const { agentPrompt, userId, model, changeType } = body; // ✅ Added changeType
 
     console.log('🔍 [BACKEND] PUT /api/conversations/:id/prompt');
     console.log('🔍 [BACKEND] Conversation ID:', id);
@@ -65,10 +66,58 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     const existingConfig = await getAgentConfig(id);
     console.log('🔍 [BACKEND] Existing config:', existingConfig);
     
+    // 🔄 VERSIONING: Always save current prompt to version history before updating
+    if (existingConfig?.agentPrompt && existingConfig.agentPrompt !== agentPrompt) {
+      console.log('📚 [VERSIONING] Saving current prompt to history');
+      
+      try {
+        await firestore
+          .collection('agent_prompt_versions')
+          .add({
+            agentId: id,
+            userId,
+            prompt: existingConfig.agentPrompt,
+            model: existingConfig.model || 'gemini-2.5-flash',
+            createdAt: Timestamp.now(),
+            versionNumber: existingConfig.promptVersion || 1,
+            changeType: changeType || 'manual_update', // Use provided type or default
+            previousVersion: true,
+          });
+        
+        console.log('✅ [VERSIONING] Previous version saved as v' + (existingConfig.promptVersion || 1));
+      } catch (versionError) {
+        console.error('⚠️ [VERSIONING] Failed to save version (non-critical):', versionError);
+      }
+    }
+    
+    // 🔄 ALWAYS save new prompt as version for tracking
+    // This ensures first prompt and all subsequent prompts are versioned
+    console.log('📚 [VERSIONING] Saving new prompt as version in history');
+    try {
+      await firestore
+        .collection('agent_prompt_versions')
+        .add({
+          agentId: id,
+          userId,
+          prompt: agentPrompt,
+          model: model || 'gemini-2.5-flash',
+          createdAt: Timestamp.now(),
+          versionNumber: (existingConfig?.promptVersion || 0) + 1,
+          changeType: changeType || (existingConfig?.agentPrompt ? 'manual_update' : 'initial_version'),
+          isCurrent: true, // Mark as the new current version
+        });
+      
+      console.log('✅ [VERSIONING] New version saved as v' + ((existingConfig?.promptVersion || 0) + 1));
+    } catch (versionError) {
+      console.error('⚠️ [VERSIONING] Failed to save new version (non-critical):', versionError);
+    }
+    
     // Build config object, filtering out undefined values (Firestore doesn't accept them)
     const configToSave: any = {
       model: model || existingConfig?.model || 'gemini-2.5-flash',
       agentPrompt: agentPrompt || '',
+      promptVersion: (existingConfig?.promptVersion || 0) + 1,
+      lastPromptUpdate: Timestamp.now(),
     };
     
     // Only include temperature if defined
@@ -83,6 +132,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     
     console.log('🔍 [BACKEND] Config to save:', configToSave);
     console.log('🔍 [BACKEND] Config agentPrompt length:', configToSave.agentPrompt.length);
+    console.log('📚 [VERSIONING] New version number:', configToSave.promptVersion);
     
     const config = await saveAgentConfig(id, userId, configToSave);
 
@@ -94,6 +144,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     return new Response(JSON.stringify({
       agentPrompt: config.agentPrompt,
       model: config.model,
+      promptVersion: config.promptVersion,
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }

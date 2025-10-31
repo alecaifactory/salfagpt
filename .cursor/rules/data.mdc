@@ -35,7 +35,10 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ cli_events              # CLI operation events (NEW)│
 │  ├─ cli_sessions            # CLI session tracking (NEW)│
 │  ├─ message_feedback        # User/Expert feedback (2025-10-29)│
-│  └─ feedback_tickets        # Backlog tickets (2025-10-29)│
+│  ├─ feedback_tickets        # Backlog tickets (2025-10-29)│
+│  ├─ message_queue           # Queue system items (2025-10-31)│
+│  ├─ queue_configs           # Queue settings (2025-10-31)│
+│  └─ queue_metrics           # Queue analytics (2025-10-31)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
@@ -936,6 +939,255 @@ await trackUploadSession({
   success: true,
 });
 ```
+
+---
+
+### 15. message_queue
+
+**Purpose:** Store queued prompts/tasks for agents to execute sequentially or on-demand
+
+**Collection Path:** `message_queue/{queueItemId}`
+
+**TypeScript Interface:**
+```typescript
+interface MessageQueueItem {
+  // Identity
+  id: string;                         // Document ID
+  userId: string;                     // Owner (indexed)
+  conversationId: string;             // Agent/conversation (indexed)
+  
+  // Content
+  message: string;                    // The prompt/question
+  title?: string;                     // Optional short title
+  description?: string;               // Optional description
+  
+  // Execution
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'paused';
+  executionMode: 'auto' | 'manual' | 'scheduled';
+  position: number;                   // Order in queue (0-based)
+  priority: number;                   // Priority (1-10, higher = first)
+  
+  // Dependencies
+  dependsOn?: string[];               // Queue item IDs that must complete first
+  
+  // Results
+  userMessageId?: string;             // ID of user message (when executed)
+  assistantMessageId?: string;        // ID of AI response (when completed)
+  errorMessage?: string;              // Error details (if failed)
+  retryCount?: number;                // Number of retry attempts
+  
+  // Timing
+  createdAt: Date;                    // When added to queue
+  updatedAt: Date;                    // Last status update
+  startedAt?: Date;                   // When execution started
+  completedAt?: Date;                 // When execution finished
+  executionTimeMs?: number;           // How long it took
+  
+  // Context Snapshot
+  contextSnapshot?: {                 // Context at time of creation
+    activeSourceIds: string[];
+    model: string;
+    systemPrompt: string;
+  };
+  
+  // Metadata
+  tags?: string[];                    // For categorization
+  notes?: string;                     // User notes
+  source: 'localhost' | 'production'; // Data origin
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, conversationId ASC, position ASC
+- userId ASC, status ASC, createdAt DESC
+- conversationId ASC, status ASC, position ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fmessage_queue
+
+**API Endpoints:**
+- `GET /api/queue?conversationId={id}&userId={userId}` - List queue items
+- `POST /api/queue` - Add item to queue
+- `PUT /api/queue/:id` - Update queue item
+- `DELETE /api/queue/:id` - Delete queue item
+- `POST /api/queue/:id/execute` - Execute queue item
+- `POST /api/queue/bulk-add` - Bulk add items
+
+**CRUD Functions:**
+- See `src/pages/api/queue/*.ts` for implementation
+- See `src/lib/queue-processor.ts` for execution logic
+
+**Backward Compatibility:**
+- ✅ New collection (additive only)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `userId`, `conversationId`, `message` (breaking)
+
+---
+
+### 16. queue_configs
+
+**Purpose:** Store queue execution configuration per agent
+
+**Collection Path:** `queue_configs/{conversationId}`
+
+**TypeScript Interface:**
+```typescript
+interface QueueConfig {
+  id: string;                         // Document ID (conversationId)
+  conversationId: string;             // Agent ID
+  userId: string;                     // Owner
+  
+  // Execution Settings
+  executionMode: 'auto' | 'manual' | 'scheduled';
+  autoExecute: boolean;               // Auto-execute pending items
+  concurrentLimit: number;            // Max items processing at once (default: 1)
+  retryOnError: boolean;              // Auto-retry failed items
+  maxRetries: number;                 // Max retry attempts (default: 3)
+  
+  // Behavior
+  pauseOnError: boolean;              // Stop queue if item fails
+  pauseOnFeedback: boolean;           // Stop if AI requests feedback
+  notifyOnComplete: boolean;          // Notify when queue finishes
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+**Defaults:**
+```typescript
+{
+  executionMode: 'manual',
+  autoExecute: false,
+  concurrentLimit: 1,
+  retryOnError: false,
+  maxRetries: 3,
+  pauseOnError: true,
+  pauseOnFeedback: true,
+  notifyOnComplete: true,
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC (implicit - document ID)
+- userId ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fqueue_configs
+
+**API Endpoints:**
+- `GET /api/queue/config?conversationId={id}&userId={userId}` - Get config
+- `PUT /api/queue/config` - Update config
+
+**Backward Compatibility:**
+- ✅ New collection (additive only)
+- ✅ All fields have defaults
+- ⚠️ Never remove `conversationId`, `userId` (breaking)
+
+---
+
+### 17. queue_metrics
+
+**Purpose:** Track queue performance metrics and analytics per agent
+
+**Collection Path:** `queue_metrics/{conversationId}`
+
+**TypeScript Interface:**
+```typescript
+interface QueueMetrics {
+  conversationId: string;
+  totalItemsQueued: number;
+  completedItems: number;
+  failedItems: number;
+  cancelledItems: number;
+  averageExecutionTime: number;      // ms
+  averageWaitTime: number;           // ms from creation to execution
+  successRate: number;               // percentage
+  currentQueueDepth: number;         // pending items
+  peakQueueDepth: number;            // max pending at once
+  lastExecutedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+**Indexes Required:**
+```
+- conversationId ASC (implicit - document ID)
+- lastExecutedAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fqueue_metrics
+
+**API Endpoints:**
+- `GET /api/queue/metrics?conversationId={id}` - Get metrics (future)
+
+**Backward Compatibility:**
+- ✅ New collection (additive only)
+- ⚠️ Never remove `conversationId` (breaking)
+
+---
+
+### 18. agent_prompt_versions
+
+**Purpose:** Store version history of agent prompts for tracking changes and enabling rollback
+
+**Collection Path:** `agent_prompt_versions/{versionId}`
+
+**TypeScript Interface:**
+```typescript
+interface AgentPromptVersion {
+  // Identity
+  id: string;                       // Document ID (auto-generated)
+  agentId: string;                  // Agent/conversation ID (indexed)
+  userId: string;                   // Owner
+  
+  // Version Data
+  prompt: string;                   // The prompt text at this version
+  model: string;                    // Model used ('gemini-2.5-flash' | 'gemini-2.5-pro')
+  versionNumber: number;            // Incremental version (1, 2, 3...)
+  
+  // Metadata
+  changeType: 'initial_version' | 'manual_update' | 'ai_enhanced' | 'template_applied' | 'reverted';
+  previousVersion?: boolean;        // True if this is historical (not current)
+  isCurrent?: boolean;              // True for the active version
+  
+  // Timestamps
+  createdAt: Date;                  // When this version was created (indexed)
+  
+  // Optional
+  setupDocumentUrl?: string;        // Reference to setup doc used (if ai_enhanced)
+  revertedFrom?: number;            // Version number this was reverted from
+}
+```
+
+**Indexes Required:**
+```
+- agentId ASC, createdAt DESC (READY - deployed 2025-10-31)
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/salfagpt/firestore/data/~2Fagent_prompt_versions
+
+**API Endpoints:**
+- `GET /api/agents/:id/prompt-versions` - List version history
+- `POST /api/agents/:id/prompt-versions/:versionId/revert` - Revert to version (future)
+
+**CRUD Functions:**
+- Versions created automatically on every prompt save
+- Versions loaded for history display in UI
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-10-31)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `agentId`, `prompt`, `createdAt` (breaking)
 
 ---
 
