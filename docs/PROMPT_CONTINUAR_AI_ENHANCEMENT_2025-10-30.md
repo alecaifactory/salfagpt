@@ -811,3 +811,4 @@ El bucket existe y está listo.
 **BLOQUEADOR:** Necesita capturar logs detallados  
 **SIGUIENTE:** Diagnosticar con logs y aplicar fix
 
+

@@ -610,3 +610,4 @@ agentId ASC, createdAt DESC
 **Status:** ✅ Implementado y listo para testing  
 **Backward Compatible:** Sí (agentes sin versionado funcionan normal)
 
+

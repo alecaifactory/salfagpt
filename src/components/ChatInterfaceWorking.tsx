@@ -310,6 +310,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [currentDomainPrompt, setCurrentDomainPrompt] = useState<string>('');
   const [currentAgentPrompt, setCurrentAgentPrompt] = useState<string>('');
   const [lastPromptSaveTime, setLastPromptSaveTime] = useState<number>(0); // Track recent saves
+  const [showPromptSavedToast, setShowPromptSavedToast] = useState(false); // Toast confirmation
+  const [savedPromptInfo, setSavedPromptInfo] = useState<{length: number; type: string}>({length: 0, type: ''});
   
   // Context state
   const [contextSources, setContextSources] = useState<ContextSource[]>([]);
@@ -2575,21 +2577,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   // ✅ NEW: Handle agent prompt save
   const handleSaveAgentPrompt = async (agentPrompt: string, changeType?: string) => {
-    if (!currentConversation) return;
+    // 🔑 CRITICAL FIX: Use agentForEnhancer if currentConversation is null
+    const conversationIdToUse = currentConversation || agentForEnhancer?.id;
+    
+    if (!conversationIdToUse) {
+      console.error('❌ No conversation or agent to save prompt to');
+      return;
+    }
     
     try {
       // 🔑 CRITICAL: Get parent agent ID if this is a chat
-      const currentConv = conversations.find(c => c.id === currentConversation);
-      const agentIdToSave = currentConv?.agentId || currentConversation;
+      const currentConv = conversations.find(c => c.id === conversationIdToUse);
+      const agentIdToSave = currentConv?.agentId || conversationIdToUse;
       
       console.log('💾 [FRONTEND] Guardando agent prompt...');
+      console.log('🔍 [FRONTEND] conversationIdToUse:', conversationIdToUse);
       console.log('🔍 [FRONTEND] Current conversation ID:', currentConversation);
+      console.log('🔍 [FRONTEND] agentForEnhancer:', agentForEnhancer?.id);
       console.log('🔍 [FRONTEND] Is chat with parent agent:', !!currentConv?.agentId);
       console.log('🔍 [FRONTEND] Agent ID to save to:', agentIdToSave);
       console.log('🔍 [FRONTEND] Agent prompt length:', agentPrompt.length);
       console.log('🔍 [FRONTEND] Change type:', changeType || 'manual_update');
       console.log('🔍 [FRONTEND] Agent prompt (first 200 chars):', agentPrompt.substring(0, 200));
-      console.log('🔍 [FRONTEND] Full agent prompt:', agentPrompt);
       
       const response = await fetch(`/api/conversations/${agentIdToSave}/prompt`, {
         method: 'PUT',
@@ -2616,6 +2625,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       // Update state and track save time
       setCurrentAgentPrompt(agentPrompt);
       setLastPromptSaveTime(Date.now()); // Mark time of save
+      
+      // Show success toast
+      setSavedPromptInfo({
+        length: agentPrompt.length,
+        type: changeType || 'manual_update'
+      });
+      setShowPromptSavedToast(true);
+      
+      // Auto-hide toast after 4 seconds
+      setTimeout(() => setShowPromptSavedToast(false), 4000);
+      
       console.log('✅ Agent prompt saved and cached');
     } catch (error) {
       console.error('❌ Error saving agent prompt:', error);
@@ -5912,7 +5932,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           agentId={agentForContextConfig}
           agentName={conversations.find(c => c.id === agentForContextConfig)?.title || 'Agente'}
           userId={userId}
-          onEditPrompt={() => {
+          onEditPrompt={async () => {
             // ✅ IMPROVED: Store agent object before opening prompt modal
             const agent = conversations.find(c => c.id === agentForContextConfig);
             console.log('🔍 [onEditPrompt] agentForContextConfig:', agentForContextConfig);
@@ -5922,8 +5942,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               console.log('✅ [onEditPrompt] Stored in agentForEnhancer:', agent.id);
               setShowAgentContextModal(false);
               
-              // ✅ Load prompts BEFORE opening modal
-              loadPromptsForAgent(agentForContextConfig); // Load fresh data
+              // ✅ Check if we recently saved (within 5 seconds) - CRITICAL FIX
+              const timeSinceLastSave = Date.now() - lastPromptSaveTime;
+              const recentlySaved = timeSinceLastSave < 5000 && lastPromptSaveTime > 0;
+              
+              if (recentlySaved) {
+                console.log('⏭️ [onEditPrompt] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
+                console.log('💡 [onEditPrompt] Using cached prompt:', currentAgentPrompt.length, 'chars');
+              } else {
+                console.log('📥 [onEditPrompt] Loading fresh prompt from Firestore');
+                await loadPromptsForAgent(agentForContextConfig);
+              }
+              
               setShowAgentPromptModal(true);
             } else {
               console.error('❌ Agent not found:', agentForContextConfig);
@@ -6253,6 +6283,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             setShowMyFeedback(true);
           }}
         />
+      )}
+      
+      {/* ✅ NEW: Prompt Saved Toast */}
+      {showPromptSavedToast && (
+        <div className="fixed top-20 right-6 z-50 animate-fade-in">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-2xl p-4 flex items-start gap-3 max-w-md border border-green-400">
+            <div className="flex-shrink-0 mt-0.5">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <Check className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold mb-1">
+                ✅ Prompt Guardado Exitosamente
+              </p>
+              <p className="text-xs text-green-50">
+                {savedPromptInfo.length.toLocaleString()} caracteres guardados
+              </p>
+              <p className="text-xs text-green-100 mt-1">
+                {savedPromptInfo.type === 'ai_enhanced' 
+                  ? '🎯 Mejora con IA aplicada' 
+                  : '✏️ Actualización manual guardada'}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPromptSavedToast(false)}
+              className="flex-shrink-0 text-green-100 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
       )}
       
       {/* ✅ NEW: Roadmap Modal with Rudy AI - SuperAdmin Only */}

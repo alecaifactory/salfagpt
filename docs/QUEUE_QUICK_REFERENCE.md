@@ -480,3 +480,4 @@ Ctrl/Cmd + A       Execute all
 **Version:** 1.0.0  
 **Print this:** Tape to monitor for quick reference 📌
 
+

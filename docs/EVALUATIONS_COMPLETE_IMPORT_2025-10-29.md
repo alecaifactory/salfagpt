@@ -674,3 +674,4 @@ npm run dev
 **Ready:** Testing sistemático o exploración
 
 
+
