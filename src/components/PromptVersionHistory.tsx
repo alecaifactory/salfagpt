@@ -44,16 +44,26 @@ export default function PromptVersionHistory({
 
   const loadVersions = async () => {
     setLoading(true);
+    console.log('📚 [HISTORY] Loading versions for agent:', agentId, 'user:', userId);
     try {
       // 🔒 PRIVACY: Pass userId to filter versions
-      const response = await fetch(`/api/agents/${agentId}/prompt-versions?userId=${userId}`);
+      const url = `/api/agents/${agentId}/prompt-versions?userId=${userId}`;
+      console.log('📥 [HISTORY] Fetching:', url);
+      
+      const response = await fetch(url);
+      console.log('📥 [HISTORY] Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 [HISTORY] Response data:', data);
         setVersions(data.versions || []);
-        console.log('📚 [HISTORY] Loaded', data.versions?.length || 0, 'versions for user', userId);
+        console.log('📚 [HISTORY] Loaded', data.versions?.length || 0, 'versions');
+      } else {
+        const errorData = await response.json();
+        console.error('❌ [HISTORY] Error response:', errorData);
       }
     } catch (error) {
-      console.error('Error loading versions:', error);
+      console.error('❌ [HISTORY] Exception loading versions:', error);
     } finally {
       setLoading(false);
     }
