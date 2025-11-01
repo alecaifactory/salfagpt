@@ -6072,8 +6072,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         <PromptVersionHistory
           isOpen={showPromptVersionHistory}
           onClose={() => {
+            // ✅ Cerrar historial y volver al config modal
             setShowPromptVersionHistory(false);
-            setAgentForEnhancer(null);
+            setShowAgentPromptModal(true); // ✅ Reabrir config modal
+            // NO limpiar agentForEnhancer - lo necesitamos para el config modal
           }}
           agentId={agentForEnhancer.id}
           agentName={agentForEnhancer.title}
