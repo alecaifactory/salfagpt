@@ -572,3 +572,4 @@ stars final: 0.3-0.4
 **El Magic Brush Mode transforma feedback de "texto genérico" a "selección visual precisa con contexto completo"** 🖌️✨🎯
 
 
+

@@ -380,3 +380,4 @@ Si no aparece, revisa la consola del navegador para ver los logs de `[VERSIONING
 **Fix:** Versionado ahora guarda TODAS las versiones, incluyendo la primera  
 **Status:** ✅ Listo para testing
 
+

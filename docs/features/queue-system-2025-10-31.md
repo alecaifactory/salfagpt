@@ -1919,3 +1919,4 @@ accessLevel: 'view' | 'edit'
 
 **Remember:** A queue system should feel invisible when not needed, powerful when used. Start simple (manual execution), then add auto-execution, then advanced features based on user feedback.
 
+
