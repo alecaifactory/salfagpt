@@ -6311,7 +6311,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               onClick={() => setShowPromptSavedToast(false)}
               className="flex-shrink-0 text-green-100 hover:text-white transition-colors"
             >
-              <X className="w-5 h-5" />
+              <XIcon className="w-5 h-5" />
             </button>
           </div>
         </div>
