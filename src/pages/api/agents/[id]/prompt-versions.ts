@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { firestore } from '../../../../lib/firestore';
 
 // GET /api/agents/:id/prompt-versions - Get all prompt versions for an agent
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, request, cookies }) => {
   try {
     const { id } = params;
 
@@ -12,12 +12,27 @@ export const GET: APIRoute = async ({ params }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
-
+    
+    // 🔒 PRIVACY: Get userId from query params for filtering
+    const url = new URL(request.url);
+    const userId = url.searchParams.get('userId');
+    
     console.log('📚 [VERSIONING] Loading prompt versions for agent:', id);
+    if (userId) {
+      console.log('🔒 [VERSIONING] Filtering by userId:', userId);
+    }
 
-    const versionsSnapshot = await firestore
+    // Build query with optional userId filter for privacy
+    let query = firestore
       .collection('agent_prompt_versions')
-      .where('agentId', '==', id)
+      .where('agentId', '==', id);
+    
+    // 🔒 Filter by userId if provided (recommended for privacy)
+    if (userId) {
+      query = query.where('userId', '==', userId);
+    }
+    
+    const versionsSnapshot = await query
       .orderBy('createdAt', 'desc')
       .limit(20) // Last 20 versions
       .get();
