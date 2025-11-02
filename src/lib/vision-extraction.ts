@@ -46,13 +46,39 @@ export async function extractTextWithVisionAPI(
   } = {}
 ): Promise<VisionExtractionResult> {
   const startTime = Date.now();
+  const fileSizeBytes = pdfBuffer.length;
+  const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
   
   console.log('\n┌─────────────────────────────────────────────────┐');
   console.log('│ 👁️  GOOGLE CLOUD VISION API - PDF EXTRACTION   │');
   console.log('└─────────────────────────────────────────────────┘');
-  console.log(`📄 PDF size: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`📄 PDF size: ${fileSizeMB} MB`);
   console.log(`🌍 Project: ${PROJECT_ID}`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
+  
+  // ✅ UPDATED: Smart file size limits (2025-11-02)
+  // Vision API: Best for files up to 50MB (fast, accurate OCR)
+  // Gemini API: Better for 50-100MB files (slower but more robust)
+  const maxVisionSizeBytes = 50 * 1024 * 1024; // 50MB limit for Vision API
+  const maxGeminiSizeBytes = 100 * 1024 * 1024; // 100MB hard limit
+  
+  if (fileSizeBytes > maxGeminiSizeBytes) {
+    const maxSizeMB = (maxGeminiSizeBytes / (1024 * 1024)).toFixed(0);
+    const errorMsg = `⚠️ File too large: ${fileSizeMB} MB (max: ${maxSizeMB} MB). Please split the PDF or compress it.`;
+    console.error(errorMsg);
+    console.error('   💡 Tip: Use Adobe Acrobat or similar to compress large PDFs');
+    throw new Error(errorMsg);
+  }
+  
+  if (fileSizeBytes > maxVisionSizeBytes) {
+    const maxSizeMB = (maxVisionSizeBytes / (1024 * 1024)).toFixed(0);
+    const errorMsg = `⚠️ File too large for Vision API: ${fileSizeMB} MB (max: ${maxSizeMB} MB). Use Gemini extraction for better results with large files.`;
+    console.warn(errorMsg);
+    console.warn('   Reason: Vision API optimized for files <50MB');
+    console.warn('   Solution: Auto-falling back to Gemini extraction...\n');
+    
+    throw new Error(errorMsg);
+  }
   
   try {
     console.log('🔄 Step 1/3: Encoding PDF to base64...');
