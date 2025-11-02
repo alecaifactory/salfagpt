@@ -27,6 +27,7 @@ import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
 import PipelineStatusPanel from './PipelineStatusPanel';
 import PipelineDetailView from './PipelineDetailView';
+import UploadProgressDetailView from './UploadProgressDetailView';
 
 interface ContextManagementDashboardProps {
   isOpen: boolean;
@@ -1845,6 +1846,12 @@ export default function ContextManagementDashboard({
                       <div
                         key={item.id}
                         onClick={async () => {
+                          // ✅ NEW: If processing, show detail view
+                          if (item.status === 'uploading' || item.status === 'processing') {
+                            setSelectedUploadId(item.id);
+                            return;
+                          }
+                          
                           // If complete, find the source and select it
                           if (item.status === 'complete' && item.sourceId) {
                             console.log('🔍 Pipeline card clicked, sourceId:', item.sourceId);
@@ -2840,6 +2847,20 @@ export default function ContextManagementDashboard({
           </button>
         </div>
       </div>
+      
+      {/* ✅ NEW: Upload Progress Detail View */}
+      {selectedUploadId && (
+        <UploadProgressDetailView
+          isOpen={true}
+          onClose={() => setSelectedUploadId(null)}
+          uploadItem={uploadQueue.find(item => item.id === selectedUploadId)!}
+          pipelineLogs={[]} // TODO: Track pipeline logs per upload
+          onRetryStage={(stage) => {
+            console.log(`🔄 Retry stage: ${stage} for upload ${selectedUploadId}`);
+            // TODO: Implement stage retry logic
+          }}
+        />
+      )}
     </div>
   );
 }
