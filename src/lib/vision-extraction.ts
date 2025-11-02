@@ -56,20 +56,32 @@ export async function extractTextWithVisionAPI(
   console.log(`🌍 Project: ${PROJECT_ID}`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
   
-  // ✅ UPDATED: Smart file size limits (2025-11-02)
+  // ✅ UPDATED: Smart file size limits with >100MB exception (2025-11-02)
   // Vision API: Best for files up to 50MB (fast, accurate OCR)
-  // Gemini API: Better for 50-100MB files (slower but more robust)
+  // Gemini API: Better for 50-500MB files (user approval required for >100MB)
   const maxVisionSizeBytes = 50 * 1024 * 1024; // 50MB limit for Vision API
-  const maxGeminiSizeBytes = 100 * 1024 * 1024; // 100MB hard limit
+  const recommendedMaxBytes = 100 * 1024 * 1024; // 100MB recommended limit
+  const absoluteMaxBytes = 500 * 1024 * 1024; // 500MB absolute limit
   
-  if (fileSizeBytes > maxGeminiSizeBytes) {
-    const maxSizeMB = (maxGeminiSizeBytes / (1024 * 1024)).toFixed(0);
-    const errorMsg = `⚠️ File too large: ${fileSizeMB} MB (max: ${maxSizeMB} MB). Please split the PDF or compress it.`;
+  // ✅ Absolute limit: Reject files >500MB
+  if (fileSizeBytes > absoluteMaxBytes) {
+    const maxSizeMB = (absoluteMaxBytes / (1024 * 1024)).toFixed(0);
+    const errorMsg = `⚠️ File too large: ${fileSizeMB} MB (absolute max: ${maxSizeMB} MB). Please split or compress the PDF.`;
     console.error(errorMsg);
     console.error('   💡 Tip: Use Adobe Acrobat or similar to compress large PDFs');
     throw new Error(errorMsg);
   }
   
+  // ✅ Warn for files >100MB (user must have approved)
+  if (fileSizeBytes > recommendedMaxBytes) {
+    console.warn(`🚨 EXCESSIVE FILE SIZE: ${fileSizeMB} MB (>100MB recommended limit)`);
+    console.warn('   User must have explicitly approved this file');
+    console.warn('   Processing will take 5-15 minutes');
+    console.warn('   Falling back to Gemini extraction...\n');
+    throw new Error(`File >100MB - use Gemini extraction`);
+  }
+  
+  // ✅ Standard limit: Files >50MB use Gemini
   if (fileSizeBytes > maxVisionSizeBytes) {
     const maxSizeMB = (maxVisionSizeBytes / (1024 * 1024)).toFixed(0);
     const errorMsg = `⚠️ File too large for Vision API: ${fileSizeMB} MB (max: ${maxSizeMB} MB). Use Gemini extraction for better results with large files.`;

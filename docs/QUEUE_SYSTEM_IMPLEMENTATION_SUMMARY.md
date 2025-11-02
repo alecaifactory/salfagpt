@@ -818,3 +818,4 @@ Follow `docs/QUEUE_SYSTEM_TESTING_GUIDE.md`
 **Remember:** Queue system should feel like a natural extension of the chat. Simple by default, powerful when needed.
 
 
+

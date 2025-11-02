@@ -17,24 +17,36 @@ Upload failures for large PDF files:
 
 ---
 
-## ✅ Solution: Smart File Size Routing
+## ✅ Solution: Smart File Size Routing with Double Approval
 
-### Tier 1: Small Files (<50MB) - Vision API
+### Tier 1: Small Files (<50MB) - Vision API ⚡
 - **Method:** Google Cloud Vision API
-- **Speed:** Fast
+- **Speed:** Fast (seconds)
 - **Quality:** Excellent OCR
 - **Best for:** Scanned PDFs, complex layouts
+- **Approval:** None required
 
-### Tier 2: Large Files (50-100MB) - Gemini API  
+### Tier 2: Large Files (50-100MB) - Gemini API 🤖
 - **Method:** Gemini 2.5 Flash/Pro
-- **Speed:** Slower
+- **Speed:** Medium (1-3 minutes)
 - **Quality:** Very good for large documents
 - **Best for:** Multi-hundred page manuals
+- **Approval:** None required (auto-warning in console)
 
-### Tier 3: Huge Files (>100MB) - Rejected
-- **Error:** Clear message with suggestion to compress
-- **Reason:** Memory/performance limits
-- **Solution:** User must compress or split PDF
+### Tier 3: Huge Files (100-500MB) - Gemini with Double Approval ⚠️
+- **Method:** Gemini 2.5 Pro (recommended)
+- **Speed:** Very slow (5-15 minutes per file)
+- **Quality:** Good (if file not too complex)
+- **Best for:** Massive technical manuals
+- **Approval:** ✅ **DOUBLE APPROVAL REQUIRED**
+  1. First dialog: "I Understand the Risks"
+  2. Second dialog: "APPROVE >100MB FILE PROCESSING"
+
+### Tier 4: Excessive Files (>500MB) - Rejected 🚫
+- **Error:** Absolute limit exceeded
+- **Reason:** System stability, memory limits
+- **Solution:** User MUST compress or split PDF
+- **No exceptions**
 
 ---
 
@@ -132,11 +144,12 @@ if (!response.ok) {
 
 ## 📊 File Size Handling Matrix
 
-| File Size | Vision API | Gemini Flash | Gemini Pro | Result |
-|-----------|------------|--------------|------------|--------|
-| <50 MB | ✅ Default | ⚠️ Available | ✅ Available | Vision API (fast) |
-| 50-100 MB | ❌ Skip | ✅ Available | ✅ Recommended | Gemini (slower, robust) |
-| >100 MB | ❌ Reject | ❌ Reject | ❌ Reject | Error (compress) |
+| File Size | Vision API | Gemini Flash | Gemini Pro | Approval Required | Result |
+|-----------|------------|--------------|------------|-------------------|--------|
+| <50 MB | ✅ Default | ⚠️ Available | ✅ Available | None | Vision API (fast) ⚡ |
+| 50-100 MB | ❌ Skip | ✅ Available | ✅ Recommended | None | Gemini (slower) 🤖 |
+| 100-500 MB | ❌ Skip | ⚠️ Slow | ✅ Recommended | **DOUBLE APPROVAL** | Gemini (very slow) ⚠️ |
+| >500 MB | ❌ Reject | ❌ Reject | ❌ Reject | N/A | Error (must compress) 🚫 |
 
 ---
 

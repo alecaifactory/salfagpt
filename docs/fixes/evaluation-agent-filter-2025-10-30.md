@@ -270,3 +270,4 @@ Testing: Manual verification in browser"
 **Ready for:** Git commit y testing en browser
 
 
+

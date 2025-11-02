@@ -55,23 +55,33 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // ✅ UPDATED: Smart file size limits (2025-11-02)
+    // ✅ UPDATED: Smart file size limits with >100MB exception (2025-11-02)
     // Vision API: Best for <50MB
-    // Gemini API: Better for 50-100MB
+    // Gemini API: Better for 50-500MB (with user approval for >100MB)
     const maxVisionSize = 50 * 1024 * 1024; // 50MB
-    const maxGeminiSize = 100 * 1024 * 1024; // 100MB hard limit
+    const recommendedMaxSize = 100 * 1024 * 1024; // 100MB recommended limit
+    const absoluteMaxSize = 500 * 1024 * 1024; // 500MB absolute limit (prevent crashes)
     const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
     
-    if (file.size > maxGeminiSize) {
+    // ✅ Absolute limit: Reject files >500MB (prevent system crashes)
+    if (file.size > absoluteMaxSize) {
       return new Response(
         JSON.stringify({ 
-          error: `File too large: ${fileSizeMB} MB. Maximum size: 100MB`,
-          suggestion: 'Please compress or split the PDF',
+          error: `File too large: ${fileSizeMB} MB. Absolute maximum: 500MB`,
+          suggestion: 'File is too large to process. Please compress or split the PDF.',
           fileSize: file.size,
-          maxSize: maxGeminiSize
+          maxSize: absoluteMaxSize
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // ✅ Warn about files >100MB (user must approve in frontend)
+    if (file.size > recommendedMaxSize) {
+      console.warn(`🚨 EXCESSIVE FILE SIZE: ${fileSizeMB} MB (>100MB)`);
+      console.warn(`   User must have approved this in frontend`);
+      console.warn(`   Processing time: 5-15 minutes estimated`);
+      console.warn(`   Using Gemini extraction with maximum output tokens`);
     }
     
     // ✅ Auto-route based on file size
@@ -240,13 +250,14 @@ export const POST: APIRoute = async ({ request }) => {
     const client = getGeminiClient();
     const startTime = Date.now();
 
-    // ✅ UPDATED: Calculate dynamic maxOutputTokens for large files (2025-11-02)
+    // ✅ UPDATED: Calculate dynamic maxOutputTokens for very large files (2025-11-02)
     const calculateMaxOutputTokens = (fileSizeBytes: number, modelName: string): number => {
       const fileSizeMB = fileSizeBytes / (1024 * 1024);
       
       if (modelName === 'gemini-2.5-pro') {
         // Pro has 2M context, can handle larger outputs
-        if (fileSizeMB > 50) return 65536; // ✅ NEW: Very large files (50-100MB)
+        if (fileSizeMB > 100) return 65536; // ✅ NEW: Huge files (100-500MB) - max tokens
+        if (fileSizeMB > 50) return 65536; // Very large files (50-100MB)
         if (fileSizeMB > 20) return 65536; // Large files (20-50MB)
         if (fileSizeMB > 10) return 65536; // Medium-large files (10-20MB)
         if (fileSizeMB > 5) return 32768;
@@ -254,7 +265,9 @@ export const POST: APIRoute = async ({ request }) => {
         return 8192;
       } else {
         // Flash has 1M context
-        if (fileSizeMB > 20) return 65536; // ✅ NEW: Large files need max tokens
+        if (fileSizeMB > 100) return 65536; // ✅ NEW: Huge files need max tokens
+        if (fileSizeMB > 50) return 65536; // Very large files
+        if (fileSizeMB > 20) return 65536; // Large files
         if (fileSizeMB > 10) return 32768; // Medium-large files
         if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
