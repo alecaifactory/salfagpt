@@ -113,8 +113,8 @@ export async function extractTextChunked(
       extractionTime: number;
     }> = [];
     
-    // ✅ STEP 2: Process PDF sections in PARALLEL batches (5 at a time)
-    const MAX_PARALLEL_SECTIONS = 5; // Process 5 PDF sections simultaneously
+    // ✅ STEP 2: Process PDF sections in PARALLEL batches (10 at a time for speed)
+    const MAX_PARALLEL_SECTIONS = 10; // Process 10 PDF sections simultaneously (2x faster!)
     
     for (let batchStart = 0; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
       const batchEnd = Math.min(batchStart + MAX_PARALLEL_SECTIONS, totalSections);
