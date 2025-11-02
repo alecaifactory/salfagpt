@@ -292,3 +292,4 @@ Con estos logs detallados podremos identificar exactamente dónde está fallando
 **Siguiente:** Testing manual con consola abierta
 
 
+
