@@ -55,17 +55,30 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // Validate file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size > maxSize) {
+    // ✅ UPDATED: Smart file size limits (2025-11-02)
+    // Vision API: Best for <50MB
+    // Gemini API: Better for 50-100MB
+    const maxVisionSize = 50 * 1024 * 1024; // 50MB
+    const maxGeminiSize = 100 * 1024 * 1024; // 100MB hard limit
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    
+    if (file.size > maxGeminiSize) {
       return new Response(
         JSON.stringify({ 
-          error: 'File too large. Maximum size: 50MB',
+          error: `File too large: ${fileSizeMB} MB. Maximum size: 100MB`,
+          suggestion: 'Please compress or split the PDF',
           fileSize: file.size,
-          maxSize
+          maxSize: maxGeminiSize
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+    
+    // ✅ Auto-route based on file size
+    if (file.size > maxVisionSize && extractionMethod === 'vision-api') {
+      console.warn(`⚠️ File size ${fileSizeMB} MB exceeds Vision API limit (50MB)`);
+      console.warn(`   Auto-switching to Gemini extraction for better large file handling`);
+      extractionMethod = 'gemini'; // Override to Gemini for large files
     }
 
     console.log(`📄 Extracting text from: ${file.name} (${file.type}, ${file.size} bytes) using ${model}`);
@@ -129,7 +142,7 @@ export const POST: APIRoute = async ({ request }) => {
     let maxOutputTokens = 8192; // Default
     
     if (extractionMethod === 'vision-api' && file.type === 'application/pdf') {
-      // Use Google Cloud Vision API for PDFs
+      // Use Google Cloud Vision API for PDFs (with fallback)
       console.log('👁️ Step 2/3: Extracting text with Google Cloud Vision API...');
       pipelineLogs.push({
         step: 'extract',
@@ -138,47 +151,73 @@ export const POST: APIRoute = async ({ request }) => {
         message: 'Extrayendo texto con Vision API...',
       });
       
-      const { extractTextWithVisionAPI } = await import('../../lib/vision-extraction.js');
-      const visionResult = await extractTextWithVisionAPI(buffer);
-      
-      extractedText = visionResult.text;
-      extractionTime = visionResult.extractionTime;
-      extractStepEnd = Date.now(); // ✅ Track end time
-      
-      // Calculate token estimates for Vision API path
-      outputTokens = estimateTokens(extractedText);
-      inputTokens = 0; // Vision API doesn't use token-based input
-      totalTokens = outputTokens;
-      
-      // Vision API cost (different pricing)
-      const visionCost = 0.024; // ~$0.024 per document (estimated)
-      costBreakdown = {
-        inputCost: 0,
-        outputCost: visionCost,
-        totalCost: visionCost,
-      };
-      
-      extractionMetadata = {
-        method: 'vision-api',
-        confidence: visionResult.confidence,
-        pages: visionResult.pages,
-        language: visionResult.language,
-        inputTokens,
-        outputTokens,
-        totalTokens,
-        cost: visionCost,
-      };
-      
-      console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
-      console.log(`  Confidence: ${(visionResult.confidence * 100).toFixed(1)}%`);
-      
-      // If Vision API returned no text, fallback to Gemini Pro
-      if (!extractedText || extractedText.trim().length < 100) {
-        console.warn('⚠️ Vision API returned insufficient text, falling back to Gemini Pro...');
-        console.warn('   This PDF may be scanned images requiring Gemini\'s multimodal capabilities');
+      try {
+        const { extractTextWithVisionAPI } = await import('../../lib/vision-extraction.js');
+        const visionResult = await extractTextWithVisionAPI(buffer);
+        
+        extractedText = visionResult.text;
+        extractionTime = visionResult.extractionTime;
+        extractStepEnd = Date.now(); // ✅ Track end time
+        
+        // Calculate token estimates for Vision API path
+        outputTokens = estimateTokens(extractedText);
+        inputTokens = 0; // Vision API doesn't use token-based input
+        totalTokens = outputTokens;
+        
+        // Vision API cost (different pricing)
+        const visionCost = 0.024; // ~$0.024 per document (estimated)
+        costBreakdown = {
+          inputCost: 0,
+          outputCost: visionCost,
+          totalCost: visionCost,
+        };
+        
+        extractionMetadata = {
+          method: 'vision-api',
+          confidence: visionResult.confidence,
+          pages: visionResult.pages,
+          language: visionResult.language,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+          cost: visionCost,
+        };
+        
+        console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
+        console.log(`  Confidence: ${(visionResult.confidence * 100).toFixed(1)}%`);
+        
+        // If Vision API returned no text, fallback to Gemini
+        if (!extractedText || extractedText.trim().length < 100) {
+          console.warn('⚠️ Vision API returned insufficient text, falling back to Gemini...');
+          console.warn('   This PDF may be scanned images requiring Gemini\'s multimodal capabilities');
+          extractionMethod = 'gemini'; // Fall through to Gemini extraction
+        }
+      } catch (visionError) {
+        // ✅ CRITICAL FIX: Auto-fallback to Gemini when Vision API fails
+        const errorMsg = visionError instanceof Error ? visionError.message : 'Unknown error';
+        console.warn('⚠️ Vision API failed:', errorMsg);
+        
+        // Check if error is due to file size
+        if (errorMsg.includes('too large') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+          console.warn('   Reason: File exceeds Vision API bandwidth/memory limits');
+          console.warn('   ✅ Auto-falling back to Gemini extraction (better for large files)...\n');
+        } else {
+          console.warn('   ✅ Auto-falling back to Gemini extraction...\n');
+        }
         
         // Fall through to Gemini extraction
         extractionMethod = 'gemini';
+        
+        // Update pipeline log to show fallback
+        pipelineLogs[pipelineLogs.length - 1] = {
+          ...pipelineLogs[pipelineLogs.length - 1],
+          status: 'warning',
+          message: `Vision API no disponible, usando Gemini ${model}`,
+          details: {
+            visionError: errorMsg,
+            fallbackMethod: 'gemini',
+          }
+        };
       }
     }
     
@@ -201,19 +240,23 @@ export const POST: APIRoute = async ({ request }) => {
     const client = getGeminiClient();
     const startTime = Date.now();
 
-    // ✅ Calculate dynamic maxOutputTokens based on file size
+    // ✅ UPDATED: Calculate dynamic maxOutputTokens for large files (2025-11-02)
     const calculateMaxOutputTokens = (fileSizeBytes: number, modelName: string): number => {
       const fileSizeMB = fileSizeBytes / (1024 * 1024);
       
       if (modelName === 'gemini-2.5-pro') {
         // Pro has 2M context, can handle larger outputs
-        if (fileSizeMB > 10) return 65536; // Max for Pro
+        if (fileSizeMB > 50) return 65536; // ✅ NEW: Very large files (50-100MB)
+        if (fileSizeMB > 20) return 65536; // Large files (20-50MB)
+        if (fileSizeMB > 10) return 65536; // Medium-large files (10-20MB)
         if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
         return 8192;
       } else {
         // Flash has 1M context
-        if (fileSizeMB > 5) return 32768; // Max for Flash
+        if (fileSizeMB > 20) return 65536; // ✅ NEW: Large files need max tokens
+        if (fileSizeMB > 10) return 32768; // Medium-large files
+        if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
         if (fileSizeMB > 1) return 12288;
         return 8192;
@@ -226,9 +269,13 @@ export const POST: APIRoute = async ({ request }) => {
     console.log(`🎯 File: ${file.name} (${fileSizeMB} MB)`);
     console.log(`🎯 Using maxOutputTokens: ${maxOutputTokens.toLocaleString()}`);
 
-    // ✅ Recommend Pro for large files
-    if (file.size > 1 * 1024 * 1024 && model === 'gemini-2.5-flash') {
-      console.warn(`⚠️ Large file (${fileSizeMB} MB) - Pro model recommended for better results`);
+    // ✅ UPDATED: Recommend or enforce Pro for large files (2025-11-02)
+    if (file.size > 20 * 1024 * 1024 && model === 'gemini-2.5-flash') {
+      console.warn(`⚠️ Very large file (${fileSizeMB} MB) - Pro model STRONGLY recommended`);
+      console.warn(`   Flash may struggle with files >20MB`);
+      console.warn(`   Consider re-uploading with Pro model for better extraction quality`);
+    } else if (file.size > 5 * 1024 * 1024 && model === 'gemini-2.5-flash') {
+      console.warn(`💡 Large file (${fileSizeMB} MB) - Pro model recommended for better results`);
     }
 
     // Use Gemini's native PDF/image processing

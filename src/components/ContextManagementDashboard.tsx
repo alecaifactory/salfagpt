@@ -265,8 +265,28 @@ export default function ContextManagementDashboard({
   const handleFileSelect = (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // Stage files for review and tagging
-    setStagedFiles(Array.from(files));
+    // ✅ NEW: Check file sizes and warn about large files
+    const filesArray = Array.from(files);
+    const largeFiles = filesArray.filter(f => f.size > 50 * 1024 * 1024); // >50MB
+    const hugeFiles = filesArray.filter(f => f.size > 100 * 1024 * 1024); // >100MB
+    
+    if (hugeFiles.length > 0) {
+      const fileList = hugeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+      alert(`⚠️ ${hugeFiles.length} file(s) exceed 100MB limit:\n\n${fileList}\n\nPlease compress or split these files.`);
+      // Filter out huge files
+      const validFiles = filesArray.filter(f => f.size <= 100 * 1024 * 1024);
+      if (validFiles.length === 0) return; // All files too large
+      setStagedFiles(validFiles);
+    } else if (largeFiles.length > 0) {
+      const fileList = largeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+      console.warn(`💡 ${largeFiles.length} large file(s) detected (>50MB):\n${fileList}`);
+      console.warn('   These will use Gemini extraction (slower but more robust for large files)');
+      console.warn('   Tip: Consider using Pro model for better quality');
+      setStagedFiles(filesArray);
+    } else {
+      setStagedFiles(filesArray);
+    }
+    
     setShowUploadStaging(true);
     setStagedTags([]);
     setUploadTags(''); // Clear input for fresh tags
@@ -552,7 +572,23 @@ export default function ContextManagementDashboard({
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Upload failed');
+        // ✅ IMPROVED: Capture actual error message from API
+        let errorMessage = 'Upload failed';
+        try {
+          const errorData = await uploadResponse.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+          
+          // Add helpful context
+          if (errorMessage.includes('too large')) {
+            const fileSizeMB = (item.file.size / (1024 * 1024)).toFixed(1);
+            errorMessage = `File too large: ${fileSizeMB} MB. ${errorMessage}`;
+          }
+          
+          console.error(`❌ API error for ${item.file.name}:`, errorData);
+        } catch (e) {
+          console.error(`❌ HTTP ${uploadResponse.status}: ${uploadResponse.statusText}`);
+        }
+        throw new Error(errorMessage);
       }
 
       const uploadData = await uploadResponse.json();
