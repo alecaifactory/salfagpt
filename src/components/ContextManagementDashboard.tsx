@@ -132,7 +132,9 @@ export default function ContextManagementDashboard({
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [stagedTags, setStagedTags] = useState<string[]>([]);
   const [showUploadStaging, setShowUploadStaging] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash'); // Default to Flash
+  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [skippedFileNames, setSkippedFileNames] = useState<Set<string>>(new Set());
+  const [selectedUploadId, setSelectedUploadId] = useState<string | null>(null);
   
   // Multi-select state for sources
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
