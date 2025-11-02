@@ -104,59 +104,74 @@ export async function extractTextChunked(
       extractionTime: number;
     }> = [];
     
-    // ✅ STEP 2: Process each chunk
-    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-      const chunkStartPage = chunkIndex * pagesPerChunk;
-      const chunkEndPage = Math.min((chunkIndex + 1) * pagesPerChunk, totalPages);
-      const pageRange = `${chunkStartPage + 1}-${chunkEndPage}`;
+    // ✅ STEP 2: Process chunks in PARALLEL batches (5 at a time)
+    const MAX_PARALLEL_CHUNKS = 5; // Process 5 chunks simultaneously
+    
+    for (let batchStart = 0; batchStart < totalChunks; batchStart += MAX_PARALLEL_CHUNKS) {
+      const batchEnd = Math.min(batchStart + MAX_PARALLEL_CHUNKS, totalChunks);
+      const batchSize = batchEnd - batchStart;
+      const batchNum = Math.floor(batchStart / MAX_PARALLEL_CHUNKS) + 1;
+      const totalBatches = Math.ceil(totalChunks / MAX_PARALLEL_CHUNKS);
       
-      console.log(`\n🔄 Processing chunk ${chunkIndex + 1}/${totalChunks}: Pages ${pageRange}`);
+      console.log(`\n🚀 Processing batch ${batchNum}/${totalBatches}: Chunks ${batchStart + 1}-${batchEnd} (${batchSize} in parallel)`);
       
-      const chunkPercentage = 10 + (chunkIndex / totalChunks) * 80; // 10-90%
-      onProgress({ 
-        chunk: chunkIndex + 1, 
-        total: totalChunks, 
-        message: `Extracting chunk ${chunkIndex + 1}/${totalChunks} (pages ${pageRange})`,
-        percentage: chunkPercentage
-      });
+      // Process this batch in parallel
+      const batchPromises = [];
       
-      const chunkStartTime = Date.now();
-      
-      try {
-        // Create sub-document with this page range
-        const chunkDoc = await PDFDocument.create();
-        const copiedPages = await chunkDoc.copyPages(
-          pdfDoc, 
-          Array.from({ length: chunkEndPage - chunkStartPage }, (_, i) => chunkStartPage + i)
-        );
+      for (let chunkIndex = batchStart; chunkIndex < batchEnd; chunkIndex++) {
+        const chunkStartPage = chunkIndex * pagesPerChunk;
+        const chunkEndPage = Math.min((chunkIndex + 1) * pagesPerChunk, totalPages);
+        const pageRange = `${chunkStartPage + 1}-${chunkEndPage}`;
         
-        copiedPages.forEach(page => chunkDoc.addPage(page));
+        const chunkPercentage = 10 + (chunkIndex / totalChunks) * 80; // 10-90%
         
-        const chunkBytes = await chunkDoc.save();
-        const chunkSizeMB = (chunkBytes.length / (1024 * 1024)).toFixed(2);
-        
-        console.log(`  📄 Chunk size: ${chunkSizeMB} MB (${copiedPages.length} pages)`);
-        console.log(`  🤖 Sending to ${model}...`);
-        
-        // Convert to base64
-        const base64Data = Buffer.from(chunkBytes).toString('base64');
-        
-        // Extract text with Gemini
-        const result = await genAI.models.generateContent({
-          model: model,
-          contents: [
-            {
-              role: 'user',
-              parts: [
-                { 
-                  inlineData: { 
-                    mimeType: 'application/pdf', 
-                    data: base64Data 
-                  } 
-                },
-                { 
-                  text: `Extract ALL text from this PDF document section (pages ${pageRange}). 
-                  
+        // Create promise for this chunk
+        const chunkPromise = (async () => {
+          console.log(`  🔄 Chunk ${chunkIndex + 1}/${totalChunks}: Pages ${pageRange}`);
+          
+          onProgress({ 
+            chunk: chunkIndex + 1, 
+            total: totalChunks, 
+            message: `Extracting chunk ${chunkIndex + 1}/${totalChunks} (pages ${pageRange})`,
+            percentage: chunkPercentage
+          });
+          
+          const chunkStartTime = Date.now();
+          
+          try {
+            // Create sub-document with this page range
+            const chunkDoc = await PDFDocument.create();
+            const copiedPages = await chunkDoc.copyPages(
+              pdfDoc, 
+              Array.from({ length: chunkEndPage - chunkStartPage }, (_, i) => chunkStartPage + i)
+            );
+            
+            copiedPages.forEach(page => chunkDoc.addPage(page));
+            
+            const chunkBytes = await chunkDoc.save();
+            const chunkSizeMB = (chunkBytes.length / (1024 * 1024)).toFixed(2);
+            
+            console.log(`    📄 Chunk ${chunkIndex + 1}: ${chunkSizeMB} MB (${copiedPages.length} pages) → Sending to ${model}...`);
+            
+            // Convert to base64
+            const base64Data = Buffer.from(chunkBytes).toString('base64');
+            
+            // Extract text with Gemini
+            const result = await genAI.models.generateContent({
+              model: model,
+              contents: [
+                {
+                  role: 'user',
+                  parts: [
+                    { 
+                      inlineData: { 
+                        mimeType: 'application/pdf', 
+                        data: base64Data 
+                      } 
+                    },
+                    { 
+                      text: `Extract ALL text from this PDF document section (pages ${pageRange}). 
+                      
 Include:
 - All text content
 - Table data (in markdown format)
@@ -167,39 +182,50 @@ Include:
 Output: Plain text with clear structure using markdown headings where appropriate.
 
 DO NOT summarize. Extract the COMPLETE text.` 
+                    }
+                  ]
                 }
-              ]
-            }
-          ],
-          config: {
-            temperature: 0.1,
-            maxOutputTokens: 65536, // Max for complete extraction
+              ],
+              config: {
+                temperature: 0.1,
+                maxOutputTokens: 65536, // Max for complete extraction
+              }
+            });
+            
+            const extractedText = result.text || '';
+            const chunkTime = Date.now() - chunkStartTime;
+            
+            console.log(`    ✅ Chunk ${chunkIndex + 1}: Extracted ${extractedText.length} characters in ${(chunkTime / 1000).toFixed(1)}s`);
+            
+            return {
+              chunkNumber: chunkIndex + 1,
+              pageRange,
+              text: extractedText,
+              extractionTime: chunkTime,
+            };
+            
+          } catch (error) {
+            console.error(`    ❌ Chunk ${chunkIndex + 1} failed:`, error);
+            
+            // Return error placeholder
+            return {
+              chunkNumber: chunkIndex + 1,
+              pageRange,
+              text: `[Error extracting pages ${pageRange}: ${error instanceof Error ? error.message : 'Unknown error'}]`,
+              extractionTime: Date.now() - chunkStartTime,
+            };
           }
-        });
+        })();
         
-        const extractedText = result.text || '';
-        const chunkTime = Date.now() - chunkStartTime;
-        
-        console.log(`  ✅ Extracted ${extractedText.length} characters in ${(chunkTime / 1000).toFixed(1)}s`);
-        
-        extractedChunks.push({
-          chunkNumber: chunkIndex + 1,
-          pageRange,
-          text: extractedText,
-          extractionTime: chunkTime,
-        });
-        
-      } catch (error) {
-        console.error(`  ❌ Failed to process chunk ${chunkIndex + 1}:`, error);
-        
-        // Add error placeholder to maintain chunk order
-        extractedChunks.push({
-          chunkNumber: chunkIndex + 1,
-          pageRange,
-          text: `[Error extracting pages ${pageRange}: ${error instanceof Error ? error.message : 'Unknown error'}]`,
-          extractionTime: Date.now() - chunkStartTime,
-        });
+        batchPromises.push(chunkPromise);
       }
+      
+      // ✅ PARALLEL: Wait for all chunks in this batch to complete
+      console.log(`  ⏳ Processing ${batchSize} chunks in parallel...`);
+      const batchResults = await Promise.all(batchPromises);
+      extractedChunks.push(...batchResults);
+      
+      console.log(`  ✅ Batch ${batchNum}/${totalBatches} complete!`);
     }
     
     // ✅ STEP 3: Combine all chunks
