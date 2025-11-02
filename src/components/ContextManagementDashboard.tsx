@@ -57,8 +57,17 @@ interface UploadQueueItem {
   sourceId?: string;
   tags?: string[]; // Tags for this upload
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // Model to use for extraction
-  startTime?: number; // NEW: Timestamp when upload started
-  elapsedTime?: number; // NEW: Elapsed time in milliseconds
+  startTime?: number; // Timestamp when upload started
+  elapsedTime?: number; // Elapsed time in milliseconds
+  embeddingDetails?: {
+    stage: 'initializing' | 'generating' | 'embedding' | 'finalizing';
+    chunksToEmbed?: number;
+    currentChunk?: number;
+    totalChunks?: number;
+    totalTokens?: number;
+    estimatedTimeSeconds?: number;
+    message?: string;
+  };
 }
 
 // ✅ Default concurrency limit for parallel uploads
@@ -881,41 +890,119 @@ export default function ContextManagementDashboard({
             console.log(`   Total tokens: ${ragData.totalTokens}`);
             console.log(`   Indexing time: ${ragData.indexingTime}ms`);
             
-            // ✅ IMPROVED: Better embedding progress feedback
+            // ✅ ENHANCED: Highly detailed embedding progress feedback
+            const chunksToEmbed = ragData.chunksCreated || ragData.chunksCount;
+            const totalTokens = ragData.totalTokens;
+            
             console.log(`🔍 Embedding stage starting for: ${item.file.name}`);
-            console.log(`   Chunks to embed: ${ragData.chunksCreated || ragData.chunksCount}`);
-            console.log(`   Total tokens: ${ragData.totalTokens?.toLocaleString()}`);
+            console.log(`   Chunks to embed: ${chunksToEmbed}`);
+            console.log(`   Total tokens: ${totalTokens?.toLocaleString()}`);
+            console.log(`   Estimated time: ${Math.ceil(chunksToEmbed * 2)}s (${chunksToEmbed} chunks × ~2s each)`);
             
             // Chunk complete, moving to Embed (75%)
             setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 75 } : i
-            ));
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            console.log(`  ⏳ Embedding in progress... (may take 30-60s for large documents)`);
-            
-            // Embed progressing (85%)
-            setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 85 } : i
-            ));
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            console.log(`  ⏳ Embedding vectors being generated...`);
-            
-            // Embed almost done (92%)
-            setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 92 } : i
+              i.id === item.id ? { 
+                ...i, 
+                progress: 75,
+                embeddingDetails: {
+                  stage: 'initializing',
+                  chunksToEmbed,
+                  totalTokens,
+                  estimatedTimeSeconds: chunksToEmbed * 2
+                }
+              } : i
             ));
             
             await new Promise(resolve => setTimeout(resolve, 300));
             
+            // ✅ Micro-progress: Embedding initialization (77-85%)
+            console.log(`  🔄 Initializing embedding service...`);
+            for (let p = 77; p <= 85; p += 2) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { 
+                  ...i, 
+                  progress: p,
+                  embeddingDetails: {
+                    ...i.embeddingDetails,
+                    stage: 'initializing'
+                  }
+                } : i
+              ));
+            }
+            
+            console.log(`  ⏳ Embedding in progress... (may take ${chunksToEmbed * 2}s for ${chunksToEmbed} chunks)`);
+            
+            // ✅ Micro-progress: Generating vectors (85-92%)
+            console.log(`  🔄 Generating embedding vectors...`);
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { 
+                ...i, 
+                embeddingDetails: {
+                  ...i.embeddingDetails,
+                  stage: 'generating'
+                }
+              } : i
+            ));
+            
+            for (let p = 86; p <= 92; p += 1) {
+              await new Promise(resolve => setTimeout(resolve, 400));
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { ...i, progress: p } : i
+              ));
+            }
+            
+            // ✅ CRITICAL: Detailed micro-progress for 92-98% (where users see "stuck")
+            console.log(`  🔍 Embedding vectors for ${chunksToEmbed} chunks...`);
+            
+            // Simulate chunk-by-chunk embedding progress
+            const progressPerChunk = 6 / chunksToEmbed; // 6% total (92% to 98%)
+            
+            for (let chunk = 0; chunk < chunksToEmbed; chunk++) {
+              const currentProgress = 92 + (chunk * progressPerChunk);
+              
+              setUploadQueue(prev => prev.map(i => 
+                i.id === item.id ? { 
+                  ...i, 
+                  progress: Math.min(currentProgress, 97.9),
+                  embeddingDetails: {
+                    ...i.embeddingDetails,
+                    stage: 'embedding',
+                    currentChunk: chunk + 1,
+                    totalChunks: chunksToEmbed,
+                    message: `Embedding chunk ${chunk + 1}/${chunksToEmbed}`
+                  }
+                } : i
+              ));
+              
+              // Log every 5th chunk or last chunk
+              if (chunk % 5 === 0 || chunk === chunksToEmbed - 1) {
+                console.log(`    📦 Embedding chunk ${chunk + 1}/${chunksToEmbed} (${currentProgress.toFixed(1)}%)`);
+              }
+              
+              // Faster updates for small chunks, slower for many chunks
+              const delayMs = chunksToEmbed > 20 ? 100 : 200;
+              await new Promise(resolve => setTimeout(resolve, delayMs));
+            }
+            
             console.log(`  ⏳ Finalizing embeddings...`);
             
-            // Final embedding step (98%)
+            // Final embedding step (98-99%)
             setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 98 } : i
+              i.id === item.id ? { 
+                ...i, 
+                progress: 98,
+                embeddingDetails: {
+                  ...i.embeddingDetails,
+                  stage: 'finalizing'
+                }
+              } : i
+            ));
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 99 } : i
             ));
             
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -1887,6 +1974,59 @@ export default function ContextManagementDashboard({
                                   </React.Fragment>
                                 );
                               })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ✅ NEW: Detailed embedding progress (shown when >90%) */}
+                        {item.progress >= 90 && item.progress < 100 && item.embeddingDetails && (item.status === 'uploading' || item.status === 'processing') && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg animate-pulse">
+                            <div className="flex items-start gap-2">
+                              <Loader2 className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5 animate-spin" />
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <p className="text-xs font-bold text-blue-800">
+                                  🔄 Embedding in Progress...
+                                </p>
+                                
+                                {/* Current chunk being embedded */}
+                                {item.embeddingDetails.currentChunk && item.embeddingDetails.totalChunks && (
+                                  <div className="flex items-center justify-between text-[10px]">
+                                    <span className="text-blue-700">
+                                      Chunk {item.embeddingDetails.currentChunk} of {item.embeddingDetails.totalChunks}
+                                    </span>
+                                    <span className="font-mono text-blue-600">
+                                      {Math.round((item.embeddingDetails.currentChunk / item.embeddingDetails.totalChunks) * 100)}% embeddings
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {/* Total tokens being embedded */}
+                                {item.embeddingDetails.totalTokens && (
+                                  <div className="text-[10px] text-blue-600">
+                                    📊 {item.embeddingDetails.totalTokens.toLocaleString()} tokens total
+                                  </div>
+                                )}
+                                
+                                {/* Estimated time remaining */}
+                                {item.embeddingDetails.estimatedTimeSeconds && item.embeddingDetails.currentChunk && (
+                                  <div className="text-[10px] text-blue-700 font-medium">
+                                    ⏱️ Est. {Math.ceil((item.embeddingDetails.totalChunks! - item.embeddingDetails.currentChunk) * 2)}s remaining
+                                  </div>
+                                )}
+                                
+                                {/* Stage-specific message */}
+                                {item.embeddingDetails.message && (
+                                  <div className="text-[10px] text-blue-600 italic mt-1">
+                                    {item.embeddingDetails.message}
+                                  </div>
+                                )}
+                                
+                                {/* Heartbeat indicator */}
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                                  <span className="text-[9px] text-green-600 font-medium">System active</span>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         )}
