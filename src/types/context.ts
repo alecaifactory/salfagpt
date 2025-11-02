@@ -79,6 +79,11 @@ export interface ContextSource {
   metadata?: ExtractionMetadata;
   extractedData?: string;
   
+  // ✅ NEW: For large extractions (>500KB)
+  extractedDataUrl?: string; // Cloud Storage URL (gs://bucket/path)
+  extractedDataSize?: number; // Size in bytes
+  truncated?: boolean; // True if extractedData was truncated
+  
   // For re-extraction
   originalFile?: File;
   originalFileUrl?: string; // Cloud Storage URL for viewing/downloading

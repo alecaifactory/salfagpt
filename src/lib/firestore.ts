@@ -1708,9 +1708,55 @@ export async function createContextSource(
     source: getEnvironmentSource(),
   };
 
-  // Only add optional fields if they are defined
+  // ✅ CRITICAL FIX: Handle large extractedData (>500KB = Firestore limit approaching)
+  // Firestore limit: 1,048,487 bytes per document
+  // Safe limit: 500,000 bytes (500KB) to leave room for metadata
   if (data.extractedData !== undefined) {
-    contextSource.extractedData = data.extractedData;
+    const extractedDataSize = new Blob([data.extractedData]).size;
+    const maxSafeSize = 500000; // 500KB safe limit
+    
+    if (extractedDataSize > maxSafeSize) {
+      // Store in Cloud Storage instead
+      console.warn(`⚠️ extractedData too large for Firestore: ${(extractedDataSize / 1024).toFixed(1)} KB`);
+      console.log(`📤 Storing extracted text in Cloud Storage instead...`);
+      
+      try {
+        const { Storage } = await import('@google-cloud/storage');
+        const storage = new Storage({ projectId: PROJECT_ID });
+        const bucket = storage.bucket(`${PROJECT_ID}-uploads`);
+        
+        // Create a unique file name for the extracted text
+        const textFileName = `extracted-text/${sourceRef.id}-${Date.now()}.txt`;
+        const textFile = bucket.file(textFileName);
+        
+        // Upload extracted text to Cloud Storage
+        await textFile.save(data.extractedData, {
+          contentType: 'text/plain; charset=utf-8',
+          metadata: {
+            sourceId: sourceRef.id,
+            userId: userId,
+            originalFileName: data.name,
+            extractedSize: extractedDataSize,
+          }
+        });
+        
+        // Store reference URL instead of full text
+        contextSource.extractedDataUrl = `gs://${PROJECT_ID}-uploads/${textFileName}`;
+        contextSource.extractedDataSize = extractedDataSize;
+        
+        console.log(`✅ Extracted text stored in Cloud Storage: ${textFileName}`);
+        console.log(`   Size: ${(extractedDataSize / (1024 * 1024)).toFixed(2)} MB`);
+      } catch (error) {
+        console.error('❌ Failed to store in Cloud Storage, truncating instead:', error);
+        // Fallback: Truncate to fit in Firestore
+        const truncated = data.extractedData.substring(0, maxSafeSize - 1000); // Leave buffer
+        contextSource.extractedData = truncated + '\n\n[...TRUNCATED - Full text in Cloud Storage]';
+        contextSource.truncated = true;
+      }
+    } else {
+      // Small enough for Firestore
+      contextSource.extractedData = data.extractedData;
+    }
   }
   if (data.metadata !== undefined) {
     contextSource.metadata = data.metadata;
@@ -1753,6 +1799,46 @@ export async function createContextSource(
   await sourceRef.set(contextSource);
   console.log(`📄 Context source created from ${contextSource.source}:`, sourceRef.id);
   return contextSource as ContextSource;
+}
+
+/**
+ * Get extracted data (from Firestore or Cloud Storage)
+ * ✅ NEW: Handles large files stored in Cloud Storage
+ */
+export async function getExtractedData(source: ContextSource): Promise<string> {
+  // If data is in Firestore, return directly
+  if (source.extractedData) {
+    return source.extractedData;
+  }
+  
+  // If data is in Cloud Storage, fetch it
+  if (source.extractedDataUrl) {
+    try {
+      const { Storage } = await import('@google-cloud/storage');
+      const storage = new Storage({ projectId: PROJECT_ID });
+      
+      // Parse gs://bucket/path URL
+      const match = source.extractedDataUrl.match(/^gs:\/\/([^/]+)\/(.+)$/);
+      if (!match) {
+        throw new Error('Invalid Cloud Storage URL format');
+      }
+      
+      const [, bucketName, filePath] = match;
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(filePath);
+      
+      const [contents] = await file.download();
+      const text = contents.toString('utf-8');
+      
+      console.log(`✅ Retrieved extracted data from Cloud Storage: ${(text.length / 1024).toFixed(1)} KB`);
+      return text;
+    } catch (error) {
+      console.error('❌ Failed to retrieve from Cloud Storage:', error);
+      return ''; // Return empty string on error
+    }
+  }
+  
+  return ''; // No extracted data available
 }
 
 /**
