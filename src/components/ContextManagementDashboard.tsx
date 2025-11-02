@@ -948,7 +948,14 @@ export default function ContextManagementDashboard({
             for (let p = 86; p <= 92; p += 1) {
               await new Promise(resolve => setTimeout(resolve, 400));
               setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: p } : i
+                i.id === item.id ? { 
+                  ...i, 
+                  progress: p,
+                  embeddingDetails: {
+                    ...i.embeddingDetails,
+                    stage: 'generating'
+                  }
+                } : i
               ));
             }
             
