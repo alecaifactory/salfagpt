@@ -1,11 +1,18 @@
 /**
- * Google Cloud Vision API - PDF Text Extraction
+ * Google Cloud Vision API - PDF Text Extraction with Chunking
  * 
  * Uses Document AI for superior OCR and text extraction from PDFs
  * Better than Gemini for scanned documents and complex layouts
+ * 
+ * FEATURES (2025-11-02):
+ * - Automatic PDF chunking for files >20MB
+ * - Parallel chunk processing
+ * - Smart fallback to Gemini for files >40MB
+ * - Retry logic for transient errors
  */
 
 import vision from '@google-cloud/vision';
+import { PDFDocument } from 'pdf-lib';
 
 const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
 
@@ -23,7 +30,8 @@ export interface VisionExtractionResult {
   pages: number;
   language: string;
   extractionTime: number;
-  method: 'vision-api';
+  method: 'vision-api' | 'vision-api-chunked';
+  chunksProcessed?: number;
 }
 
 /**
@@ -56,10 +64,12 @@ export async function extractTextWithVisionAPI(
   console.log(`🌍 Project: ${PROJECT_ID}`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
   
-  // ✅ UPDATED: Smart file size limits with >100MB exception (2025-11-02)
-  // Vision API: Best for files up to 50MB (fast, accurate OCR)
-  // Gemini API: Better for 50-500MB files (user approval required for >100MB)
-  const maxVisionSizeBytes = 50 * 1024 * 1024; // 50MB limit for Vision API
+  // ✅ UPDATED: Smart chunking strategy (2025-11-02)
+  // Vision API: Best for files up to 40MB with chunking
+  // Chunks: Split large PDFs into ≤20MB pieces for Vision API
+  // Gemini API: Better for files >40MB (user approval required for >100MB)
+  const chunkSizeBytes = 20 * 1024 * 1024; // 20MB per chunk for Vision API
+  const maxVisionSizeBytes = 40 * 1024 * 1024; // 40MB max for Vision API (with chunking)
   const recommendedMaxBytes = 100 * 1024 * 1024; // 100MB recommended limit
   const absoluteMaxBytes = 500 * 1024 * 1024; // 500MB absolute limit
   
@@ -81,15 +91,24 @@ export async function extractTextWithVisionAPI(
     throw new Error(`File >100MB - use Gemini extraction`);
   }
   
-  // ✅ Standard limit: Files >50MB use Gemini
+  // ✅ Files >40MB use Gemini (too large even with chunking)
   if (fileSizeBytes > maxVisionSizeBytes) {
     const maxSizeMB = (maxVisionSizeBytes / (1024 * 1024)).toFixed(0);
-    const errorMsg = `⚠️ File too large for Vision API: ${fileSizeMB} MB (max: ${maxSizeMB} MB). Use Gemini extraction for better results with large files.`;
+    const errorMsg = `⚠️ File size ${fileSizeMB} MB exceeds Vision API limit (${maxSizeMB} MB). Auto-switching to Gemini extraction for better large file handling.`;
     console.warn(errorMsg);
-    console.warn('   Reason: Vision API optimized for files <50MB');
-    console.warn('   Solution: Auto-falling back to Gemini extraction...\n');
+    console.warn('   Reason: Files >40MB process better with Gemini');
+    console.warn('   Solution: Using Gemini for full document extraction...\n');
     
     throw new Error(errorMsg);
+  }
+  
+  // ✅ Files 20-40MB: Use chunked processing
+  if (fileSizeBytes > chunkSizeBytes) {
+    console.log(`📦 Large file detected (${fileSizeMB} MB > 20MB)`);
+    console.log('   Strategy: Chunking PDF for parallel Vision API processing');
+    console.log(`   Chunk size: ≤20MB each\n`);
+    
+    return await extractTextWithChunking(pdfBuffer, options);
   }
   
   try {
@@ -172,6 +191,168 @@ export async function extractTextWithVisionAPI(
   } catch (error) {
     console.error('❌ Vision API extraction failed:', error);
     throw new Error(`Vision API error: ${error instanceof Error ? error.message : 'Unknown'}`);
+  }
+}
+
+/**
+ * Split PDF into chunks by page ranges to stay under size limit
+ * 
+ * @param pdfBuffer - Original PDF buffer
+ * @param maxChunkSizeBytes - Maximum size per chunk (20MB)
+ * @returns Array of PDF chunk buffers
+ */
+async function splitPDFIntoChunks(
+  pdfBuffer: Buffer,
+  maxChunkSizeBytes: number = 20 * 1024 * 1024
+): Promise<Buffer[]> {
+  console.log('🔪 Chunking PDF into smaller pieces...');
+  
+  try {
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const totalPages = pdfDoc.getPageCount();
+    console.log(`   Total pages: ${totalPages}`);
+    
+    const chunks: Buffer[] = [];
+    let currentChunkPages: number[] = [];
+    let estimatedChunkSize = 0;
+    const avgPageSize = pdfBuffer.length / totalPages;
+    
+    for (let i = 0; i < totalPages; i++) {
+      const estimatedPageSize = avgPageSize;
+      
+      // If adding this page would exceed chunk size, save current chunk
+      if (estimatedChunkSize + estimatedPageSize > maxChunkSizeBytes && currentChunkPages.length > 0) {
+        const chunkPdf = await PDFDocument.create();
+        const copiedPages = await chunkPdf.copyPages(pdfDoc, currentChunkPages);
+        copiedPages.forEach(page => chunkPdf.addPage(page));
+        const chunkBytes = await chunkPdf.save();
+        chunks.push(Buffer.from(chunkBytes));
+        
+        console.log(`   ✅ Chunk ${chunks.length}: ${currentChunkPages.length} pages (~${(estimatedChunkSize / (1024 * 1024)).toFixed(1)} MB)`);
+        
+        currentChunkPages = [];
+        estimatedChunkSize = 0;
+      }
+      
+      currentChunkPages.push(i);
+      estimatedChunkSize += estimatedPageSize;
+    }
+    
+    // Add remaining pages as final chunk
+    if (currentChunkPages.length > 0) {
+      const chunkPdf = await PDFDocument.create();
+      const copiedPages = await chunkPdf.copyPages(pdfDoc, currentChunkPages);
+      copiedPages.forEach(page => chunkPdf.addPage(page));
+      const chunkBytes = await chunkPdf.save();
+      chunks.push(Buffer.from(chunkBytes));
+      
+      console.log(`   ✅ Chunk ${chunks.length}: ${currentChunkPages.length} pages (~${(estimatedChunkSize / (1024 * 1024)).toFixed(1)} MB)`);
+    }
+    
+    console.log(`✅ Split into ${chunks.length} chunks\n`);
+    return chunks;
+    
+  } catch (error) {
+    console.error('❌ Failed to chunk PDF:', error);
+    throw new Error(`PDF chunking failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Extract text from large PDF by chunking and processing in parallel
+ * 
+ * @param pdfBuffer - Original PDF buffer
+ * @param options - Extraction options
+ */
+async function extractTextWithChunking(
+  pdfBuffer: Buffer,
+  options: {
+    detectLanguage?: boolean;
+    includeConfidence?: boolean;
+  } = {}
+): Promise<VisionExtractionResult> {
+  const startTime = Date.now();
+  const fileSizeMB = (pdfBuffer.length / (1024 * 1024)).toFixed(2);
+  
+  console.log(`📦 Starting chunked extraction for ${fileSizeMB} MB PDF`);
+  
+  try {
+    // Split PDF into chunks
+    const chunks = await splitPDFIntoChunks(pdfBuffer, 20 * 1024 * 1024);
+    console.log(`🔄 Processing ${chunks.length} chunks in parallel...\n`);
+    
+    // Process all chunks in parallel
+    const chunkResults = await Promise.all(
+      chunks.map(async (chunk, index) => {
+        console.log(`📄 Processing chunk ${index + 1}/${chunks.length}...`);
+        
+        try {
+          const [result] = await client.documentTextDetection({
+            image: {
+              content: chunk.toString('base64'),
+            },
+            imageContext: {
+              languageHints: ['es', 'en'],
+            },
+          });
+          
+          const fullText = result.fullTextAnnotation;
+          if (!fullText || !fullText.text) {
+            console.warn(`   ⚠️ Chunk ${index + 1} returned no text`);
+            return { text: '', confidence: 0, pages: 0 };
+          }
+          
+          const avgConfidence = fullText.pages
+            ? fullText.pages.reduce((sum, page) => sum + (page.confidence || 0), 0) / fullText.pages.length
+            : 0;
+          
+          console.log(`   ✅ Chunk ${index + 1}: ${fullText.text.length.toLocaleString()} chars, ${(avgConfidence * 100).toFixed(1)}% confidence`);
+          
+          return {
+            text: fullText.text,
+            confidence: avgConfidence,
+            pages: fullText.pages?.length || 0,
+          };
+        } catch (error) {
+          console.error(`   ❌ Chunk ${index + 1} failed:`, error instanceof Error ? error.message : error);
+          return { text: '', confidence: 0, pages: 0 };
+        }
+      })
+    );
+    
+    // Merge results
+    console.log('\n🔗 Merging chunk results...');
+    const mergedText = chunkResults.map(r => r.text).join('\n\n');
+    const avgConfidence = chunkResults.reduce((sum, r) => sum + r.confidence, 0) / chunkResults.length;
+    const totalPages = chunkResults.reduce((sum, r) => sum + r.pages, 0);
+    const successfulChunks = chunkResults.filter(r => r.text.length > 0).length;
+    
+    const extractionTime = Date.now() - startTime;
+    
+    console.log('┌─────────────────────────────────────────────────┐');
+    console.log('│ ✅ CHUNKED VISION API EXTRACTION SUCCESSFUL     │');
+    console.log('└─────────────────────────────────────────────────┘');
+    console.log(`📊 Results:`);
+    console.log(`   Chunks processed: ${successfulChunks}/${chunks.length}`);
+    console.log(`   Characters: ${mergedText.length.toLocaleString()}`);
+    console.log(`   Pages: ${totalPages}`);
+    console.log(`   Avg confidence: ${(avgConfidence * 100).toFixed(1)}%`);
+    console.log(`⏱️  Total time: ${(extractionTime / 1000).toFixed(2)}s`);
+    console.log(`💰 Est. cost: $${calculateVisionAPICost(totalPages).toFixed(4)}\n`);
+    
+    return {
+      text: mergedText,
+      confidence: avgConfidence,
+      pages: totalPages,
+      language: 'es', // Default to Spanish
+      extractionTime,
+      method: 'vision-api-chunked',
+      chunksProcessed: successfulChunks,
+    };
+    
+  } catch (error) {
+    console.error('❌ Chunked extraction failed:', error);
+    throw new Error(`Chunked Vision API error: ${error instanceof Error ? error.message : 'Unknown'}`);
   }
 }
 

@@ -247,37 +247,110 @@ export default function UploadProgressDetailView({
           
           <div 
             ref={logContainerRef}
-            className="flex-1 overflow-y-auto p-3 bg-gray-900 font-mono text-xs space-y-1"
+            className="flex-1 overflow-y-auto p-3 bg-gray-950 font-mono text-xs space-y-0.5"
           >
             {pipelineLogs.length === 0 ? (
               <div className="text-center text-gray-500 py-8">
                 <Eye className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Waiting for processing to start...</p>
+                <p className="text-sm font-sans">Waiting for processing to start...</p>
+                <p className="text-xs text-gray-600 mt-1 font-sans">Logs will stream here in real-time</p>
               </div>
             ) : (
-              pipelineLogs.map((log, idx) => (
-                <div 
-                  key={idx} 
-                  className={`flex items-start gap-2 p-2 rounded font-mono ${
-                    log.status === 'success' ? 'text-green-400' :
-                    log.status === 'error' ? 'text-red-400' :
-                    log.status === 'in_progress' ? 'text-blue-400' :
-                    'text-gray-400'
-                  }`}
-                >
-                  <span className="text-gray-500 text-[10px] flex-shrink-0">
-                    [{new Date(log.timestamp).toLocaleTimeString()}]
-                  </span>
-                  <span className="font-semibold text-[10px] flex-shrink-0 min-w-[60px]">
-                    {log.step.toUpperCase()}
-                  </span>
-                  <span className="flex-1 text-[11px]">{log.message}</span>
+              <>
+                {pipelineLogs.map((log, idx) => {
+                  // Determine colors based on status
+                  const getStatusColor = () => {
+                    switch (log.status) {
+                      case 'success': return 'text-green-400';
+                      case 'error': return 'text-red-400';
+                      case 'in_progress': return 'text-cyan-400';
+                      case 'warning': return 'text-yellow-400';
+                      default: return 'text-gray-400';
+                    }
+                  };
                   
-                  {log.status === 'success' && <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />}
-                  {log.status === 'error' && <XCircle className="w-3.5 h-3.5 flex-shrink-0" />}
-                  {log.status === 'in_progress' && <Loader2 className="w-3.5 h-3.5 flex-shrink-0 animate-spin" />}
-                </div>
-              ))
+                  const getIconForStatus = () => {
+                    switch (log.status) {
+                      case 'success': return '✅';
+                      case 'error': return '❌';
+                      case 'in_progress': return '🔄';
+                      case 'warning': return '⚠️';
+                      default: return '📋';
+                    }
+                  };
+                  
+                  const getCategoryIcon = () => {
+                    const icons = {
+                      upload: '📤',
+                      extract: '📄',
+                      chunk: '🔪',
+                      embed: '🧮',
+                      'vision-api': '👁️',
+                      gemini: '🤖',
+                      rag: '🔍',
+                    };
+                    return icons[log.step as keyof typeof icons] || '📋';
+                  };
+                  
+                  return (
+                    <div key={idx} className="group">
+                      {/* Main log line */}
+                      <div 
+                        className={`flex items-start gap-2 px-2 py-1 rounded hover:bg-gray-900/50 ${getStatusColor()}`}
+                      >
+                        {/* Timestamp */}
+                        <span className="text-gray-600 text-[9px] flex-shrink-0 font-normal w-16">
+                          {new Date(log.timestamp).toLocaleTimeString('en-US', { 
+                            hour12: false, 
+                            hour: '2-digit', 
+                            minute: '2-digit', 
+                            second: '2-digit' 
+                          })}
+                        </span>
+                        
+                        {/* Icon */}
+                        <span className="flex-shrink-0 w-4 text-center">
+                          {getCategoryIcon()}
+                        </span>
+                        
+                        {/* Step */}
+                        <span className="font-bold text-[10px] flex-shrink-0 min-w-[50px] uppercase">
+                          {log.step}
+                        </span>
+                        
+                        {/* Status icon */}
+                        <span className="flex-shrink-0 w-4 text-center">
+                          {getIconForStatus()}
+                        </span>
+                        
+                        {/* Message */}
+                        <span className="flex-1 text-[10px] leading-relaxed">{log.message}</span>
+                        
+                        {/* Duration if available */}
+                        {log.duration && (
+                          <span className="flex-shrink-0 text-[9px] text-gray-500 font-normal">
+                            {log.duration < 1000 ? `${log.duration}ms` : `${(log.duration / 1000).toFixed(1)}s`}
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Details (expandable on hover) */}
+                      {log.details && (
+                        <div className="ml-24 px-2 py-1 text-[9px] text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {Object.entries(log.details).map(([key, value]) => (
+                            <div key={key} className="flex gap-2">
+                              <span className="text-gray-600">{key}:</span>
+                              <span className="text-gray-400">
+                                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
             )}
             
             {/* Real-time status for current stage */}

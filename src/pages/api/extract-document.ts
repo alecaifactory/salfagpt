@@ -102,14 +102,29 @@ export const POST: APIRoute = async ({ request }) => {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
+    // ✅ Helper function to add detailed logs
+    const addLog = (step: string, status: string, message: string, details?: any) => {
+      const log = {
+        step,
+        status,
+        timestamp: new Date(),
+        message,
+        details,
+      };
+      pipelineLogs.push(log);
+      return log;
+    };
+    
     // STEP 1: Save to Cloud Storage FIRST (before processing)
     console.log('💾 Step 1/3: Saving original file to Cloud Storage...');
+    addLog('upload', 'in_progress', 'Iniciando subida a Cloud Storage...');
+    
     const uploadStepStart = Date.now();
-    pipelineLogs.push({
-      step: 'upload',
-      status: 'in_progress',
-      startTime: new Date(uploadStepStart),
-      message: 'Guardando archivo original en Cloud Storage...',
+    
+    // Add detailed upload info
+    addLog('upload', 'info', `Archivo: ${file.name}`, {
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      type: file.type,
     });
     
     const storageResult = await uploadFile(
@@ -124,17 +139,12 @@ export const POST: APIRoute = async ({ request }) => {
     );
     
     const uploadStepEnd = Date.now();
-    pipelineLogs[pipelineLogs.length - 1] = {
-      ...pipelineLogs[pipelineLogs.length - 1],
-      status: 'success',
-      endTime: new Date(uploadStepEnd),
-      duration: uploadStepEnd - uploadStepStart,
-      message: 'Archivo guardado exitosamente en Cloud Storage',
-      details: {
-        fileSize: file.size,
-        storagePath: storageResult.storagePath,
-      }
-    };
+    const uploadDuration = uploadStepEnd - uploadStepStart;
+    
+    addLog('upload', 'success', `Archivo guardado en Cloud Storage (${(uploadDuration / 1000).toFixed(1)}s)`, {
+      storagePath: storageResult.storagePath,
+      url: storageResult.fileUrl,
+    });
     
     console.log(`✅ File saved to storage: ${storageResult.storagePath}`);
     
@@ -155,15 +165,17 @@ export const POST: APIRoute = async ({ request }) => {
     if (extractionMethod === 'vision-api' && file.type === 'application/pdf') {
       // Use Google Cloud Vision API for PDFs (with fallback)
       console.log('👁️ Step 2/3: Extracting text with Google Cloud Vision API...');
-      pipelineLogs.push({
-        step: 'extract',
-        status: 'in_progress',
-        startTime: new Date(extractStepStart),
-        message: 'Extrayendo texto con Vision API...',
+      addLog('extract', 'in_progress', 'Iniciando extracción con Vision API...');
+      addLog('vision-api', 'info', `PDF size: ${fileSizeMB} MB`, {
+        method: 'vision-api',
+        project: PROJECT_ID,
       });
       
       try {
+        addLog('vision-api', 'info', 'Codificando PDF a base64...');
         const { extractTextWithVisionAPI } = await import('../../lib/vision-extraction.js');
+        
+        addLog('vision-api', 'info', 'Llamando Vision API...');
         const visionResult = await extractTextWithVisionAPI(buffer);
         
         extractedText = visionResult.text;
@@ -193,6 +205,14 @@ export const POST: APIRoute = async ({ request }) => {
           totalTokens,
           cost: visionCost,
         };
+        
+        // ✅ Add success log with details
+        addLog('vision-api', 'success', `Texto extraído: ${extractedText.length.toLocaleString()} caracteres en ${(extractionTime / 1000).toFixed(1)}s`, {
+          confidence: `${(visionResult.confidence * 100).toFixed(1)}%`,
+          pages: visionResult.pages,
+          language: visionResult.language,
+          method: visionResult.method,
+        });
         
         console.log(`✅ Vision API extraction: ${extractedText.length} chars in ${extractionTime}ms`);
         console.log(`  Confidence: ${(visionResult.confidence * 100).toFixed(1)}%`);
@@ -249,11 +269,23 @@ export const POST: APIRoute = async ({ request }) => {
         });
         
         try {
+          // ✅ Add initial chunking log
+          addLog('extract', 'info', 'Analizando estructura del PDF...');
+          
           const chunkedResult = await extractTextChunked(buffer, {
             model: model,
             sectionSizeMB: 12, // ✅ OPTIMIZED: 12MB PDF sections (faster processing)
             onProgress: (progress) => {
+              // Log to terminal
               console.log(`  📄 PDF Section ${progress.section}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
+              
+              // ✅ Add detailed progress log for each section
+              addLog('extract', 'in_progress', `Sección ${progress.section}/${progress.total}: ${progress.message}`, {
+                section: progress.section,
+                total: progress.total,
+                percentage: `${progress.percentage.toFixed(1)}%`,
+                status: progress.status || 'processing',
+              });
             }
           });
           
@@ -263,6 +295,13 @@ export const POST: APIRoute = async ({ request }) => {
           console.log(`   Total PDF sections: ${chunkedResult.totalPdfSections}`);
           console.log(`   Total pages: ${chunkedResult.totalPages}`);
           console.log(`   Extracted text: ${extractedText.length} characters\n`);
+          
+          // ✅ Add completion summary log
+          addLog('extract', 'success', `Extracción de secciones PDF completada!`, {
+            sections: chunkedResult.totalPdfSections,
+            pages: chunkedResult.totalPages,
+            caracteres: extractedText.length.toLocaleString(),
+          });
           
           pipelineLogs[pipelineLogs.length - 1] = {
             ...pipelineLogs[pipelineLogs.length - 1],
@@ -463,6 +502,20 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
         cost: costBreakdown.totalCost,
       };
       
+        // ✅ Add detailed success logs
+        addLog('gemini', 'success', `Extracción Gemini completada en ${(extractionTime / 1000).toFixed(1)}s`, {
+          caracteres: extractedText.length.toLocaleString(),
+          tokens: `${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output`,
+          total: totalTokens.toLocaleString(),
+        });
+        
+        addLog('gemini', 'info', `💰 Costo de extracción: $${costBreakdown.totalCost.toFixed(3)}`, {
+          inputCost: `$${costBreakdown.inputCost.toFixed(3)}`,
+          outputCost: `$${costBreakdown.outputCost.toFixed(3)}`,
+        });
+        
+        addLog('extract', 'success', `Texto extraído exitosamente con ${model}`);
+        
         console.log(`✅ Gemini extraction: ${extractedText.length} chars in ${extractionTime}ms`);
         console.log(`📊 Tokens: ${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output`);
         console.log(`💰 Cost: $${costBreakdown.totalCost.toFixed(3)}`);

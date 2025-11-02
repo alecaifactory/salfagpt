@@ -60,6 +60,7 @@ interface UploadQueueItem {
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro'; // Model to use for extraction
   startTime?: number; // Timestamp when upload started
   elapsedTime?: number; // Elapsed time in milliseconds
+  pipelineLogs?: PipelineLog[]; // Real-time pipeline execution logs
   embeddingDetails?: {
     stage: 'initializing' | 'generating' | 'embedding' | 'finalizing';
     chunksToEmbed?: number;
@@ -531,8 +532,26 @@ export default function ContextManagementDashboard({
     setSelectedModel('gemini-2.5-flash'); // Reset to default
   };
 
-  const checkForDuplicates = (fileName: string): ContextSource | null => {
-    return sources.find(s => s.name === fileName) || null;
+  // ✅ IMPROVED: Check for duplicates in Firestore (not just loaded sources)
+  const checkForDuplicatesInFirestore = async (fileName: string): Promise<ContextSource | null> => {
+    try {
+      const response = await fetch(
+        `/api/context-sources/check-duplicate?userId=${userId}&fileName=${encodeURIComponent(fileName)}`,
+        {
+          credentials: 'include',
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.exists ? data.source : null;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('❌ Error checking for duplicates:', error);
+      return null;
+    }
   };
 
   const handleSubmitUpload = async () => {
@@ -544,18 +563,30 @@ export default function ContextManagementDashboard({
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
-    // Check for duplicates
+    // ✅ IMPROVED: Check for duplicates in Firestore (async)
+    console.log('🔍 Checking for duplicates in Firestore...');
     const duplicates: Array<{ file: File; existing: ContextSource }> = [];
     const newFiles: File[] = [];
 
     for (const file of stagedFiles) {
-      const existing = checkForDuplicates(file.name);
+      // ✅ Skip files that user already chose to skip
+      if (skippedFileNames.has(file.name)) {
+        console.log(`⏭️ Auto-skipping previously skipped file: ${file.name}`);
+        continue; // Don't add to duplicates or newFiles
+      }
+      
+      // Query Firestore for duplicate
+      const existing = await checkForDuplicatesInFirestore(file.name);
       if (existing) {
+        console.log(`⚠️ Duplicate found: ${file.name} (existing ID: ${existing.id})`);
         duplicates.push({ file, existing });
       } else {
+        console.log(`✅ New file: ${file.name}`);
         newFiles.push(file);
       }
     }
+    
+    console.log(`📊 Duplicate check complete: ${duplicates.length} duplicates, ${newFiles.length} new files`);
 
     // Handle duplicates if found
     if (duplicates.length > 0) {
@@ -576,6 +607,8 @@ export default function ContextManagementDashboard({
         setSkippedFileNames(newSkipped);
         
         console.log(`📝 Skipped files saved to memory (won't show in future uploads)`);
+        console.log(`✅ Will proceed with ${newFiles.length} new files ONLY`);
+        console.log(`🚫 The ${duplicates.length} skipped files will NOT be in the upload queue`);
         
         // Continue with only non-duplicate files
         // (newFiles already has non-duplicates from earlier filtering)
@@ -607,6 +640,8 @@ export default function ContextManagementDashboard({
     // ✅ Show summary of what will be uploaded
     if (newFiles.length > 0) {
       console.log(`📤 Uploading ${newFiles.length} file(s):`, newFiles.map(f => f.name));
+      console.log(`✅ These ${newFiles.length} files will be added to the upload queue`);
+      console.log(`🚫 Skipped files will NOT appear in the queue`);
     } else {
       console.log('ℹ️ No files to upload (all duplicates were skipped)');
       
@@ -628,7 +663,20 @@ export default function ContextManagementDashboard({
       model: selectedModel, // Include selected model
     }));
 
-    setUploadQueue(prev => [...prev, ...newItems]);
+    // ✅ VERIFICATION: Log exactly what's being added to queue
+    console.log(`➕ Adding ${newItems.length} items to upload queue`);
+    console.log(`   Queue before: ${uploadQueue.length} items`);
+    console.log(`   New items being added:`, newItems.map(i => i.file.name));
+    
+    setUploadQueue(prev => {
+      const updated = [...prev, ...newItems];
+      console.log(`   Queue after: ${updated.length} items`);
+      console.log(`   All queued files:`, updated.map(i => i.file.name));
+      return updated;
+    });
+    
+    console.log(`🚀 Starting processQueue with ${newItems.length} new items`);
+    console.log(`   Items to process:`, newItems.map(i => i.file.name));
     processQueue(newItems);
     
     // Close staging
@@ -640,7 +688,13 @@ export default function ContextManagementDashboard({
   };
 
   const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'skip' | 'cancel'> => {
-    const fileNames = duplicates.map(d => `  • ${d.file.name}`).join('\n');
+    // ✅ Show helpful information about each duplicate
+    const fileNames = duplicates.map(d => {
+      const uploadDate = d.existing.metadata?.extractionDate 
+        ? new Date(d.existing.metadata.extractionDate).toLocaleDateString()
+        : 'Unknown date';
+      return `  • ${d.file.name} (uploaded: ${uploadDate})`;
+    }).join('\n');
     const count = duplicates.length;
     const message = `${count} file${count > 1 ? 's' : ''} already exist${count > 1 ? '' : 's'}:\n\n${fileNames}`;
     
@@ -842,10 +896,19 @@ export default function ContextManagementDashboard({
         throw new Error(uploadData.error || 'Extraction failed');
       }
 
+      // ✅ Capture pipeline logs from API response
+      const pipelineLogs = uploadData.pipelineLogs || [];
+      console.log(`📋 Captured ${pipelineLogs.length} pipeline logs for ${item.file.name}`);
+
       // API complete! Transition smoothly to next stage
       // First jump to end of Extract stage
       setUploadQueue(prev => prev.map(i => 
-        i.id === item.id ? { ...i, status: 'processing', progress: 48 } : i
+        i.id === item.id ? { 
+          ...i, 
+          status: 'processing', 
+          progress: 48,
+          pipelineLogs // ✅ Store logs in upload item
+        } : i
       ));
       
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -919,6 +982,10 @@ export default function ContextManagementDashboard({
             console.log(`   Total tokens: ${ragData.totalTokens}`);
             console.log(`   Indexing time: ${ragData.indexingTime}ms`);
             
+            // ✅ Append RAG pipeline logs to existing logs
+            const ragPipelineLogs = ragData.pipelineLogs || [];
+            console.log(`📋 Appending ${ragPipelineLogs.length} RAG pipeline logs`);
+            
             // ✅ ENHANCED: Highly detailed embedding progress feedback
             const chunksToEmbed = ragData.chunksCreated || ragData.chunksCount;
             const totalTokens = ragData.totalTokens;
@@ -933,6 +1000,7 @@ export default function ContextManagementDashboard({
               i.id === item.id ? { 
                 ...i, 
                 progress: 75,
+                pipelineLogs: [...(i.pipelineLogs || []), ...ragPipelineLogs], // ✅ Merge RAG logs
                 embeddingDetails: {
                   stage: 'initializing',
                   chunksToEmbed,
@@ -1106,14 +1174,30 @@ export default function ContextManagementDashboard({
       console.error('Upload failed:', item.file.name, error);
       if (smoothProgressInterval) clearInterval(smoothProgressInterval);
       if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
-      setUploadQueue(prev => prev.map(i => 
-        i.id === item.id ? { 
-          ...i, 
-          status: 'failed', 
-          error: error instanceof Error ? error.message : 'Upload failed',
-          elapsedTime: Date.now() - startTime
-        } : i
-      ));
+      
+      // ✅ Preserve pipelineLogs for debugging failed uploads
+      setUploadQueue(prev => prev.map(i => {
+        if (i.id === item.id) {
+          // Keep existing logs and add failure log
+          const existingLogs = i.pipelineLogs || [];
+          const failureLog = {
+            step: 'error',
+            status: 'error',
+            message: error instanceof Error ? error.message : 'Upload failed',
+            timestamp: new Date(),
+            details: error
+          };
+          
+          return {
+            ...i, 
+            status: 'failed', 
+            error: error instanceof Error ? error.message : 'Upload failed',
+            elapsedTime: Date.now() - startTime,
+            pipelineLogs: [...existingLogs, failureLog] // ✅ Preserve logs + add error
+          };
+        }
+        return i;
+      }));
     }
   };
 
@@ -1856,8 +1940,8 @@ export default function ContextManagementDashboard({
                       <div
                         key={item.id}
                         onClick={async () => {
-                          // ✅ NEW: If processing, show detail view in right panel
-                          if (item.status === 'uploading' || item.status === 'processing') {
+                          // ✅ If uploading, processing, OR failed - show detail view in right panel
+                          if (item.status === 'uploading' || item.status === 'processing' || item.status === 'failed') {
                             setSelectedUploadId(item.id);
                             setSelectedSourceIds([]); // Clear source selection
                             return;
@@ -1890,6 +1974,10 @@ export default function ContextManagementDashboard({
                         }}
                         className={`w-full border border-gray-200 rounded-lg p-4 bg-white shadow-sm text-left transition-all ${
                           item.status === 'complete' ? 'hover:border-blue-400 hover:shadow-md cursor-pointer' : ''
+                        } ${
+                          item.status === 'failed' ? 'hover:border-red-400 hover:shadow-md cursor-pointer border-red-200' : ''
+                        } ${
+                          (item.status === 'uploading' || item.status === 'processing') ? 'hover:border-blue-300 cursor-pointer' : ''
                         }`}
                       >
                         {/* Header: File name, model, time */}
@@ -2467,7 +2555,7 @@ export default function ContextManagementDashboard({
                 isOpen={true}
                 onClose={() => setSelectedUploadId(null)}
                 uploadItem={uploadQueue.find(item => item.id === selectedUploadId)!}
-                pipelineLogs={[]} // TODO: Track pipeline logs per upload
+                pipelineLogs={uploadQueue.find(item => item.id === selectedUploadId)?.pipelineLogs || []} // ✅ Pass actual pipeline logs
                 onRetryStage={(stage) => {
                   console.log('Retry stage:', stage);
                 }}

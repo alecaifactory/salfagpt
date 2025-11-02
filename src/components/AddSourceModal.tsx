@@ -22,9 +22,62 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-pro');
   const [showModelTooltip, setShowModelTooltip] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [isSplitting, setIsSplitting] = useState(false);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
+
+  // Handle PDF splitting
+  const handleSplitPDF = async () => {
+    if (!file) return;
+    
+    setIsSplitting(true);
+    setCurrentStep('processing');
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('chunkSizeMB', '20');
+      
+      const response = await fetch('/api/tools/split-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          const statusResponse = await fetch(`/api/tools/status/${result.executionId}`);
+          const status = await statusResponse.json();
+          
+          if (status.status === 'completed') {
+            clearInterval(pollInterval);
+            
+            // Show success and chunks
+            alert(`✅ PDF dividido en ${status.outputFiles?.length || 0} chunks!\n\nAhora puede procesar cada chunk individualmente.`);
+            
+            setIsSplitting(false);
+            handleClose();
+          } else if (status.status === 'failed') {
+            clearInterval(pollInterval);
+            alert(`❌ Error: ${status.error?.message || 'Unknown error'}`);
+            setIsSplitting(false);
+            setCurrentStep('configure');
+          }
+        }, 2000); // Poll every 2 seconds
+        
+      } else {
+        throw new Error(result.error || 'Split failed');
+      }
+    } catch (error) {
+      console.error('Error splitting PDF:', error);
+      alert('Error al dividir PDF: ' + (error instanceof Error ? error.message : 'Unknown'));
+      setIsSplitting(false);
+      setCurrentStep('configure');
+    }
+  };
 
   // Reset state when modal opens or preSelectedType changes
   useEffect(() => {
@@ -237,6 +290,11 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                         <p className="text-xs text-slate-600 mt-1">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                         </p>
+                        {file.size > 100 * 1024 * 1024 && (
+                          <p className="text-xs text-orange-600 mt-2 font-medium">
+                            ⚠️ Archivo grande ({(file.size / 1024 / 1024).toFixed(0)} MB) - Considere usar división automática
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <div>
@@ -244,12 +302,36 @@ export default function AddSourceModal({ isOpen, onClose, onAddSource, preSelect
                           Haz clic para seleccionar o arrastra aquí
                         </p>
                         <p className="text-xs text-slate-600 mt-1">
-                          PDF, Word, Excel, CSV (máx. 100 MB)
+                          PDF, Word, Excel, CSV (máx. 500 MB)
                         </p>
                       </div>
                     )}
                   </label>
                 </div>
+                
+                {/* Split Large PDF Option */}
+                {file && file.size > 50 * 1024 * 1024 && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-800 mb-1">
+                          💡 Archivo grande detectado ({(file.size / 1024 / 1024).toFixed(0)} MB)
+                        </p>
+                        <p className="text-xs text-blue-700 mb-2">
+                          Puede dividir automáticamente en chunks de 20MB para procesamiento más rápido y confiable.
+                        </p>
+                        <button
+                          onClick={() => handleSplitPDF()}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                          Dividir PDF Automáticamente
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Model Selection */}

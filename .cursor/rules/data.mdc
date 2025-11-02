@@ -38,7 +38,8 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ feedback_tickets        # Backlog tickets (2025-10-29)│
 │  ├─ message_queue           # Queue system items (2025-10-31)│
 │  ├─ queue_configs           # Queue settings (2025-10-31)│
-│  └─ queue_metrics           # Queue analytics (2025-10-31)│
+│  ├─ queue_metrics           # Queue analytics (2025-10-31)│
+│  └─ tool_executions         # Cloud Function tool executions (2025-11-02)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
@@ -1188,6 +1189,123 @@ interface AgentPromptVersion {
 - ✅ New collection (additive only - 2025-10-31)
 - ✅ All fields optional except identity
 - ⚠️ Never remove `agentId`, `prompt`, `createdAt` (breaking)
+
+---
+
+### 19. tool_executions
+
+**Purpose:** Track Cloud Function tool executions for serverless document processing
+
+**Collection Path:** `tool_executions/{executionId}`
+
+**TypeScript Interface:**
+```typescript
+interface ToolExecution {
+  // Identity
+  id: string;                         // Document ID (e.g., 'exec_20251102_abc123')
+  userId: string;                     // Owner (indexed)
+  toolId: string;                     // Tool name (e.g., 'pdf-splitter')
+  
+  // Input
+  inputFileUrl?: string;              // GCS URL of input file
+  inputFileName?: string;             // Original filename
+  inputSizeMB: number;                // File size in MB
+  parameters: Record<string, any>;    // Tool-specific parameters
+  
+  // Execution
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  functionExecutionId?: string;       // Cloud Function execution ID
+  
+  // Progress
+  progressPercentage?: number;        // 0-100
+  progressMessage?: string;           // Current step description
+  
+  // Results
+  outputFiles?: Array<{
+    url: string;                      // Signed GCS URL (expires in 7 days)
+    fileName: string;                 // chunk-001.pdf
+    sizeMB: number;                   // Chunk size
+    type: string;                     // MIME type
+    metadata?: Record<string, any>;   // File-specific metadata (pageRange, etc.)
+  }>;
+  metadata?: Record<string, any>;     // Execution metadata (totalChunks, totalPages, etc.)
+  
+  // Timing
+  startedAt: Date;                    // When execution started
+  completedAt?: Date;                 // When execution finished
+  durationMs?: number;                // Total execution time
+  
+  // Error
+  error?: {
+    message: string;                  // Error message
+    code: string;                     // Error code
+    details?: string;                 // Stack trace or details
+  };
+  
+  // Cost
+  estimatedCost?: number;             // Estimated cost in USD
+  
+  // Source
+  source: 'localhost' | 'production'; // Data origin
+  
+  // Timestamps
+  createdAt: Date;                    // Record creation
+  updatedAt: Date;                    // Last update
+}
+```
+
+**Indexes Required:**
+```
+- userId ASC, createdAt DESC
+- userId ASC, status ASC, createdAt DESC
+- toolId ASC, createdAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Ftool_executions
+
+**API Endpoints:**
+- `POST /api/tools/split-pdf` - Execute PDF splitter tool
+- `GET /api/tools/status/:executionId` - Get execution status
+
+**CRUD Functions (src/lib/tool-manager.ts):**
+- `createToolExecution(userId, toolId, fileName, sizeMB, parameters): Promise<ToolExecution>`
+- `getToolExecution(executionId): Promise<ToolExecution | null>`
+- `updateToolExecution(executionId, updates): Promise<void>`
+- `getUserToolExecutions(userId, limit): Promise<ToolExecution[]>`
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-02)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `userId`, `toolId`, `status` (breaking)
+
+**Usage Example:**
+```typescript
+// Create execution
+const execution = await createToolExecution(
+  userId,
+  'pdf-splitter',
+  'large-manual.pdf',
+  312, // 312 MB
+  { chunkSizeMB: 20 }
+);
+
+// Poll for completion
+const status = await getToolExecution(execution.id);
+if (status?.status === 'completed') {
+  console.log(`Split into ${status.outputFiles?.length} chunks`);
+  status.outputFiles?.forEach(chunk => {
+    console.log(`- ${chunk.fileName}: ${chunk.pageRange}`);
+  });
+}
+```
+
+**Cloud Function Integration:**
+- Tool: `pdf-splitter-tool` (Cloud Functions 2nd gen)
+- Region: `us-central1`
+- Memory: 4GB
+- Timeout: 540s (9 minutes)
+- Trigger: HTTP (authenticated)
 
 ---
 
