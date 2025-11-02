@@ -456,8 +456,27 @@ export default function ContextManagementDashboard({
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
-    // ✅ UPDATED: Check file sizes with smart limits (2025-11-02)
-    const filesArray = Array.from(files);
+    // ✅ IMPROVED: Filter out previously skipped files before processing
+    let filesArray = Array.from(files);
+    
+    // Remove files that user previously skipped
+    if (skippedFileNames.size > 0) {
+      const beforeCount = filesArray.length;
+      filesArray = filesArray.filter(f => !skippedFileNames.has(f.name));
+      const filtered = beforeCount - filesArray.length;
+      
+      if (filtered > 0) {
+        console.log(`🚫 Filtered ${filtered} previously skipped file(s) from selection`);
+        console.log(`   These files were skipped in a previous upload and won't appear again`);
+      }
+    }
+    
+    if (filesArray.length === 0) {
+      console.log('ℹ️ All selected files were previously skipped - nothing to upload');
+      return; // Exit early
+    }
+    
+    // ✅ Check file sizes with smart limits
     const largeFiles = filesArray.filter(f => f.size > 50 * 1024 * 1024); // >50MB
     const hugeFiles = filesArray.filter(f => f.size > 100 * 1024 * 1024); // >100MB (require approval)
     const excessiveFiles = filesArray.filter(f => f.size > 500 * 1024 * 1024); // >500MB (absolute reject)
@@ -543,10 +562,17 @@ export default function ContextManagementDashboard({
         return; // User cancelled entire upload
       } 
       else if (action === 'skip') {
-        // ✅ NEW: Skip duplicates, only upload new files
+        // ✅ IMPROVED: Skip duplicates and remember them
         console.log(`⏭️ Skipping ${duplicates.length} duplicate file(s):`, 
           duplicates.map(d => d.file.name)
         );
+        
+        // Remember skipped files so they don't appear in future uploads
+        const newSkipped = new Set(skippedFileNames);
+        duplicates.forEach(dup => newSkipped.add(dup.file.name));
+        setSkippedFileNames(newSkipped);
+        
+        console.log(`📝 Skipped files saved to memory (won't show in future uploads)`);
         
         // Continue with only non-duplicate files
         // (newFiles already has non-duplicates from earlier filtering)
@@ -1932,8 +1958,8 @@ export default function ContextManagementDashboard({
 
                                 return (
                                   <React.Fragment key={stage.key}>
-                                    {/* Stage Circle */}
-                                    <div className="flex flex-col items-center gap-1.5 relative z-10">
+                                    {/* Stage Circle - with hover group for tooltip */}
+                                    <div className="flex flex-col items-center gap-1.5 relative z-10 group">
                                       <div className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-500 ${
                                         isComplete 
                                           ? 'bg-green-600 text-white shadow-lg scale-100' 
@@ -1957,11 +1983,29 @@ export default function ContextManagementDashboard({
                                         {stage.label}
                                       </span>
                                       
-                                      {/* Stage progress indicator (for active stage) */}
+                                      {/* Stage progress indicator (for active stage) - show decimals for >90% */}
                                       {isActive && (
                                         <span className="text-[9px] font-mono text-blue-600">
-                                          {Math.round(stageProgress)}%
+                                          {item.progress >= 90 ? item.progress.toFixed(1) : Math.round(stageProgress)}%
                                         </span>
+                                      )}
+                                      
+                                      {/* ✅ NEW: Tooltip for Embed stage showing details */}
+                                      {isActive && stage.key === 'embed' && item.embeddingDetails && (
+                                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
+                                          <div className="bg-gray-900 text-white text-[10px] rounded-lg p-2 shadow-lg whitespace-nowrap">
+                                            <div className="font-bold mb-1">🔮 Embedding Progress</div>
+                                            {item.embeddingDetails.currentChunk && (
+                                              <div>Chunk {item.embeddingDetails.currentChunk}/{item.embeddingDetails.totalChunks}</div>
+                                            )}
+                                            {item.embeddingDetails.totalTokens && (
+                                              <div>📊 {item.embeddingDetails.totalTokens.toLocaleString()} tokens</div>
+                                            )}
+                                            {item.embeddingDetails.message && (
+                                              <div className="text-blue-300 mt-1">{item.embeddingDetails.message}</div>
+                                            )}
+                                          </div>
+                                        </div>
                                       )}
                                     </div>
 
