@@ -19,7 +19,9 @@ import {
   Grid,
   Zap,
   ChevronRight,
-  Folder
+  Folder,
+  Play,
+  RotateCw
 } from 'lucide-react';
 import type { ContextSource } from '../types/context';
 import { useModalClose } from '../hooks/useModalClose';
@@ -58,6 +60,9 @@ interface UploadQueueItem {
   startTime?: number; // NEW: Timestamp when upload started
   elapsedTime?: number; // NEW: Elapsed time in milliseconds
 }
+
+// ✅ Default concurrency limit for parallel uploads
+const MAX_CONCURRENT_UPLOADS = 5; // Process 5 files simultaneously
 
 // Helper function to format elapsed time with smooth millisecond updates
 function formatElapsedTime(ms: number): string {
@@ -299,15 +304,30 @@ export default function ContextManagementDashboard({
       const action = await handleDuplicates(duplicates);
       
       if (action === 'cancel') {
-        return; // User cancelled
-      } else if (action === 'replace') {
+        return; // User cancelled entire upload
+      } 
+      else if (action === 'skip') {
+        // ✅ NEW: Skip duplicates, only upload new files
+        console.log(`⏭️ Skipping ${duplicates.length} duplicate file(s):`, 
+          duplicates.map(d => d.file.name)
+        );
+        
+        // Continue with only non-duplicate files
+        // (newFiles already has non-duplicates from earlier filtering)
+      } 
+      else if (action === 'replace') {
         // Delete existing sources and upload with same names
+        console.log(`🔄 Replacing ${duplicates.length} existing file(s)...`);
+        
         for (const dup of duplicates) {
           await deleteSourceInternal(dup.existing.id);
           newFiles.push(dup.file);
         }
-      } else if (action === 'keep-both') {
+      } 
+      else if (action === 'keep-both') {
         // Rename new files with version suffix
+        console.log(`📋 Keeping both versions for ${duplicates.length} file(s)...`);
+        
         const renamedFiles = duplicates.map(dup => {
           const baseName = dup.file.name.replace(/\.pdf$/i, '');
           const version = getNextVersion(baseName);
@@ -317,6 +337,20 @@ export default function ContextManagementDashboard({
         });
         newFiles.push(...renamedFiles);
       }
+    }
+
+    // ✅ Show summary of what will be uploaded
+    if (newFiles.length > 0) {
+      console.log(`📤 Uploading ${newFiles.length} file(s):`, newFiles.map(f => f.name));
+    } else {
+      console.log('ℹ️ No files to upload (all duplicates were skipped)');
+      
+      // Close staging area
+      setShowUploadStaging(false);
+      setStagedFiles([]);
+      setStagedTags([]);
+      setUploadTags('');
+      return; // Exit early
     }
 
     // Create upload queue items with selected model
@@ -340,9 +374,10 @@ export default function ContextManagementDashboard({
     setSelectedModel('gemini-2.5-flash'); // Reset to default
   };
 
-  const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'cancel'> => {
-    const fileNames = duplicates.map(d => d.file.name).join(', ');
-    const message = `The following file(s) already exist:\n\n${fileNames}\n\nWhat would you like to do?`;
+  const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'skip' | 'cancel'> => {
+    const fileNames = duplicates.map(d => `  • ${d.file.name}`).join('\n');
+    const count = duplicates.length;
+    const message = `${count} file${count > 1 ? 's' : ''} already exist${count > 1 ? '' : 's'}:\n\n${fileNames}`;
     
     // Create custom dialog
     const choice = await new Promise<string>((resolve) => {
@@ -350,18 +385,68 @@ export default function ContextManagementDashboard({
       dialog.innerHTML = `
         <div class="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-            <h3 class="text-lg font-bold text-gray-900 mb-3">Duplicate Files Detected</h3>
-            <p class="text-sm text-gray-700 mb-4 whitespace-pre-wrap">${message}</p>
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+              </div>
+              <h3 class="text-lg font-bold text-gray-900">Duplicate Files Detected</h3>
+            </div>
+            
+            <!-- Message -->
+            <p class="text-sm text-gray-700 mb-4 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded border border-gray-200">${message}</p>
+            
+            <!-- Options -->
             <div class="space-y-2">
-              <button data-action="replace" class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors">
-                Replace existing files
+              <!-- ✅ NEW: Skip option (primary action) -->
+              <button 
+                data-action="skip" 
+                class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                </svg>
+                Skip duplicate${count > 1 ? 's' : ''} (recommended)
               </button>
-              <button data-action="keep-both" class="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors">
-                Keep both (add -v1, -v2, etc.)
+              
+              <!-- Replace -->
+              <button 
+                data-action="replace" 
+                class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Replace with new version
               </button>
-              <button data-action="cancel" class="w-full px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors">
+              
+              <!-- Keep Both -->
+              <button 
+                data-action="keep-both" 
+                class="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Keep both (add -v${count})
+              </button>
+              
+              <!-- Cancel -->
+              <button 
+                data-action="cancel" 
+                class="w-full px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+              >
                 Cancel upload
               </button>
+            </div>
+            
+            <!-- Info Text -->
+            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p class="text-xs text-blue-800">
+                <strong>💡 Tip:</strong> Skipping duplicates will only upload new files, saving time and avoiding re-processing.
+              </p>
             </div>
           </div>
         </div>
@@ -371,7 +456,7 @@ export default function ContextManagementDashboard({
       
       dialog.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
-        const action = target.getAttribute('data-action');
+        const action = target.getAttribute('data-action') || target.closest('button')?.getAttribute('data-action');
         if (action) {
           document.body.removeChild(dialog);
           resolve(action);
@@ -379,7 +464,7 @@ export default function ContextManagementDashboard({
       });
     });
     
-    return choice as 'replace' | 'keep-both' | 'cancel';
+    return choice as 'replace' | 'keep-both' | 'skip' | 'cancel';
   };
 
   const getNextVersion = (baseName: string): number => {
@@ -393,247 +478,294 @@ export default function ContextManagementDashboard({
     return existingVersions.length > 0 ? Math.max(...existingVersions) + 1 : 1;
   };
 
-  const processQueue = async (items: UploadQueueItem[]) => {
-    setIsUploading(true);
+  // ✅ NEW: Extract processing logic into separate function for parallel execution
+  const processItem = async (item: UploadQueueItem) => {
+    const startTime = Date.now();
+    let elapsedTimeInterval: NodeJS.Timeout | null = null;
+    let smoothProgressInterval: NodeJS.Timeout | null = null;
 
-    for (const item of items) {
-      const startTime = Date.now();
-      let elapsedTimeInterval: NodeJS.Timeout | null = null;
-      let smoothProgressInterval: NodeJS.Timeout | null = null;
+    try {
+      // Start with initial state
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { 
+          ...i, 
+          status: 'uploading', 
+          progress: 0,
+          startTime,
+          elapsedTime: 0
+        } : i
+      ));
 
-      try {
-        // Start with initial state
+      // Start elapsed time tracker - update every 100ms for smooth animation
+      elapsedTimeInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
         setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { 
-            ...i, 
-            status: 'uploading', 
-            progress: 0,
-            startTime,
-            elapsedTime: 0
-          } : i
+          i.id === item.id ? { ...i, elapsedTime: elapsed } : i
         ));
+      }, 100); // Update every 100ms for smooth millisecond increments
 
-        // Start elapsed time tracker - update every 100ms for smooth animation
-        elapsedTimeInterval = setInterval(() => {
-          const elapsed = Date.now() - startTime;
-          setUploadQueue(prev => prev.map(i => 
-            i.id === item.id ? { ...i, elapsedTime: elapsed } : i
-          ));
-        }, 100); // Update every 100ms for smooth millisecond increments
-
-        // ✨ NEW: Smooth incremental progress through ALL stages
-        smoothProgressInterval = setInterval(() => {
-          setUploadQueue(prev => prev.map(i => {
-            if (i.id !== item.id) return i;
-            
-            // Dynamic increment based on current stage
-            let increment = 0.5; // Default: 0.5% per 500ms (1% per second)
-            
-            // Speed up during long-running stages
-            if (i.progress >= 25 && i.progress < 50) {
-              // Extract stage - slower increment (API is working)
-              increment = 0.3;
-            } else if (i.progress >= 50 && i.progress < 75) {
-              // Chunk stage - medium speed
-              increment = 0.8;
-            } else if (i.progress >= 75) {
-              // Embed stage - faster (we want to reach completion)
-              increment = 1.0;
-            }
-            
-            // Cap at 98% before final completion
-            const newProgress = Math.min(i.progress + increment, 98);
-            
-            return { ...i, progress: newProgress };
-          }));
-        }, 500); // Update every 500ms
-
-        // Create FormData
-        const formData = new FormData();
-        formData.append('file', item.file);
-        formData.append('userId', userId);
-        formData.append('name', item.file.name);
-        formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
-        formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
-
-        // Upload stage (0-25%)
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'uploading', progress: 5 } : i
-        ));
-
-        // Call API (this takes the real time)
-        const uploadResponse = await fetch('/api/extract-document', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include', // ✅ FIX: Include cookies for authentication
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Upload failed');
-        }
-
-        const uploadData = await uploadResponse.json();
-        
-        if (!uploadData.success) {
-          throw new Error(uploadData.error || 'Extraction failed');
-        }
-
-        // API complete! Transition smoothly to next stage
-        // First jump to end of Extract stage
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, status: 'processing', progress: 48 } : i
-        ));
-        
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Complete Extract stage (50%)
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 50 } : i
-        ));
-
-        // Create source in Firestore with extracted data and pipeline logs
-        const createResponse = await fetch('/api/context-sources', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include', // ✅ FIX: Include cookies for authentication
-          body: JSON.stringify({
-            userId,
-            name: item.file.name,
-            type: 'pdf', // Determine from file extension
-            enabled: true,
-            status: 'active',
-            extractedData: uploadData.extractedText || '',
-            assignedToAgents: [], // Not assigned to any agent initially (admin upload)
-            labels: item.tags || [], // Add tags
-            metadata: {
-              ...uploadData.metadata,
-              model: item.model || 'gemini-2.5-flash', // Save model used
-            },
-            pipelineLogs: uploadData.pipelineLogs || [], // ✅ Save pipeline execution logs
-          })
-        });
-
-        if (!createResponse.ok) {
-          throw new Error('Failed to save context source');
-        }
-
-        const savedData = await createResponse.json();
-        const sourceId = savedData.source?.id;
-
-        // Transition to Chunk stage
-        await new Promise(resolve => setTimeout(resolve, 200));
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { ...i, progress: 52 } : i
-        ));
-
-        // ✅ Auto-trigger RAG pipeline (Chunk → Embed) with progress
-        if (sourceId && uploadData.extractedText) {
-          console.log('🔍 Auto-triggering RAG pipeline for sourceId:', sourceId);
+      // ✨ Smooth incremental progress through ALL stages
+      smoothProgressInterval = setInterval(() => {
+        setUploadQueue(prev => prev.map(i => {
+          if (i.id !== item.id) return i;
           
-          try {
-            // Chunk stage starting (55%)
+          // Dynamic increment based on current stage
+          let increment = 0.5; // Default: 0.5% per 500ms (1% per second)
+          
+          // Speed up during long-running stages
+          if (i.progress >= 25 && i.progress < 50) {
+            // Extract stage - slower increment (API is working)
+            increment = 0.3;
+          } else if (i.progress >= 50 && i.progress < 75) {
+            // Chunk stage - medium speed
+            increment = 0.8;
+          } else if (i.progress >= 75) {
+            // Embed stage - faster (we want to reach completion)
+            increment = 1.0;
+          }
+          
+          // Cap at 98% before final completion
+          const newProgress = Math.min(i.progress + increment, 98);
+          
+          return { ...i, progress: newProgress };
+        }));
+      }, 500); // Update every 500ms
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', item.file);
+      formData.append('userId', userId);
+      formData.append('name', item.file.name);
+      formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
+      formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
+
+      // Upload stage (0-25%)
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { ...i, status: 'uploading', progress: 5 } : i
+      ));
+
+      // Call API (this takes the real time)
+      const uploadResponse = await fetch('/api/extract-document', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const uploadData = await uploadResponse.json();
+      
+      if (!uploadData.success) {
+        throw new Error(uploadData.error || 'Extraction failed');
+      }
+
+      // API complete! Transition smoothly to next stage
+      // First jump to end of Extract stage
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { ...i, status: 'processing', progress: 48 } : i
+      ));
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Complete Extract stage (50%)
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { ...i, progress: 50 } : i
+      ));
+
+      // Create source in Firestore with extracted data and pipeline logs
+      const createResponse = await fetch('/api/context-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+        body: JSON.stringify({
+          userId,
+          name: item.file.name,
+          type: 'pdf', // Determine from file extension
+          enabled: true,
+          status: 'active',
+          extractedData: uploadData.extractedText || '',
+          assignedToAgents: [], // Not assigned to any agent initially (admin upload)
+          labels: item.tags || [], // Add tags
+          metadata: {
+            ...uploadData.metadata,
+            model: item.model || 'gemini-2.5-flash', // Save model used
+          },
+          pipelineLogs: uploadData.pipelineLogs || [], // ✅ Save pipeline execution logs
+        })
+      });
+
+      if (!createResponse.ok) {
+        throw new Error('Failed to save context source');
+      }
+
+      const savedData = await createResponse.json();
+      const sourceId = savedData.source?.id;
+
+      // Transition to Chunk stage
+      await new Promise(resolve => setTimeout(resolve, 200));
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { ...i, progress: 52 } : i
+      ));
+
+      // ✅ Auto-trigger RAG pipeline (Chunk → Embed) with progress
+      if (sourceId && uploadData.extractedText) {
+        console.log('🔍 Auto-triggering RAG pipeline for sourceId:', sourceId);
+        
+        try {
+          // Chunk stage starting (55%)
+          setUploadQueue(prev => prev.map(i => 
+            i.id === item.id ? { ...i, progress: 55 } : i
+          ));
+          
+          const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // ✅ FIX: Include cookies for authentication
+            body: JSON.stringify({
+              userId,
+              chunkSize: 2000, // Optimal for technical procedures (keeps sections together)
+              overlap: 500,    // Maximum context continuity (prevents information loss at boundaries)
+            }),
+          });
+
+          const ragData = await ragResponse.json();
+          
+          if (ragResponse.ok && ragData.success) {
+            console.log('✅ RAG pipeline completed successfully:', ragData);
+            console.log(`   Chunks created: ${ragData.chunksCreated || ragData.chunksCount}`);
+            console.log(`   Total tokens: ${ragData.totalTokens}`);
+            console.log(`   Indexing time: ${ragData.indexingTime}ms`);
+            
+            // Chunk complete, moving to Embed (75%)
             setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 55 } : i
+              i.id === item.id ? { ...i, progress: 75 } : i
             ));
             
-            const ragResponse = await fetch(`/api/context-sources/${sourceId}/enable-rag`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include', // ✅ FIX: Include cookies for authentication
-              body: JSON.stringify({
-                userId,
-                chunkSize: 2000, // Optimal for technical procedures (keeps sections together)
-                overlap: 500,    // Maximum context continuity (prevents information loss at boundaries)
-              }),
-            });
-
-            const ragData = await ragResponse.json();
+            await new Promise(resolve => setTimeout(resolve, 300));
             
-            if (ragResponse.ok && ragData.success) {
-              console.log('✅ RAG pipeline completed:', ragData);
-              console.log(`   Chunks created: ${ragData.chunksCreated}`);
-              console.log(`   Total tokens: ${ragData.totalTokens}`);
-              
-              // Chunk complete, moving to Embed (75%)
-              setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: 75 } : i
-              ));
-              
-              await new Promise(resolve => setTimeout(resolve, 500));
-              
-              // Embed progressing (85%)
-              setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: 85 } : i
-              ));
-              
-              await new Promise(resolve => setTimeout(resolve, 500));
-              
-              // Embed almost done (95%)
-              setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: 95 } : i
-              ));
+            // Embed progressing (85%)
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 85 } : i
+            ));
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            // Embed almost done (95%)
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 95 } : i
+            ));
+            
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+              console.log(`✅ Embedding complete for: ${item.file.name}`);
             } else {
-              console.error('❌ RAG pipeline failed:', ragData);
-              console.error('   Error:', ragData.error || ragData.message);
-              console.error('   Response status:', ragResponse.status);
+              console.warn('⚠️ RAG pipeline failed or returned error:', ragData);
+              console.warn('   Error:', ragData.error || ragData.message);
+              console.warn('   Response status:', ragResponse.status);
+              console.warn('   ℹ️ Document will be available in Full-text mode only');
               
-              // Show warning but still complete
-              alert(`⚠️ RAG indexing falló: ${ragData.error || ragData.message}\n\nEl documento está disponible en modo Full-text.`);
-              
-              // Still advance to completion
+              // Update error message in UI so user knows
               setUploadQueue(prev => prev.map(i => 
-                i.id === item.id ? { ...i, progress: 95 } : i
+                i.id === item.id ? { 
+                  ...i, 
+                  progress: 95,
+                  error: `⚠️ RAG indexing failed: ${ragData.error || ragData.message || 'Unknown error'}. Document saved in full-text mode.`
+                } : i
               ));
             }
           } catch (error) {
             console.error('❌ RAG auto-trigger exception:', error);
+            console.warn('   ℹ️ Document will be available in Full-text mode only');
+            console.warn('   ℹ️ Users can manually trigger RAG indexing later from Context Management');
             
-            // Show error
-            alert(`⚠️ Error indexando con RAG: ${error instanceof Error ? error.message : 'Unknown error'}\n\nEl documento está disponible en modo Full-text.`);
-            
-            // Still advance to completion
+            // Update error message in UI
             setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 95 } : i
+              i.id === item.id ? { 
+                ...i, 
+                progress: 95,
+                error: `⚠️ RAG indexing exception: ${error instanceof Error ? error.message : 'Unknown'}. Document saved in full-text mode.`
+              } : i
             ));
           }
         } else {
           // No RAG, skip to 95%
+          console.log('ℹ️ RAG auto-indexing skipped (no extracted text or sourceId)');
           setUploadQueue(prev => prev.map(i => 
             i.id === item.id ? { ...i, progress: 95 } : i
           ));
         }
 
-        // Final completion
-        if (smoothProgressInterval) clearInterval(smoothProgressInterval);
-        if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
-        
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { 
-            ...i, 
-            status: 'complete', 
-            progress: 100, 
-            sourceId,
-            elapsedTime: Date.now() - startTime
-          } : i
-        ));
+      // ✅ CRITICAL FIX: Always complete to 100% regardless of embedding success
+      // This prevents UI from getting stuck at 92-95%
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      if (smoothProgressInterval) clearInterval(smoothProgressInterval);
+      if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
+      
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { 
+          ...i, 
+          status: 'complete', 
+          progress: 100, 
+          sourceId,
+          elapsedTime: Date.now() - startTime
+        } : i
+      ));
 
-      } catch (error) {
-        console.error('Upload failed:', item.file.name, error);
-        if (smoothProgressInterval) clearInterval(smoothProgressInterval);
-        if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
-        setUploadQueue(prev => prev.map(i => 
-          i.id === item.id ? { 
-            ...i, 
-            status: 'failed', 
-            error: error instanceof Error ? error.message : 'Upload failed',
-            elapsedTime: Date.now() - startTime
-          } : i
-        ));
-      }
+    } catch (error) {
+      console.error('Upload failed:', item.file.name, error);
+      if (smoothProgressInterval) clearInterval(smoothProgressInterval);
+      if (elapsedTimeInterval) clearInterval(elapsedTimeInterval);
+      setUploadQueue(prev => prev.map(i => 
+        i.id === item.id ? { 
+          ...i, 
+          status: 'failed', 
+          error: error instanceof Error ? error.message : 'Upload failed',
+          elapsedTime: Date.now() - startTime
+        } : i
+      ));
     }
+  };
 
+  // ✅ NEW: Process queue with parallel batches
+  const processQueue = async (items: UploadQueueItem[]) => {
+    setIsUploading(true);
+
+    // Process in batches of MAX_CONCURRENT_UPLOADS
+    for (let i = 0; i < items.length; i += MAX_CONCURRENT_UPLOADS) {
+      const batch = items.slice(i, i + MAX_CONCURRENT_UPLOADS);
+      
+      const batchNum = Math.floor(i / MAX_CONCURRENT_UPLOADS) + 1;
+      const totalBatches = Math.ceil(items.length / MAX_CONCURRENT_UPLOADS);
+      
+      console.log(`🚀 Processing batch ${batchNum}/${totalBatches}: ${batch.length} files in parallel`);
+      console.log(`   Files: ${batch.map(b => b.file.name).join(', ')}`);
+      
+      // ✅ PARALLEL: All files in this batch process simultaneously
+      await Promise.allSettled(
+        batch.map(item => processItem(item))
+      );
+      
+      console.log(`✅ Batch ${batchNum}/${totalBatches} complete`);
+    }
+    
     setIsUploading(false);
     await loadFirstPage(); // Reload sources
+    
+    const completed = uploadQueue.filter(i => i.status === 'complete').length;
+    const failed = uploadQueue.filter(i => i.status === 'failed').length;
+    console.log(`✅ All uploads complete! Success: ${completed}, Failed: ${failed}`);
+  };
+
+  // ✅ NEW: Force start a queued item
+  const handleForceStart = async (itemId: string) => {
+    const item = uploadQueue.find(i => i.id === itemId);
+    if (!item || item.status !== 'queued') return;
+    
+    console.log(`⚡ Force starting upload for: ${item.file.name}`);
+    await processItem(item);
   };
 
   // DEPRECATED: No longer needed - extraction now happens synchronously
@@ -1243,13 +1375,63 @@ export default function ContextManagementDashboard({
             {uploadQueue.length > 0 && (
               <div className="flex-shrink-0 border-b border-gray-200 flex flex-col" style={{ maxHeight: '50vh' }}>
                 <div className="flex-shrink-0 p-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Pipeline de Procesamiento ({uploadQueue.length})
-                    </h3>
-                    <span className="text-xs text-gray-500">
-                      {uploadQueue.filter(i => i.status === 'complete').length} completados
-                    </span>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-sm font-semibold text-gray-900">
+                        Pipeline de Procesamiento ({uploadQueue.length})
+                      </h3>
+                      
+                      {/* ✅ NEW: Status counters */}
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-semibold">
+                          ✓ {uploadQueue.filter(i => i.status === 'complete').length}
+                        </span>
+                        <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full font-semibold">
+                          ✗ {uploadQueue.filter(i => i.status === 'failed').length}
+                        </span>
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                          ⏳ {uploadQueue.filter(i => i.status === 'uploading' || i.status === 'processing').length}
+                        </span>
+                        <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full font-semibold">
+                          ⏸ {uploadQueue.filter(i => i.status === 'queued').length}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* ✅ NEW: Action buttons */}
+                    <div className="flex items-center gap-2">
+                      {/* Retry All Failed */}
+                      {uploadQueue.some(i => i.status === 'failed') && (
+                        <button
+                          onClick={() => {
+                            const failed = uploadQueue.filter(i => i.status === 'failed');
+                            console.log(`🔄 Retrying ${failed.length} failed uploads`);
+                            processQueue(failed);
+                          }}
+                          className="px-3 py-1.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                          title="Retry all failed uploads"
+                        >
+                          <RotateCw className="w-3.5 h-3.5" />
+                          Retry All Failed
+                        </button>
+                      )}
+                      
+                      {/* Start All Queued (Bulk Process) */}
+                      {uploadQueue.some(i => i.status === 'queued') && (
+                        <button
+                          onClick={() => {
+                            const queued = uploadQueue.filter(i => i.status === 'queued');
+                            console.log(`⚡ Bulk starting ${queued.length} queued uploads in parallel`);
+                            processQueue(queued);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                          title="Start all queued uploads in parallel"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          Start All ({uploadQueue.filter(i => i.status === 'queued').length})
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3">
@@ -1279,7 +1461,7 @@ export default function ContextManagementDashboard({
                     const currentStageIndex = getCurrentStageIndex();
 
                     return (
-                      <button
+                      <div
                         key={item.id}
                         onClick={async () => {
                           // If complete, find the source and select it
@@ -1308,7 +1490,7 @@ export default function ContextManagementDashboard({
                           }
                         }}
                         className={`w-full border border-gray-200 rounded-lg p-4 bg-white shadow-sm text-left transition-all ${
-                          item.status === 'complete' ? 'hover:border-blue-400 hover:shadow-md cursor-pointer' : 'cursor-default'
+                          item.status === 'complete' ? 'hover:border-blue-400 hover:shadow-md cursor-pointer' : ''
                         }`}
                       >
                         {/* Header: File name, model, time */}
@@ -1328,8 +1510,24 @@ export default function ContextManagementDashboard({
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            {item.elapsedTime !== undefined && (
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* ✅ NEW: Force Start button for queued items */}
+                            {item.status === 'queued' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleForceStart(item.id);
+                                }}
+                                className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
+                                title="Force start this upload now"
+                              >
+                                <Play className="w-3 h-3" />
+                                Start
+                              </button>
+                            )}
+                            
+                            {/* Elapsed time display */}
+                            {item.elapsedTime !== undefined && item.status !== 'queued' && (
                               <span className={`text-xs font-mono ${
                                 item.status === 'complete' ? 'text-green-600 font-bold' : 'text-blue-600'
                               }`}>
@@ -1337,14 +1535,27 @@ export default function ContextManagementDashboard({
                                 {formatElapsedTime(item.elapsedTime)}
                               </span>
                             )}
+                            
+                            {/* ✅ NEW: Retry button for failed items */}
                             {item.status === 'failed' && (
                               <button
-                                onClick={() => handleReupload(item.id)}
-                                className="text-gray-700 hover:text-gray-900 text-xs flex items-center gap-1 px-2 py-1 border border-gray-300 rounded hover:bg-gray-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  processQueue([item]);
+                                }}
+                                className="px-2 py-1 bg-orange-600 text-white rounded text-xs font-medium hover:bg-orange-700 transition-colors flex items-center gap-1"
+                                title="Retry this upload"
                               >
-                                <RefreshCw className="w-3.5 h-3.5" />
+                                <RotateCw className="w-3 h-3" />
                                 Retry
                               </button>
+                            )}
+                            
+                            {/* Queued badge */}
+                            {item.status === 'queued' && (
+                              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded font-medium">
+                                Queued
+                              </span>
                             )}
                           </div>
                         </div>
@@ -1419,7 +1630,7 @@ export default function ContextManagementDashboard({
                           </div>
                         )}
 
-                        {/* Error Display */}
+                        {/* Error/Warning Display */}
                         {item.status === 'failed' && item.error && (
                           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                             <div className="flex items-start gap-2">
@@ -1427,6 +1638,19 @@ export default function ContextManagementDashboard({
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium text-red-800 mb-1">Error en procesamiento</p>
                                 <p className="text-xs text-red-700">{item.error}</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* ✅ NEW: Warning display for partial completion */}
+                        {item.status === 'complete' && item.error && item.error.includes('⚠️') && (
+                          <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-yellow-800 mb-1">Completado con advertencia</p>
+                                <p className="text-xs text-yellow-700">{item.error}</p>
                               </div>
                             </div>
                           </div>
@@ -1456,7 +1680,7 @@ export default function ContextManagementDashboard({
                             </span>
                           </div>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
