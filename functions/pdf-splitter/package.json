@@ -1,0 +1,23 @@
+{
+  "name": "pdf-splitter-tool",
+  "version": "1.0.0",
+  "description": "Cloud Function to split large PDFs into 20MB chunks",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && gcloud functions deploy pdf-splitter-tool --gen2 --runtime=nodejs20 --region=us-central1 --source=. --entry-point=splitPDF --trigger-http --memory=4GB --timeout=540s --max-instances=10"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.3.0",
+    "@google-cloud/storage": "^7.7.0",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
+
