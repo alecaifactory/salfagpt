@@ -1097,6 +1097,10 @@ export default function ContextManagementDashboard({
           elapsedTime: Date.now() - startTime
         } : i
       ));
+      
+      // ✅ Reload sources list so completed upload appears immediately
+      console.log('✅ Upload complete, reloading sources list...');
+      await loadFirstPage();
 
     } catch (error) {
       console.error('Upload failed:', item.file.name, error);
@@ -1173,6 +1177,10 @@ export default function ContextManagementDashboard({
           setUploadQueue(prev => prev.map(i => 
             i.id === queueId ? { ...i, status: 'complete', progress: 100, sourceId } : i
           ));
+          
+          // ✅ Reload sources list so completed upload appears immediately
+          console.log('✅ Upload complete (polling), reloading sources list...');
+          await loadFirstPage();
           return;
         } else if (source.status === 'error') {
           setUploadQueue(prev => prev.map(i => 
@@ -1848,9 +1856,10 @@ export default function ContextManagementDashboard({
                       <div
                         key={item.id}
                         onClick={async () => {
-                          // ✅ NEW: If processing, show detail view
+                          // ✅ NEW: If processing, show detail view in right panel
                           if (item.status === 'uploading' || item.status === 'processing') {
                             setSelectedUploadId(item.id);
+                            setSelectedSourceIds([]); // Clear source selection
                             return;
                           }
                           
@@ -2452,7 +2461,18 @@ export default function ContextManagementDashboard({
 
           {/* Right: Source Details & Agent Assignment */}
           <div className="w-1/2 flex flex-col">
-            {selectedSourceIds.length === 0 ? (
+            {selectedUploadId ? (
+              /* Upload in Progress Selected - Show Live Processing Detail */
+              <UploadProgressDetailView
+                isOpen={true}
+                onClose={() => setSelectedUploadId(null)}
+                uploadItem={uploadQueue.find(item => item.id === selectedUploadId)!}
+                pipelineLogs={[]} // TODO: Track pipeline logs per upload
+                onRetryStage={(stage) => {
+                  console.log('Retry stage:', stage);
+                }}
+              />
+            ) : selectedSourceIds.length === 0 ? (
               <div className="flex-1 flex items-center justify-center text-gray-400">
                 <div className="text-center">
                   <Eye className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -2849,20 +2869,6 @@ export default function ContextManagementDashboard({
           </button>
         </div>
       </div>
-      
-      {/* ✅ NEW: Upload Progress Detail View */}
-      {selectedUploadId && (
-        <UploadProgressDetailView
-          isOpen={true}
-          onClose={() => setSelectedUploadId(null)}
-          uploadItem={uploadQueue.find(item => item.id === selectedUploadId)!}
-          pipelineLogs={[]} // TODO: Track pipeline logs per upload
-          onRetryStage={(stage) => {
-            console.log(`🔄 Retry stage: ${stage} for upload ${selectedUploadId}`);
-            // TODO: Implement stage retry logic
-          }}
-        />
-      )}
     </div>
   );
 }
