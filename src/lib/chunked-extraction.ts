@@ -1,11 +1,15 @@
 /**
  * Chunked PDF Extraction - For Large Files >20MB
  * 
- * Splits large PDFs into smaller chunks, processes each with Gemini,
- * then combines the results.
+ * Splits large PDFs into smaller PDF SECTIONS (by page ranges),
+ * processes each section with Gemini, then combines the results.
+ * 
+ * TERMINOLOGY:
+ * - PDF Sections: Physical splits of the PDF by page ranges (~15MB, ~100 pages each)
+ * - Text Chunks: Semantic splits for RAG/embedding (happens later, ~2000 tokens each)
  * 
  * Use case: Files too large for Gemini inline data API (>20MB)
- * Method: Split PDF by page ranges, extract each chunk, combine
+ * Method: Split PDF by page ranges → extract each section → combine text
  */
 
 import { GoogleGenAI } from '@google/genai';
@@ -21,12 +25,12 @@ const genAI = new GoogleGenAI({
 
 export interface ChunkedExtractionResult {
   text: string;
-  totalChunks: number;
+  totalPdfSections: number; // ✅ RENAMED: PDF sections (not text chunks)
   totalPages: number;
   extractionTime: number;
   method: 'chunked-gemini';
-  chunks: Array<{
-    chunkNumber: number;
+  pdfSections: Array<{ // ✅ RENAMED: PDF sections
+    sectionNumber: number;
     pageRange: string;
     textLength: number;
     extractionTime: number;
@@ -34,25 +38,28 @@ export interface ChunkedExtractionResult {
 }
 
 /**
- * Extract text from large PDF by splitting into chunks
+ * Extract text from large PDF by splitting into PDF SECTIONS
  * 
  * Strategy:
- * 1. Split PDF into chunks of ~10-15MB each
- * 2. Process each chunk with Gemini
- * 3. Combine extracted text
- * 4. Report progress for each chunk
+ * 1. Split PDF into sections of ~10-15MB each (by page ranges)
+ * 2. Process each PDF section with Gemini (in parallel batches of 5)
+ * 3. Combine extracted text from all sections
+ * 4. Report progress for each section
+ * 
+ * NOTE: This creates PDF SECTIONS, not text chunks.
+ * Text chunking for RAG happens later (in enable-rag API).
  * 
  * @param pdfBuffer - Full PDF as Buffer
  * @param options - Extraction options
- * @param onProgress - Progress callback (chunk, total, message)
+ * @param onProgress - Progress callback (section, total, message)
  */
 export async function extractTextChunked(
   pdfBuffer: Buffer,
   options: {
     model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
-    chunkSizeMB?: number; // Target size per chunk
+    sectionSizeMB?: number; // ✅ RENAMED: Target size per PDF section
     onProgress?: (progress: { 
-      chunk: number; 
+      section: number; // ✅ RENAMED: PDF section number
       total: number; 
       message: string;
       percentage: number;
@@ -61,24 +68,25 @@ export async function extractTextChunked(
 ): Promise<ChunkedExtractionResult> {
   const startTime = Date.now();
   const model = options.model || 'gemini-2.5-pro'; // Use Pro for better quality
-  const targetChunkSizeMB = options.chunkSizeMB || 15; // 15MB chunks
+  const targetSectionSizeMB = options.sectionSizeMB || 15; // ✅ RENAMED: 15MB PDF sections
   const onProgress = options.onProgress || (() => {});
   
   const fileSizeBytes = pdfBuffer.length;
   const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
   
   console.log('\n┌─────────────────────────────────────────────────┐');
-  console.log('│ 📦 CHUNKED EXTRACTION - LARGE FILE PROCESSING   │');
+  console.log('│ 📄 PDF SECTION EXTRACTION - LARGE FILE         │');
   console.log('└─────────────────────────────────────────────────┘');
   console.log(`📄 PDF size: ${fileSizeMB} MB`);
-  console.log(`🔪 Target chunk size: ${targetChunkSizeMB} MB`);
+  console.log(`🔪 Target section size: ${targetSectionSizeMB} MB`);
   console.log(`🤖 Model: ${model}`);
+  console.log(`🔄 Method: Split into PDF sections → Extract → Combine`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
   
   try {
-    // ✅ STEP 1: Split PDF into chunks using pdf-lib
+    // ✅ STEP 1: Split PDF into sections using pdf-lib
     console.log('🔄 Step 1: Loading PDF and analyzing structure...');
-    onProgress({ chunk: 0, total: 1, message: 'Analyzing PDF structure...', percentage: 5 });
+    onProgress({ section: 0, total: 1, message: 'Analyzing PDF structure...', percentage: 5 });
     
     // Import pdf-lib dynamically (install if needed: npm install pdf-lib)
     const { PDFDocument } = await import('pdf-lib');
@@ -88,73 +96,74 @@ export async function extractTextChunked(
     
     console.log(`📄 Total pages: ${totalPages}`);
     
-    // Calculate chunk sizes
-    const targetChunkSizeBytes = targetChunkSizeMB * 1024 * 1024;
+    // ✅ Calculate PDF section sizes
+    const targetSectionSizeBytes = targetSectionSizeMB * 1024 * 1024;
     const estimatedBytesPerPage = fileSizeBytes / totalPages;
-    const pagesPerChunk = Math.max(1, Math.floor(targetChunkSizeBytes / estimatedBytesPerPage));
-    const totalChunks = Math.ceil(totalPages / pagesPerChunk);
+    const pagesPerSection = Math.max(1, Math.floor(targetSectionSizeBytes / estimatedBytesPerPage));
+    const totalSections = Math.ceil(totalPages / pagesPerSection);
     
     console.log(`📊 Estimated ${estimatedBytesPerPage.toFixed(0)} bytes/page`);
-    console.log(`📦 Creating ${totalChunks} chunks of ~${pagesPerChunk} pages each\n`);
+    console.log(`📄 Creating ${totalSections} PDF sections of ~${pagesPerSection} pages each`);
+    console.log(`🔄 Will process in batches of 5 sections (parallel)\n`);
     
-    const extractedChunks: Array<{
-      chunkNumber: number;
+    const extractedSections: Array<{
+      sectionNumber: number;
       pageRange: string;
       text: string;
       extractionTime: number;
     }> = [];
     
-    // ✅ STEP 2: Process chunks in PARALLEL batches (5 at a time)
-    const MAX_PARALLEL_CHUNKS = 5; // Process 5 chunks simultaneously
+    // ✅ STEP 2: Process PDF sections in PARALLEL batches (5 at a time)
+    const MAX_PARALLEL_SECTIONS = 5; // Process 5 PDF sections simultaneously
     
-    for (let batchStart = 0; batchStart < totalChunks; batchStart += MAX_PARALLEL_CHUNKS) {
-      const batchEnd = Math.min(batchStart + MAX_PARALLEL_CHUNKS, totalChunks);
+    for (let batchStart = 0; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
+      const batchEnd = Math.min(batchStart + MAX_PARALLEL_SECTIONS, totalSections);
       const batchSize = batchEnd - batchStart;
-      const batchNum = Math.floor(batchStart / MAX_PARALLEL_CHUNKS) + 1;
-      const totalBatches = Math.ceil(totalChunks / MAX_PARALLEL_CHUNKS);
+      const batchNum = Math.floor(batchStart / MAX_PARALLEL_SECTIONS) + 1;
+      const totalBatches = Math.ceil(totalSections / MAX_PARALLEL_SECTIONS);
       
-      console.log(`\n🚀 Processing batch ${batchNum}/${totalBatches}: Chunks ${batchStart + 1}-${batchEnd} (${batchSize} in parallel)`);
+      console.log(`\n🚀 Processing batch ${batchNum}/${totalBatches}: PDF sections ${batchStart + 1}-${batchEnd} (${batchSize} in parallel)`);
       
       // Process this batch in parallel
       const batchPromises = [];
       
-      for (let chunkIndex = batchStart; chunkIndex < batchEnd; chunkIndex++) {
-        const chunkStartPage = chunkIndex * pagesPerChunk;
-        const chunkEndPage = Math.min((chunkIndex + 1) * pagesPerChunk, totalPages);
-        const pageRange = `${chunkStartPage + 1}-${chunkEndPage}`;
+      for (let sectionIndex = batchStart; sectionIndex < batchEnd; sectionIndex++) {
+        const sectionStartPage = sectionIndex * pagesPerSection;
+        const sectionEndPage = Math.min((sectionIndex + 1) * pagesPerSection, totalPages);
+        const pageRange = `${sectionStartPage + 1}-${sectionEndPage}`;
         
-        const chunkPercentage = 10 + (chunkIndex / totalChunks) * 80; // 10-90%
+        const sectionPercentage = 10 + (sectionIndex / totalSections) * 80; // 10-90%
         
-        // Create promise for this chunk
-        const chunkPromise = (async () => {
-          console.log(`  🔄 Chunk ${chunkIndex + 1}/${totalChunks}: Pages ${pageRange}`);
+        // Create promise for this PDF section
+        const sectionPromise = (async () => {
+          console.log(`  📄 PDF Section ${sectionIndex + 1}/${totalSections}: Pages ${pageRange}`);
           
           onProgress({ 
-            chunk: chunkIndex + 1, 
-            total: totalChunks, 
-            message: `Extracting chunk ${chunkIndex + 1}/${totalChunks} (pages ${pageRange})`,
-            percentage: chunkPercentage
+            section: sectionIndex + 1, 
+            total: totalSections, 
+            message: `Extracting PDF section ${sectionIndex + 1}/${totalSections} (pages ${pageRange})`,
+            percentage: sectionPercentage
           });
           
-          const chunkStartTime = Date.now();
+          const sectionStartTime = Date.now();
           
           try {
             // Create sub-document with this page range
-            const chunkDoc = await PDFDocument.create();
-            const copiedPages = await chunkDoc.copyPages(
+            const sectionDoc = await PDFDocument.create();
+            const copiedPages = await sectionDoc.copyPages(
               pdfDoc, 
-              Array.from({ length: chunkEndPage - chunkStartPage }, (_, i) => chunkStartPage + i)
+              Array.from({ length: sectionEndPage - sectionStartPage }, (_, i) => sectionStartPage + i)
             );
             
-            copiedPages.forEach(page => chunkDoc.addPage(page));
+            copiedPages.forEach(page => sectionDoc.addPage(page));
             
-            const chunkBytes = await chunkDoc.save();
-            const chunkSizeMB = (chunkBytes.length / (1024 * 1024)).toFixed(2);
+            const sectionBytes = await sectionDoc.save();
+            const sectionSizeMB = (sectionBytes.length / (1024 * 1024)).toFixed(2);
             
-            console.log(`    📄 Chunk ${chunkIndex + 1}: ${chunkSizeMB} MB (${copiedPages.length} pages) → Sending to ${model}...`);
+            console.log(`    📄 Section ${sectionIndex + 1}: ${sectionSizeMB} MB (${copiedPages.length} pages) → Sending to ${model}...`);
             
             // Convert to base64
-            const base64Data = Buffer.from(chunkBytes).toString('base64');
+            const base64Data = Buffer.from(sectionBytes).toString('base64');
             
             // Extract text with Gemini
             const result = await genAI.models.generateContent({
@@ -193,89 +202,89 @@ DO NOT summarize. Extract the COMPLETE text.`
             });
             
             const extractedText = result.text || '';
-            const chunkTime = Date.now() - chunkStartTime;
+            const sectionTime = Date.now() - sectionStartTime;
             
-            console.log(`    ✅ Chunk ${chunkIndex + 1}: Extracted ${extractedText.length} characters in ${(chunkTime / 1000).toFixed(1)}s`);
+            console.log(`    ✅ Section ${sectionIndex + 1}: Extracted ${extractedText.length} characters in ${(sectionTime / 1000).toFixed(1)}s`);
             
             return {
-              chunkNumber: chunkIndex + 1,
+              sectionNumber: sectionIndex + 1,
               pageRange,
               text: extractedText,
-              extractionTime: chunkTime,
+              extractionTime: sectionTime,
             };
             
           } catch (error) {
-            console.error(`    ❌ Chunk ${chunkIndex + 1} failed:`, error);
+            console.error(`    ❌ Section ${sectionIndex + 1} failed:`, error);
             
             // Return error placeholder
             return {
-              chunkNumber: chunkIndex + 1,
+              sectionNumber: sectionIndex + 1,
               pageRange,
               text: `[Error extracting pages ${pageRange}: ${error instanceof Error ? error.message : 'Unknown error'}]`,
-              extractionTime: Date.now() - chunkStartTime,
+              extractionTime: Date.now() - sectionStartTime,
             };
           }
         })();
         
-        batchPromises.push(chunkPromise);
+        batchPromises.push(sectionPromise);
       }
       
-      // ✅ PARALLEL: Wait for all chunks in this batch to complete
-      console.log(`  ⏳ Processing ${batchSize} chunks in parallel...`);
+      // ✅ PARALLEL: Wait for all PDF sections in this batch to complete
+      console.log(`  ⏳ Processing ${batchSize} PDF sections in parallel...`);
       const batchResults = await Promise.all(batchPromises);
-      extractedChunks.push(...batchResults);
+      extractedSections.push(...batchResults);
       
       console.log(`  ✅ Batch ${batchNum}/${totalBatches} complete!`);
     }
     
-    // ✅ STEP 3: Combine all chunks
-    console.log('\n🔄 Step 3: Combining extracted chunks...');
+    // ✅ STEP 3: Combine all PDF sections
+    console.log('\n🔄 Step 3: Combining extracted PDF sections...');
     onProgress({ 
-      chunk: totalChunks, 
-      total: totalChunks, 
-      message: 'Combining extracted text...', 
+      section: totalSections, 
+      total: totalSections, 
+      message: 'Combining extracted text from all sections...', 
       percentage: 95 
     });
     
-    const combinedText = extractedChunks
-      .map((chunk, idx) => {
+    const combinedText = extractedSections
+      .map((section, idx) => {
         // Add page range markers for reference
-        const header = idx === 0 ? '' : `\n\n--- Pages ${chunk.pageRange} ---\n\n`;
-        return header + chunk.text;
+        const header = idx === 0 ? '' : `\n\n--- PDF Section ${section.sectionNumber}: Pages ${section.pageRange} ---\n\n`;
+        return header + section.text;
       })
       .join('');
     
     const extractionTime = Date.now() - startTime;
     
     console.log('┌─────────────────────────────────────────────────┐');
-    console.log('│ ✅ CHUNKED EXTRACTION SUCCESSFUL                │');
+    console.log('│ ✅ PDF SECTION EXTRACTION SUCCESSFUL            │');
     console.log('└─────────────────────────────────────────────────┘');
     console.log(`📊 Results:`);
-    console.log(`   Total chunks: ${totalChunks}`);
+    console.log(`   Total PDF sections: ${totalSections}`);
     console.log(`   Total pages: ${totalPages}`);
     console.log(`   Combined text: ${combinedText.length.toLocaleString()} characters`);
-    console.log(`   Success rate: ${extractedChunks.filter(c => !c.text.includes('[Error')).length}/${totalChunks}`);
+    console.log(`   Success rate: ${extractedSections.filter(s => !s.text.includes('[Error')).length}/${totalSections}`);
     console.log(`⏱️  Total time: ${(extractionTime / 1000).toFixed(2)}s`);
-    console.log(`💰 Est. cost: $${estimateChunkedCost(totalChunks, model).toFixed(4)}\n`);
+    console.log(`💰 Est. cost: $${estimateSectionExtractionCost(totalSections, model).toFixed(4)}\n`);
     
     onProgress({ 
-      chunk: totalChunks, 
-      total: totalChunks, 
-      message: 'Extraction complete!', 
+      section: totalSections, 
+      total: totalSections, 
+      message: 'PDF section extraction complete!', 
       percentage: 100 
     });
     
     return {
       text: combinedText,
-      totalChunks,
+      totalPdfSections: totalSections,
       totalPages,
       extractionTime,
       method: 'chunked-gemini',
-      chunks: extractedChunks.map(c => ({
-        chunkNumber: c.chunkNumber,
-        pageRange: c.pageRange,
-        textLength: c.text.length,
-        extractionTime: c.extractionTime,
+      pdfSections: extractedSections.map(s => ({
+        sectionNumber: s.sectionNumber,
+        pageRange: s.pageRange,
+        textLength: s.text.length,
+        extractionTime: s.extractionTime,
       })),
     };
     
@@ -286,21 +295,21 @@ DO NOT summarize. Extract the COMPLETE text.`
 }
 
 /**
- * Estimate cost for chunked extraction
+ * Estimate cost for PDF section extraction
  */
-function estimateChunkedCost(chunks: number, model: string): number {
-  const inputTokensPerChunk = 1000; // Estimated
-  const outputTokensPerChunk = 32000; // Avg for dense extraction
+function estimateSectionExtractionCost(sections: number, model: string): number {
+  const inputTokensPerSection = 1000; // Estimated
+  const outputTokensPerSection = 32000; // Avg for dense extraction
   
   if (model === 'gemini-2.5-pro') {
-    return chunks * ((inputTokensPerChunk / 1000000 * 1.25) + (outputTokensPerChunk / 1000000 * 5.00));
+    return sections * ((inputTokensPerSection / 1000000 * 1.25) + (outputTokensPerSection / 1000000 * 5.00));
   } else {
-    return chunks * ((inputTokensPerChunk / 1000000 * 0.075) + (outputTokensPerChunk / 1000000 * 0.30));
+    return sections * ((inputTokensPerSection / 1000000 * 0.075) + (outputTokensPerSection / 1000000 * 0.30));
   }
 }
 
 /**
- * Check if file should use chunked extraction
+ * Check if file should use PDF section extraction (vs single request)
  */
 export function shouldUseChunkedExtraction(fileSizeBytes: number): boolean {
   const geminiInlineLimit = 20 * 1024 * 1024; // 20MB Gemini inline limit

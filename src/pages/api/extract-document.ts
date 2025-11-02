@@ -233,33 +233,34 @@ export const POST: APIRoute = async ({ request }) => {
     }
     
     if (extractionMethod === 'gemini' || extractedText.trim().length < 100) {
-      // ✅ NEW: Check if file needs chunked extraction (>20MB)
+      // ✅ NEW: Check if file needs PDF section extraction (>20MB)
       if (shouldUseChunkedExtraction(buffer.length)) {
-        console.log('📦 File >20MB - Using CHUNKED extraction...');
-        console.log(`   File will be split into manageable chunks`);
-        console.log(`   Each chunk processed separately with ${model}`);
+        console.log('📄 File >20MB - Using PDF SECTION extraction...');
+        console.log(`   PDF will be split into ~15MB sections (by page ranges)`);
+        console.log(`   Each section processed separately with ${model}`);
+        console.log(`   Sections processed in parallel (5 at a time)`);
         console.log(`   Results will be combined automatically\n`);
         
         pipelineLogs.push({
           step: 'extract',
           status: 'in_progress',
           startTime: new Date(extractStepStart),
-          message: `Extrayendo documento grande en bloques (chunked extraction)...`,
+          message: `Extrayendo documento en secciones PDF (parallel section extraction)...`,
         });
         
         try {
           const chunkedResult = await extractTextChunked(buffer, {
             model: model,
-            chunkSizeMB: 15, // 15MB chunks
+            sectionSizeMB: 15, // ✅ RENAMED: 15MB PDF sections
             onProgress: (progress) => {
-              console.log(`  📦 Chunk ${progress.chunk}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
+              console.log(`  📄 PDF Section ${progress.section}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
             }
           });
           
           extractedText = chunkedResult.text;
           
-          console.log(`✅ Chunked extraction complete!`);
-          console.log(`   Total chunks: ${chunkedResult.totalChunks}`);
+          console.log(`✅ PDF section extraction complete!`);
+          console.log(`   Total PDF sections: ${chunkedResult.totalPdfSections}`);
           console.log(`   Total pages: ${chunkedResult.totalPages}`);
           console.log(`   Extracted text: ${extractedText.length} characters\n`);
           
@@ -268,10 +269,10 @@ export const POST: APIRoute = async ({ request }) => {
             status: 'success',
             endTime: new Date(),
             duration: Date.now() - extractStepStart,
-            message: `Texto extraído exitosamente (${chunkedResult.totalChunks} chunks, ${chunkedResult.totalPages} páginas)`,
+            message: `Texto extraído exitosamente (${chunkedResult.totalPdfSections} secciones PDF, ${chunkedResult.totalPages} páginas)`,
             details: {
-              method: 'chunked-gemini',
-              chunks: chunkedResult.totalChunks,
+              method: 'pdf-section-extraction',
+              pdfSections: chunkedResult.totalPdfSections,
               pages: chunkedResult.totalPages,
               charactersExtracted: extractedText.length,
             }
