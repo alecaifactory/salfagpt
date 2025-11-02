@@ -68,7 +68,7 @@ export async function extractTextChunked(
 ): Promise<ChunkedExtractionResult> {
   const startTime = Date.now();
   const model = options.model || 'gemini-2.5-pro'; // Use Pro for better quality
-  const targetSectionSizeMB = options.sectionSizeMB || 15; // ✅ RENAMED: 15MB PDF sections
+  const targetSectionSizeMB = options.sectionSizeMB || 12; // ✅ OPTIMIZED: 12MB PDF sections (faster, more sections)
   const onProgress = options.onProgress || (() => {});
   
   const fileSizeBytes = pdfBuffer.length;
@@ -113,8 +113,8 @@ export async function extractTextChunked(
       extractionTime: number;
     }> = [];
     
-    // ✅ STEP 2: Process PDF sections in PARALLEL batches (10 at a time for speed)
-    const MAX_PARALLEL_SECTIONS = 10; // Process 10 PDF sections simultaneously (2x faster!)
+    // ✅ OPTIMIZED: Process PDF sections in PARALLEL batches (15 at a time - optimal balance)
+    const MAX_PARALLEL_SECTIONS = 15; // Process 15 PDF sections simultaneously (3x faster, near rate limit max)
     
     for (let batchStart = 0; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
       const batchEnd = Math.min(batchStart + MAX_PARALLEL_SECTIONS, totalSections);

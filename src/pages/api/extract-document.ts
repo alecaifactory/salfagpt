@@ -251,7 +251,7 @@ export const POST: APIRoute = async ({ request }) => {
         try {
           const chunkedResult = await extractTextChunked(buffer, {
             model: model,
-            sectionSizeMB: 15, // ✅ RENAMED: 15MB PDF sections
+            sectionSizeMB: 12, // ✅ OPTIMIZED: 12MB PDF sections (faster processing)
             onProgress: (progress) => {
               console.log(`  📄 PDF Section ${progress.section}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
             }
