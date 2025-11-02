@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { GoogleGenAI } from '@google/genai';
 import { estimateTokens, calculateGeminiCost, formatCost } from '../../lib/pricing';
 import { uploadFile } from '../../lib/storage';
+import { extractTextChunked, shouldUseChunkedExtraction } from '../../lib/chunked-extraction';
 
 // Initialize Gemini AI client
 const IS_DEVELOPMENT = import.meta.env.DEV;
@@ -232,16 +233,73 @@ export const POST: APIRoute = async ({ request }) => {
     }
     
     if (extractionMethod === 'gemini' || extractedText.trim().length < 100) {
-      // Use Gemini AI (default)
-      console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
-      pipelineLogs.push({
-        step: 'extract',
-        status: 'in_progress',
-        startTime: new Date(extractStepStart),
-        message: `Extrayendo texto con ${model}...`,
-      });
-    
-    const base64Data = buffer.toString('base64');
+      // ✅ NEW: Check if file needs chunked extraction (>20MB)
+      if (shouldUseChunkedExtraction(buffer.length)) {
+        console.log('📦 File >20MB - Using CHUNKED extraction...');
+        console.log(`   File will be split into manageable chunks`);
+        console.log(`   Each chunk processed separately with ${model}`);
+        console.log(`   Results will be combined automatically\n`);
+        
+        pipelineLogs.push({
+          step: 'extract',
+          status: 'in_progress',
+          startTime: new Date(extractStepStart),
+          message: `Extrayendo documento grande en bloques (chunked extraction)...`,
+        });
+        
+        try {
+          const chunkedResult = await extractTextChunked(buffer, {
+            model: model,
+            chunkSizeMB: 15, // 15MB chunks
+            onProgress: (progress) => {
+              console.log(`  📦 Chunk ${progress.chunk}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
+            }
+          });
+          
+          extractedText = chunkedResult.text;
+          
+          console.log(`✅ Chunked extraction complete!`);
+          console.log(`   Total chunks: ${chunkedResult.totalChunks}`);
+          console.log(`   Total pages: ${chunkedResult.totalPages}`);
+          console.log(`   Extracted text: ${extractedText.length} characters\n`);
+          
+          pipelineLogs[pipelineLogs.length - 1] = {
+            ...pipelineLogs[pipelineLogs.length - 1],
+            status: 'success',
+            endTime: new Date(),
+            duration: Date.now() - extractStepStart,
+            message: `Texto extraído exitosamente (${chunkedResult.totalChunks} chunks, ${chunkedResult.totalPages} páginas)`,
+            details: {
+              method: 'chunked-gemini',
+              chunks: chunkedResult.totalChunks,
+              pages: chunkedResult.totalPages,
+              charactersExtracted: extractedText.length,
+            }
+          };
+          
+        } catch (error) {
+          console.error('❌ Chunked extraction failed:', error);
+          pipelineLogs[pipelineLogs.length - 1] = {
+            ...pipelineLogs[pipelineLogs.length - 1],
+            status: 'error',
+            endTime: new Date(),
+            message: `Error en extracción por bloques: ${error instanceof Error ? error.message : 'Unknown'}`,
+          };
+          
+          throw error;
+        }
+        
+      } else {
+        // Regular Gemini extraction for files <20MB
+        console.log('🤖 Step 2/3: Extracting text with Gemini AI...');
+        pipelineLogs.push({
+          step: 'extract',
+          status: 'in_progress',
+          startTime: new Date(extractStepStart),
+          message: `Extrayendo texto con ${model}...`,
+        });
+      
+      const base64Data = buffer.toString('base64');
 
     // Determine mime type
     const mimeType = file.type;
@@ -404,9 +462,10 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
         cost: costBreakdown.totalCost,
       };
       
-      console.log(`✅ Gemini extraction: ${extractedText.length} chars in ${extractionTime}ms`);
-      console.log(`📊 Tokens: ${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output`);
-      console.log(`💰 Cost: $${costBreakdown.totalCost.toFixed(3)}`);
+        console.log(`✅ Gemini extraction: ${extractedText.length} chars in ${extractionTime}ms`);
+        console.log(`📊 Tokens: ${inputTokens.toLocaleString()} input + ${outputTokens.toLocaleString()} output`);
+        console.log(`💰 Cost: $${costBreakdown.totalCost.toFixed(3)}`);
+      } // ✅ Close else block for regular extraction
     }
 
     // ✅ CRITICAL: Validate extraction success - don't mark empty as successful

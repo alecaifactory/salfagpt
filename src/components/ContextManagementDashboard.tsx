@@ -881,23 +881,41 @@ export default function ContextManagementDashboard({
             console.log(`   Total tokens: ${ragData.totalTokens}`);
             console.log(`   Indexing time: ${ragData.indexingTime}ms`);
             
+            // ✅ IMPROVED: Better embedding progress feedback
+            console.log(`🔍 Embedding stage starting for: ${item.file.name}`);
+            console.log(`   Chunks to embed: ${ragData.chunksCreated || ragData.chunksCount}`);
+            console.log(`   Total tokens: ${ragData.totalTokens?.toLocaleString()}`);
+            
             // Chunk complete, moving to Embed (75%)
             setUploadQueue(prev => prev.map(i => 
               i.id === item.id ? { ...i, progress: 75 } : i
             ));
             
-            await new Promise(resolve => setTimeout(resolve, 300));
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            console.log(`  ⏳ Embedding in progress... (may take 30-60s for large documents)`);
             
             // Embed progressing (85%)
             setUploadQueue(prev => prev.map(i => 
               i.id === item.id ? { ...i, progress: 85 } : i
             ));
             
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            console.log(`  ⏳ Embedding vectors being generated...`);
+            
+            // Embed almost done (92%)
+            setUploadQueue(prev => prev.map(i => 
+              i.id === item.id ? { ...i, progress: 92 } : i
+            ));
+            
             await new Promise(resolve => setTimeout(resolve, 300));
             
-            // Embed almost done (95%)
+            console.log(`  ⏳ Finalizing embeddings...`);
+            
+            // Final embedding step (98%)
             setUploadQueue(prev => prev.map(i => 
-              i.id === item.id ? { ...i, progress: 95 } : i
+              i.id === item.id ? { ...i, progress: 98 } : i
             ));
             
             await new Promise(resolve => setTimeout(resolve, 200));
