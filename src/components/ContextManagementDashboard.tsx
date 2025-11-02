@@ -262,177 +262,111 @@ export default function ContextManagementDashboard({
     }
   };
 
-  const handleFileSelect = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-
-    // ✅ UPDATED: Check file sizes with smart limits (2025-11-02)
-    const filesArray = Array.from(files);
-    const largeFiles = filesArray.filter(f => f.size > 50 * 1024 * 1024); // >50MB
-    const hugeFiles = filesArray.filter(f => f.size > 100 * 1024 * 1024); // >100MB (require approval)
-    const excessiveFiles = filesArray.filter(f => f.size > 500 * 1024 * 1024); // >500MB (absolute reject)
-    
-    // ✅ Absolute reject: Files >500MB
-    if (excessiveFiles.length > 0) {
-      const fileList = excessiveFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-      alert(`🚫 ${excessiveFiles.length} file(s) exceed 500MB absolute limit:\n\n${fileList}\n\nThese files are too large to process. Please compress or split them.\n\nRecommended: Compress to <100MB for optimal performance.`);
-      
-      // Filter out excessive files
-      const validFiles = filesArray.filter(f => f.size <= 500 * 1024 * 1024);
-      if (validFiles.length === 0) return; // All files too large
-      
-      // Continue with remaining files
-      return handleFileSelect(validFiles as any); // Recursive call with valid files
-    }
-    
-    // ✅ Double approval: Files >100MB but <=500MB
-    if (hugeFiles.length > 0) {
-      const approved = await handleHugeFileApproval(hugeFiles);
-      
-      if (!approved) {
-        // User declined - filter out huge files
-        const validFiles = filesArray.filter(f => f.size <= 100 * 1024 * 1024);
-        if (validFiles.length === 0) return; // All files too large, nothing to upload
-        
-        console.log(`⚠️ User declined ${hugeFiles.length} files >100MB`);
-        console.log(`✅ Proceeding with ${validFiles.length} files <=100MB`);
-        setStagedFiles(validFiles);
-      } else {
-        // User approved - allow all files including huge ones
-        console.log(`✅ User approved processing ${hugeFiles.length} files >100MB`);
-        console.log(`⚠️ This may take significant time and resources`);
-        setStagedFiles(filesArray);
-      }
-    } else if (largeFiles.length > 0) {
-      const fileList = largeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-      console.warn(`💡 ${largeFiles.length} large file(s) detected (>50MB):\n${fileList}`);
-      console.warn('   These will use Gemini extraction (slower but more robust for large files)');
-      console.warn('   Tip: Consider using Pro model for better quality');
-      setStagedFiles(filesArray);
-    } else {
-      setStagedFiles(filesArray);
-    }
-    
-    setShowUploadStaging(true);
-    setStagedTags([]);
-    setUploadTags(''); // Clear input for fresh tags
-    setSelectedModel('gemini-2.5-flash'); // Reset to default
-  };
-
-  // ✅ NEW: Double approval dialog for files >100MB
+  // ✅ NEW: Double approval dialog for files >100MB (defined before handleFileSelect)
   const handleHugeFileApproval = async (hugeFiles: File[]): Promise<boolean> => {
     const totalSizeMB = hugeFiles.reduce((sum, f) => sum + f.size, 0) / (1024 * 1024);
     const fileList = hugeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
     
     return new Promise<boolean>((resolve) => {
       const dialog = document.createElement('div');
-      dialog.innerHTML = `
-        <div class="fixed inset-0 z-[70] bg-black bg-opacity-60 flex items-center justify-center p-4">
-          <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 border-4 border-red-500">
-            <!-- Header with strong warning -->
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center animate-pulse">
-                <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-xl font-bold text-red-600">⚠️ EXCESSIVE FILE SIZE WARNING</h3>
-                <p class="text-sm text-gray-600 font-medium">Files exceed recommended 100MB limit</p>
-              </div>
-            </div>
-            
-            <!-- File list -->
-            <div class="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
-              <p class="text-sm font-semibold text-red-800 mb-2">
-                ${hugeFiles.length} file(s) - Total: ${totalSizeMB.toFixed(1)} MB
-              </p>
-              <div class="text-xs text-red-700 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">${fileList}</div>
-            </div>
-            
-            <!-- Warnings -->
-            <div class="space-y-3 mb-6">
-              <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <div class="text-xs text-yellow-800">
-                  <p class="font-semibold mb-1">Processing Time</p>
-                  <p>These files may take 5-15 minutes EACH to process</p>
+      
+      // First approval dialog
+      const showFirstDialog = () => {
+        dialog.innerHTML = `
+          <div class="fixed inset-0 z-[70] bg-black bg-opacity-60 flex items-center justify-center p-4">
+            <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 border-4 border-red-500">
+              <!-- Header with strong warning -->
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center animate-pulse">
+                  <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xl font-bold text-red-600">⚠️ EXCESSIVE FILE SIZE WARNING</h3>
+                  <p class="text-sm text-gray-600 font-medium">Files exceed recommended 100MB limit</p>
                 </div>
               </div>
               
-              <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                </svg>
-                <div class="text-xs text-yellow-800">
-                  <p class="font-semibold mb-1">Resource Usage</p>
-                  <p>High memory and CPU usage - may slow down browser</p>
+              <!-- File list -->
+              <div class="mb-4 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                <p class="text-sm font-semibold text-red-800 mb-2">
+                  ${hugeFiles.length} file(s) - Total: ${totalSizeMB.toFixed(1)} MB
+                </p>
+                <div class="text-xs text-red-700 font-mono whitespace-pre-wrap max-h-32 overflow-y-auto">${fileList}</div>
+              </div>
+              
+              <!-- Warnings -->
+              <div class="space-y-3 mb-6">
+                <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <div class="text-xs text-yellow-800">
+                    <p class="font-semibold mb-1">Processing Time</p>
+                    <p>These files may take 5-15 minutes EACH to process</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                  </svg>
+                  <div class="text-xs text-yellow-800">
+                    <p class="font-semibold mb-1">Resource Usage</p>
+                    <p>High memory and CPU usage - may slow down browser</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                  <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  <div class="text-xs text-yellow-800">
+                    <p class="font-semibold mb-1">Cost Impact</p>
+                    <p>Large files consume more AI tokens - higher processing cost</p>
+                  </div>
                 </div>
               </div>
               
-              <div class="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <div class="text-xs text-yellow-800">
-                  <p class="font-semibold mb-1">Cost Impact</p>
-                  <p>Large files consume more AI tokens - higher processing cost</p>
-                </div>
+              <!-- Recommendation -->
+              <div class="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                <p class="text-sm font-bold text-blue-800 mb-2">💡 Recommended Alternative:</p>
+                <ul class="text-xs text-blue-700 space-y-1 ml-4 list-disc">
+                  <li>Compress PDF using Adobe Acrobat or online tools</li>
+                  <li>Split large manual into chapters/sections</li>
+                  <li>Remove unnecessary scanned images</li>
+                  <li>Target: <100MB for optimal performance</li>
+                </ul>
               </div>
-            </div>
-            
-            <!-- Recommendation -->
-            <div class="mb-6 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
-              <p class="text-sm font-bold text-blue-800 mb-2">💡 Recommended Alternative:</p>
-              <ul class="text-xs text-blue-700 space-y-1 ml-4 list-disc">
-                <li>Compress PDF using Adobe Acrobat or online tools</li>
-                <li>Split large manual into chapters/sections</li>
-                <li>Remove unnecessary scanned images</li>
-                <li>Target: <100MB for optimal performance</li>
-              </ul>
-            </div>
-            
-            <!-- Action buttons - DOUBLE APPROVAL -->
-            <div class="space-y-2">
-              <!-- First approval: Strong warning button -->
-              <button 
-                data-action="approve-step-1"
-                class="w-full px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-bold transition-colors border-2 border-yellow-700"
-              >
-                ⚠️ I Understand the Risks - Proceed to Final Approval
-              </button>
               
-              <!-- Cancel (default) -->
-              <button 
-                data-action="cancel"
-                class="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm font-semibold transition-colors"
-              >
-                Cancel - I'll compress these files first (recommended)
-              </button>
+              <!-- Action buttons - DOUBLE APPROVAL -->
+              <div class="space-y-2">
+                <!-- First approval: Strong warning button -->
+                <button 
+                  data-action="approve-step-1"
+                  class="w-full px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-bold transition-colors border-2 border-yellow-700"
+                >
+                  ⚠️ I Understand the Risks - Proceed to Final Approval
+                </button>
+                
+                <!-- Cancel (default) -->
+                <button 
+                  data-action="cancel"
+                  class="w-full px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm font-semibold transition-colors"
+                >
+                  Cancel - I'll compress these files first (recommended)
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      `;
-      
-      document.body.appendChild(dialog);
-      
-      // First click handler
-      const handleFirstClick = async (e: Event) => {
-        const target = e.target as HTMLElement;
-        const action = target.getAttribute('data-action');
+        `;
         
-        if (action === 'cancel') {
-          document.body.removeChild(dialog);
-          resolve(false);
-        } else if (action === 'approve-step-1') {
-          // Replace with second approval dialog
-          await showSecondApproval();
-        }
+        document.body.appendChild(dialog);
       };
       
-      // Second approval dialog (final confirmation)
-      const showSecondApproval = async () => {
+      // Second approval dialog
+      const showSecondDialog = () => {
         dialog.innerHTML = `
           <div class="fixed inset-0 z-[70] bg-black bg-opacity-60 flex items-center justify-center p-4">
             <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border-4 border-red-600 animate-pulse-border">
@@ -484,29 +418,72 @@ export default function ContextManagementDashboard({
             </div>
           </div>
         `;
-        
-        // Second click handler (final decision)
-        const handleSecondClick = (e: Event) => {
-          const target = e.target as HTMLElement;
-          const action = target.getAttribute('data-action');
-          
-          if (action === 'cancel') {
-            document.body.removeChild(dialog);
-            resolve(false);
-          } else if (action === 'final-approve') {
-            document.body.removeChild(dialog);
-            console.log('🚨 USER APPROVED EXCESSIVE FILE SIZE PROCESSING');
-            console.log(`   Files: ${hugeFiles.map(f => f.name).join(', ')}`);
-            console.log(`   Total size: ${totalSizeMB.toFixed(1)} MB`);
-            resolve(true);
-          }
-        };
-        
-        dialog.removeEventListener('click', handleFirstClick);
-        dialog.addEventListener('click', handleSecondClick);
       };
       
-      dialog.addEventListener('click', handleFirstClick);
+      // Event handler
+      const handleClick = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const action = target.getAttribute('data-action') || target.closest('button')?.getAttribute('data-action');
+        
+        if (action === 'cancel') {
+          document.body.removeChild(dialog);
+          resolve(false);
+        } else if (action === 'approve-step-1') {
+          showSecondDialog();
+        } else if (action === 'final-approve') {
+          document.body.removeChild(dialog);
+          console.log('🚨 USER APPROVED EXCESSIVE FILE SIZE PROCESSING');
+          console.log(`   Files: ${hugeFiles.map(f => f.name).join(', ')}`);
+          console.log(`   Total size: ${totalSizeMB.toFixed(1)} MB`);
+          resolve(true);
+        }
+      };
+      
+      showFirstDialog();
+      dialog.addEventListener('click', handleClick);
+    });
+  };
+
+  const handleFileSelect = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    // ✅ UPDATED: Check file sizes with smart limits (2025-11-02)
+    const filesArray = Array.from(files);
+    const largeFiles = filesArray.filter(f => f.size > 50 * 1024 * 1024); // >50MB
+    const hugeFiles = filesArray.filter(f => f.size > 100 * 1024 * 1024); // >100MB (require approval)
+    const excessiveFiles = filesArray.filter(f => f.size > 500 * 1024 * 1024); // >500MB (absolute reject)
+    
+    // ✅ Absolute reject: Files >500MB
+    if (excessiveFiles.length > 0) {
+      const fileList = excessiveFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
+      alert(`🚫 ${excessiveFiles.length} file(s) exceed 500MB absolute limit:\n\n${fileList}\n\nThese files are too large to process. Please compress or split them.\n\nRecommended: Compress to <100MB for optimal performance.`);
+      
+      // Filter out excessive files
+      const validFiles = filesArray.filter(f => f.size <= 500 * 1024 * 1024);
+      if (validFiles.length === 0) return; // All files too large
+      
+      // Continue with remaining files
+      return handleFileSelect(validFiles as any); // Recursive call with valid files
+    }
+    
+    // ✅ Double approval: Files >100MB but <=500MB
+    if (hugeFiles.length > 0) {
+      const approved = await handleHugeFileApproval(hugeFiles);
+      
+      if (!approved) {
+        // User declined - filter out huge files
+        const validFiles = filesArray.filter(f => f.size <= 100 * 1024 * 1024);
+        if (validFiles.length === 0) return; // All files too large, nothing to upload
+        
+        console.log(`⚠️ User declined ${hugeFiles.length} files >100MB`);
+        console.log(`✅ Proceeding with ${validFiles.length} files <=100MB`);
+        setStagedFiles(validFiles);
+      } else {
+        // User approved - allow all files including huge ones
+        console.log(`✅ User approved processing ${hugeFiles.length} files >100MB`);
+        console.log(`⚠️ This may take significant time and resources`);
+        setStagedFiles(filesArray);
+      }
     } else if (largeFiles.length > 0) {
       const fileList = largeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
       console.warn(`💡 ${largeFiles.length} large file(s) detected (>50MB):\n${fileList}`);
