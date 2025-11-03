@@ -568,34 +568,51 @@ export default function ContextManagementDashboard({
       .filter(t => t.length > 0);
 
     // ✅ OPTIMIZED: Batch duplicate check (all at once instead of sequential)
-    console.log(`🔍 Checking ${stagedFiles.length} files for duplicates in Firestore (batch)...`);
+    const totalFiles = stagedFiles.length;
+    console.log(`🔍 Checking ${totalFiles} files for duplicates in Firestore (batch)...`);
     
-    // Filter out previously skipped files first
-    const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
-    if (filesToCheck.length !== stagedFiles.length) {
-      console.log(`⏭️ Auto-skipping ${stagedFiles.length - filesToCheck.length} previously skipped files`);
-    }
+    // Show loading state in UI
+    setLoading(true);
+    const loadingMessage = `Verificando duplicados (${totalFiles} archivos)...`;
     
-    const fileNames = filesToCheck.map(f => f.name);
-    const duplicateMap = await checkForDuplicatesInFirestore(fileNames);
-    
-    const duplicates: Array<{ file: File; existing: ContextSource }> = [];
-    const newFiles: File[] = [];
-
-    for (const file of filesToCheck) {
-      const existing = duplicateMap.get(file.name);
-      if (existing) {
-        console.log(`⚠️ Duplicate found: ${file.name} (existing ID: ${existing.id})`);
-        duplicates.push({ file, existing });
-      } else {
-        newFiles.push(file);
+    try {
+      // Filter out previously skipped files first
+      const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
+      if (filesToCheck.length !== stagedFiles.length) {
+        const skippedCount = stagedFiles.length - filesToCheck.length;
+        console.log(`⏭️ Auto-skipping ${skippedCount} previously skipped files`);
       }
-    }
+      
+      console.log(`📊 Checking ${filesToCheck.length} files against ${sources.length} loaded sources...`);
+      const checkStartTime = Date.now();
+      
+      const fileNames = filesToCheck.map(f => f.name);
+      const duplicateMap = await checkForDuplicatesInFirestore(fileNames);
+      
+      const checkDuration = Date.now() - checkStartTime;
+      console.log(`✅ Duplicate check completed in ${checkDuration}ms`);
     
-    if (newFiles.length > 0) {
-      console.log(`✅ ${newFiles.length} new files ready to upload`);
+      const duplicates: Array<{ file: File; existing: ContextSource }> = [];
+      const newFiles: File[] = [];
+
+      for (const file of filesToCheck) {
+        const existing = duplicateMap.get(file.name);
+        if (existing) {
+          console.log(`⚠️ Duplicate found: ${file.name} (existing ID: ${existing.id})`);
+          duplicates.push({ file, existing });
+        } else {
+          newFiles.push(file);
+        }
+      }
+      
+      if (newFiles.length > 0) {
+        console.log(`✅ ${newFiles.length} new files ready to upload`);
+      }
+      console.log(`📊 Duplicate check complete: ${duplicates.length} duplicates, ${newFiles.length} new files`);
+    } finally {
+      // Clear loading state
+      setLoading(false);
     }
-    console.log(`📊 Duplicate check complete: ${duplicates.length} duplicates, ${newFiles.length} new files`);
 
     // Handle duplicates if found
     if (duplicates.length > 0) {
