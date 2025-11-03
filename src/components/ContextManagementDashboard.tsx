@@ -548,9 +548,24 @@ export default function ContextManagementDashboard({
       
       if (response.ok) {
         const data = await response.json();
-        return new Map(Object.entries(data.duplicates || {}));
+        console.log('📥 Batch API response:', {
+          duplicatesFound: data.duplicates?.length || 0,
+          newFilesFound: data.newFiles?.length || 0,
+        });
+        
+        // Convert array of {fileName, existingSource} to Map
+        const map = new Map<string, ContextSource>();
+        if (data.duplicates && Array.isArray(data.duplicates)) {
+          data.duplicates.forEach((dup: any) => {
+            map.set(dup.fileName, dup.existingSource);
+          });
+        }
+        
+        console.log(`📊 Created duplicate map with ${map.size} entries`);
+        return map;
       }
       
+      console.warn('⚠️ Batch API returned non-OK status:', response.status);
       return new Map();
     } catch (error) {
       console.error('❌ Error checking for duplicates:', error);
