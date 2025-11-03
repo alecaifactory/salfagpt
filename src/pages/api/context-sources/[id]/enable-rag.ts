@@ -72,7 +72,29 @@ export const POST: APIRoute = async ({ params, request }) => {
     // Use source's userId for indexing (maintains proper attribution)
     const userIdForIndexing = sourceData.userId;
 
-    const extractedText = sourceData.extractedData || '';
+    // ✅ NEW: Get extracted text from Firestore OR Cloud Storage
+    let extractedText = '';
+    
+    if (sourceData.extractedData) {
+      // Small files: Text is in Firestore
+      extractedText = sourceData.extractedData;
+      console.log(`  📄 Retrieved text from Firestore: ${extractedText.length} characters`);
+    } else if (sourceData.extractedDataUrl) {
+      // Large files: Text is in Cloud Storage
+      console.log(`  📤 Retrieving text from Cloud Storage: ${sourceData.extractedDataUrl}`);
+      
+      try {
+        const { getExtractedData } = await import('../../../../lib/firestore.js');
+        extractedText = await getExtractedData(sourceData as any);
+        console.log(`  ✅ Retrieved from Cloud Storage: ${extractedText.length} characters (${(extractedText.length / 1024).toFixed(1)} KB)`);
+      } catch (error) {
+        console.error('  ❌ Failed to retrieve from Cloud Storage:', error);
+        return new Response(
+          JSON.stringify({ error: 'Failed to retrieve extracted text from Cloud Storage' }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     if (!extractedText) {
       return new Response(
