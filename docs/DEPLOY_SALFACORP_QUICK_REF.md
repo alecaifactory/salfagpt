@@ -150,6 +150,8 @@ After deployment, verify:
 ---
 
 **Service:** cr-salfagpt-ai-ft-prod  
-**Latest Revision:** cr-salfagpt-ai-ft-prod-00031-gxj  
-**Status:** ✅ OPERATIONAL
+**Latest Revision:** cr-salfagpt-ai-ft-prod-00032-xrw  
+**Status:** ✅ FULLY OPERATIONAL  
+**Login URL:** https://salfagpt.salfagestion.cl  
+**Last Fixed:** 2025-11-03 - Absolute path issue resolved
 
