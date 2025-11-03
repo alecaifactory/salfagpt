@@ -51,7 +51,8 @@ export const POST: APIRoute = async (context) => {
     const snapshot = await firestore
       .collection('context_sources')
       .where('userId', '==', userId)
-      .get(); // Get all fields (select() doesn't include Timestamps properly)
+      .select('name', 'id', 'addedAt', 'metadata') // Only fetch needed fields
+      .get();
 
     // Create a map for O(1) lookup
     const existingSourcesMap = new Map();
@@ -60,13 +61,11 @@ export const POST: APIRoute = async (context) => {
       existingSourcesMap.set(data.name, {
         id: doc.id,
         name: data.name,
-        status: data.status,
-        addedAt: data.addedAt ? (typeof data.addedAt.toDate === 'function' ? data.addedAt.toDate().toISOString() : new Date(data.addedAt).toISOString()) : null,
-        metadata: data.metadata ? {
-          extractionDate: data.metadata.extractionDate ? (typeof data.metadata.extractionDate.toDate === 'function' ? data.metadata.extractionDate.toDate().toISOString() : new Date(data.metadata.extractionDate).toISOString()) : null,
-          model: data.metadata.model,
-          extractionTime: data.metadata.extractionTime,
-        } : null,
+        addedAt: data.addedAt?.toDate().toISOString(),
+        metadata: {
+          extractionDate: data.metadata?.extractionDate?.toDate().toISOString(),
+          model: data.metadata?.model,
+        }
       });
     });
 
@@ -89,10 +88,9 @@ export const POST: APIRoute = async (context) => {
     console.log(`   Duplicates: ${duplicates.length}`);
     console.log(`   New files: ${newFiles.length}`);
 
-    // Return in format expected by frontend
     return new Response(JSON.stringify({ 
-      duplicates,  // Array of { fileName, existingSource }
-      newFiles,    // Array of file names
+      duplicates,
+      newFiles,
       stats: {
         totalChecked: fileNames.length,
         duplicatesFound: duplicates.length,
