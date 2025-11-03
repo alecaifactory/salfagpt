@@ -548,21 +548,35 @@ export default function ContextManagementDashboard({
       
       if (response.ok) {
         const data = await response.json();
-        console.log('📥 Batch API response:', {
-          duplicatesFound: data.duplicates?.length || 0,
-          newFilesFound: data.newFiles?.length || 0,
+        console.log('📥 Batch API response received:', {
+          hasDuplicates: !!data.duplicates,
+          hasNewFiles: !!data.newFiles,
+          hasStats: !!data.stats,
         });
+        console.log('📥 Raw response data:', data);
         
         // Convert array of {fileName, existingSource} to Map
         const map = new Map<string, ContextSource>();
         if (data.duplicates && Array.isArray(data.duplicates)) {
+          console.log(`📋 Processing ${data.duplicates.length} duplicates from API...`);
           data.duplicates.forEach((dup: any) => {
-            map.set(dup.fileName, dup.existingSource);
+            if (dup.fileName && dup.existingSource) {
+              map.set(dup.fileName, dup.existingSource);
+              console.log(`  ✅ Added duplicate: ${dup.fileName} → ${dup.existingSource.id}`);
+            } else {
+              console.warn(`  ⚠️ Invalid duplicate entry:`, dup);
+            }
           });
+        } else {
+          console.warn('⚠️ No duplicates array in response or not an array:', typeof data.duplicates);
         }
         
         console.log(`📊 Created duplicate map with ${map.size} entries`);
         return map;
+      } else {
+        console.error(`❌ Batch API returned ${response.status}`);
+        const errorText = await response.text();
+        console.error(`   Error response:`, errorText);
       }
       
       console.warn('⚠️ Batch API returned non-OK status:', response.status);
