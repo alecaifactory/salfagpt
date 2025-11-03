@@ -88,9 +88,13 @@ export const POST: APIRoute = async (context) => {
     console.log(`   Checked: ${fileNames.length} files`);
     console.log(`   Duplicates: ${duplicates.length}`);
     console.log(`   New files: ${newFiles.length}`);
+    
+    // Log first few duplicates for debugging
+    if (duplicates.length > 0) {
+      console.log(`   First 3 duplicates:`, duplicates.slice(0, 3).map(d => d.fileName));
+    }
 
-    // Return in format expected by frontend
-    return new Response(JSON.stringify({ 
+    const responseData = { 
       duplicates,  // Array of { fileName, existingSource }
       newFiles,    // Array of file names
       stats: {
@@ -99,7 +103,12 @@ export const POST: APIRoute = async (context) => {
         newFilesFound: newFiles.length,
         durationMs: duration,
       }
-    }), {
+    };
+    
+    console.log(`📤 Sending response with ${duplicates.length} duplicates, ${newFiles.length} new files`);
+
+    // Return in format expected by frontend
+    return new Response(JSON.stringify(responseData), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
