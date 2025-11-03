@@ -169,8 +169,9 @@ export async function extractTextChunked(
       console.log(`🚀 Resuming from section ${startFromSection + 1}/${totalSections}\n`);
     }
     
-    // ✅ OPTIMIZED: Process PDF sections in PARALLEL batches (15 at a time - optimal balance)
-    const MAX_PARALLEL_SECTIONS = 15; // Process 15 PDF sections simultaneously (3x faster, near rate limit max)
+    // ✅ OPTIMIZED: Process PDF sections in PARALLEL batches (5 at a time - safe for rate limits)
+    // Reduced from 15 to 5 to prevent "fetch failed" and rate limit errors
+    const MAX_PARALLEL_SECTIONS = 5; // Process 5 PDF sections simultaneously (balances speed vs reliability)
     
     for (let batchStart = startFromSection; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
       const batchEnd = Math.min(batchStart + MAX_PARALLEL_SECTIONS, totalSections);
@@ -272,11 +273,61 @@ DO NOT summarize. Extract the COMPLETE text.`
           } catch (error) {
             console.error(`    ❌ Section ${sectionIndex + 1} failed:`, error);
             
-            // Return error placeholder
+            // ✅ NEW: Retry once if it's a transient error (fetch failed, timeout, etc.)
+            const errorMsg = error instanceof Error ? error.message : '';
+            const isTransient = errorMsg.includes('fetch failed') || 
+                               errorMsg.includes('ECONNRESET') || 
+                               errorMsg.includes('timeout') ||
+                               errorMsg.includes('ETIMEDOUT');
+            
+            if (isTransient) {
+              console.log(`    🔄 Retrying section ${sectionIndex + 1} (transient error)...`);
+              try {
+                // Wait 2 seconds before retry
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Retry the extraction
+                const result = await genAI.models.generateContent({
+                  model: model,
+                  contents: [
+                    {
+                      role: 'user',
+                      parts: [
+                        {
+                          inlineData: {
+                            mimeType: 'application/pdf',
+                            data: sectionPdfBytes.toString('base64'),
+                          },
+                        },
+                        { text: extractionPrompt },
+                      ],
+                    },
+                  ],
+                  config: { maxOutputTokens: 65536 },
+                });
+                
+                const extractedText = result.text || '';
+                const sectionTime = Date.now() - sectionStartTime;
+                
+                console.log(`    ✅ Section ${sectionIndex + 1}: Extracted ${extractedText.length} characters in ${(sectionTime / 1000).toFixed(1)}s (retry succeeded)`);
+                
+                return {
+                  sectionNumber: sectionIndex + 1,
+                  pageRange,
+                  text: extractedText,
+                  extractionTime: sectionTime,
+                };
+              } catch (retryError) {
+                console.error(`    ❌ Retry failed for section ${sectionIndex + 1}:`, retryError);
+                // Fall through to error placeholder
+              }
+            }
+            
+            // Return error placeholder (original error or retry failed)
             return {
               sectionNumber: sectionIndex + 1,
               pageRange,
-              text: `[Error extracting pages ${pageRange}: ${error instanceof Error ? error.message : 'Unknown error'}]`,
+              text: `[Error extracting pages ${pageRange}: ${errorMsg}]`,
               extractionTime: Date.now() - sectionStartTime,
             };
           }

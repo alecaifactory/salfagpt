@@ -606,7 +606,7 @@ export default function ContextManagementDashboard({
     // Declare outside try block so they're accessible later
     const duplicates: Array<{ file: File; existing: ContextSource }> = [];
     let newFiles: File[] = [];
-    
+
     // Filter out previously skipped files first
     const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
     if (filesToCheck.length !== stagedFiles.length) {
@@ -626,12 +626,12 @@ export default function ContextManagementDashboard({
 
       for (const file of filesToCheck) {
         const existing = duplicateMap.get(file.name);
-        if (existing) {
+      if (existing) {
           console.log(`⚠️ Duplicate found: ${file.name} (existing ID: ${existing.id})`);
-          duplicates.push({ file, existing });
-        } else {
-          newFiles.push(file);
-        }
+        duplicates.push({ file, existing });
+      } else {
+        newFiles.push(file);
+      }
       }
       
       if (newFiles.length > 0) {
@@ -825,7 +825,7 @@ export default function ContextManagementDashboard({
           </div>
         ` : '';
         
-        dialog.innerHTML = `
+      dialog.innerHTML = `
           <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
             <!-- Header -->
             <div class="flex items-center gap-3 p-6 pb-4 border-b border-gray-200 flex-shrink-0">
@@ -835,7 +835,7 @@ export default function ContextManagementDashboard({
                 </svg>
               </div>
               <div class="flex-1">
-                <h3 class="text-lg font-bold text-gray-900">Duplicate Files Detected</h3>
+              <h3 class="text-lg font-bold text-gray-900">Duplicate Files Detected</h3>
                 <p class="text-xs text-gray-600 mt-0.5">${count} file${count > 1 ? 's' : ''} already exist${count > 1 ? '' : 's'}</p>
               </div>
             </div>
@@ -887,16 +887,16 @@ export default function ContextManagementDashboard({
               >
                 Cancel upload
               </button>
-              
+            
               <!-- Info Tip -->
               <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p class="text-xs text-blue-800">
-                  <strong>💡 Tip:</strong> Skipping duplicates will only upload new files, saving time and avoiding re-processing.
-                </p>
-              </div>
+              <p class="text-xs text-blue-800">
+                <strong>💡 Tip:</strong> Skipping duplicates will only upload new files, saving time and avoiding re-processing.
+              </p>
             </div>
           </div>
-        `;
+        </div>
+      `;
       };
       
       updateContent();
@@ -1772,16 +1772,16 @@ export default function ContextManagementDashboard({
       }
     }
     
-    const newItem: UploadQueueItem = {
-      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file: item.file,
-      status: 'queued',
-      progress: 0,
-      model: item.model, // Preserve model selection
-      tags: item.tags, // Preserve tags
-    };
-    setUploadQueue(prev => [...prev.filter(i => i.id !== queueItemId), newItem]);
-    processQueue([newItem]);
+      const newItem: UploadQueueItem = {
+        id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file: item.file,
+        status: 'queued',
+        progress: 0,
+        model: item.model, // Preserve model selection
+        tags: item.tags, // Preserve tags
+      };
+      setUploadQueue(prev => [...prev.filter(i => i.id !== queueItemId), newItem]);
+      processQueue([newItem]);
   };
 
   const deleteSourceInternal = async (sourceId: string) => {
@@ -1972,10 +1972,10 @@ export default function ContextManagementDashboard({
                           return (
                             <div key={globalIdx} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
                               <span className="text-gray-400 font-mono">{globalIdx + 1}</span>
-                              <FileText className="w-3.5 h-3.5 text-gray-600" />
-                              <span className="flex-1 truncate font-medium text-gray-900">{file.name}</span>
+                        <FileText className="w-3.5 h-3.5 text-gray-600" />
+                        <span className="flex-1 truncate font-medium text-gray-900">{file.name}</span>
                               <span className="text-gray-500">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
-                            </div>
+                      </div>
                           );
                         })}
                     </div>

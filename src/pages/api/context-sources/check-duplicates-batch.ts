@@ -86,7 +86,7 @@ export const POST: APIRoute = async (context) => {
     console.log(`   Checked: ${fileNames.length} files`);
     console.log(`   Duplicates: ${duplicates.length}`);
     console.log(`   New files: ${newFiles.length}`);
-    
+
     // Log first few duplicates for debugging
     if (duplicates.length > 0) {
       console.log(`   First 3 duplicates:`, duplicates.slice(0, 3).map(d => d.fileName));

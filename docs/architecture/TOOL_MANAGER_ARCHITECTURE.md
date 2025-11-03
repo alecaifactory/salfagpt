@@ -998,3 +998,4 @@ Before I proceed with implementation:
 **My recommendation:** Start with PDF Splitter Cloud Function + minimal API, get it working with real 300MB PDF, THEN build full Tool Manager UI if needed. This gives fastest time-to-value.
 
 What would you like me to build first? 🚀
+

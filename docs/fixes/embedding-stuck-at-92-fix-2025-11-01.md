@@ -311,3 +311,4 @@ npm run dev
 **Remember**: Vision API is optimized for scanned documents <10MB. For large technical manuals (40MB+), Gemini extraction is more reliable and handles the bandwidth requirements better.
 
 
+
