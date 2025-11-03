@@ -1577,20 +1577,59 @@ export default function ContextManagementDashboard({
     }
   };
 
-  const handleReupload = (queueItemId: string) => {
+  const handleReupload = async (queueItemId: string, resumeFromCheckpoint: boolean = true) => {
     const item = uploadQueue.find(i => i.id === queueItemId);
-    if (item) {
-      const newItem: UploadQueueItem = {
-        id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file: item.file,
-        status: 'queued',
-        progress: 0,
-        model: item.model, // Preserve model selection
-        tags: item.tags, // Preserve tags
-      };
-      setUploadQueue(prev => [...prev.filter(i => i.id !== queueItemId), newItem]);
-      processQueue([newItem]);
+    if (!item) return;
+    
+    // ✅ NEW: Check for checkpoint before retrying
+    if (resumeFromCheckpoint) {
+      try {
+        const checkpointResponse = await fetch(
+          `/api/context-sources/check-checkpoint?userId=${userId}&fileName=${encodeURIComponent(item.file.name)}`,
+          { credentials: 'include' }
+        );
+        
+        if (checkpointResponse.ok) {
+          const checkpointInfo = await checkpointResponse.json();
+          
+          if (checkpointInfo.exists && checkpointInfo.resumable) {
+            console.log('💾 CHECKPOINT AVAILABLE FOR RESUME');
+            console.log(`   Progress: ${checkpointInfo.completedSections}/${checkpointInfo.totalSections} sections (${checkpointInfo.progress}%)`);
+            console.log(`   Time saved: ~${checkpointInfo.timeSaved}s`);
+            console.log(`   Cost saved: ~$${checkpointInfo.costSaved.toFixed(2)}`);
+            console.log('   🚀 Will resume from checkpoint...\n');
+            
+            // Show user-friendly message
+            const confirmResume = confirm(
+              `Checkpoint detectado! 🎉\n\n` +
+              `Progreso guardado: ${checkpointInfo.completedSections}/${checkpointInfo.totalSections} secciones (${checkpointInfo.progress.toFixed(1)}%)\n\n` +
+              `Al reanudar ahorrarás:\n` +
+              `⏱️ Tiempo: ~${checkpointInfo.timeSaved}s\n` +
+              `💰 Costo: ~$${checkpointInfo.costSaved.toFixed(2)}\n\n` +
+              `¿Reanudar desde el checkpoint?`
+            );
+            
+            if (!confirmResume) {
+              console.log('   User chose to start fresh (ignore checkpoint)');
+              resumeFromCheckpoint = false; // Start from scratch
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not check for checkpoint, proceeding with normal retry:', error);
+      }
     }
+    
+    const newItem: UploadQueueItem = {
+      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      file: item.file,
+      status: 'queued',
+      progress: 0,
+      model: item.model, // Preserve model selection
+      tags: item.tags, // Preserve tags
+    };
+    setUploadQueue(prev => [...prev.filter(i => i.id !== queueItemId), newItem]);
+    processQueue([newItem]);
   };
 
   const deleteSourceInternal = async (sourceId: string) => {

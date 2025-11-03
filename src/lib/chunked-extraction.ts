@@ -4,6 +4,8 @@
  * Splits large PDFs into smaller PDF SECTIONS (by page ranges),
  * processes each section with Gemini, then combines the results.
  * 
+ * ✅ NEW: Supports checkpointing and resume for resilience
+ * 
  * TERMINOLOGY:
  * - PDF Sections: Physical splits of the PDF by page ranges (~15MB, ~100 pages each)
  * - Text Chunks: Semantic splits for RAG/embedding (happens later, ~2000 tokens each)
@@ -14,6 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { Storage } from '@google-cloud/storage';
+import { saveCheckpoint, loadLatestCheckpoint, deleteCheckpoints, type ExtractionCheckpoint } from './extraction-checkpoint';
 
 const storage = new Storage({
   projectId: process.env.GOOGLE_CLOUD_PROJECT,
@@ -58,6 +61,9 @@ export async function extractTextChunked(
   options: {
     model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
     sectionSizeMB?: number; // ✅ RENAMED: Target size per PDF section
+    userId?: string; // For checkpointing
+    fileName?: string; // For checkpointing
+    resumeFromCheckpoint?: boolean; // Whether to try resuming
     onProgress?: (progress: { 
       section: number; // ✅ RENAMED: PDF section number
       total: number; 
@@ -70,6 +76,9 @@ export async function extractTextChunked(
   const model = options.model || 'gemini-2.5-pro'; // Use Pro for better quality
   const targetSectionSizeMB = options.sectionSizeMB || 12; // ✅ OPTIMIZED: 12MB PDF sections (faster, more sections)
   const onProgress = options.onProgress || (() => {});
+  const userId = options.userId;
+  const fileName = options.fileName;
+  const resumeFromCheckpoint = options.resumeFromCheckpoint !== false; // Default: true
   
   const fileSizeBytes = pdfBuffer.length;
   const fileSizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
@@ -82,6 +91,31 @@ export async function extractTextChunked(
   console.log(`🤖 Model: ${model}`);
   console.log(`🔄 Method: Split into PDF sections → Extract → Combine`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
+  
+  // ✅ NEW: Check for existing checkpoint
+  let checkpoint: ExtractionCheckpoint | null = null;
+  if (resumeFromCheckpoint && userId && fileName) {
+    console.log('🔍 Checking for existing checkpoint...');
+    checkpoint = await loadLatestCheckpoint(userId, fileName);
+    
+    if (checkpoint && checkpoint.canResume) {
+      const sectionsRemaining = checkpoint.totalSections - checkpoint.completedSections;
+      const timeSaved = (checkpoint.totalTimeSoFar / 1000).toFixed(0);
+      const costSaved = checkpoint.totalCostSoFar.toFixed(2);
+      
+      console.log('✅ CHECKPOINT FOUND! Can resume extraction');
+      console.log(`   Progress: ${checkpoint.completedSections}/${checkpoint.totalSections} sections complete`);
+      console.log(`   Remaining: ${sectionsRemaining} sections (${(100 - checkpoint.progressPercentage).toFixed(1)}%)`);
+      console.log(`   Time saved by resuming: ~${timeSaved}s`);
+      console.log(`   Cost saved by resuming: ~$${costSaved}`);
+      console.log('   🚀 Resuming from last checkpoint...\n');
+    } else if (checkpoint) {
+      console.log('⚠️ Checkpoint found but cannot resume (already complete or corrupted)');
+      checkpoint = null; // Ignore and start fresh
+    } else {
+      console.log('ℹ️ No checkpoint found - starting fresh extraction\n');
+    }
+  }
   
   try {
     // ✅ STEP 1: Split PDF into sections using pdf-lib
@@ -111,12 +145,34 @@ export async function extractTextChunked(
       pageRange: string;
       text: string;
       extractionTime: number;
+      tokenCount?: number;
+      cost?: number;
     }> = [];
+    
+    // ✅ NEW: Initialize from checkpoint if resuming
+    let startFromSection = 0;
+    if (checkpoint && checkpoint.canResume) {
+      console.log('🔄 Restoring progress from checkpoint...');
+      
+      // Restore completed sections
+      extractedSections.push(...checkpoint.sectionsData.map(s => ({
+        sectionNumber: s.sectionIndex + 1,
+        pageRange: s.pageRange,
+        text: s.extractedText,
+        extractionTime: s.extractionTime,
+        tokenCount: s.tokenCount,
+        cost: s.cost,
+      })));
+      
+      startFromSection = checkpoint.completedSections;
+      console.log(`✅ Restored ${extractedSections.length} completed sections`);
+      console.log(`🚀 Resuming from section ${startFromSection + 1}/${totalSections}\n`);
+    }
     
     // ✅ OPTIMIZED: Process PDF sections in PARALLEL batches (15 at a time - optimal balance)
     const MAX_PARALLEL_SECTIONS = 15; // Process 15 PDF sections simultaneously (3x faster, near rate limit max)
     
-    for (let batchStart = 0; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
+    for (let batchStart = startFromSection; batchStart < totalSections; batchStart += MAX_PARALLEL_SECTIONS) {
       const batchEnd = Math.min(batchStart + MAX_PARALLEL_SECTIONS, totalSections);
       const batchSize = batchEnd - batchStart;
       const batchNum = Math.floor(batchStart / MAX_PARALLEL_SECTIONS) + 1;
@@ -235,6 +291,45 @@ DO NOT summarize. Extract the COMPLETE text.`
       extractedSections.push(...batchResults);
       
       console.log(`  ✅ Batch ${batchNum}/${totalBatches} complete!`);
+      
+      // ✅ NEW: Save checkpoint after each batch
+      if (userId && fileName) {
+        const completedSections = extractedSections.length;
+        const progressPercentage = 10 + (completedSections / totalSections) * 80; // 10-90%
+        
+        const totalCostSoFar = extractedSections.reduce((sum, s) => sum + (s.cost || 0), 0);
+        const totalTimeSoFar = Date.now() - startTime;
+        
+        const checkpointData: ExtractionCheckpoint = {
+          checkpointId: `checkpoint-${Date.now()}`,
+          userId,
+          fileName,
+          stage: 'extracting',
+          totalSections,
+          completedSections,
+          progressPercentage,
+          sectionsData: extractedSections.map((s, idx) => ({
+            sectionIndex: idx,
+            pageRange: s.pageRange,
+            extractedText: s.text,
+            extractionTime: s.extractionTime,
+            tokenCount: s.tokenCount || 0,
+            cost: s.cost || 0,
+          })),
+          totalPages,
+          model,
+          extractionMethod: 'pdf-section-extraction',
+          startTime,
+          lastUpdateTime: Date.now(),
+          totalCostSoFar,
+          totalTimeSoFar,
+          canResume: true,
+          resumeFromSection: completedSections + 1,
+        };
+        
+        await saveCheckpoint(checkpointData);
+        console.log(`💾 Checkpoint saved: ${completedSections}/${totalSections} sections complete`);
+      }
     }
     
     // ✅ STEP 3: Combine all PDF sections
@@ -273,6 +368,12 @@ DO NOT summarize. Extract the COMPLETE text.`
       message: 'PDF section extraction complete!', 
       percentage: 100 
     });
+    
+    // ✅ NEW: Delete checkpoints after successful completion
+    if (userId && fileName) {
+      console.log('🧹 Cleaning up checkpoints (extraction complete)...');
+      await deleteCheckpoints(userId, fileName);
+    }
     
     return {
       text: combinedText,
