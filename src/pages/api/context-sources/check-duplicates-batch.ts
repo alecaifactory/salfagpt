@@ -47,26 +47,24 @@ export const POST: APIRoute = async (context) => {
     const startTime = Date.now();
     console.log(`🔍 Batch duplicate check for ${fileNames.length} files (user: ${userId})`);
 
-    // 4. Query ALL user's sources in one request (much faster than N requests)
+    // 4. Query ALL user's sources in one request (only fetch needed fields for speed)
+    // ✅ OPTIMIZED: Only select 'name' field - much faster than getting extractedData (can be MB per doc)
     const snapshot = await firestore
       .collection('context_sources')
       .where('userId', '==', userId)
-      .get(); // Get all fields (select() doesn't include Timestamps properly)
+      .select('name')  // Only fetch name field (much faster!)
+      .get();
 
-    // Create a map for O(1) lookup
+    console.log(`📊 Found ${snapshot.size} existing sources for user`);
+
+    // Create a map for O(1) lookup (minimal data structure)
     const existingSourcesMap = new Map();
     snapshot.docs.forEach(doc => {
       const data = doc.data();
       existingSourcesMap.set(data.name, {
         id: doc.id,
         name: data.name,
-        status: data.status,
-        addedAt: data.addedAt ? (typeof data.addedAt.toDate === 'function' ? data.addedAt.toDate().toISOString() : new Date(data.addedAt).toISOString()) : null,
-        metadata: data.metadata ? {
-          extractionDate: data.metadata.extractionDate ? (typeof data.metadata.extractionDate.toDate === 'function' ? data.metadata.extractionDate.toDate().toISOString() : new Date(data.metadata.extractionDate).toISOString()) : null,
-          model: data.metadata.model,
-          extractionTime: data.metadata.extractionTime,
-        } : null,
+        // Don't include other fields - just enough to identify duplicate
       });
     });
 
