@@ -297,7 +297,7 @@ export default function UploadProgressDetailView({
                       {/* Main log line */}
                       <div 
                         className={`flex items-start gap-2 px-2 py-1 rounded hover:bg-gray-900/50 ${getStatusColor()}`}
-                      >
+                >
                         {/* Timestamp */}
                         <span className="text-gray-600 text-[9px] flex-shrink-0 font-normal w-16">
                           {new Date(log.timestamp).toLocaleTimeString('en-US', { 
@@ -321,7 +321,7 @@ export default function UploadProgressDetailView({
                         {/* Status icon */}
                         <span className="flex-shrink-0 w-4 text-center">
                           {getIconForStatus()}
-                        </span>
+                  </span>
                         
                         {/* Message */}
                         <span className="flex-1 text-[10px] leading-relaxed">{log.message}</span>
@@ -330,7 +330,7 @@ export default function UploadProgressDetailView({
                         {log.duration && (
                           <span className="flex-shrink-0 text-[9px] text-gray-500 font-normal">
                             {log.duration < 1000 ? `${log.duration}ms` : `${(log.duration / 1000).toFixed(1)}s`}
-                          </span>
+                  </span>
                         )}
                       </div>
                       
@@ -347,7 +347,7 @@ export default function UploadProgressDetailView({
                           ))}
                         </div>
                       )}
-                    </div>
+                </div>
                   );
                 })}
               </>

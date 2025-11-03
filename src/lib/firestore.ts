@@ -1755,7 +1755,7 @@ export async function createContextSource(
       }
     } else {
       // Small enough for Firestore
-      contextSource.extractedData = data.extractedData;
+    contextSource.extractedData = data.extractedData;
     }
   }
   if (data.metadata !== undefined) {
