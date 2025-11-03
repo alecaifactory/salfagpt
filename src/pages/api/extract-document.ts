@@ -4,6 +4,12 @@ import { estimateTokens, calculateGeminiCost, formatCost } from '../../lib/prici
 import { uploadFile } from '../../lib/storage';
 import { extractTextChunked, shouldUseChunkedExtraction } from '../../lib/chunked-extraction';
 
+// Prioritize process.env for Cloud Run (follows deployment.mdc rule)
+const PROJECT_ID = process.env.GOOGLE_CLOUD_PROJECT || 
+  (typeof import.meta !== 'undefined' && import.meta.env 
+    ? import.meta.env.GOOGLE_CLOUD_PROJECT 
+    : 'salfagpt'); // Fallback to salfagpt
+
 // Initialize Gemini AI client
 const IS_DEVELOPMENT = import.meta.env.DEV;
 
