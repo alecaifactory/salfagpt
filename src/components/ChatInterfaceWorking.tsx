@@ -70,6 +70,27 @@ const AGENT_SAMPLE_QUESTIONS: Record<string, string[]> = {
     '¿Cómo se realiza un traspaso de bodega?',
     '¿Cómo puedo descargar un inventario de sistema SAP?',
   ],
+  
+  // S002 - MAQSA Mantenimiento S2 (6 sample questions)
+  'S002': [
+    '¿Cuáles son los pasos a seguir en una mantención de grúa Grove RT765E?',
+    '¿Cómo cambio el filtro de aire de un motor Cummins 6bt5.9?',
+    '¿Qué significa el código de falla CF103 en Camión Scania R500?',
+    '¿Qué dice nuestro procedimiento de mantención respecto al margen de horas de mantenimiento?',
+    '¿Qué significa que el aceite sea 15w40?',
+    '¿Cada cuánto tiempo se cambia el aceite hidráulico en pluma Hiab 288xs?',
+  ],
+  
+  // M003 - GOP GPT M3 (7 sample questions)
+  'M003': [
+    '¿Qué procedimientos están asociados al plan de calidad?',
+    '¿Qué planilla debo ocupar para controlar las pérdidas de hormigón?',
+    '¿Qué transacción de SAP es para ver el flujo de entrada y salida de materiales?',
+    '¿Qué procedimiento me sirve para el panel financiero?',
+    '¿Cuáles son los pasos a seguir para iniciar una obra?',
+    '¿Qué procedimiento debo seguir para controlar la portería?',
+    'Dame los documentos asociados al procedimiento de entorno vecino y una breve explicación de cómo llevarlos',
+  ],
 };
 
 // ===== PERFORMANCE: Context Sources Cache =====
@@ -110,14 +131,31 @@ function invalidateCache(agentId: string) {
 function getAgentCode(agentTitle: string | undefined): string | null {
   if (!agentTitle) return null;
   
-  // Extract agent code from title (e.g., "GESTION BODEGAS GPT (S001)" -> "S001")
-  const match = agentTitle.match(/\(([MS]\d{3})\)/);
-  return match ? match[1] : null;
+  // Extract agent code from title - supports two patterns:
+  // Pattern 1: "GESTION BODEGAS GPT (S001)" -> "S001"
+  // Pattern 2: "MAQSA Mantenimiento S2" -> "S002"
+  // Pattern 3: "GOP GPT M3" -> "M003"
+  
+  // Try pattern 1: Code in parentheses
+  const parenthesesMatch = agentTitle.match(/\(([MS]\d{3})\)/);
+  if (parenthesesMatch) return parenthesesMatch[1];
+  
+  // Try pattern 2: Extract S2, M3, etc. and convert to S002, M003
+  const simpleMatch = agentTitle.match(/([MS])(\d+)/);
+  if (simpleMatch) {
+    const letter = simpleMatch[1];
+    const number = simpleMatch[2].padStart(3, '0'); // Pad to 3 digits
+    return `${letter}${number}`;
+  }
+  
+  return null;
 }
 
 function getSampleQuestions(agentCode: string | null): string[] {
   if (!agentCode) return [];
-  return AGENT_SAMPLE_QUESTIONS[agentCode] || [];
+  const questions = AGENT_SAMPLE_QUESTIONS[agentCode] || [];
+  console.log(`💡 Sample questions for agent code ${agentCode}:`, questions.length);
+  return questions;
 }
 
 interface Message {
@@ -5484,6 +5522,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               const parentAgent = getParentAgent();
               const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
               const agentCode = getAgentCode(agentToUse?.title);
+              console.log(`🎯 Sample Questions Debug - Title: "${agentToUse?.title}" → Code: ${agentCode}`);
               const sampleQuestions = getSampleQuestions(agentCode);
               
               // Only show if agent has sample questions and messages is empty or minimal
