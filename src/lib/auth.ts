@@ -79,7 +79,19 @@ export function getAuthorizationUrl(): string {
 
 // Exchange authorization code for tokens
 export async function exchangeCodeForTokens(code: string) {
-  const { tokens } = await oauth2Client.getToken(code);
+  // CRITICAL: Must pass the same redirect_uri used in authorization request
+  const redirectUri = `${BASE_URL}/auth/callback`;
+  
+  console.log('🔄 Exchanging code for tokens:', {
+    codeLength: code.length,
+    redirectUri,
+  });
+  
+  const { tokens } = await oauth2Client.getToken({
+    code,
+    redirect_uri: redirectUri, // Explicitly pass redirect_uri
+  });
+  
   oauth2Client.setCredentials(tokens);
   return tokens;
 }
