@@ -1,99 +1,117 @@
-/**
- * Batch Duplicate Check API
- * 
- * Checks multiple files for duplicates in a single request
- * Much faster than individual checks (1 request vs N requests)
- */
-
 import type { APIRoute } from 'astro';
-import { firestore, COLLECTIONS } from '../../../lib/firestore';
+import { getSession } from '../../../lib/auth';
+import { firestore } from '../../../lib/firestore';
 
-export const POST: APIRoute = async ({ request }) => {
+/**
+ * Batch check for duplicate files
+ * Much faster than checking each file individually
+ * 
+ * POST /api/context-sources/batch-check-duplicates
+ * Body: { userId: string, fileNames: string[] }
+ * Response: { duplicates: Array<{fileName, source}>, newFiles: string[] }
+ */
+export const POST: APIRoute = async (context) => {
   try {
-    const { userId, fileNames } = await request.json();
-
-    if (!userId || !fileNames || !Array.isArray(fileNames)) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing required fields: userId and fileNames array' 
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    // 1. Verify authentication
+    const session = getSession(context);
+    if (!session) {
+      return new Response(JSON.stringify({ error: 'Unauthorized - Please login' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    console.log(`🔍 Batch duplicate check for ${fileNames.length} files (user: ${userId})`);
-    const startTime = Date.now();
+    // 2. Get parameters
+    const body = await context.request.json();
+    const { userId, fileNames } = body;
 
-    // Query Firestore for all files at once
+    if (!userId || !fileNames || !Array.isArray(fileNames)) {
+      return new Response(JSON.stringify({ 
+        error: 'Missing userId or fileNames array' 
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 3. Verify ownership
+    if (session.id !== userId) {
+      return new Response(JSON.stringify({ 
+        error: 'Forbidden - Cannot check other user data' 
+      }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const startTime = Date.now();
+    console.log(`🔍 Batch duplicate check for ${fileNames.length} files (user: ${userId})`);
+
+    // 4. Query ALL user's sources in one request (much faster than N requests)
     const snapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .collection('context_sources')
       .where('userId', '==', userId)
-      .where('name', 'in', fileNames.slice(0, 30)) // Firestore 'in' limit is 30
+      .select('name', 'id', 'addedAt', 'metadata') // Only fetch needed fields
       .get();
 
-    // Build map of filename -> source
-    const duplicates: Record<string, any> = {};
-    
+    // Create a map for O(1) lookup
+    const existingSourcesMap = new Map();
     snapshot.docs.forEach(doc => {
       const data = doc.data();
-      duplicates[data.name] = {
+      existingSourcesMap.set(data.name, {
         id: doc.id,
-        ...data,
-        addedAt: data.addedAt?.toDate?.() || data.addedAt,
-      };
+        name: data.name,
+        addedAt: data.addedAt?.toDate().toISOString(),
+        metadata: {
+          extractionDate: data.metadata?.extractionDate?.toDate().toISOString(),
+          model: data.metadata?.model,
+        }
+      });
     });
 
-    // Handle if more than 30 files (split into batches)
-    if (fileNames.length > 30) {
-      const remainingFiles = fileNames.slice(30);
-      const batches = [];
-      
-      for (let i = 0; i < remainingFiles.length; i += 30) {
-        batches.push(remainingFiles.slice(i, i + 30));
-      }
-      
-      for (const batch of batches) {
-        const batchSnapshot = await firestore
-          .collection(COLLECTIONS.CONTEXT_SOURCES)
-          .where('userId', '==', userId)
-          .where('name', 'in', batch)
-          .get();
-        
-        batchSnapshot.docs.forEach(doc => {
-          const data = doc.data();
-          duplicates[data.name] = {
-            id: doc.id,
-            ...data,
-            addedAt: data.addedAt?.toDate?.() || data.addedAt,
-          };
-        });
+    // 5. Check each file against the map
+    const duplicates: Array<{ fileName: string; existingSource: any }> = [];
+    const newFiles: string[] = [];
+
+    for (const fileName of fileNames) {
+      const existing = existingSourcesMap.get(fileName);
+      if (existing) {
+        duplicates.push({ fileName, existingSource: existing });
+      } else {
+        newFiles.push(fileName);
       }
     }
 
     const duration = Date.now() - startTime;
-    const duplicateCount = Object.keys(duplicates).length;
-    
-    console.log(`✅ Batch check complete: ${duplicateCount}/${fileNames.length} duplicates found in ${duration}ms`);
+    console.log(`✅ Batch duplicate check complete in ${duration}ms`);
+    console.log(`   Checked: ${fileNames.length} files`);
+    console.log(`   Duplicates: ${duplicates.length}`);
+    console.log(`   New files: ${newFiles.length}`);
 
-    return new Response(
-      JSON.stringify({
-        duplicates,
+    // Return in format expected by frontend
+    return new Response(JSON.stringify({ 
+      duplicates,  // Array of { fileName, existingSource }
+      newFiles,    // Array of file names
+      stats: {
         totalChecked: fileNames.length,
-        totalDuplicates: duplicateCount,
-        duration,
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+        duplicatesFound: duplicates.length,
+        newFilesFound: newFiles.length,
+        durationMs: duration,
+      }
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error('❌ Error in batch duplicate check:', error);
-    return new Response(
-      JSON.stringify({
-        error: 'Failed to check for duplicates',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
