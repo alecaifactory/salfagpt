@@ -275,6 +275,9 @@ export const POST: APIRoute = async ({ request }) => {
           const chunkedResult = await extractTextChunked(buffer, {
             model: model,
             sectionSizeMB: 12, // ✅ OPTIMIZED: 12MB PDF sections (faster processing)
+            userId: formData.get('userId') as string, // ✅ NEW: For checkpointing
+            fileName: file.name, // ✅ NEW: For checkpointing
+            resumeFromCheckpoint: true, // ✅ NEW: Auto-resume if checkpoint exists
             onProgress: (progress) => {
               // Log to terminal
               console.log(`  📄 PDF Section ${progress.section}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
