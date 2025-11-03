@@ -31,7 +31,8 @@ export default defineConfig({
     mode: 'standalone',
   }),
   server: {
-    port: parseInt(process.env.DEV_PORT || '3000', 10),
+    port: parseInt(process.env.DEV_PORT || process.env.PORT || '3000', 10),
+    host: process.env.HOST || '0.0.0.0',
   },
   integrations: [
     react(),

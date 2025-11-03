@@ -15,8 +15,6 @@ RUN npm run build
 # Production image
 FROM base AS runner
 ENV NODE_ENV=production
-ENV HOST=0.0.0.0
-ENV PORT=8080
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 astro
@@ -27,7 +25,10 @@ COPY --from=builder --chown=astro:nodejs /app/package.json ./
 
 USER astro
 
-EXPOSE 8080
+# Astro listens on port 3000 (hardcoded in build)
+# Cloud Run will map external port 443 -> container port 3000
+EXPOSE 3000
 
+# Start Astro server directly
 CMD ["node", "./dist/server/entry.mjs"]
 
