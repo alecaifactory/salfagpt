@@ -697,38 +697,110 @@ export default function ContextManagementDashboard({
   };
 
   const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'skip' | 'cancel'> => {
-    // ✅ Show helpful information about each duplicate
-    const fileNames = duplicates.map(d => {
-      const uploadDate = d.existing.metadata?.extractionDate 
-        ? new Date(d.existing.metadata.extractionDate).toLocaleDateString()
-        : 'Unknown date';
-      return `  • ${d.file.name} (uploaded: ${uploadDate})`;
-    }).join('\n');
     const count = duplicates.length;
-    const message = `${count} file${count > 1 ? 's' : ''} already exist${count > 1 ? '' : 's'}:\n\n${fileNames}`;
     
-    // Create custom dialog
+    // Create custom dialog with pagination
     const choice = await new Promise<string>((resolve) => {
+      let currentPage = 0;
+      const itemsPerPage = 10;
+      const totalPages = Math.ceil(count / itemsPerPage);
+      
       const dialog = document.createElement('div');
-      dialog.innerHTML = `
-        <div class="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
-          <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+      dialog.className = 'fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4';
+      
+      const updateContent = () => {
+        const start = currentPage * itemsPerPage;
+        const end = Math.min(start + itemsPerPage, count);
+        const pageItems = duplicates.slice(start, end);
+        
+        const filesList = pageItems.map((d, idx) => {
+          const globalIdx = start + idx;
+          const uploadDate = d.existing.metadata?.extractionDate 
+            ? new Date(d.existing.metadata.extractionDate).toLocaleDateString()
+            : 'Unknown date';
+          const sizeMB = (d.file.size / 1024 / 1024).toFixed(1);
+          return `<div class="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs border border-gray-200">
+            <span class="text-gray-400 font-mono">${globalIdx + 1}</span>
+            <svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-900 truncate">${d.file.name}</p>
+              <p class="text-gray-500">${sizeMB} MB · Uploaded: ${uploadDate}</p>
+            </div>
+          </div>`;
+        }).join('');
+        
+        const paginationTop = totalPages > 1 ? `
+          <div class="flex items-center justify-between px-2 py-1 bg-blue-50 rounded text-xs mb-2">
+            <span class="text-blue-700 font-medium">
+              Showing ${start + 1}-${end} of ${count}
+            </span>
+            <div class="flex items-center gap-2">
+              <button 
+                data-nav="prev" 
+                ${currentPage === 0 ? 'disabled' : ''}
+                class="px-2 py-1 bg-white border border-blue-200 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                ← Prev
+              </button>
+              <span class="text-blue-700 font-semibold">
+                Page ${currentPage + 1}/${totalPages}
+              </span>
+              <button 
+                data-nav="next"
+                ${currentPage === totalPages - 1 ? 'disabled' : ''}
+                class="px-2 py-1 bg-white border border-blue-200 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        ` : '';
+        
+        const pageButtons = totalPages > 1 && totalPages <= 10 ? `
+          <div class="flex items-center justify-center gap-1 mt-2">
+            ${Array.from({ length: totalPages }, (_, i) => `
+              <button
+                data-page="${i}"
+                class="w-6 h-6 rounded text-xs font-semibold transition-colors ${
+                  currentPage === i
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50'
+                }"
+              >
+                ${i + 1}
+              </button>
+            `).join('')}
+          </div>
+        ` : '';
+        
+        dialog.innerHTML = `
+          <div class="bg-white rounded-xl shadow-2xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
             <!-- Header -->
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3 p-6 pb-4 border-b border-gray-200 flex-shrink-0">
               <div class="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
                 <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
               </div>
-              <h3 class="text-lg font-bold text-gray-900">Duplicate Files Detected</h3>
+              <div class="flex-1">
+                <h3 class="text-lg font-bold text-gray-900">Duplicate Files Detected</h3>
+                <p class="text-xs text-gray-600 mt-0.5">${count} file${count > 1 ? 's' : ''} already exist${count > 1 ? '' : 's'}</p>
+              </div>
             </div>
             
-            <!-- Message -->
-            <p class="text-sm text-gray-700 mb-4 whitespace-pre-wrap font-mono bg-gray-50 p-3 rounded border border-gray-200">${message}</p>
+            <!-- Files List - Scrollable -->
+            <div class="flex-1 overflow-y-auto p-6 pt-3">
+              ${paginationTop}
+              <div class="space-y-1">
+                ${filesList}
+              </div>
+              ${pageButtons}
+            </div>
             
-            <!-- Options -->
-            <div class="space-y-2">
-              <!-- ✅ NEW: Skip option (primary action) -->
+            <!-- Actions - Fixed at Bottom -->
+            <div class="p-6 pt-4 border-t border-gray-200 space-y-2 bg-gray-50 flex-shrink-0">
               <button 
                 data-action="skip" 
                 class="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -736,10 +808,9 @@ export default function ContextManagementDashboard({
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
                 </svg>
-                Skip duplicate${count > 1 ? 's' : ''} (recommended)
+                Skip duplicates (recommended)
               </button>
               
-              <!-- Replace -->
               <button 
                 data-action="replace" 
                 class="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -750,7 +821,6 @@ export default function ContextManagementDashboard({
                 Replace with new version
               </button>
               
-              <!-- Keep Both -->
               <button 
                 data-action="keep-both" 
                 class="w-full px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors flex items-center justify-center gap-2"
@@ -761,29 +831,52 @@ export default function ContextManagementDashboard({
                 Keep both (add -v${count})
               </button>
               
-              <!-- Cancel -->
               <button 
                 data-action="cancel" 
                 class="w-full px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
               >
                 Cancel upload
               </button>
-            </div>
-            
-            <!-- Info Text -->
-            <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <p class="text-xs text-blue-800">
-                <strong>💡 Tip:</strong> Skipping duplicates will only upload new files, saving time and avoiding re-processing.
-              </p>
+              
+              <!-- Info Tip -->
+              <div class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p class="text-xs text-blue-800">
+                  <strong>💡 Tip:</strong> Skipping duplicates will only upload new files, saving time and avoiding re-processing.
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
+      };
       
+      updateContent();
       document.body.appendChild(dialog);
       
       dialog.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
+        
+        // Handle navigation
+        const nav = target.getAttribute('data-nav') || target.closest('button')?.getAttribute('data-nav');
+        if (nav === 'prev' && currentPage > 0) {
+          currentPage--;
+          updateContent();
+          return;
+        }
+        if (nav === 'next' && currentPage < totalPages - 1) {
+          currentPage++;
+          updateContent();
+          return;
+        }
+        
+        // Handle page number clicks
+        const pageNum = target.getAttribute('data-page') || target.closest('button')?.getAttribute('data-page');
+        if (pageNum !== null) {
+          currentPage = parseInt(pageNum);
+          updateContent();
+          return;
+        }
+        
+        // Handle action buttons
         const action = target.getAttribute('data-action') || target.closest('button')?.getAttribute('data-action');
         if (action) {
           document.body.removeChild(dialog);
