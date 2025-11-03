@@ -573,17 +573,20 @@ export default function ContextManagementDashboard({
     
     // Show loading state in UI
     setLoading(true);
-    const loadingMessage = `Verificando duplicados (${totalFiles} archivos)...`;
+    
+    // Declare outside try block so they're accessible later
+    const duplicates: Array<{ file: File; existing: ContextSource }> = [];
+    let newFiles: File[] = [];
+    
+    // Filter out previously skipped files first
+    const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
+    if (filesToCheck.length !== stagedFiles.length) {
+      const skippedCount = stagedFiles.length - filesToCheck.length;
+      console.log(`⏭️ Auto-skipping ${skippedCount} previously skipped files`);
+    }
     
     try {
-      // Filter out previously skipped files first
-      const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
-      if (filesToCheck.length !== stagedFiles.length) {
-        const skippedCount = stagedFiles.length - filesToCheck.length;
-        console.log(`⏭️ Auto-skipping ${skippedCount} previously skipped files`);
-      }
-      
-      console.log(`📊 Checking ${filesToCheck.length} files against ${sources.length} loaded sources...`);
+      console.log(`📊 Checking ${filesToCheck.length} files against database...`);
       const checkStartTime = Date.now();
       
       const fileNames = filesToCheck.map(f => f.name);
@@ -591,9 +594,6 @@ export default function ContextManagementDashboard({
       
       const checkDuration = Date.now() - checkStartTime;
       console.log(`✅ Duplicate check completed in ${checkDuration}ms`);
-    
-      const duplicates: Array<{ file: File; existing: ContextSource }> = [];
-      const newFiles: File[] = [];
 
       for (const file of filesToCheck) {
         const existing = duplicateMap.get(file.name);
@@ -609,6 +609,10 @@ export default function ContextManagementDashboard({
         console.log(`✅ ${newFiles.length} new files ready to upload`);
       }
       console.log(`📊 Duplicate check complete: ${duplicates.length} duplicates, ${newFiles.length} new files`);
+    } catch (error) {
+      console.error('❌ Duplicate check error:', error);
+      // On error, treat all as new files (safe default)
+      newFiles = [...filesToCheck];
     } finally {
       // Clear loading state
       setLoading(false);
