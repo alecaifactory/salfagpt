@@ -136,6 +136,7 @@ export default function ContextManagementDashboard({
   const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
   const [skippedFileNames, setSkippedFileNames] = useState<Set<string>>(new Set());
   const [selectedUploadId, setSelectedUploadId] = useState<string | null>(null);
+  const [reviewPage, setReviewPage] = useState(0); // ✅ NEW: Pagination for review
   
   // Multi-select state for sources
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
@@ -532,25 +533,28 @@ export default function ContextManagementDashboard({
     setSelectedModel('gemini-2.5-flash'); // Reset to default
   };
 
-  // ✅ IMPROVED: Check for duplicates in Firestore (not just loaded sources)
-  const checkForDuplicatesInFirestore = async (fileName: string): Promise<ContextSource | null> => {
+  // ✅ OPTIMIZED: Batch duplicate check (all files at once)
+  const checkForDuplicatesInFirestore = async (fileNames: string[]): Promise<Map<string, ContextSource>> => {
     try {
       const response = await fetch(
-        `/api/context-sources/check-duplicate?userId=${userId}&fileName=${encodeURIComponent(fileName)}`,
+        `/api/context-sources/check-duplicates-batch`,
         {
+          method: 'POST',
           credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, fileNames }),
         }
       );
       
       if (response.ok) {
         const data = await response.json();
-        return data.exists ? data.source : null;
+        return new Map(Object.entries(data.duplicates || {}));
       }
       
-      return null;
+      return new Map();
     } catch (error) {
       console.error('❌ Error checking for duplicates:', error);
-      return null;
+      return new Map();
     }
   };
 
@@ -563,29 +567,34 @@ export default function ContextManagementDashboard({
       .map(t => t.trim())
       .filter(t => t.length > 0);
 
-    // ✅ IMPROVED: Check for duplicates in Firestore (async)
-    console.log('🔍 Checking for duplicates in Firestore...');
+    // ✅ OPTIMIZED: Batch duplicate check (all at once instead of sequential)
+    console.log(`🔍 Checking ${stagedFiles.length} files for duplicates in Firestore (batch)...`);
+    
+    // Filter out previously skipped files first
+    const filesToCheck = stagedFiles.filter(f => !skippedFileNames.has(f.name));
+    if (filesToCheck.length !== stagedFiles.length) {
+      console.log(`⏭️ Auto-skipping ${stagedFiles.length - filesToCheck.length} previously skipped files`);
+    }
+    
+    const fileNames = filesToCheck.map(f => f.name);
+    const duplicateMap = await checkForDuplicatesInFirestore(fileNames);
+    
     const duplicates: Array<{ file: File; existing: ContextSource }> = [];
     const newFiles: File[] = [];
 
-    for (const file of stagedFiles) {
-      // ✅ Skip files that user already chose to skip
-      if (skippedFileNames.has(file.name)) {
-        console.log(`⏭️ Auto-skipping previously skipped file: ${file.name}`);
-        continue; // Don't add to duplicates or newFiles
-      }
-      
-      // Query Firestore for duplicate
-      const existing = await checkForDuplicatesInFirestore(file.name);
+    for (const file of filesToCheck) {
+      const existing = duplicateMap.get(file.name);
       if (existing) {
         console.log(`⚠️ Duplicate found: ${file.name} (existing ID: ${existing.id})`);
         duplicates.push({ file, existing });
       } else {
-        console.log(`✅ New file: ${file.name}`);
         newFiles.push(file);
       }
     }
     
+    if (newFiles.length > 0) {
+      console.log(`✅ ${newFiles.length} new files ready to upload`);
+    }
     console.log(`📊 Duplicate check complete: ${duplicates.length} duplicates, ${newFiles.length} new files`);
 
     // Handle duplicates if found
@@ -1773,6 +1782,7 @@ export default function ContextManagementDashboard({
                         setShowUploadStaging(false);
                         setStagedFiles([]);
                         setUploadTags('');
+                        setReviewPage(0); // Reset pagination
                       }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
                     >
@@ -1780,15 +1790,71 @@ export default function ContextManagementDashboard({
                     </button>
                   </div>
 
-                  {/* Files preview */}
-                  <div className="max-h-32 overflow-y-auto space-y-1">
-                    {stagedFiles.map((file, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
-                        <FileText className="w-3.5 h-3.5 text-gray-600" />
-                        <span className="flex-1 truncate font-medium text-gray-900">{file.name}</span>
-                        <span className="text-gray-500">{(file.size / 1024).toFixed(1)} KB</span>
+                  {/* Files preview - PAGINATED */}
+                  <div className="space-y-2">
+                    {/* Pagination controls - Top */}
+                    {stagedFiles.length > 10 && (
+                      <div className="flex items-center justify-between px-2 py-1 bg-blue-50 rounded text-xs">
+                        <span className="text-blue-700 font-medium">
+                          Showing {reviewPage * 10 + 1}-{Math.min((reviewPage + 1) * 10, stagedFiles.length)} of {stagedFiles.length}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setReviewPage(Math.max(0, reviewPage - 1))}
+                            disabled={reviewPage === 0}
+                            className="px-2 py-1 bg-white border border-blue-200 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            ← Prev
+                          </button>
+                          <span className="text-blue-700 font-semibold">
+                            Page {reviewPage + 1}/{Math.ceil(stagedFiles.length / 10)}
+                          </span>
+                          <button
+                            onClick={() => setReviewPage(Math.min(Math.ceil(stagedFiles.length / 10) - 1, reviewPage + 1))}
+                            disabled={(reviewPage + 1) * 10 >= stagedFiles.length}
+                            className="px-2 py-1 bg-white border border-blue-200 rounded hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Next →
+                          </button>
+                        </div>
                       </div>
-                    ))}
+                    )}
+                    
+                    {/* Files list - Max 10 per page */}
+                    <div className="max-h-96 overflow-y-auto space-y-1">
+                      {stagedFiles
+                        .slice(reviewPage * 10, (reviewPage + 1) * 10)
+                        .map((file, idx) => {
+                          const globalIdx = reviewPage * 10 + idx;
+                          return (
+                            <div key={globalIdx} className="flex items-center gap-2 p-2 bg-gray-50 rounded text-xs">
+                              <span className="text-gray-400 font-mono">{globalIdx + 1}</span>
+                              <FileText className="w-3.5 h-3.5 text-gray-600" />
+                              <span className="flex-1 truncate font-medium text-gray-900">{file.name}</span>
+                              <span className="text-gray-500">{(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    
+                    {/* Pagination controls - Bottom */}
+                    {stagedFiles.length > 10 && (
+                      <div className="flex items-center justify-center gap-2 pt-1">
+                        {Array.from({ length: Math.ceil(stagedFiles.length / 10) }, (_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setReviewPage(i)}
+                            className={`w-6 h-6 rounded text-xs font-semibold transition-colors ${
+                              reviewPage === i
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-blue-50'
+                            }`}
+                          >
+                            {i + 1}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Tags Input */}
