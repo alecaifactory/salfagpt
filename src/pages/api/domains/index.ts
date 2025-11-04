@@ -9,9 +9,12 @@ import { getSession, verifyJWT } from '../../../lib/auth';
 // SuperAdmin emails (hardcoded list)
 const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'admin@getaifactory.com'];
 
-// GET /api/domains - List all domains (SuperAdmin only)
+// GET /api/domains - List all domains (SuperAdmin only, or active domains for user creation)
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
+    const url = new URL(request.url);
+    const activeOnly = url.searchParams.get('activeOnly') === 'true';
+    
     // Verify authentication
     const session = getSession({ cookies } as any);
     if (!session) {
@@ -21,8 +24,9 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       );
     }
 
-    // Verify SuperAdmin email
-    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
+    // 🆕 Allow any authenticated user to fetch active domains (for user creation)
+    // Only SuperAdmins can fetch all domains (including inactive)
+    if (!activeOnly && !SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -30,9 +34,14 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     }
 
     const domains = await getDomains();
+    
+    // 🆕 Filter to only active domains if requested
+    const filteredDomains = activeOnly 
+      ? domains.filter(d => d.enabled === true)
+      : domains;
 
     return new Response(
-      JSON.stringify({ domains }),
+      JSON.stringify({ domains: filteredDomains }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
