@@ -1,0 +1,681 @@
+# GCP Services & Permissions - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents all Google Cloud Platform services used by the Flow platform, their required permissions, and configuration. It ensures production deployments have correct access to all necessary services.
+
+---
+
+## 🏗️ GCP Project Configuration
+
+### Project Identity
+
+**Project ID:** `salfagpt`  
+**Project Number:** `82892384200`  
+**Project Name:** SALFAGPT  
+**Organization:** SALFACORP
+
+**CRITICAL:** Always use `GOOGLE_CLOUD_PROJECT=salfagpt` in all environments
+
+---
+
+## ☁️ Cloud Run Configuration
+
+### Production Service
+
+**Service Name:** `cr-salfagpt-ai-ft-prod`  
+**Region:** `us-east4`  
+**Direct URL:** https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app  
+**Custom Domain:** https://salfagpt.salfagestion.cl (via Load Balancer)
+
+**Container Configuration:**
+- Port: 3000
+- Memory: 2GiB
+- CPU: 2
+- Min Instances: 1
+- Max Instances: 10
+- Timeout: 300s
+
+**Service Account:** `82892384200-compute@developer.gserviceaccount.com`  
+(Default Compute Engine service account)
+
+### Environment Variables (Required)
+
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt                          # ⭐ CRITICAL - Must be project ID
+PUBLIC_BASE_URL=https://salfagpt.salfagestion.cl       # Custom domain
+NODE_ENV=production                                     # Environment
+GOOGLE_CLIENT_ID=82892384200-va003qnnoj9q0jf19j3jf0vects0st9h.apps.googleusercontent.com
+GOOGLE_AI_API_KEY=(secret)                             # Gemini API key
+GOOGLE_CLIENT_SECRET=(secret)                          # OAuth secret
+JWT_SECRET=(secret)                                     # Session signing
+```
+
+**⚠️ CRITICAL RULE:**
+- `GOOGLE_CLOUD_PROJECT` must be the actual GCP project ID (`salfagpt`)
+- NOT the service name (`cr-salfagpt-ai-ft-prod`)
+- NOT the custom domain
+- NOT any other identifier
+
+---
+
+## 🗄️ GCP Services Used
+
+### 1. Firestore (Primary Database)
+
+**API:** `firestore.googleapis.com`  
+**Status:** ✅ Enabled  
+**Database:** `(default)`  
+**Location:** us-central1
+
+**Purpose:**
+- User profiles and authentication
+- Conversations and messages
+- Domain access control
+- Context sources metadata
+- Agent configurations
+- All operational data
+
+**Collections (20 total):**
+- `conversations` - AI agent conversations
+- `messages` - Chat message history
+- `users` - User profiles and roles
+- `domains` - Domain access control ⭐
+- `context_sources` - Document metadata
+- `document_chunks` - Text chunks
+- `conversation_context` - Agent state
+- `user_settings` - User preferences
+- `agent_configs` - Agent settings
+- `agent_prompt_versions` - Prompt history
+- `folders` - Organization
+- `agent_shares` - Sharing
+- `message_feedback` - Feedback
+- `feedback_tickets` - Support tickets
+- `backlog_items` - Roadmap
+- `evaluations` - Quality assessments
+- `test_questions` - Testing
+- `test_results` - Test outcomes
+- `agent_testing_config` - Test configurations
+- `ticket_counters` - Auto-increment IDs
+
+**Required Permissions:**
+- ✅ `roles/datastore.owner` (full access)
+- ✅ `roles/datastore.user` (read/write)
+
+**Files Using Firestore:**
+- `src/lib/firestore.ts` - Main Firestore client
+- `src/lib/domains.ts` - Domain management
+- `src/pages/auth/callback.ts` - Authentication
+- `src/pages/chat.astro` - Main chat page
+- All API endpoints in `src/pages/api/`
+
+**Health Check:**
+```bash
+curl -s https://salfagpt.salfagestion.cl/api/health/firestore | jq '.status'
+# Expected: "healthy"
+```
+
+---
+
+### 2. Cloud Storage (File Storage)
+
+**API:** `storage.googleapis.com`  
+**Status:** ✅ Enabled
+
+**Buckets:**
+- `salfagpt-uploads` - User-uploaded documents
+
+**Directory Structure:**
+```
+gs://salfagpt-uploads/
+└── documents/
+    ├── 1234567890-filename.pdf
+    ├── 1234567891-document.docx
+    └── ... (timestamped files)
+```
+
+**Purpose:**
+- Store uploaded PDFs, Word docs, Excel files
+- Temporary storage for document processing
+- Checkpoint files for long extractions
+
+**Required Permissions:**
+- ✅ `roles/storage.admin` (full bucket management)
+- ✅ `roles/storage.objectAdmin` (object operations)
+
+**Files Using Cloud Storage:**
+- `src/lib/storage.ts` - Upload/download operations
+- `src/lib/chunked-extraction.ts` - Chunk storage
+- `src/lib/extraction-checkpoint.ts` - State persistence
+- `src/lib/tool-manager.ts` - File management
+
+**Bucket Configuration:**
+```bash
+# Location: us-central1
+# Storage class: Standard
+# Public access: Prevented
+# Uniform bucket-level access: Enabled
+```
+
+---
+
+### 3. BigQuery (Analytics & Vector Search)
+
+**API:** `bigquery.googleapis.com`  
+**Status:** ✅ Enabled
+
+**Dataset:** `flow_analytics`  
+**Location:** us-central1
+
+**Tables:**
+- `document_embeddings` - Vector embeddings (768-dim) for RAG search
+  - Partitioned by: `created_at` (DAY)
+  - Clustered by: `user_id`, `source_id`
+  - ~3,000+ rows
+- `conversations` - Conversation analytics
+- `messages` - Message analytics
+- `context_usage` - Context tracking
+- `daily_metrics` - Aggregated statistics
+
+**Purpose:**
+- Vector similarity search (RAG)
+- Analytics dashboards
+- Usage tracking
+- Performance metrics
+
+**Required Permissions:**
+- ✅ `roles/bigquery.dataEditor` (read/write tables)
+- ✅ Via `roles/editor` (includes BigQuery access)
+
+**Files Using BigQuery:**
+- `src/lib/analytics.ts` - Analytics queries
+- `src/lib/bigquery-vector-search.ts` - Vector search
+- `src/lib/bigquery-agent-search.ts` - Agent search
+- `src/lib/bigquery-agent-sync.ts` - Data sync
+- `src/lib/gcp.ts` - BigQuery client
+
+**Example Query:**
+```sql
+SELECT chunk_id, text, cosine_similarity
+FROM `salfagpt.flow_analytics.document_embeddings`
+WHERE user_id = @userId
+ORDER BY cosine_similarity DESC
+LIMIT 5
+```
+
+---
+
+### 4. Vertex AI (Embeddings)
+
+**API:** `aiplatform.googleapis.com`  
+**Status:** ✅ Enabled
+
+**Model:** `text-embedding-004`  
+**Dimensions:** 768  
+**Location:** us-central1
+
+**Purpose:**
+- Generate semantic embeddings for text chunks
+- Enable vector similarity search
+- Power RAG (Retrieval-Augmented Generation)
+
+**Required Permissions:**
+- ✅ Via `roles/editor` (includes Vertex AI access)
+- ✅ Or `roles/aiplatform.user` (specific)
+
+**Files Using Vertex AI:**
+- `src/lib/embeddings.ts` - Generate embeddings
+- `src/lib/vision-extraction.ts` - Vision processing (if used)
+
+**Usage Pattern:**
+```typescript
+import { generateEmbedding } from './lib/embeddings';
+
+const vector = await generateEmbedding("User query text");
+// Returns: number[] (768 dimensions)
+```
+
+---
+
+### 5. Gemini AI (Chat Responses)
+
+**API:** Gemini AI REST API (NOT GCP IAM)  
+**Authentication:** API Key  
+**No IAM permissions required**
+
+**Models Used:**
+- `gemini-2.5-flash` - Fast, economical (default)
+- `gemini-2.5-pro` - Advanced, precise
+
+**API Key:** Configured via `GOOGLE_AI_API_KEY` environment variable
+
+**Purpose:**
+- Generate AI chat responses
+- Extract text from documents
+- Process user queries
+- RAG-enhanced responses
+
+**Files Using Gemini:**
+- `src/lib/gemini.ts` - Main Gemini client
+- `src/pages/api/conversations/[id]/messages.ts` - Chat endpoint
+- `src/pages/api/extract-document.ts` - Document extraction
+
+**Cost:** Pay-per-use via API key billing
+
+---
+
+### 6. Cloud Logging (Monitoring)
+
+**API:** `logging.googleapis.com`  
+**Status:** ✅ Enabled (automatic with Cloud Run)
+
+**Purpose:**
+- Application logs
+- Error tracking
+- Security auditing
+- Performance monitoring
+
+**Required Permissions:**
+- ✅ `roles/logging.logWriter` (write logs)
+
+**Log Types:**
+- Request logs (automatic)
+- Application logs (console.log → Cloud Logging)
+- Error logs (console.error)
+- Security events (auth, domain access)
+
+**Files Using Logging:**
+- `src/lib/logger.ts` - Structured logging
+- All server-side code (automatic)
+
+**View Logs:**
+```bash
+gcloud logging read "resource.type=cloud_run_revision" \
+  --limit=50 \
+  --project=salfagpt
+```
+
+---
+
+### 7. Secret Manager (Configuration)
+
+**API:** `secretmanager.googleapis.com`  
+**Status:** ✅ Enabled
+
+**Secrets Stored:**
+- `GOOGLE_AI_API_KEY` - Gemini API key
+- `GOOGLE_CLIENT_SECRET` - OAuth client secret
+- `JWT_SECRET` - Session token signing key
+
+**Purpose:**
+- Secure storage of sensitive configuration
+- No secrets in code or environment variables
+- Automatic rotation support
+
+**Required Permissions:**
+- ✅ `roles/secretmanager.secretAccessor` (read secrets)
+
+**Access Pattern:**
+```typescript
+// Secrets are automatically loaded by Cloud Run
+const apiKey = process.env.GOOGLE_AI_API_KEY;
+```
+
+---
+
+## 🔐 Service Account IAM Summary
+
+### Service Account
+**Email:** `82892384200-compute@developer.gserviceaccount.com`  
+**Type:** Default Compute Engine service account  
+**Used By:** Cloud Run service `cr-salfagpt-ai-ft-prod`
+
+### All Granted Roles
+
+| Role | Description | Critical For |
+|------|-------------|--------------|
+| `roles/editor` | Project-wide editor access | General operations |
+| `roles/datastore.owner` | Full Firestore control | Database management |
+| `roles/datastore.user` | Firestore read/write | User data, domains ⭐ |
+| `roles/storage.admin` | Full Storage control | Bucket management |
+| `roles/storage.objectAdmin` | Storage object operations | File uploads |
+| `roles/bigquery.dataEditor` | BigQuery data operations | Analytics, vector search |
+| `roles/logging.logWriter` | Write application logs | Monitoring |
+| `roles/secretmanager.secretAccessor` | Read secrets | Configuration |
+
+**Verification Command:**
+```bash
+gcloud projects get-iam-policy salfagpt \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:82892384200-compute@developer.gserviceaccount.com" \
+  --format="table(bindings.role)"
+```
+
+---
+
+## 🚨 Critical Configuration Rules
+
+### Rule 1: Always Use Correct Project ID
+
+**✅ CORRECT:**
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt
+```
+
+**❌ WRONG:**
+```bash
+GOOGLE_CLOUD_PROJECT=cr-salfagpt-ai-ft-prod  # This is service name, NOT project ID
+GOOGLE_CLOUD_PROJECT=salfagestion.cl          # This is domain, NOT project ID
+GOOGLE_CLOUD_PROJECT=82892384200              # This is project number, NOT project ID
+```
+
+**Why it matters:**
+- Firestore client uses this to connect to database
+- Wrong value = tries to access non-existent project
+- Result: PERMISSION_DENIED errors → Login fails
+
+### Rule 2: Verify After Every Deployment
+
+**Always run after deployment:**
+```bash
+curl -s https://salfagpt.salfagestion.cl/api/health/firestore | jq '.checks.projectId.value'
+# Must return: "salfagpt"
+```
+
+### Rule 3: Service Account Must Have Firestore Access
+
+**Minimum required:**
+```bash
+gcloud projects add-iam-policy-binding salfagpt \
+  --member="serviceAccount:82892384200-compute@developer.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
+
+**Current:** Has Editor role (includes all service access) ✅
+
+---
+
+## 🔧 Troubleshooting Guide
+
+### Issue: Login fails with "Dominio Deshabilitado"
+
+**Check 1: Firestore Health**
+```bash
+curl -s https://salfagpt.salfagestion.cl/api/health/firestore | jq '.status'
+```
+- If `"error"`: Firestore not accessible
+- If `"healthy"`: Firestore OK, check domain configuration
+
+**Check 2: Correct Project**
+```bash
+curl -s https://salfagpt.salfagestion.cl/api/health/firestore | jq '.checks.projectId.value'
+```
+- Must return: `"salfagpt"`
+- If different: Update `GOOGLE_CLOUD_PROJECT` environment variable
+
+**Check 3: Domain Exists**
+```bash
+# In Firestore console, check domains collection
+# Domain must exist and have enabled: true
+```
+
+### Issue: PERMISSION_DENIED errors
+
+**Diagnosis:**
+```bash
+# Check service account permissions
+gcloud projects get-iam-policy salfagpt \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:82892384200-compute"
+```
+
+**Fix:**
+```bash
+# Grant missing permission (example: Firestore)
+gcloud projects add-iam-policy-binding salfagpt \
+  --member="serviceAccount:82892384200-compute@developer.gserviceaccount.com" \
+  --role="roles/datastore.user"
+```
+
+### Issue: Service can't access Cloud Storage
+
+**Check bucket exists:**
+```bash
+gsutil ls -p salfagpt
+# Should list: gs://salfagpt-uploads/
+```
+
+**Check permissions:**
+```bash
+gsutil iam get gs://salfagpt-uploads | grep 82892384200
+# Should show service account with roles
+```
+
+---
+
+## 📋 Service Access Checklist
+
+Before deploying to production, verify:
+
+### APIs Enabled
+- [ ] `run.googleapis.com` (Cloud Run)
+- [ ] `firestore.googleapis.com` (Firestore)
+- [ ] `storage.googleapis.com` (Cloud Storage)
+- [ ] `bigquery.googleapis.com` (BigQuery)
+- [ ] `aiplatform.googleapis.com` (Vertex AI)
+- [ ] `secretmanager.googleapis.com` (Secret Manager)
+- [ ] `cloudbuild.googleapis.com` (Cloud Build)
+- [ ] `artifactregistry.googleapis.com` (Artifact Registry)
+
+**Command to enable all:**
+```bash
+gcloud services enable \
+  run.googleapis.com \
+  firestore.googleapis.com \
+  storage.googleapis.com \
+  bigquery.googleapis.com \
+  aiplatform.googleapis.com \
+  secretmanager.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  --project=salfagpt
+```
+
+### Service Account Permissions
+- [ ] `roles/datastore.user` (Firestore access)
+- [ ] `roles/storage.objectAdmin` (File uploads)
+- [ ] `roles/bigquery.dataEditor` (Analytics)
+- [ ] `roles/logging.logWriter` (Logging)
+- [ ] `roles/secretmanager.secretAccessor` (Secrets)
+
+### Environment Variables
+- [ ] `GOOGLE_CLOUD_PROJECT=salfagpt` ⭐
+- [ ] `PUBLIC_BASE_URL=https://salfagpt.salfagestion.cl`
+- [ ] `NODE_ENV=production`
+- [ ] All OAuth variables configured
+- [ ] All secrets configured
+
+### Post-Deployment Verification
+- [ ] Health check passes: `/api/health/firestore`
+- [ ] Can login with test account
+- [ ] Can access Firestore collections
+- [ ] Can upload files to Storage
+- [ ] Analytics queries work
+
+---
+
+## 🎓 Lessons Learned (2025-11-03)
+
+### Lesson 1: Project ID vs Service Name
+
+**Problem:**
+```bash
+GOOGLE_CLOUD_PROJECT=cr-salfagpt-ai-ft-prod  # ❌ Service name
+```
+
+**Solution:**
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt  # ✅ Project ID
+```
+
+**How to avoid:**
+- GCP project IDs are usually short (one word, no prefix)
+- Check: `gcloud config get-value project`
+- Verify: Project exists in GCP console
+
+### Lesson 2: Verify Firestore Connectivity
+
+**Always test after deployment:**
+```bash
+curl https://your-domain.com/api/health/firestore | jq '.status'
+```
+
+**If fails:**
+1. Check `GOOGLE_CLOUD_PROJECT` is correct
+2. Check service account has Firestore permissions
+3. Check Firestore API is enabled
+
+### Lesson 3: Service Account Permissions
+
+**For Cloud Run to access GCP services:**
+- Service account must have explicit IAM roles
+- Default service account has NO permissions by default
+- Grant minimum required permissions
+- Test each service after granting
+
+---
+
+## 🔄 Deployment Commands
+
+### Update Environment Variable
+```bash
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region=us-east4 \
+  --project=salfagpt \
+  --update-env-vars="GOOGLE_CLOUD_PROJECT=salfagpt"
+```
+
+### Grant Service Account Permission
+```bash
+SERVICE_ACCOUNT="82892384200-compute@developer.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding salfagpt \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/datastore.user"
+```
+
+### Enable API
+```bash
+gcloud services enable firestore.googleapis.com --project=salfagpt
+```
+
+### Create Firestore Database (if needed)
+```bash
+gcloud firestore databases create \
+  --location=us-central1 \
+  --project=salfagpt
+```
+
+---
+
+## 📊 Service Health Monitoring
+
+### Health Check Endpoints
+
+**Firestore:**
+```bash
+GET /api/health/firestore
+Returns: { status: "healthy" | "error", checks: {...} }
+```
+
+**Domain Verification:**
+```bash
+GET /api/health/domain-check?email=user@domain.com
+Returns: { status: "PASS" | "FAIL", domain: {...} }
+```
+
+**Usage:**
+```bash
+# Monitor Firestore health
+watch -n 30 'curl -s https://salfagpt.salfagestion.cl/api/health/firestore | jq .status'
+
+# Check specific domain
+curl -s "https://salfagpt.salfagestion.cl/api/health/domain-check?email=user@getaifactory.com" | jq '.'
+```
+
+---
+
+## 🎯 Success Metrics
+
+### After Correct Configuration
+
+**Firestore Health Check:**
+- ✅ Status: healthy
+- ✅ Project: salfagpt
+- ✅ Authentication: pass
+- ✅ Read latency: ~130ms
+- ✅ Write latency: ~250ms
+- ✅ Collections found: 20
+
+**Login Success:**
+- ✅ getaifactory.com users can login
+- ✅ salfacloud.cl users can login
+- ✅ Domain verification works
+- ✅ Sessions persist correctly
+- ✅ All features accessible
+
+---
+
+## 📚 Related Documentation
+
+### Internal Rules
+- `.cursor/rules/alignment.mdc` - Architecture principles
+- `.cursor/rules/firestore.mdc` - Database schema
+- `.cursor/rules/backend.mdc` - Backend patterns
+- `.cursor/rules/gcp-project-consistency.mdc` - Project configuration
+- `.cursor/rules/deployment.mdc` - Deployment procedures
+
+### Implementation Docs
+- `PRODUCTION_LOGIN_FIX_COMPLETE_2025-11-03.md` - This fix
+- `docs/OAUTH_FINAL_CONFIG_2025-11-03.md` - OAuth setup
+- `GoogleCloud.md` - Infrastructure overview
+- `STORAGE_ARCHITECTURE.md` - Cloud Storage details
+
+### External Resources
+- [Cloud Run IAM](https://cloud.google.com/run/docs/securing/service-identity)
+- [Firestore Security](https://cloud.google.com/firestore/docs/security/get-started)
+- [Cloud Storage Access Control](https://cloud.google.com/storage/docs/access-control/iam)
+
+---
+
+## ✅ Verification Checklist
+
+Use this checklist for all future deployments:
+
+### Pre-Deployment
+- [ ] `.env` has `GOOGLE_CLOUD_PROJECT=salfagpt`
+- [ ] All required APIs enabled
+- [ ] Service account has required roles
+- [ ] Secrets configured
+- [ ] OAuth redirect URIs include production URL
+
+### Deployment
+- [ ] Build succeeds locally: `npm run build`
+- [ ] Type check passes: `npm run type-check`
+- [ ] Deploy command specifies correct project: `--project=salfagpt`
+- [ ] Deploy command uses correct region: `--region=us-east4`
+
+### Post-Deployment
+- [ ] Health check returns "healthy"
+- [ ] Project ID is "salfagpt" (not service name)
+- [ ] Can login with test account
+- [ ] Firestore collections accessible
+- [ ] No PERMISSION_DENIED errors in logs
+
+---
+
+**Last Updated:** 2025-11-03  
+**Status:** ✅ All services configured correctly  
+**Project:** salfagpt  
+**Service:** cr-salfagpt-ai-ft-prod  
+**Revision:** cr-salfagpt-ai-ft-prod-00036-9rr
