@@ -1,315 +1,559 @@
-# Salfacorp Deployment Protocol
+# SalfaCorp Deployment Rules - Flow Platform
 
 ## 🎯 Purpose
 
-This rule defines the complete deployment process for Salfacorp (project: salfagpt) to Google Cloud Run. Follow these steps exactly for consistent, reliable deployments.
+This rule documents the deployment configuration and process for the SalfaCorp production environment, ensuring correct service, region, and project settings for all deployments.
 
 ---
 
-## 📋 Deployment Protocol
+## 🚨 CRITICAL: Production Deployment Configuration
 
-### When User Says: "deploy to salfacorp" or "deploy to production salfacorp"
+### Service Information
 
-Execute these steps in order:
+**Production Service Name:** `cr-salfagpt-ai-ft-prod`  
+**Region:** `us-east4` (NOT us-central1, NOT us-east1)  
+**Project:** `salfagpt`  
+**URL:** https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
 
-### Step 1: Verify Environment
+### Development/Testing Services
+
+**Development Service:** `salfagpt`  
+**Region:** `us-central1`  
+**URL:** https://salfagpt-3snj65wckq-uc.a.run.app
+
+**Other Services (for reference):**
+- `flow-chat` - us-central1
+- `flow-production` - us-central1
+- `flow-salfacorp` - us-central1
+- `salfagpt-chat` - us-central1
+- `salfagpt-production` - us-central1
+
+---
+
+## 📋 Deployment Commands
+
+### ✅ CORRECT Production Deployment
 
 ```bash
-# 1.1 Set GCloud project
-gcloud config set project salfagpt
+# ALWAYS use this command for SalfaCorp production
+gcloud run deploy cr-salfagpt-ai-ft-prod \
+  --source . \
+  --platform managed \
+  --region us-east4 \
+  --project salfagpt \
+  --allow-unauthenticated
+```
 
-# 1.2 Verify project
+### ❌ WRONG - Common Mistakes
+
+```bash
+# ❌ Wrong service name
+gcloud run deploy salfagpt --region us-east4
+
+# ❌ Wrong region (us-central1 is for dev/test)
+gcloud run deploy cr-salfagpt-ai-ft-prod --region us-central1
+
+# ❌ Wrong region (us-east1 doesn't have the service)
+gcloud run deploy cr-salfagpt-ai-ft-prod --region us-east1
+
+# ❌ Wrong project
+gcloud run deploy cr-salfagpt-ai-ft-prod --region us-east4 --project gen-lang-client-0986191192
+```
+
+---
+
+## 🔍 Pre-Deployment Checklist
+
+### BEFORE Deploying to Production
+
+**1. Verify Git Status**
+```bash
+# Check branch
+git branch --show-current  # Should be: main
+
+# Check for uncommitted changes
+git status --short  # Should be clean
+
+# Verify latest commit
+git log --oneline -1
+```
+
+**2. Verify Project Configuration**
+```bash
+# Check .env file
+cat .env | grep GOOGLE_CLOUD_PROJECT
+# Should show: GOOGLE_CLOUD_PROJECT=salfagpt
+
+# Check gcloud configuration
 gcloud config get-value project
-# Must return: salfagpt
-
-# 1.3 Check authentication
-gcloud auth list | grep ACTIVE
-
-# 1.4 Check Firestore auth
-gcloud auth application-default print-access-token > /dev/null 2>&1 && echo "✅ Firestore OK"
+# Should show: salfagpt
 ```
 
-**If auth fails:** Run `gcloud auth login` and `gcloud auth application-default login`
-
----
-
-### Step 2: Pre-Deployment Checks
-
+**3. Verify Service Existence**
 ```bash
-# 2.1 Verify on main branch
-git branch --show-current
-# Must be: main
-
-# 2.2 Verify no uncommitted changes
-git status
-# Must show: "working tree clean"
-
-# 2.3 Pull latest (if team environment)
-git pull origin main
+# Confirm service exists in correct region
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --project=salfagpt \
+  --region=us-east4 \
+  --format="value(status.url)"
+  
+# Should return: https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
 ```
 
----
-
-### Step 3: Build
-
+**4. Run Local Tests**
 ```bash
-# 3.1 Run production build
+# Type check
+npm run type-check
+
+# Lint (optional, may have pre-existing warnings)
+# npm run lint
+
+# Build locally to catch errors
 npm run build
 
-# 3.2 Verify exit code
-echo $?
-# Must be: 0
+# Test locally
+npm run dev
+# Visit http://localhost:3000/chat and verify changes
 ```
-
-**If build fails:** Fix TypeScript/build errors before proceeding
 
 ---
 
-### Step 4: Deploy to Cloud Run
+## 🚀 Deployment Process
+
+### Step-by-Step Deployment
 
 ```bash
-gcloud run deploy salfagpt \
+# 1. Ensure you're in the project directory
+cd /Users/alec/salfagpt
+
+# 2. Commit all changes (if not already done)
+git add -A
+git commit -m "feat: Your feature description"
+
+# 3. Push to remote
+git push origin main
+
+# 4. Deploy to production service in us-east4
+gcloud run deploy cr-salfagpt-ai-ft-prod \
   --source . \
-  --region us-central1 \
+  --platform managed \
+  --region us-east4 \
   --project salfagpt \
-  --allow-unauthenticated \
-  --min-instances 1 \
-  --max-instances 10 \
-  --memory 2Gi \
-  --cpu 2 \
-  --timeout 300s
-```
+  --allow-unauthenticated
 
-**Wait for:** "Service [salfagpt] revision [salfagpt-XXXXX-YYY] has been deployed"
+# 5. Verify deployment
+curl -I https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/
 
-**Note down:** Revision name (e.g., salfagpt-00011-xyz)
-
----
-
-### Step 5: Update Environment Variables
-
-```bash
-# 5.1 Get service URL
-SERVICE_URL=$(gcloud run services describe salfagpt \
-  --region us-central1 \
-  --project salfagpt \
-  --format='value(status.url)')
-
-echo "Service URL: $SERVICE_URL"
-
-# 5.2 Update all environment variables
-gcloud run services update salfagpt \
-  --region us-central1 \
-  --project salfagpt \
-  --update-env-vars="GOOGLE_CLOUD_PROJECT=salfagpt,PUBLIC_BASE_URL=$SERVICE_URL,NODE_ENV=production,GOOGLE_AI_API_KEY=AIzaSyALvlJm5pl5Ygp_P-nM1ey7vWP7E6O4mV0,GOOGLE_CLIENT_ID=82892384200-va003qnnoj9q0jf19j3jf0vects0st9h.apps.googleusercontent.com,JWT_SECRET=df45d920393b23177f56675c5bac8d99058b3388be154b620ef2e8eb7ad58dfdaeaa76514fd268837c60bfd616cbf28be65a736818fed62f8a0a90b766e6542f"
-```
-
-**Critical Variables:**
-- `GOOGLE_CLOUD_PROJECT=salfagpt`
-- `PUBLIC_BASE_URL` - Must match service URL
-- `NODE_ENV=production`
-- API keys from `.env.salfacorp`
-
----
-
-### Step 6: Verify Traffic Assignment
-
-```bash
-# 6.1 Check current traffic
-gcloud run services describe salfagpt \
-  --region us-central1 \
-  --project salfagpt \
-  --format="value(status.traffic)"
-
-# 6.2 If needed, update traffic to specific revision
-gcloud run services update-traffic salfagpt \
-  --to-revisions=REVISION_NAME=100 \
-  --region us-central1 \
-  --project salfagpt
-```
-
-**Traffic should be:** 100% on latest revision
-
----
-
-### Step 7: Verification
-
-```bash
-# 7.1 Test service responds
-curl -I $SERVICE_URL/
-
-# Expected: HTTP/2 200
-
-# 7.2 Test auth redirect
-curl -I $SERVICE_URL/chat
-
-# Expected: HTTP/2 302 location: /auth/login
-
-# 7.3 Check logs for errors
-gcloud logging read \
-  "resource.type=cloud_run_revision AND resource.labels.service_name=salfagpt AND severity>=ERROR" \
-  --limit 10 \
-  --project salfagpt
-```
-
----
-
-## 🚨 Critical Rules
-
-### 1. ALWAYS Use Project: salfagpt
-
-```bash
-# ✅ CORRECT
-gcloud config set project salfagpt
-gcloud run deploy salfagpt --project salfagpt
-
-# ❌ WRONG - Don't use other projects
-gcloud config set project gen-lang-client-0986191192
-gcloud run deploy --project flow-chat
-```
-
-### 2. ALWAYS Use Service: salfagpt
-
-```bash
-# ✅ CORRECT
-gcloud run deploy salfagpt
-
-# ❌ WRONG - Different services
-gcloud run deploy flow-production
-gcloud run deploy flow-chat
-```
-
-### 3. ALWAYS Update PUBLIC_BASE_URL
-
-```bash
-# After every deployment:
-SERVICE_URL=$(gcloud run services describe salfagpt ...)
-gcloud run services update salfagpt --update-env-vars="PUBLIC_BASE_URL=$SERVICE_URL"
-```
-
-**Why:** OAuth requires correct redirect URI
-
-### 4. ALWAYS Verify Before Deployment
-
-```bash
-# Must pass:
-- git status shows "working tree clean"
-- npm run build succeeds
-- gcloud config get-value project returns "salfagpt"
+# 6. Test in browser
+# Navigate to: https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/chat
 ```
 
 ---
 
 ## 📊 Service Configuration
 
-### Current Salfacorp Production
+### Environment Variables
 
-```yaml
-Project: salfagpt
-Service: salfagpt
-Region: us-central1
-URL: https://salfagpt-3snj65wckq-uc.a.run.app
-
-Resources:
-  Memory: 2Gi
-  CPU: 2
-  Timeout: 300s
-
-Scaling:
-  Min: 1
-  Max: 10
-
-Authentication:
-  Allow Unauthenticated: Yes
+**Required for Production:**
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt
+GOOGLE_AI_API_KEY=<from-secret-manager>
+JWT_SECRET=<from-secret-manager>
+GOOGLE_CLIENT_ID=<oauth-client-id>
+GOOGLE_CLIENT_SECRET=<oauth-client-secret>
+PUBLIC_BASE_URL=https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
+NODE_ENV=production
 ```
+
+**Set Environment Variables:**
+```bash
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --update-env-vars="PUBLIC_BASE_URL=https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app,NODE_ENV=production"
+```
+
+### Service Settings
+
+**Platform:** Google Cloud Run  
+**Build Method:** Source-based (Dockerfile)  
+**Traffic:** 100% to latest revision  
+**Authentication:** Allow unauthenticated (OAuth handled internally)
+
+---
+
+## 🔐 OAuth Configuration
+
+### Authorized Redirect URIs
+
+**Production:**
+```
+https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/auth/callback
+```
+
+**Development:**
+```
+http://localhost:3000/auth/callback
+https://salfagpt-3snj65wckq-uc.a.run.app/auth/callback
+```
+
+**Configure in Google Cloud Console:**
+1. Navigate to: https://console.cloud.google.com/apis/credentials
+2. Select project: `salfagpt`
+3. Edit OAuth 2.0 Client ID
+4. Add production URL to Authorized redirect URIs
+5. Save
+
+---
+
+## 🧪 Post-Deployment Verification
+
+### Quick Health Check
+
+```bash
+# 1. Check HTTP status
+curl -I https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/
+
+# 2. Check if service is running
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --format="value(status.conditions[0].status)"
+# Should return: True
+
+# 3. Check latest revision
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --format="value(status.latestReadyRevisionName)"
+```
+
+### Full Verification Checklist
+
+- [ ] Service URL returns HTTP 200/302 (not 404/500)
+- [ ] Login page loads correctly
+- [ ] OAuth flow works
+- [ ] Admin menu displays with 4 sections
+- [ ] All icons render correctly
+- [ ] Section colors match specification
+- [ ] All modals/panels open correctly
+- [ ] No console errors in browser
 
 ---
 
 ## 🔄 Rollback Procedure
 
-If deployment breaks something:
+### If Deployment Has Issues
 
 ```bash
-# Quick rollback to previous revision
-PREV_REV=$(gcloud run revisions list \
-  --service salfagpt \
-  --region us-central1 \
+# 1. List recent revisions
+gcloud run revisions list \
+  --service cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
   --project salfagpt \
-  --format="value(name)" \
-  --limit 2 | tail -1)
+  --limit 5
 
-gcloud run services update-traffic salfagpt \
-  --to-revisions=$PREV_REV=100 \
-  --region us-central1 \
+# 2. Rollback to previous revision
+gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
+  --to-revisions=PREVIOUS_REVISION=100 \
+  --region us-east4 \
   --project salfagpt
 
-echo "✅ Rolled back to $PREV_REV"
+# Example:
+# gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
+#   --to-revisions=cr-salfagpt-ai-ft-prod-00040-abc=100 \
+#   --region us-east4 \
+#   --project salfagpt
+```
+
+---
+
+## 📝 Deployment Tracking
+
+### Current Production State
+
+**Service:** cr-salfagpt-ai-ft-prod  
+**Region:** us-east4  
+**Latest Revision:** cr-salfagpt-ai-ft-prod-00041-xgc (as of 2025-11-04)  
+**Previous Revision:** cr-salfagpt-ai-ft-prod-00040-* (rollback available)
+
+### Deployment Log
+
+**2025-11-04:**
+- Revision: cr-salfagpt-ai-ft-prod-00041-xgc
+- Changes: Admin menu reorganization (4 sections, improved icons)
+- Commit: 7b87d96
+- Build Time: ~4 minutes
+- Status: ✅ Success
+
+---
+
+## 🚨 Common Issues & Solutions
+
+### Issue 1: 404 on Root Path
+
+**Symptom:** `curl https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/` returns 404
+
+**Cause:** Astro routing - root path may not be configured
+
+**Solution:** Use proper routes:
+- Chat: `/chat`
+- Admin: `/admin`
+- Analytics: `/analytics`
+
+### Issue 2: Wrong Region Error
+
+**Symptom:** `Cannot find service [cr-salfagpt-ai-ft-prod]` when deploying
+
+**Cause:** Using wrong region (us-east1 or us-central1)
+
+**Solution:** Always use `--region us-east4`
+
+### Issue 3: OAuth Redirect Mismatch
+
+**Symptom:** OAuth error: `redirect_uri_mismatch`
+
+**Cause:** Production URL not in authorized redirect URIs
+
+**Solution:** Add `https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app/auth/callback` to OAuth settings
+
+---
+
+## 🎯 Quick Reference
+
+### Service Map
+
+| Environment | Service Name | Region | URL |
+|-------------|--------------|--------|-----|
+| **Production** | cr-salfagpt-ai-ft-prod | us-east4 | https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app |
+| Development | salfagpt | us-central1 | https://salfagpt-3snj65wckq-uc.a.run.app |
+| Local | - | - | http://localhost:3000 |
+
+### One-Line Deploy Commands
+
+```bash
+# Production (SalfaCorp)
+gcloud run deploy cr-salfagpt-ai-ft-prod --source . --region us-east4 --project salfagpt
+
+# Development
+gcloud run deploy salfagpt --source . --region us-central1 --project salfagpt
 ```
 
 ---
 
 ## 📚 Related Documentation
 
-- `deploy-full-salfacorp.md` - Complete deployment manual
-- `.env.salfacorp` - Environment variables for Salfacorp
-- `DEPLOYMENT_SUCCESS_2025-10-22.md` - Latest deployment log
+### Internal Rules
+- `.cursor/rules/deployment.mdc` - General deployment rules
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP project configuration
+- `.cursor/rules/env.mdc` - Environment variables
+
+### Deployment Guides
+- `docs/LocalToProduction.md` - Complete deployment guide
+- `DEPLOYMENT_SUCCESS_MENU_REORGANIZATION_2025-11-04.md` - Latest deployment
 
 ---
 
-## ✅ Success Message Template
+## ⚠️ Important Reminders
 
-After successful deployment, report to user:
+### ALWAYS Remember
 
+1. ✅ **Production service:** cr-salfagpt-ai-ft-prod
+2. ✅ **Production region:** us-east4 (NOT us-east1, NOT us-central1)
+3. ✅ **Project:** salfagpt
+4. ✅ **Commit first, then deploy**
+5. ✅ **Verify service URL after deployment**
+
+### NEVER
+
+1. ❌ Deploy to wrong service (salfagpt is dev, not prod)
+2. ❌ Deploy to wrong region (us-central1 is dev)
+3. ❌ Deploy without committing changes first
+4. ❌ Deploy without testing locally
+5. ❌ Deploy with uncommitted sensitive data (.env files)
+
+---
+
+## 🔧 Troubleshooting
+
+### Service Not Found
+
+```bash
+# If you get "Cannot find service" error:
+
+# 1. List all services
+gcloud run services list --project=salfagpt
+
+# 2. Check specific regions
+for region in us-east1 us-east4 us-central1 europe-west2; do
+  echo "Region: $region"
+  gcloud run services list --project=salfagpt --region=$region
+done
+
+# 3. Verify you're using correct service name
+# Production: cr-salfagpt-ai-ft-prod
+# Development: salfagpt
 ```
-✅ DEPLOYMENT EXITOSO A SALFACORP
 
-Proyecto: salfagpt
-Servicio: salfagpt
-Revisión: [REVISION_NAME]
-URL: https://salfagpt-3snj65wckq-uc.a.run.app
-Tráfico: 100%
-Status: ✅ Healthy
+### Build Failures
 
-Cambios deployados:
-- [List commits or changes]
+```bash
+# Check build logs
+gcloud builds list --project=salfagpt --limit=5
 
-Verificación:
-✅ Service responding (HTTP 200)
-✅ Auth redirect working
-✅ Environment variables configured
-✅ No critical errors in logs
+# View specific build
+gcloud builds log BUILD_ID --project=salfagpt
+```
+
+### Deployment Timeout
+
+```bash
+# Increase timeout (if needed)
+gcloud run deploy cr-salfagpt-ai-ft-prod \
+  --source . \
+  --region us-east4 \
+  --project salfagpt \
+  --timeout=300s \
+  --memory=2Gi
 ```
 
 ---
 
-## 🔍 Troubleshooting
+## 📊 Service Comparison
 
-### "Project not found"
-```bash
-# Verify project exists
-gcloud projects list | grep salfagpt
+### Production vs Development
 
-# If not in list, check access:
-gcloud projects get-iam-policy salfagpt
-```
+| Aspect | Production (cr-salfagpt-ai-ft-prod) | Development (salfagpt) |
+|--------|-------------------------------------|------------------------|
+| Region | us-east4 | us-central1 |
+| Purpose | Live user traffic | Testing/staging |
+| URL | cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app | salfagpt-3snj65wckq-uc.a.run.app |
+| Deploy Before | Production release | Testing features |
+| Rollback | Required for issues | Optional |
 
-### "Permission denied"
-```bash
-# Check your permissions
-gcloud projects get-iam-policy salfagpt \
-  --flatten="bindings[].members" \
-  --filter="bindings.members:$(gcloud config get-value account)"
-```
+---
 
-### "Service already exists"
-```bash
-# This is normal - service gets updated, not recreated
-# Deployment will create new revision automatically
+## ✅ Deployment Checklist Template
+
+Use this checklist for every production deployment:
+
+```markdown
+## Deployment Checklist - [Date]
+
+### Pre-Deployment
+- [ ] All changes committed to git
+- [ ] Changes pushed to origin/main
+- [ ] Local testing complete
+- [ ] No sensitive data in code
+- [ ] Environment variables documented
+
+### Deployment
+- [ ] Service: cr-salfagpt-ai-ft-prod
+- [ ] Region: us-east4
+- [ ] Project: salfagpt
+- [ ] Build: Successful
+- [ ] Revision: Created
+
+### Post-Deployment
+- [ ] Service URL responding
+- [ ] HTTP status acceptable (200/302)
+- [ ] Login flow works
+- [ ] Core features verified
+- [ ] No console errors
+- [ ] Performance acceptable
+
+### Rollback Plan
+- [ ] Previous revision ID noted
+- [ ] Rollback command ready
+- [ ] Monitoring active
 ```
 
 ---
 
+## 🎓 Lessons Learned
+
+### 2025-11-04: Menu Reorganization Deployment
+
+**Issue:** Initially deployed to wrong service (salfagpt) and wrong region (us-central1)
+
+**Root Cause:** 
+- Service name confusion (multiple services exist)
+- Region assumption (thought us-east1, actually us-east4)
+
+**Solution:**
+- Always verify service name: `cr-salfagpt-ai-ft-prod`
+- Always verify region: `us-east4`
+- Created this rule to document correct configuration
+
+**Prevention:**
+- This rule now documents correct service and region
+- Pre-deployment checklist includes verification steps
+- AI assistant will reference this rule for future deployments
+
+---
+
+## 🔗 Service URLs Quick Reference
+
+```bash
+# Production
+https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
+
+# Development  
+https://salfagpt-3snj65wckq-uc.a.run.app
+
+# Local
+http://localhost:3000
+```
+
+---
+
+## 📋 AI Assistant Guidelines
+
+### When User Requests Production Deployment
+
+**ALWAYS:**
+1. ✅ Verify current git status
+2. ✅ Commit changes first
+3. ✅ Push to origin/main
+4. ✅ Use service: `cr-salfagpt-ai-ft-prod`
+5. ✅ Use region: `us-east4`
+6. ✅ Use project: `salfagpt`
+7. ✅ Verify deployment success
+8. ✅ Document deployment
+
+**NEVER:**
+1. ❌ Deploy to dev service (salfagpt)
+2. ❌ Deploy to us-central1
+3. ❌ Deploy without committing
+4. ❌ Deploy with uncommitted .env changes
+5. ❌ Skip verification step
+
+---
+
+## 🎯 Summary
+
+**Production Deployment Command:**
+```bash
+gcloud run deploy cr-salfagpt-ai-ft-prod \
+  --source . \
+  --region us-east4 \
+  --project salfagpt
+```
+
+**Remember:**
+- Service: `cr-salfagpt-ai-ft-prod` (NOT salfagpt)
+- Region: `us-east4` (NOT us-east1, NOT us-central1)
+- Always commit before deploying
+- Always verify after deploying
+
+---
+
+**Last Updated:** 2025-11-04  
 **Version:** 1.0.0  
-**Last Updated:** 2025-10-22  
-**Status:** ✅ Production Ready  
-**Project:** salfagpt (Salfacorp)
+**Status:** ✅ Active  
+**Priority:** CRITICAL  
+**Always Apply:** Yes
+
+---
+
+**Remember:** Production deployments affect live users. Always verify service name and region before deploying!
