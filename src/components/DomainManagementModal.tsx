@@ -12,6 +12,7 @@ import {
   UserCog,
   FileText,
   MessageSquare,
+  Share2,
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
@@ -73,7 +74,8 @@ export default function DomainManagementModal({
     setError(null);
     
     try {
-      const response = await fetch('/api/domains');
+      // 🆕 Use stats endpoint for accurate real-time counts
+      const response = await fetch('/api/domains/stats');
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -435,7 +437,18 @@ export default function DomainManagementModal({
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Created By</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Status</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Users</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Agents</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700">
+                      <div className="flex flex-col items-center">
+                        <span>Created</span>
+                        <span className="text-xs font-normal text-slate-500">Agents</span>
+                      </div>
+                    </th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700">
+                      <div className="flex flex-col items-center">
+                        <span>Shared</span>
+                        <span className="text-xs font-normal text-slate-500">Agents</span>
+                      </div>
+                    </th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Context</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Created</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
@@ -481,21 +494,43 @@ export default function DomainManagementModal({
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="flex items-center justify-center gap-1 text-slate-600">
-                          <Users className="w-4 h-4" />
-                          {domain.userCount || 0}
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
+                          (domain as any).userCount > 0
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          <Users className="w-3.5 h-3.5" />
+                          {(domain as any).userCount || 0}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="flex items-center justify-center gap-1 text-slate-600">
-                          <MessageSquare className="w-4 h-4" />
-                          {domain.allowedAgents.length}
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
+                          (domain as any).createdAgentCount > 0
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          {(domain as any).createdAgentCount || 0}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <span className="flex items-center justify-center gap-1 text-slate-600">
-                          <FileText className="w-4 h-4" />
-                          {domain.allowedContextSources.length}
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
+                          (domain as any).sharedAgentCount > 0
+                            ? 'bg-purple-100 text-purple-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          <Share2 className="w-3.5 h-3.5" />
+                          {(domain as any).sharedAgentCount || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
+                          (domain as any).contextCount > 0
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          <FileText className="w-3.5 h-3.5" />
+                          {(domain as any).contextCount || 0}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center text-xs text-slate-600">
