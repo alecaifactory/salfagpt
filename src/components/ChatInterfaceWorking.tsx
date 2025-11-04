@@ -612,9 +612,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       if (response.ok) {
         const data = await response.json();
         
+        // Flatten all groups into a single conversation list
+        const allConversations: Conversation[] = [];
+        
         if (data.groups && data.groups.length > 0) {
-          // Flatten all groups into a single conversation list
-          const allConversations: Conversation[] = [];
           data.groups.forEach((group: any) => {
             group.conversations.forEach((conv: any) => {
               allConversations.push({
@@ -636,53 +637,60 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             });
           });
           
-          // NEW: Load shared agents
-          try {
-            console.log('🔍 Loading shared agents for userId:', userId, 'email:', userEmail);
-            // ✅ Pass userEmail for backward compatibility with both ID formats
-            const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
-            console.log('   Response status:', sharedResponse.status);
+          console.log(`✅ ${allConversations.length} conversaciones propias cargadas desde Firestore`);
+        } else {
+          console.log('ℹ️ No hay conversaciones propias guardadas');
+        }
+        
+        // ✅ ALWAYS load shared agents (even if user has no own conversations)
+        try {
+          console.log('🔍 Loading shared agents for userId:', userId, 'email:', userEmail);
+          // ✅ Pass userEmail for backward compatibility with both ID formats
+          const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
+          console.log('   Response status:', sharedResponse.status);
+          
+          if (sharedResponse.ok) {
+            const sharedData = await sharedResponse.json();
+            console.log('   Shared agents data:', sharedData);
             
-            if (sharedResponse.ok) {
-              const sharedData = await sharedResponse.json();
-              console.log('   Shared agents data:', sharedData);
-              
-              const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
-                ...conv,
-                isShared: true,
-                hasBeenRenamed: conv.hasBeenRenamed || false,
-                createdAt: new Date(conv.createdAt || Date.now()),
-                updatedAt: new Date(conv.updatedAt || Date.now()),
-                lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
-              }));
-              
-              console.log('   Processed shared agents:', sharedAgents.length);
-              sharedAgents.forEach((agent: any) => {
-                console.log('     - ', agent.title, '(id:', agent.id, ')');
-              });
-              
-              // Combine own agents with shared agents
-              setConversations([...allConversations, ...sharedAgents]);
-              console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${allConversations.length + sharedAgents.length} total`);
-            } else {
-              const errorText = await sharedResponse.text();
-              console.warn('   Shared agents API failed:', errorText);
-              setConversations(allConversations);
-            }
-          } catch (sharedError) {
-            console.error('Could not load shared agents:', sharedError);
+            const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
+              ...conv,
+              isShared: true,
+              hasBeenRenamed: conv.hasBeenRenamed || false,
+              createdAt: new Date(conv.createdAt || Date.now()),
+              updatedAt: new Date(conv.updatedAt || Date.now()),
+              lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+            }));
+            
+            console.log('   Processed shared agents:', sharedAgents.length);
+            sharedAgents.forEach((agent: any) => {
+              console.log('     - ', agent.title, '(id:', agent.id, ')');
+            });
+            
+            // Combine own agents with shared agents
+            const combinedConversations = [...allConversations, ...sharedAgents];
+            setConversations(combinedConversations);
+            console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${combinedConversations.length} total`);
+            
+            // ✅ Summary logs
+            console.log(`📋 Agentes: ${combinedConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
+            console.log(`📋 Chats: ${combinedConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+          } else {
+            const errorText = await sharedResponse.text();
+            console.warn('   Shared agents API failed:', errorText);
             setConversations(allConversations);
+            
+            // ✅ Summary logs
+            console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
+            console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
           }
+        } catch (sharedError) {
+          console.error('Could not load shared agents:', sharedError);
+          setConversations(allConversations);
           
-          // ✅ REMOVED: Don't auto-select - keep canvas clean on first load
-          // Let user choose which agent/conversation to start with
-          
-          console.log(`✅ ${allConversations.length} conversaciones cargadas desde Firestore`);
+          // ✅ Summary logs
           console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
           console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-        } else {
-          console.log('ℹ️ No hay conversaciones guardadas');
-          setConversations([]);
         }
         
         if (data.warning) {
