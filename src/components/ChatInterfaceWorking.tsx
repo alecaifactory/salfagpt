@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2 } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -4151,9 +4151,73 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             {showUserMenu && (
               <div 
                 className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
-                {/* Context Management - Superadmin Only */}
+                
+                {/* SECTION 1: Gestión de Dominios */}
                 {userEmail === 'alec@getaifactory.com' && (
                   <>
+                    <div className="px-4 py-2">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Gestión de Dominios
+                      </p>
+                    </div>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowDomainManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium">Dominios</span>
+                    </button>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowUserManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium">Usuarios</span>
+                    </button>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowDomainPromptModal(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <span className="font-medium">Prompt de Dominio</span>
+                    </button>
+                    
+                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
+                  </>
+                )}
+                
+                {/* SECTION 2: Gestión de Agentes */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <div className="px-4 py-2">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Gestión de Agentes
+                      </p>
+                    </div>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowAgentManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <MessageSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-medium">Agentes</span>
+                    </button>
+                    
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
@@ -4161,9 +4225,32 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         setShowUserMenu(false);
                       }}
                     >
-                      <Database className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      <span className="font-medium">Gestión de Contexto</span>
+                      <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-medium">Contexto</span>
                     </button>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowProviderManagement(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Boxes className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-medium">Providers</span>
+                    </button>
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowRAGConfig(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Network className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-medium">RAG</span>
+                    </button>
+                    
                     <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
@@ -4172,190 +4259,39 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 {userEmail && (userEmail === 'alec@getaifactory.com' || userEmail.includes('expert') || userEmail.includes('agent_')) && (
                   <>
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
                         setShowAgentEvaluation(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <Award className="w-5 h-5 text-slate-600" />
+                      <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                       <span className="font-medium">Evaluación Rápida</span>
                     </button>
+                    
                     <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                       onClick={() => {
                         setShowEvaluationSystem(true);
                         setShowUserMenu(false);
                       }}
                     >
-                      <TestTube className="w-5 h-5 text-blue-600" />
-                      <span className="font-medium">Sistema de Evaluaciones</span>
-                    </button>
-                    <div className="border-t border-slate-200 my-2" />
-                  </>
-                )}
-                
-                {/* Agent Management - Superadmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => {
-                        setShowAgentManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <MessageSquare className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Gestión de Agentes</span>
-                    </button>
-                    <div className="border-t border-slate-200 my-2" />
-                  </>
-                )}
-                
-                {/* User Management - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => {
-                        setShowUserManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Users className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Gestión de Usuarios</span>
-                    </button>
-                    <div className="h-px bg-slate-200 my-2" />
-                  </>
-                )}
-                
-                {/* RAG Configuration - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors rounded-lg group"
-                      onClick={() => {
-                        setShowRAGConfig(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Database className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Configuración RAG</span>
-                    </button>
-                    <div className="h-px bg-slate-200 my-2" />
-                  </>
-                )}
-
-                {/* Provider Management - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
-                      onClick={() => {
-                        setShowProviderManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <DollarSign className="w-5 h-5 text-slate-600" />
-                      <span className="font-medium">Gestión de Proveedores</span>
-                    </button>
-                    <div className="h-px bg-slate-200 my-2" />
-                  </>
-                )}
-                
-                {/* Domain Management - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowDomainManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Globe className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      <span className="font-medium">Gestión de Dominios</span>
-                    </button>
-                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* Roadmap & Backlog - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setShowRoadmap(true);
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      <div className="flex-1 text-left">
-                        <span className="font-medium">Roadmap & Backlog</span>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Kanban + Rudy AI</p>
-                      </div>
-                    </button>
-                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* Analytics - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowAnalytics(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      <span className="font-medium">Analíticas</span>
-                    </button>
-                    <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* ✅ NEW: My Feedback - FOR ALL USERS */}
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => {
-                    setShowMyFeedback(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <ListTodo className="w-5 h-5 text-violet-600" />
-                  <span className="font-medium">Mi Feedback</span>
-                </button>
-                
-                <div className="h-px bg-slate-200 dark:border-slate-600 my-2" />
-                
-                {/* Settings and Analytics - HIDDEN FOR USER ROLE */}
-                {userRole !== 'user' && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowUserSettings(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      <span className="font-medium">Configuración</span>
+                      <FlaskConical className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span className="font-medium">Evaluación Avanzada</span>
                     </button>
                     
-                    {/* ✅ NEW: Domain Prompt Button */}
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowDomainPromptModal(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="font-medium">Prompt de Dominio</span>
-                    </button>
+                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
+                  </>
+                )}
+                
+                {/* SECTION 3: Analíticas */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <>
+                    <div className="px-4 py-2">
+                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Analíticas
+                      </p>
+                    </div>
                     
                     <button
                       className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -4364,16 +4300,80 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         setShowUserMenu(false);
                       }}
                     >
-                      <BarChart3 className="w-5 h-5 text-slate-600 dark:text-slate-400" />
-                      <span className="font-medium">Analíticas SalfaGPT</span>
+                      <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <span className="font-medium">SalfaGPT</span>
                     </button>
-                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+                    
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                      onClick={() => {
+                        setShowAnalytics(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <BarChart3 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                      <span className="font-medium">Analíticas Avanzadas</span>
+                    </button>
+                    
+                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
                   </>
                 )}
                 
-                {/* Logout - ALWAYS VISIBLE */}
+                {/* SECTION 4: Producto */}
+                <div className="px-4 py-2">
+                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                    Producto
+                  </p>
+                </div>
+                
+                {/* Roadmap & Backlog - SuperAdmin Only */}
+                {userEmail === 'alec@getaifactory.com' && (
+                  <button
+                    onClick={() => {
+                      setShowRoadmap(true);
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    <div className="flex-1 text-left">
+                      <span className="font-medium">Roadmap & Backlog</span>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Kanban + Rudy AI</p>
+                    </div>
+                  </button>
+                )}
+                
+                {/* Mi Feedback - FOR ALL USERS */}
                 <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  onClick={() => {
+                    setShowMyFeedback(true);
+                    setShowUserMenu(false);
+                  }}
+                >
+                  <MessageCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <span className="font-medium">Mi Feedback</span>
+                </button>
+                
+                {/* Configuración - HIDDEN FOR USER ROLE */}
+                {userRole !== 'user' && (
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    onClick={() => {
+                      setShowUserSettings(true);
+                      setShowUserMenu(false);
+                    }}
+                  >
+                    <Settings className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    <span className="font-medium">Configuración</span>
+                  </button>
+                )}
+                
+                <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
+                
+                {/* Cerrar Sesión - ALWAYS VISIBLE */}
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   onClick={async () => {
                     try {
                       // Call server-side logout to clear session
@@ -4388,8 +4388,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     }
                   }}
                 >
-                  <LogOut className="w-4 h-4 text-slate-600" />
-                  Cerrar Sesión
+                  <LogOut className="w-5 h-5 text-red-600 dark:text-red-400" />
+                  <span className="font-medium">Cerrar Sesión</span>
                 </button>
               </div>
             )}

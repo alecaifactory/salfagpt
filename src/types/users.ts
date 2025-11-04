@@ -51,15 +51,17 @@ export interface User {
   permissions: UserPermissions;
   company: string;
   department?: string;
-  createdAt: Date;
+  createdAt: Date | string; // Accept both for API compatibility
   createdBy?: string; // NEW: Email of user who created this user
-  updatedAt: Date;
-  lastLoginAt?: Date;
+  updatedAt: Date | string; // Accept both for API compatibility
+  lastLoginAt?: Date | string | null; // Accept both for API compatibility, can be null for "never logged in"
   isActive: boolean;
   avatarUrl?: string;
   // Metadata for tracking
   agentAccessCount?: number; // Cached count of agents user has access to
   contextAccessCount?: number; // Cached count of context sources user has access to
+  ownedAgentsCount?: number; // Cached count of agents created by this user
+  sharedAgentsCount?: number; // Cached count of agents shared with this user
 }
 
 // Role-based permission presets
