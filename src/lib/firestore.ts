@@ -912,7 +912,53 @@ export async function createUser(
 ): Promise<User> {
   const now = new Date();
   
-  // ✅ Generate unique hash-based ID (permanent, independent of email)
+  // ✅ CRITICAL: Check if user already exists (from OAuth login)
+  // This enables unification: OAuth-first users can be "upgraded" by admin
+  const existingUser = await getUserByEmail(email);
+  
+  if (existingUser) {
+    // 🔄 User exists (likely created via OAuth) - UPDATE with admin-provided info
+    console.log(`🔄 User already exists (email: ${email}), updating with admin info...`);
+    
+    const updateData: any = {
+      name, // Update name
+      role: roles[0] || existingUser.role, // Update primary role
+      roles, // Update roles array
+      permissions: getMergedPermissions(roles), // Update permissions
+      company, // Update company
+      updatedAt: now,
+    };
+    
+    // Add optional fields
+    if (createdBy) {
+      updateData.createdBy = createdBy; // Track who updated (admin)
+      updateData.adminUpdatedBy = createdBy; // NEW: Track admin who managed this OAuth user
+      updateData.adminUpdatedAt = now; // NEW: Track when admin took over
+    }
+    if (department) {
+      updateData.department = department;
+    }
+    
+    await firestore.collection(COLLECTIONS.USERS).doc(existingUser.id).update(updateData);
+    
+    console.log(`✅ OAuth user upgraded by admin: ${email} (ID: ${existingUser.id})`);
+    console.log(`   Original creation: ${existingUser.createdBy || 'oauth-system'}`);
+    console.log(`   Admin update: ${createdBy || 'unknown'}`);
+    console.log(`   New roles: ${roles.join(', ')}`);
+    
+    return {
+      ...existingUser,
+      name,
+      role: roles[0] as UserRole,
+      roles,
+      permissions: getMergedPermissions(roles),
+      company,
+      department,
+      updatedAt: now,
+    };
+  }
+  
+  // ✅ User doesn't exist - create new with hash-based ID
   const userId = generateUserId(); // e.g., usr_k3n9x2m4p8q1w5z7y0
   
   const newUser: Omit<User, 'id'> = {

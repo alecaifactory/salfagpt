@@ -69,7 +69,9 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
       enabled: true,
     });
 
-    // Create/update user in Firestore first to get role
+    // Create/update user in Firestore - handles both OAuth-first and admin-created users
+    // ✅ If user doesn't exist: Creates with default role, no agents
+    // ✅ If user exists (admin-created): Updates login timestamp, preserves roles/permissions
     let firestoreUser;
     try {
       firestoreUser = await upsertUserOnLogin(userInfo.email, userInfo.name, userInfo.id);
