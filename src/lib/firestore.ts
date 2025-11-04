@@ -235,13 +235,20 @@ export interface Group {
 // - Individual users can have any level IF their role permits
 // - Users with 'user' role: max 'use'
 // - Users with 'expert'+ role: max 'admin'
+// 
+// ✅ EMAIL-BASED SHARING (2025-11-04):
+// - Assignments persist even if user is deleted/recreated
+// - Uses email as permanent identifier
+// - Hash ID as primary, email as fallback
 export interface AgentShare {
   id: string;
   agentId: string; // Conversation ID
   ownerId: string; // Original owner user ID
   sharedWith: Array<{
     type: 'user' | 'group';
-    id: string; // User ID or Group ID
+    id: string; // User ID or Group ID (hash-based)
+    email?: string; // 🆕 User email (permanent identifier, for user type only)
+    domain?: string; // 🆕 User domain (for domain-wide sharing, optional)
   }>;
   accessLevel: 'view' | 'use' | 'admin'; // Changed: 'edit' → 'use' for clarity
   createdAt: Date;
@@ -2378,7 +2385,7 @@ export async function deactivateGroup(groupId: string): Promise<void> {
 export async function shareAgent(
   agentId: string,
   ownerId: string,
-  sharedWith: Array<{ type: 'user' | 'group'; id: string }>,
+  sharedWith: Array<{ type: 'user' | 'group'; id: string; email?: string; domain?: string }>,
   accessLevel: AgentShare['accessLevel'] = 'view',
   expiresAt?: Date
 ): Promise<AgentShare> {
@@ -2393,8 +2400,31 @@ export async function shareAgent(
     );
   }
 
+  // 🆕 EMAIL-BASED SHARING: Auto-populate email for users
+  // This ensures assignments persist even if user ID changes
+  const enrichedSharedWith = await Promise.all(
+    sharedWith.map(async (target) => {
+      if (target.type === 'user' && !target.email) {
+        // Get user and add email + domain
+        const user = await getUserById(target.id);
+        if (user) {
+          const domain = user.email ? user.email.split('@')[1] : undefined;
+          console.log(`   ✅ Enriching share target with email: ${user.email}`);
+          return {
+            ...target,
+            email: user.email,      // 🆕 Add email for persistence
+            domain: domain,         // 🆕 Add domain for org-wide sharing
+          };
+        } else {
+          console.warn(`   ⚠️ User not found for ID: ${target.id}`);
+        }
+      }
+      return target;
+    })
+  );
+
   // For individual users with 'user' role, validate max access is 'use'
-  const userTargets = sharedWith.filter(t => t.type === 'user');
+  const userTargets = enrichedSharedWith.filter(t => t.type === 'user');
   if (userTargets.length > 0) {
     const users = await Promise.all(
       userTargets.map(t => getUserById(t.id))
@@ -2419,7 +2449,7 @@ export async function shareAgent(
     id: shareRef.id,
     agentId,
     ownerId,
-    sharedWith,
+    sharedWith: enrichedSharedWith, // ✅ Use enriched data with emails
     accessLevel,
     createdAt: now,
     updatedAt: now,
@@ -2429,6 +2459,7 @@ export async function shareAgent(
 
   await shareRef.set(agentShare);
   console.log(`🔗 Agent shared from ${source}:`, shareRef.id, `level: ${accessLevel}`);
+  console.log(`   📧 Email-based sharing: ${enrichedSharedWith.filter(t => t.email).length}/${enrichedSharedWith.length} targets have email`);
   return agentShare;
 }
 
@@ -2508,16 +2539,42 @@ export async function getSharedAgents(userId: string, userEmail?: string): Promi
           return false;
         }
 
-        // ✅ Match by hash-based user ID (supports pre-assignment)
+        // ✅ Enhanced matching: ID + Email + Domain fallback
         const isMatch = share.sharedWith.some(target => {
-          const userMatch = target.type === 'user' && target.id === userHashId;
-          const groupMatch = target.type === 'group' && groupIds.includes(target.id);
-          
-          if (userMatch || groupMatch) {
-            console.log('     ✅ Match found:', target);
+          // Group matching (unchanged)
+          if (target.type === 'group') {
+            const groupMatch = groupIds.includes(target.id);
+            if (groupMatch) {
+              console.log('     ✅ Match via group:', target.id);
+            }
+            return groupMatch;
           }
           
-          return userMatch || groupMatch;
+          // User matching (enhanced with email fallback)
+          if (target.type === 'user') {
+            // Primary: Match by hash ID
+            if (target.id === userHashId) {
+              console.log('     ✅ Match by hash ID:', target.id);
+              return true;
+            }
+            
+            // 🆕 Fallback 1: Match by email (if user was recreated)
+            if (target.email && userEmail && target.email === userEmail) {
+              console.log('     ✅ Match by EMAIL:', target.email, '(user ID may have changed)');
+              return true;
+            }
+            
+            // 🆕 Fallback 2: Match by domain (domain-wide sharing)
+            if (target.domain && userEmail) {
+              const currentUserDomain = userEmail.split('@')[1];
+              if (target.domain === currentUserDomain) {
+                console.log('     ✅ Match by DOMAIN:', target.domain, '(org-wide access)');
+                return true;
+              }
+            }
+          }
+          
+          return false;
         });
         
         return isMatch;
@@ -2605,11 +2662,38 @@ export async function userHasAccessToAgent(
         continue;
       }
 
-      // Check if shared with this user or their groups
-      const isSharedWithUser = share.sharedWith.some(target => 
-        (target.type === 'user' && target.id === userHashId) ||
-        (target.type === 'group' && groupIds.includes(target.id))
-      );
+      // 🆕 Enhanced matching: ID + Email + Domain fallback
+      const isSharedWithUser = share.sharedWith.some(target => {
+        // Group matching
+        if (target.type === 'group' && groupIds.includes(target.id)) {
+          return true;
+        }
+        
+        // User matching with email fallback
+        if (target.type === 'user') {
+          // Primary: Match by hash ID
+          if (target.id === userHashId) {
+            return true;
+          }
+          
+          // 🆕 Fallback 1: Match by email (if user was recreated)
+          if (target.email && userEmail && target.email === userEmail) {
+            console.log(`     ✅ Access via EMAIL match: ${target.email}`);
+            return true;
+          }
+          
+          // 🆕 Fallback 2: Match by domain (domain-wide access)
+          if (target.domain && userEmail) {
+            const currentUserDomain = userEmail.split('@')[1];
+            if (target.domain === currentUserDomain) {
+              console.log(`     ✅ Access via DOMAIN match: ${target.domain}`);
+              return true;
+            }
+          }
+        }
+        
+        return false;
+      });
 
       if (isSharedWithUser) {
         console.log(`   ✅ Access granted: ${share.accessLevel}`);
