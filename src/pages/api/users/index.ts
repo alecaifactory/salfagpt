@@ -26,7 +26,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    // Check if requester is SuperAdmin
+    // Check if requester is admin (only admins can list users)
     const requester = await getUserByEmail(requesterEmail);
     if (!requester || !requester.roles?.includes('admin')) {
       return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
@@ -35,7 +35,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     }
 
-    // Load all users
+    // Load all users (admin-only access)
     const users = await getAllUsers();
 
     return new Response(JSON.stringify({ users }), {
