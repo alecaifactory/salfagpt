@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, X, Pencil, Check, Trash2, UserCog, Upload, Download, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Plus, X, Pencil, Check, Trash2, UserCog, Upload, Download, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import type { User, UserRole } from '../types/users';
 import { ROLE_LABELS } from '../types/users';
 import { useModalClose } from '../hooks/useModalClose';
@@ -17,6 +17,7 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // 🔑 Hook para cerrar con ESC (solo cierra el panel principal, no los sub-modales)
   useModalClose(!showCreateModal && !showBulkModal, onClose);
@@ -29,13 +30,22 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   async function loadUsers() {
     try {
       setLoading(true);
-      const response = await fetch(`/api/users?requesterEmail=${encodeURIComponent(currentUserEmail)}`);
+      console.log('📊 Loading user summary (optimized)...');
+      const startTime = Date.now();
+      
+      // Use optimized endpoint that only fetches necessary data
+      const response = await fetch(`/api/users/list-summary?requesterEmail=${encodeURIComponent(currentUserEmail)}`);
+      
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+        setLastUpdated(new Date()); // ✅ Track when data was loaded
+        console.log(`✅ Loaded ${data.users?.length || 0} users in ${Date.now() - startTime}ms`);
+      } else {
+        console.error('❌ Failed to load users:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('❌ Error loading users:', error);
     } finally {
       setLoading(false);
     }
@@ -120,10 +130,13 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-2xl p-8">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <span className="text-lg text-slate-700">Cargando usuarios...</span>
+        <div className="bg-white rounded-xl shadow-2xl p-12">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <div className="text-center">
+              <p className="text-lg font-semibold text-slate-800">Cargando usuarios...</p>
+              <p className="text-sm text-slate-500 mt-1">Obteniendo datos actualizados</p>
+            </div>
           </div>
         </div>
       </div>
@@ -145,7 +158,21 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
             <Users className="w-7 h-7 text-blue-600" />
             <div>
               <h2 className="text-2xl font-bold text-slate-800">Gestión de Usuarios</h2>
-              <p className="text-sm text-slate-600">{users.length} usuarios totales</p>
+              <div className="flex items-center gap-3">
+                <p className="text-sm text-slate-600">{users.length} usuarios totales</p>
+                {lastUpdated && (
+                  <>
+                    <span className="text-slate-400">•</span>
+                    <p className="text-xs text-slate-500">
+                      Actualizado: {lastUpdated.toLocaleTimeString('es', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit'
+                      })}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <button
@@ -173,10 +200,24 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
             Crear Múltiples (CSV)
           </button>
           <button
+            onClick={loadUsers}
+            disabled={loading}
+            className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Actualizar datos"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
+          <button
             onClick={() => {
               // Export users as CSV
-              const csv = `Email,Name,Roles,Company,Department,Active,Created At\n${users.map(u => 
-                `${u.email},${u.name},"${u.roles?.join('; ')}",${u.company},${u.department || ''},${u.isActive},${u.createdAt.toISOString()}`
+              const formatDate = (date: Date | string | null | undefined) => {
+                if (!date) return '';
+                return typeof date === 'string' ? date : date.toISOString();
+              };
+              
+              const csv = `Email,Name,Roles,Company,Department,Active,Last Login,Created At\n${users.map(u => 
+                `${u.email},${u.name},"${u.roles?.join('; ')}",${u.company},${u.department || ''},${u.isActive},${formatDate(u.lastLoginAt)},${formatDate(u.createdAt)}`
               ).join('\n')}`;
               const blob = new Blob([csv], { type: 'text/csv' });
               const url = URL.createObjectURL(blob);
@@ -200,8 +241,8 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Roles</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Empresa</th>
-                <th className="px-4 py-3 text-center font-semibold text-slate-700">Agentes</th>
-                <th className="px-4 py-3 text-center font-semibold text-slate-700">Contexto</th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-700">Mis Agentes</th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-700">Agentes Compartidos</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Estado</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Último Login</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-700">Acciones</th>
@@ -259,23 +300,23 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                       </div>
                     </td>
 
-                    {/* Agents Count */}
+                    {/* Mis Agentes (owned by user) */}
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
                         className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 font-medium"
                       >
-                        {user.agentAccessCount || 0}
+                        {user.ownedAgentsCount || 0}
                       </button>
                     </td>
 
-                    {/* Context Count */}
+                    {/* Agentes Compartidos (shared with user) */}
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
-                        className="px-3 py-1 bg-green-50 text-green-700 rounded-full hover:bg-green-100 font-medium"
+                        className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full hover:bg-purple-100 font-medium"
                       >
-                        {user.contextAccessCount || 0}
+                        {user.sharedAgentsCount || 0}
                       </button>
                     </td>
 
@@ -304,15 +345,25 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                     </td>
 
                     {/* Last Login */}
-                    <td className="px-4 py-3 text-center text-xs text-slate-600">
-                      {user.lastLoginAt
-                        ? new Date(user.lastLoginAt).toLocaleDateString('es', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : 'Nunca'}
+                    <td className="px-4 py-3 text-center text-xs">
+                      {user.lastLoginAt ? (
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="font-medium text-slate-700">
+                            {new Date(user.lastLoginAt).toLocaleDateString('es', {
+                              month: 'short',
+                              day: 'numeric',
+                            })}
+                          </span>
+                          <span className="text-slate-500">
+                            {new Date(user.lastLoginAt).toLocaleTimeString('es', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 italic">Nunca</span>
+                      )}
                     </td>
 
                     {/* Actions */}
@@ -377,6 +428,7 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
             user={editingUser}
             allRoles={allRoles}
             onToggleRole={(role) => handleToggleRole(editingUser, role)}
+            onSave={loadUsers}
             onClose={() => setEditingUser(null)}
           />
         )}
@@ -499,11 +551,13 @@ function EditUserRolesModal({
   user,
   allRoles,
   onToggleRole,
+  onSave,
   onClose,
 }: {
   user: User;
   allRoles: UserRole[];
   onToggleRole: (role: UserRole) => void;
+  onSave: () => Promise<void>;
   onClose: () => void;
 }) {
   const [name, setName] = useState(user.name || '');
@@ -581,10 +635,10 @@ function EditUserRolesModal({
         throw new Error(data.error || 'Error al actualizar usuario');
       }
 
-      // Call the original onToggleRole to trigger parent refresh
-      // This is a workaround since we're replacing the roles modal
-      window.location.reload(); // Refresh to show updated data
+      // Reload users list to show updated data
+      await onSave();
       
+      // Close the modal and stay in user management
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');

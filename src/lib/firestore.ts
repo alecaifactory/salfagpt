@@ -1138,8 +1138,26 @@ export async function getUserById(userId: string): Promise<User | null> {
 export async function getAllUsers(): Promise<User[]> {
   const snapshot = await firestore.collection(COLLECTIONS.USERS).get();
   
+  // Load all conversations to calculate owned and shared agent counts
+  const conversationsSnapshot = await firestore.collection(COLLECTIONS.CONVERSATIONS).get();
+  const conversations = conversationsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    userId: doc.data().userId,
+    sharedWith: doc.data().sharedWith || [],
+  }));
+  
   return snapshot.docs.map(doc => {
     const data = doc.data();
+    const userId = doc.id;
+    
+    // Calculate owned agents (conversations created by this user)
+    const ownedAgents = conversations.filter(conv => conv.userId === userId);
+    
+    // Calculate shared agents (conversations shared with this user)
+    const sharedAgents = conversations.filter(conv => 
+      conv.userId !== userId && conv.sharedWith.includes(userId)
+    );
+    
     return {
       id: doc.id, // Email-based document ID (for Firestore lookups)
       userId: data.userId, // ✅ Google OAuth numeric ID (permanent, for sharing)
@@ -1158,6 +1176,8 @@ export async function getAllUsers(): Promise<User[]> {
       avatarUrl: data.avatarUrl,
       agentAccessCount: data.agentAccessCount,
       contextAccessCount: data.contextAccessCount,
+      ownedAgentsCount: ownedAgents.length,
+      sharedAgentsCount: sharedAgents.length,
     };
   });
 }
