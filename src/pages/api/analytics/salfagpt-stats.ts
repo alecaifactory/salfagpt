@@ -42,6 +42,7 @@ export const POST: APIRoute = async (context) => {
       previousPeriod: `${previousStartDate.toISOString()} - ${previousEndDate.toISOString()}`,
       assistantFilter: filters.assistant || 'all'
     });
+    console.log('📊 Date range in days:', Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
     // Query conversations in date range
     let conversationsQuery = firestore
@@ -62,18 +63,25 @@ export const POST: APIRoute = async (context) => {
     }
 
     const conversationsSnapshot = await conversationsQuery.get();
-    let conversations = conversationsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        userId: data.userId,
-        title: data.title,
-        agentModel: data.agentModel,
-        createdAt: data.createdAt?.toDate?.(),
-        lastMessageAt: data.lastMessageAt?.toDate?.(),
-        ...data,
-      };
-    });
+    let conversations = conversationsSnapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          userId: data.userId,
+          title: data.title,
+          agentModel: data.agentModel,
+          messageCount: data.messageCount || 0,
+          status: data.status || 'active',
+          createdAt: data.createdAt?.toDate?.(),
+          lastMessageAt: data.lastMessageAt?.toDate?.(),
+          ...data,
+        };
+      })
+      // ✅ Filter out archived conversations
+      .filter(conv => conv.status !== 'archived');
+    
+    console.log(`📊 Loaded ${conversations.length} active conversations (archived excluded)`);
     
     // ✅ Apply agent filter if specified
     if (specificAgentId) {
@@ -94,17 +102,26 @@ export const POST: APIRoute = async (context) => {
     const prevConversationsSnapshot = await prevConversationsQuery.get();
 
     // ✅ Load all users to map userId → email
+    // Support both old (Google numeric ID) and new (hash-based) user IDs
     const usersSnapshot = await firestore.collection('users').get();
     const usersMap = new Map<string, { email: string; name: string }>();
     usersSnapshot.docs.forEach(doc => {
       const data = doc.data();
-      usersMap.set(doc.id, {
+      const userInfo = {
         email: data.email || doc.id,
         name: data.name || 'Unknown'
-      });
+      };
+      
+      // Map by document ID (new hash-based IDs like usr_xxx)
+      usersMap.set(doc.id, userInfo);
+      
+      // ALSO map by googleUserId (old numeric IDs like 114671162830729001607)
+      if (data.googleUserId) {
+        usersMap.set(data.googleUserId, userInfo);
+      }
     });
 
-    console.log(`✅ Loaded ${usersMap.size} users for email mapping`);
+    console.log(`✅ Loaded ${usersMap.size} user mappings (including googleUserId fallbacks)`);
 
     // Get all messages for these conversations
     const conversationIds = conversations.map(c => c.id);
@@ -161,43 +178,9 @@ export const POST: APIRoute = async (context) => {
       ? messagesWithResponseTime.reduce((sum, m) => sum + m.responseTime, 0) / messagesWithResponseTime.length / 1000
       : 0;
 
-    // RF-03: Build KPIs
+    // RF-03: Build KPIs (will be calculated later after domain processing)
     const totalMessages = messagesData.length;
     const totalConversations = conversations.length;
-    
-    const kpis = [
-      {
-        label: 'Total de Mensajes',
-        value: totalMessages,
-        change: prevMessagesCount > 0 
-          ? Math.round(((totalMessages - prevMessagesCount) / prevMessagesCount) * 100)
-          : 0,
-        icon: 'MessageSquare'
-      },
-      {
-        label: 'Total de Conversaciones',
-        value: totalConversations,
-        change: prevConversationsSnapshot.size > 0
-          ? Math.round(((totalConversations - prevConversationsSnapshot.size) / prevConversationsSnapshot.size) * 100)
-          : 0,
-        icon: 'Activity'
-      },
-      {
-        label: 'Usuarios Activos',
-        value: activeUsersCount,
-        change: prevActiveUsersCount > 0
-          ? Math.round(((activeUsersCount - prevActiveUsersCount) / prevActiveUsersCount) * 100)
-          : 0,
-        icon: 'UsersIcon'
-      },
-      {
-        label: 'Tiempo de Respuesta Prom.',
-        value: avgResponseTime,
-        change: 0, // Would need historical data
-        icon: 'Clock',
-        formatValue: (val: number) => `${val.toFixed(2)}s`
-      }
-    ];
 
     // RF-04.1: Conversations over time (by day)
     // Generate complete date range from startDate to endDate
@@ -212,20 +195,32 @@ export const POST: APIRoute = async (context) => {
     }
     
     // Count conversations by day
+    let validConversations = 0;
+    let invalidConversations = 0;
+    
     conversations.forEach(conv => {
-      if (!conv.lastMessageAt) return;
+      if (!conv.lastMessageAt) {
+        invalidConversations++;
+        return;
+      }
       
       const convDate = conv.lastMessageAt instanceof Date 
         ? conv.lastMessageAt 
         : new Date(conv.lastMessageAt);
       
-      if (isNaN(convDate.getTime())) return; // Skip invalid dates
+      if (isNaN(convDate.getTime())) {
+        invalidConversations++;
+        return;
+      }
       
       const dateKey = convDate.toISOString().split('T')[0];
       if (conversationsByDay.has(dateKey)) {
         conversationsByDay.set(dateKey, (conversationsByDay.get(dateKey) || 0) + 1);
+        validConversations++;
       }
     });
+    
+    console.log(`📊 Conversation date processing: ${validConversations} valid, ${invalidConversations} invalid/out-of-range`);
 
     // Build arrays for chart
     const sortedDays = Array.from(conversationsByDay.keys()).sort();
@@ -243,36 +238,53 @@ export const POST: APIRoute = async (context) => {
 
     console.log('📊 Conversations by day:', {
       totalDays: sortedDays.length,
-      dateRange: `${sortedDays[0]} to ${sortedDays[sortedDays.length - 1]}`,
-      totalConversations: conversationsOverTime.values.reduce((a, b) => a + b, 0)
+      dateRange: sortedDays.length > 0 ? `${sortedDays[0]} to ${sortedDays[sortedDays.length - 1]}` : 'No dates',
+      totalConversations: conversationsOverTime.values.reduce((a, b) => a + b, 0),
+      sampleDates: sortedDays.slice(0, 5),
+      sampleCounts: sortedDays.slice(0, 5).map(d => conversationsByDay.get(d))
     });
 
-    // RF-04.2: Messages by Assistant (Agent)
-    // Count messages per agent (conversation)
-    const messagesByAgent = messagesData.reduce((acc, msg) => {
-      const conv = conversations.find(c => c.id === msg.conversationId);
-      if (!conv) return acc;
-      
-      // Use conversation title as agent name
+    // RF-04.2: Conversations by Active Agent
+    // Group conversations by agent title (each unique agent/conversation is a separate entity)
+    const conversationsByAgent = conversations.reduce((acc, conv) => {
+      // Use conversation title as agent identifier
       const agentName = conv.title || 'Sin nombre';
-      acc[agentName] = (acc[agentName] || 0) + 1;
+      if (!acc[agentName]) {
+        acc[agentName] = {
+          count: 0,
+          messages: 0,
+          lastActive: conv.lastMessageAt
+        };
+      }
+      acc[agentName].count += 1;
+      acc[agentName].messages += conv.messageCount || 0;
+      
+      // Track most recent activity
+      if (conv.lastMessageAt && conv.lastMessageAt > acc[agentName].lastActive) {
+        acc[agentName].lastActive = conv.lastMessageAt;
+      }
+      
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { count: number; messages: number; lastActive: Date }>);
 
-    // Sort by message count and take top 10 agents
-    const sortedAgents = Object.entries(messagesByAgent)
-      .sort(([, a], [, b]) => b - a)
+    // Sort by conversation count (number of times this agent was used)
+    const sortedAgents = Object.entries(conversationsByAgent)
+      .sort(([, a], [, b]) => b.count - a.count)
       .slice(0, 10);
 
     const messagesByAssistant = {
-      labels: sortedAgents.map(([name]) => name),
-      values: sortedAgents.map(([, count]) => count)
+      labels: sortedAgents.map(([name]) => {
+        // Truncate long agent names
+        return name.length > 40 ? name.substring(0, 37) + '...' : name;
+      }),
+      values: sortedAgents.map(([, data]) => data.count)
     };
 
-    console.log('📊 Messages by agent (top 10):', {
-      totalAgents: Object.keys(messagesByAgent).length,
+    console.log('📊 Conversations by agent (top 10):', {
+      totalUniqueAgents: Object.keys(conversationsByAgent).length,
       topAgent: sortedAgents[0]?.[0],
-      topAgentMessages: sortedAgents[0]?.[1]
+      topAgentConversations: sortedAgents[0]?.[1]?.count,
+      topAgentTotalMessages: sortedAgents[0]?.[1]?.messages
     });
 
     // RF-04.3: Messages by Hour
@@ -341,9 +353,12 @@ export const POST: APIRoute = async (context) => {
     const domains = Array.from(uniqueUserIds)
       .map(uid => {
         // ✅ Extract domain from real email in users collection
+        // Supports both old (Google numeric ID) and new (hash-based) user IDs
         const userInfo = usersMap.get(uid);
+        
         if (userInfo?.email && userInfo.email.includes('@')) {
-          return '@' + userInfo.email.split('@')[1];
+          const domain = userInfo.email.split('@')[1];
+          return '@' + domain;
         }
         return 'other';
       });
@@ -357,6 +372,50 @@ export const POST: APIRoute = async (context) => {
       labels: Object.keys(domainCounts),
       values: Object.values(domainCounts)
     };
+    
+    // Calculate unique domains count (excluding 'other')
+    const uniqueDomainsCount = Object.keys(domainCounts).filter(d => d !== 'other').length;
+    
+    // RF-03: Build KPIs (now that we have all data including domains)
+    const kpis = [
+      {
+        label: 'Total de Mensajes',
+        value: totalMessages,
+        change: prevMessagesCount > 0 
+          ? Math.round(((totalMessages - prevMessagesCount) / prevMessagesCount) * 100)
+          : 0,
+        icon: 'MessageSquare'
+      },
+      {
+        label: 'Total de Conversaciones',
+        value: totalConversations,
+        change: prevConversationsSnapshot.size > 0
+          ? Math.round(((totalConversations - prevConversationsSnapshot.size) / prevConversationsSnapshot.size) * 100)
+          : 0,
+        icon: 'Activity'
+      },
+      {
+        label: 'Usuarios Activos',
+        value: activeUsersCount,
+        change: prevActiveUsersCount > 0
+          ? Math.round(((activeUsersCount - prevActiveUsersCount) / prevActiveUsersCount) * 100)
+          : 0,
+        icon: 'Users'
+      },
+      {
+        label: 'Dominios Activos',
+        value: uniqueDomainsCount,
+        change: 0, // Would need previous period domain data
+        icon: 'Globe'
+      },
+      {
+        label: 'Tiempo de Respuesta Prom.',
+        value: avgResponseTime,
+        change: 0, // Would need historical data
+        icon: 'Clock',
+        formatValue: (val: number) => `${val.toFixed(2)}s`
+      }
+    ];
 
     // ✅ NEW: Get effectiveness stats from message_ratings collection
     const effectivenessStats = await getEffectivenessStats(
