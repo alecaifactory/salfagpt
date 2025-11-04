@@ -154,7 +154,6 @@ function getAgentCode(agentTitle: string | undefined): string | null {
 function getSampleQuestions(agentCode: string | null): string[] {
   if (!agentCode) return [];
   const questions = AGENT_SAMPLE_QUESTIONS[agentCode] || [];
-  console.log(`💡 Sample questions for agent code ${agentCode}:`, questions.length);
   return questions;
 }
 
@@ -5525,7 +5524,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               const parentAgent = getParentAgent();
               const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
               const agentCode = getAgentCode(agentToUse?.title);
-              console.log(`🎯 Sample Questions Debug - Title: "${agentToUse?.title}" → Code: ${agentCode}`);
               const sampleQuestions = getSampleQuestions(agentCode);
               
               // Only show if agent has sample questions and messages is empty or minimal
