@@ -170,6 +170,87 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
   }
 };
 
+// PATCH /api/domains/[id] - Update domain name and/or ID (SuperAdmin only)
+export const PATCH: APIRoute = async ({ params, request, cookies }) => {
+  try {
+    // Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Please login' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify SuperAdmin email
+    if (!SUPERADMIN_EMAILS.includes(session.email?.toLowerCase())) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { id } = params;
+    if (!id) {
+      return new Response(
+        JSON.stringify({ error: 'Domain ID is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body = await request.json();
+    const { name, domainId } = body;
+
+    // Validate required fields
+    if (!name && !domainId) {
+      return new Response(
+        JSON.stringify({ error: 'At least one field (name or domainId) is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const updates: any = {};
+    if (name) updates.name = name;
+    
+    // If domainId is changing, we need to:
+    // 1. Create new domain with new ID
+    // 2. Copy all data
+    // 3. Delete old domain
+    if (domainId && domainId !== id) {
+      // TODO: Implement domain ID migration
+      // For now, just update the name
+      console.warn('⚠️ Domain ID change requested but not fully implemented. Only updating name.');
+      
+      if (name) {
+        await updateDomain(id, { name });
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'Domain name updated. Domain ID changes require manual migration.',
+          warning: 'Domain ID was not changed. Contact system administrator for domain ID migration.'
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Simple name update
+    await updateDomain(id, updates);
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Domain updated successfully' }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('Error updating domain:', error);
+    return new Response(
+      JSON.stringify({ error: error.message || 'Failed to update domain' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+};
+
 // DELETE /api/domains/[id] - Delete domain (SuperAdmin only)
 export const DELETE: APIRoute = async ({ params, cookies }) => {
   try {

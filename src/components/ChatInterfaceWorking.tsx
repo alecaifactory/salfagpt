@@ -3394,7 +3394,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 <Bot className="w-4 h-4" />
                 <span>Agentes</span>
                 <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
-                  {conversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}
+                  {conversations.filter(c => 
+                    (c.isAgent === true || (c.isAgent === undefined && !c.agentId)) && 
+                    c.status !== 'archived'
+                  ).length}
                 </span>
               </div>
             </button>

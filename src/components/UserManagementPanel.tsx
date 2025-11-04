@@ -18,6 +18,9 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  // 🆕 Load active domains for domain column
+  const [activeDomains, setActiveDomains] = useState<Array<{ id: string; name: string }>>([]);
 
   // 🔑 Hook para cerrar con ESC (solo cierra el panel principal, no los sub-modales)
   useModalClose(!showCreateModal && !showBulkModal, onClose);
@@ -25,7 +28,21 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
   // Load all users
   useEffect(() => {
     loadUsers();
+    loadActiveDomains();
   }, []);
+  
+  // Load active domains
+  async function loadActiveDomains() {
+    try {
+      const response = await fetch('/api/domains?activeOnly=true');
+      if (response.ok) {
+        const data = await response.json();
+        setActiveDomains(data.domains || []);
+      }
+    } catch (err) {
+      console.error('Error loading domains:', err);
+    }
+  }
 
   async function loadUsers() {
     try {
@@ -41,6 +58,15 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
         setUsers(data.users || []);
         setLastUpdated(new Date()); // ✅ Track when data was loaded
         console.log(`✅ Loaded ${data.users?.length || 0} users in ${Date.now() - startTime}ms`);
+        
+        // Debug: Show alec's data specifically
+        const alecUser = data.users?.find((u: any) => u.email === 'alec@getaifactory.com');
+        if (alecUser) {
+          console.log('🔍 Alec user data loaded:');
+          console.log('   ownedAgentsCount:', alecUser.ownedAgentsCount);
+          console.log('   sharedWithUserCount:', alecUser.sharedWithUserCount);
+          console.log('   sharedByUserCount:', alecUser.sharedByUserCount);
+        }
       } else {
         console.error('❌ Failed to load users:', response.status, response.statusText);
       }
@@ -241,8 +267,20 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Roles</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Empresa</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Dominio</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Mis Agentes</th>
-                <th className="px-4 py-3 text-center font-semibold text-slate-700">Agentes Compartidos</th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-700">
+                  <div className="flex flex-col items-center">
+                    <span>Agentes Compartidos</span>
+                    <span className="text-xs font-normal text-slate-500">con Usuario</span>
+                  </div>
+                </th>
+                <th className="px-4 py-3 text-center font-semibold text-slate-700">
+                  <div className="flex flex-col items-center">
+                    <span>Agentes Compartidos</span>
+                    <span className="text-xs font-normal text-slate-500">por Usuario</span>
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Estado</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Último Login</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-700">Acciones</th>
@@ -300,6 +338,24 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                       </div>
                     </td>
 
+                    {/* Dominio */}
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const emailDomain = user.email.split('@')[1]?.toLowerCase() || '';
+                        const domain = activeDomains.find(d => d.id.toLowerCase() === emailDomain);
+                        
+                        return domain ? (
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                            {emailDomain}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded text-xs">
+                            Sin asignar
+                          </span>
+                        );
+                      })()}
+                    </td>
+
                     {/* Mis Agentes (owned by user) */}
                     <td className="px-4 py-3 text-center">
                       <button
@@ -310,13 +366,23 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                       </button>
                     </td>
 
-                    {/* Agentes Compartidos (shared with user) */}
+                    {/* Agentes Compartidos con Usuario (received) */}
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
                         className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full hover:bg-purple-100 font-medium"
                       >
-                        {user.sharedAgentsCount || 0}
+                        {user.sharedWithUserCount || 0}
+                      </button>
+                    </td>
+
+                    {/* Agentes Compartidos por Usuario (sent/shared by user) */}
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                        className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 font-medium"
+                      >
+                        {user.sharedByUserCount || 0}
                       </button>
                     </td>
 
