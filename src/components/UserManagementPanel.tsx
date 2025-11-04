@@ -494,7 +494,7 @@ function UserDetailsExpanded({ user }: { user: User }) {
   );
 }
 
-// Edit User Roles Modal
+// 🆕 Comprehensive Edit User Modal - Allows editing all user properties
 function EditUserRolesModal({
   user,
   allRoles,
@@ -506,64 +506,256 @@ function EditUserRolesModal({
   onToggleRole: (role: UserRole) => void;
   onClose: () => void;
 }) {
-  const currentRoles = user.roles || [user.role];
+  const [name, setName] = useState(user.name || '');
+  const [email, setEmail] = useState(user.email || '');
+  const [company, setCompany] = useState(user.company || '');
+  const [department, setDepartment] = useState(user.department || '');
+  const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(user.roles || [user.role]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Load active domains for company dropdown
+  const [activeDomains, setActiveDomains] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingDomains, setLoadingDomains] = useState(true);
+  
+  useEffect(() => {
+    async function loadActiveDomains() {
+      try {
+        const response = await fetch('/api/domains?activeOnly=true');
+        if (response.ok) {
+          const data = await response.json();
+          setActiveDomains(data.domains || []);
+        }
+      } catch (err) {
+        console.error('Error loading domains:', err);
+      } finally {
+        setLoadingDomains(false);
+      }
+    }
+    
+    loadActiveDomains();
+  }, []);
+
+  async function handleSave() {
+    if (!email || !name || !company) {
+      setError('Email, nombre y empresa son requeridos');
+      return;
+    }
+
+    // Validate email domain matches an active domain
+    const emailDomain = email.split('@')[1]?.toLowerCase();
+    if (!emailDomain) {
+      setError('Email inválido - debe contener @dominio');
+      return;
+    }
+    
+    const isActiveDomain = activeDomains.some(d => d.id.toLowerCase() === emailDomain);
+    if (!isActiveDomain) {
+      setError(`El dominio "${emailDomain}" no está activo. El email debe pertenecer a un dominio activo.`);
+      return;
+    }
+
+    if (selectedRoles.length === 0) {
+      setError('El usuario debe tener al menos un rol');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          name,
+          company,
+          department: department || undefined,
+          roles: selectedRoles,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Error al actualizar usuario');
+      }
+
+      // Call the original onToggleRole to trigger parent refresh
+      // This is a workaround since we're replacing the roles modal
+      window.location.reload(); // Refresh to show updated data
+      
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function toggleRole(role: UserRole) {
+    if (selectedRoles.includes(role)) {
+      const newRoles = selectedRoles.filter(r => r !== role);
+      if (newRoles.length > 0) {
+        setSelectedRoles(newRoles);
+      }
+    } else {
+      setSelectedRoles([...selectedRoles, role]);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-[60] bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
-            <h3 className="text-xl font-bold text-slate-800">Editar Roles</h3>
-            <p className="text-sm text-slate-600 mt-1">{user.name} ({user.email})</p>
+            <h3 className="text-xl font-bold text-slate-800">Editar Usuario</h3>
+            <p className="text-sm text-slate-600 mt-1">Modificar propiedades y roles del usuario</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-6">
-          <p className="text-sm text-slate-600 mb-4">
-            Selecciona uno o más roles para este usuario. Los permisos se combinan.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            {allRoles.map(role => (
-              <label
-                key={role}
-                className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
-                  currentRoles.includes(role)
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={currentRoles.includes(role)}
-                  onChange={() => onToggleRole(role)}
-                  className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <p className="font-medium text-slate-800 text-sm">{ROLE_LABELS[role]}</p>
-                  <p className="text-xs text-slate-500">{role}</p>
-                </div>
-              </label>
-            ))}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Email <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="usuario@empresa.com"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              El dominio del email debe coincidir con un dominio activo
+            </p>
           </div>
 
-          <div className="mt-6 flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Nombre <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre completo"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Company - Domain Dropdown */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Empresa <span className="text-red-600">*</span>
+            </label>
+            {loadingDomains ? (
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                Cargando dominios...
+              </div>
+            ) : activeDomains.length === 0 ? (
+              <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700 text-sm">
+                ⚠️ No hay dominios activos configurados.
+              </div>
+            ) : (
+              <select
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Selecciona un dominio...</option>
+                {activeDomains.map(domain => (
+                  <option key={domain.id} value={domain.name}>
+                    {domain.name} ({domain.id})
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              Solo se muestran dominios activos
+            </p>
+          </div>
+
+          {/* Department */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Departamento</label>
+            <input
+              type="text"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              placeholder="Departamento (opcional)"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Roles */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Roles <span className="text-red-600">*</span>
+            </label>
+            <p className="text-sm text-slate-600 mb-3">
+              Selecciona uno o más roles. Los permisos se combinan.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto p-2">
+              {allRoles.map(role => (
+                <label
+                  key={role}
+                  className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                    selectedRoles.includes(role)
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedRoles.includes(role)}
+                    onChange={() => toggleRole(role)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-800 text-sm">{ROLE_LABELS[role]}</p>
+                    <p className="text-xs text-slate-500">{role}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
             <p className="text-xs text-blue-800">
-              El usuario tendrá la unión de todos los permisos de los roles seleccionados.
+              Cambiar el email actualizará el dominio asignado automáticamente. El dominio se extrae del email.
             </p>
           </div>
         </div>
 
-        <div className="p-6 border-t border-slate-200 flex justify-end">
+        <div className="p-6 border-t border-slate-200 flex justify-between">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
           >
-            Cerrar
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-slate-300 flex items-center gap-2"
+          >
+            {saving && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+            {saving ? 'Guardando...' : 'Guardar Cambios'}
           </button>
         </div>
       </div>

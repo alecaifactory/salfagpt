@@ -1,0 +1,100 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+📊 Domain Verification Reports
+
+====================================================================================================
+
+📋 REPORT 1: ACTIVE DOMAINS
+
+====================================================================================================
+Total Active Domains: 15
+
+| # | Domain | Name | Created By | Created Date | Users Count |
+|---|--------|------|------------|--------------|-------------|
+| 1 | duocuc.cl | DuocUC | admin-script | 11/04/2025 | 1 |
+| 2 | fegrande.cl | FE Grande | admin-script | 11/04/2025 | 0 |
+| 3 | geovita.cl | Geovita | admin-script | 11/04/2025 | 0 |
+| 4 | getaifactory.com | GetAI Factory | admin-script | 11/04/2025 | 1 |
+| 5 | iaconcagua.com | IA Concagua | admin-script | 11/04/2025 | 8 |
+| 6 | inoval.cl | Inoval | admin-script | 11/04/2025 | 0 |
+| 7 | maqsa.cl | Maqsa | admin-script | 11/04/2025 | 11 |
+| 8 | novatec.cl | Novatec | admin-script | 11/04/2025 | 2 |
+| 9 | salfacloud.cl | Salfa Cloud | admin-script | 11/04/2025 | 1 |
+| 10 | salfacorp.com | Salfacorp | admin-script | 11/04/2025 | 0 |
+| 11 | salfagestion.cl | Salfa Gestion | admin-script | 11/04/2025 | 3 |
+| 12 | salfamantenciones.cl | Salfa Mantenciones | admin-script | 11/04/2025 | 0 |
+| 13 | salfamontajes.com | Salfa Montajes | admin-script | 11/04/2025 | 1 |
+| 14 | salfaustral.cl | Salfa Austral | admin-script | 11/04/2025 | 0 |
+| 15 | tecsa.cl | Tecsa | admin-script | 11/04/2025 | 0 |
+
+
+📋 REPORT 2: USER-DOMAIN ASSIGNMENTS
+
+====================================================================================================
+Total Users: 28
+
+| # | Email | Name | Role | Domain | Domain Status |
+|---|-------|------|------|--------|---------------|
+| 1 | seb.orellanac@duocuc.cl | SEBASTIAN IGNACIO ORELLANA CORVALAN | user | duocuc.cl | ✅ Active |
+| 2 | alec@getaifactory.com | Alec Dickinson | admin | getaifactory.com | ✅ Active |
+| 3 | afmanriquez@iaconcagua.com | ALVARO FELIPE MANRIQUEZ JIMENEZ | user | iaconcagua.com | ✅ Active |
+| 4 | cquijadam@iaconcagua.com | CHRISTIAN QUIJADA MARTINEZ | user | iaconcagua.com | ✅ Active |
+| 5 | ireygadas@iaconcagua.com | IRIS ANDREA REYGADAS ARIAS | user | iaconcagua.com | ✅ Active |
+| 6 | jmancilla@iaconcagua.com | JOSE LUIS MANCILLA COFRE | user | iaconcagua.com | ✅ Active |
+| 7 | jriverof@iaconcagua.com | JULIO IGNACIO RIVERO FIGUEROA | user | iaconcagua.com | ✅ Active |
+| 8 | jriverof@iaconcagua.com | JULIO IGNACIO RIVERO FIGUEROA | user | iaconcagua.com | ✅ Active |
+| 9 | mallende@iaconcagua.com | MARIA PAZ ALLENDE BARRAZA | user | iaconcagua.com | ✅ Active |
+| 10 | recontreras@iaconcagua.com | RAFAEL ESTEBAN CONTRERAS | user | iaconcagua.com | ✅ Active |
+| 11 | abhernandez@maqsa.cl | ALEJANDRO HERNANDEZ QUEZADA | user | maqsa.cl | ✅ Active |
+| 12 | cvillalon@maqsa.cl | CONSTANZA CATALINA VILLALON GUZMAN | user | maqsa.cl | ✅ Active |
+| 13 | iojedaa@maqsa.cl | INGRID OJEDA ALVARADO | user | maqsa.cl | ✅ Active |
+| 14 | IOJEDAA@maqsa.cl | INGRID OJEDA ALVARADO | user | maqsa.cl | ✅ Active |
+| 15 | jefarias@maqsa.cl | JONATHAN EDUARDO FARIAS SANCHEZ | user | maqsa.cl | ✅ Active |
+| 16 | msgarcia@maqsa.cl | MAURICIO SEBASTIAN GARCIA RIVEROS | user | maqsa.cl | ✅ Active |
+| 17 | ojrodriguez@maqsa.cl | ORLANDO JOSE RODRIGUEZ TRAVIEZO | user | maqsa.cl | ✅ Active |
+| 18 | paovalle@maqsa.cl | PAULA ANDREA OVALLE URRUTIA | user | maqsa.cl | ✅ Active |
+| 19 | SALEGRIA@maqsa.cl | Sebastian ALEGRIA LEIVA | user | maqsa.cl | ✅ Active |
+| 20 | vaaravena@maqsa.cl | VALERIA ALEJANDRA ARAVENA BARRA | user | maqsa.cl | ✅ Active |
+| 21 | vclarke@maqsa.cl | VClarke | user | maqsa.cl | ✅ Active |
+| 22 | dortega@novatec.cl | DANIEL ADOLFO ORTEGA VIDELA | user | novatec.cl | ✅ Active |
+| 23 | gfalvarez@novatec.cl | GONZALO FERNANDO ALVAREZ GONZALEZ | user | novatec.cl | ✅ Active |
+| 24 | alec@salfacloud.cl | Alejandro Tomás Dickinson Rosso | user | salfacloud.cl | ✅ Active |
+| 25 | fdiazt@salfagestion.cl | FRANCIS ANAIS DIAZ TOBAR | user | salfagestion.cl | ✅ Active |
+| 26 | nfarias@salfagestion.cl | NENETT MAURICIO FARIAS MOORE | user | salfagestion.cl | ✅ Active |
+| 27 | sorellanac@salfagestion.cl | Sebastian Orellana | admin | salfagestion.cl | ✅ Active |
+| 28 | hcontrerasp@salfamontajes.com | HERNAN HUMBERTO CONTRERAS PEÑA | user | salfamontajes.com | ✅ Active |
+
+
+📋 REPORT 3: DOMAIN STATISTICS
+
+====================================================================================================
+| Domain | Name | Status | User Count | Users |
+|--------|------|--------|------------|-------|
+| maqsa.cl | Maqsa | ✅ Active | 11 | abhernandez@maqsa.cl, cvillalon@maqsa.cl, iojedaa@maqsa.cl +8 more |
+| iaconcagua.com | IA Concagua | ✅ Active | 8 | afmanriquez@iaconcagua.com, cquijadam@iaconcagua.com, ireygadas@iaconcagua.com +5 more |
+| salfagestion.cl | Salfa Gestion | ✅ Active | 3 | fdiazt@salfagestion.cl, nfarias@salfagestion.cl, sorellanac@salfagestion.cl |
+| novatec.cl | Novatec | ✅ Active | 2 | dortega@novatec.cl, gfalvarez@novatec.cl |
+| duocuc.cl | DuocUC | ✅ Active | 1 | seb.orellanac@duocuc.cl |
+| getaifactory.com | GetAI Factory | ✅ Active | 1 | alec@getaifactory.com |
+| salfacloud.cl | Salfa Cloud | ✅ Active | 1 | alec@salfacloud.cl |
+| salfamontajes.com | Salfa Montajes | ✅ Active | 1 | hcontrerasp@salfamontajes.com |
+
+
+📋 REPORT 4: POTENTIAL ISSUES
+
+====================================================================================================
+✅ No issues found - all users have active domains
+
+⚠️  Duplicate user emails found: 2
+
+   - jriverof@iaconcagua.com (2 accounts)
+   - iojedaa@maqsa.cl (2 accounts)
+
+====================================================================================================
