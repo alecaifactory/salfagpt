@@ -81,6 +81,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     let ragUsed = false;
     let ragStats = null;
     let ragHadFallback = false;
+    let ragResults: any[] = []; // ✅ Store RAG results for building references
     
     // RAG configuration (optimized for technical documents like SSOMA)
     const ragTopK = body.ragTopK || 10;
@@ -107,6 +108,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           
           if (searchResult.results.length > 0) {
             // RAG search succeeded - use relevant chunks only
+            ragResults = searchResult.results; // ✅ Store for building references
             additionalContext = buildRAGContext(searchResult.results);
             ragUsed = true;
             ragStats = searchResult.stats;
@@ -248,7 +250,31 @@ export const POST: APIRoute = async ({ params, request }) => {
       temperature: 0.7,
     });
 
-    // Enhance references with source metadata
+    // ✅ Build references from RAG results (if available)
+    let references: any[] = [];
+    
+    if (ragUsed && ragResults.length > 0) {
+      // Build references from actual RAG search results
+      references = ragResults.map((result: any, index: number) => ({
+        id: index + 1,
+        sourceId: result.sourceId,
+        sourceName: result.sourceName,
+        chunkIndex: result.chunkIndex,
+        similarity: result.similarity,
+        snippet: result.text?.substring(0, 200) || '', // First 200 chars as snippet
+        fullText: result.text, // Full chunk text
+        metadata: {
+          isRAGChunk: true,
+          startPage: result.metadata?.startPage,
+          endPage: result.metadata?.endPage,
+          tokenCount: result.tokenCount,
+        }
+      }));
+      
+      console.log(`📚 Built ${references.length} references from RAG results`);
+    }
+    
+    // Enhance references with source metadata (fallback if no RAG)
     const enhancedReferences = aiResponse.references?.map(ref => {
       // Try to find the source this reference came from
       const matchingSource = contextSources?.find((source: any) => 
@@ -260,16 +286,17 @@ export const POST: APIRoute = async ({ params, request }) => {
         sourceId: matchingSource?.id || '',
         sourceName: matchingSource?.name || 'Documento de contexto',
       };
-    });
+    }) || references; // Use RAG-built references if no AI-generated references
 
-    // Save assistant message
+    // Save assistant message with references
     const assistantMessage = await addMessage(
       conversationId,
       userId,
       'assistant',
       { type: 'text', text: aiResponse.content.text || String(aiResponse.content) },
       aiResponse.tokenCount,
-      aiResponse.contextSections
+      aiResponse.contextSections,
+      enhancedReferences // ✅ Pass references to be saved in Firestore
     );
 
     // Update context window usage
