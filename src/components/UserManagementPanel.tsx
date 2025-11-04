@@ -588,9 +588,32 @@ function CreateUserModal({
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(['user']);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // 🆕 Load active domains for dropdown
+  const [activeDomains, setActiveDomains] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingDomains, setLoadingDomains] = useState(true);
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(true, onClose);
+  
+  // 🆕 Load active domains on mount
+  useEffect(() => {
+    async function loadActiveDomains() {
+      try {
+        const response = await fetch('/api/domains?activeOnly=true');
+        if (response.ok) {
+          const data = await response.json();
+          setActiveDomains(data.domains || []);
+        }
+      } catch (err) {
+        console.error('Error loading domains:', err);
+      } finally {
+        setLoadingDomains(false);
+      }
+    }
+    
+    loadActiveDomains();
+  }, []);
 
   const allRoles: UserRole[] = [
     'admin',
@@ -611,6 +634,19 @@ function CreateUserModal({
   async function handleCreate() {
     if (!email || !name || !company) {
       setError('Email, nombre y empresa son requeridos');
+      return;
+    }
+
+    // 🆕 Validate email domain matches an active domain
+    const emailDomain = email.split('@')[1]?.toLowerCase();
+    if (!emailDomain) {
+      setError('Email inválido - debe contener @dominio');
+      return;
+    }
+    
+    const isActiveDomain = activeDomains.some(d => d.id.toLowerCase() === emailDomain);
+    if (!isActiveDomain) {
+      setError(`El dominio "${emailDomain}" no está activo. Selecciona una empresa con dominio activo o contacta al administrador para habilitar este dominio.`);
       return;
     }
 
@@ -706,18 +742,37 @@ function CreateUserModal({
             />
           </div>
 
-          {/* Company */}
+          {/* Company - 🆕 Domain Dropdown */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
               Empresa <span className="text-red-600">*</span>
             </label>
-            <input
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="Nombre de la empresa"
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+            {loadingDomains ? (
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                Cargando dominios...
+              </div>
+            ) : activeDomains.length === 0 ? (
+              <div className="w-full px-4 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700 text-sm">
+                ⚠️ No hay dominios activos configurados. Contacta al administrador.
+              </div>
+            ) : (
+              <select
+                value={company}
+                onChange={(e) => setCompany(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Selecciona un dominio...</option>
+                {activeDomains.map(domain => (
+                  <option key={domain.id} value={domain.name}>
+                    {domain.name} ({domain.id})
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              Solo se muestran dominios activos. El dominio del email debe coincidir.
+            </p>
           </div>
 
           {/* Department */}
