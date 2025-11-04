@@ -60,8 +60,10 @@ export interface User {
   // Metadata for tracking
   agentAccessCount?: number; // Cached count of agents user has access to
   contextAccessCount?: number; // Cached count of context sources user has access to
-  ownedAgentsCount?: number; // Cached count of agents created by this user
-  sharedAgentsCount?: number; // Cached count of agents shared with this user
+  ownedAgentsCount?: number; // Count of ACTIVE agents created by this user
+  sharedAgentsCount?: number; // DEPRECATED: Use sharedWithUserCount instead
+  sharedWithUserCount?: number; // Count of unique agents shared WITH this user (received)
+  sharedByUserCount?: number; // Count of unique agents shared BY this user (sent to others)
 }
 
 // Role-based permission presets

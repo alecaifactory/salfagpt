@@ -4,13 +4,14 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
 
 ## ✨ Features
 
-### 💬 Chat Interface (NEW!)
+### 💬 Chat Interface
 - **Beautiful ChatGPT-like UI** - Production ready at `/chat`
   - Modern gradient design with smooth animations
-  - Conversation management with time-based grouping
+  - Agent-based conversations with context inheritance
   - Multi-modal support (text, code, images, video, audio)
   - Context window tracking and display
-  - Real-time message streaming (ready for Gemini integration)
+  - Real-time message streaming with Gemini AI
+  - Accurate agent vs conversation counting (Nov 4, 2025 fix)
 - **Session Management** - Seamless Google OAuth with proper redirects
 - **Responsive Design** - Works beautifully on all devices
 
@@ -29,12 +30,26 @@ AI-powered conversational web application built with Astro, Google Cloud Platfor
   - BigQuery table browser with sample data viewer
 
 ### ☁️ Google Cloud Platform
-- **Firestore** - Conversation and message storage
-- **Vertex AI** - Gemini 1.5-pro integration (ready for 2.5-pro)
-- **Cloud Run** - Scalable container deployment
-- **Artifact Registry** - Secure image storage
+
+**📚 [VER DOCUMENTACIÓN COMPLETA DE ARQUITECTURA GCP](./docs/README_GCP_DOCS.md)**
+
+### Servicios Utilizados
+- **Firestore** - Conversation and message storage (us-central1)
+- **Cloud Run** - Scalable container deployment (us-east4)
+- **Load Balancer** - Custom domain with SSL (global)
+- **Cloud Storage** - Document uploads (us-central1)
+- **BigQuery** - Analytics & vector search (us-central1)
+- **Vertex AI** - Embeddings generation (us-central1)
+- **Gemini AI** - Chat responses (2.5-flash/pro)
 - **Secret Manager** - Credentials management
-- **BigQuery** - Analytics data warehouse
+- **Cloud Logging** - Application monitoring
+
+### Quick Links
+- **🚀 [Quick Start (15 min)](./docs/QUICK_START_GUIDE_GCP.md)** - Setup y primer deployment
+- **🏗️ [Arquitectura Completa](./docs/ARQUITECTURA_COMPLETA_GCP.md)** - Todos los servicios GCP
+- **🎨 [Diagramas Visuales](./docs/ARQUITECTURA_VISUAL_DIAGRAMAS.md)** - 12 diagramas de arquitectura
+- **🔐 [Guía de Autenticación](./docs/AUTENTICACION_ADMINISTRADOR_GCP.md)** - Credenciales y permisos
+- **📋 [Cheat Sheet](./docs/GCP_CHEAT_SHEET.md)** - Comandos esenciales (1 página)
 
 ### 🎨 Modern UI/UX
 - **Tailwind CSS** - Beautiful, consistent design system
