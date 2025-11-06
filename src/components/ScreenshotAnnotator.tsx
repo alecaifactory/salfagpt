@@ -19,38 +19,37 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
   const [showTextInput, setShowTextInput] = useState(false);
   const [textPosition, setTextPosition] = useState({ x: 0, y: 0 });
   const [color, setColor] = useState('#9333ea'); // Purple default
+  const [isCapturing, setIsCapturing] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Capture screenshot on mount
-  useEffect(() => {
-    captureScreen();
-  }, []);
+  // ✅ CHANGED: Don't auto-capture on mount - wait for user to click "Capturar"
+  // This allows scrolling to the desired position first
+  // useEffect(() => {
+  //   captureScreen();
+  // }, []);
 
   const captureScreen = async () => {
+    setIsCapturing(true);
     try {
-      // Capture current viewport
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      if (!context) return;
-
+      console.log('📸 Capturando pantalla en posición actual...');
+      
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      canvas.width = width;
-      canvas.height = height;
-
       setDimensions({ width, height });
 
-      // Use html2canvas library or native screenshot API
-      // For now, we'll use a simple approach
+      // Use html2canvas library to capture current viewport
       const dataUrl = await captureViewport();
       setScreenshot(dataUrl);
+      
+      console.log('✅ Pantalla capturada, ahora puedes anotar');
     } catch (error) {
       console.error('Error capturing screenshot:', error);
-      alert('Error al capturar pantalla');
-      onCancel();
+      alert('Error al capturar pantalla. Por favor intenta de nuevo.');
+    } finally {
+      setIsCapturing(false);
     }
   };
 
@@ -304,7 +303,54 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
     setAnnotations(annotations.slice(0, -1));
   };
 
-  if (!screenshot) {
+  // Step 1: Allow scrolling and positioning before capture
+  if (!screenshot && !isCapturing) {
+    return (
+      <>
+        {/* Semi-transparent overlay - allows seeing through to scroll */}
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-30 pointer-events-none" />
+        
+        {/* Floating capture button - stays in center */}
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md">
+            <div className="text-center mb-4">
+              <Camera className="w-12 h-12 text-violet-600 mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-slate-800 mb-2">
+                Posiciona la Vista
+              </h3>
+              <p className="text-sm text-slate-600">
+                Puedes hacer scroll detrás de este cuadro para posicionarte en la sección que quieres capturar
+              </p>
+            </div>
+            
+            {/* Actions */}
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={onCancel}
+                className="px-4 py-2 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 font-medium text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={captureScreen}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-violet-600 to-yellow-600 text-white rounded-lg hover:from-violet-700 hover:to-yellow-700 font-semibold shadow-lg hover:shadow-xl transition-all"
+              >
+                <Camera className="w-5 h-5" />
+                Capturar Ahora
+              </button>
+            </div>
+            
+            <div className="mt-3 text-xs text-center text-slate-500">
+              💡 Tip: Haz scroll arriba/abajo antes de capturar
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+  
+  // Step 2: Show loader while capturing
+  if (!screenshot && isCapturing) {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
         <div className="bg-white rounded-xl p-6 flex items-center gap-3">
@@ -315,6 +361,7 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
     );
   }
 
+  // Step 3: Annotate the captured screenshot
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col">
       {/* Toolbar */}
