@@ -211,34 +211,46 @@ export default function MyFeedbackView({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Summary Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-gradient-to-br from-violet-50 to-yellow-50 border-2 border-violet-200 rounded-xl p-4">
-                  <div className="text-sm text-violet-600 mb-1">Total Feedback</div>
-                  <div className="text-3xl font-bold bg-gradient-to-r from-violet-700 to-yellow-700 bg-clip-text text-transparent">
-                    {myFeedback.length}
+              {/* Summary Stats - Aligned with Roadmap Lanes */}
+              <div className="grid grid-cols-5 gap-3">
+                <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-xl p-3">
+                  <div className="text-xs text-slate-600 mb-1 font-medium">Backlog</div>
+                  <div className="text-2xl font-bold text-slate-700">
+                    {myTickets.filter(t => t.lane === 'backlog' || t.status === 'new').length}
                   </div>
+                  <div className="text-xs text-slate-500 mt-1">Pendiente</div>
                 </div>
 
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                  <div className="text-sm text-blue-600 mb-1">En Cola</div>
-                  <div className="text-3xl font-bold text-blue-700">
-                    {myTickets.filter(t => ['new', 'triaged', 'prioritized'].includes(t.status)).length}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl p-3">
+                  <div className="text-xs text-blue-600 mb-1 font-medium">Roadmap</div>
+                  <div className="text-2xl font-bold text-blue-700">
+                    {myTickets.filter(t => t.lane === 'roadmap' || t.status === 'prioritized').length}
                   </div>
+                  <div className="text-xs text-blue-500 mt-1">Planificado</div>
                 </div>
 
-                <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
-                  <div className="text-sm text-yellow-600 mb-1">En Desarrollo</div>
-                  <div className="text-3xl font-bold text-yellow-700">
-                    {myTickets.filter(t => ['in-progress', 'in-review', 'testing'].includes(t.status)).length}
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border-2 border-indigo-200 rounded-xl p-3">
+                  <div className="text-xs text-indigo-600 mb-1 font-medium">En Desarrollo</div>
+                  <div className="text-2xl font-bold text-indigo-700">
+                    {myTickets.filter(t => t.lane === 'in_development' || ['in-progress', 'in-review'].includes(t.status)).length}
                   </div>
+                  <div className="text-xs text-indigo-500 mt-1">En curso</div>
+                </div>
+                
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-3">
+                  <div className="text-xs text-purple-600 mb-1 font-medium">Expert Review</div>
+                  <div className="text-2xl font-bold text-purple-700">
+                    {myTickets.filter(t => t.lane === 'expert_review' || t.status === 'testing').length}
+                  </div>
+                  <div className="text-xs text-purple-500 mt-1">Revisión</div>
                 </div>
 
-                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
-                  <div className="text-sm text-green-600 mb-1">Implementados</div>
-                  <div className="text-3xl font-bold text-green-700">
-                    {myTickets.filter(t => t.status === 'done').length}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-3">
+                  <div className="text-xs text-green-600 mb-1 font-medium">Production</div>
+                  <div className="text-2xl font-bold text-green-700">
+                    {myTickets.filter(t => t.lane === 'production' || t.status === 'done').length}
                   </div>
+                  <div className="text-xs text-green-500 mt-1">Desplegado</div>
                 </div>
               </div>
 

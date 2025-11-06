@@ -39,6 +39,8 @@ interface RoadmapModalProps {
   onClose: () => void;
   companyId: string;
   userEmail: string;
+  userId: string;
+  userRole: string;
 }
 
 type Lane = 'backlog' | 'roadmap' | 'in_development' | 'expert_review' | 'production';
@@ -102,11 +104,16 @@ const LANES: Array<{
   { id: 'production', title: 'Production', color: 'green', description: 'Desplegado', icon: BarChart3 },
 ];
 
-export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: RoadmapModalProps) {
+export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, userId, userRole }: RoadmapModalProps) {
   const [cards, setCards] = useState<FeedbackCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<FeedbackCard | null>(null);
   const [draggedCard, setDraggedCard] = useState<string | null>(null);
+  
+  // Pagination
+  const [limit] = useState(50);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   
   // Rudy chatbot state
   const [showRudy, setShowRudy] = useState(false);
@@ -114,34 +121,68 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
   const [rudyInput, setRudyInput] = useState('');
   const [rudyLoading, setRudyLoading] = useState(false);
   
-  // Load feedback cards
+  // Load feedback cards with real-time updates
   useEffect(() => {
     if (isOpen) {
-      loadFeedbackCards();
+      console.log('🔄 [ROADMAP] useEffect triggered - loading cards');
+      loadFeedbackCards(true); // Reset on open
+      
+      // Set up polling for real-time updates (every 30 seconds)
+      console.log('⏱️ [ROADMAP] Setting up 30s polling interval');
+      const interval = setInterval(() => {
+        console.log('🔄 [ROADMAP] Polling - refreshing cards');
+        loadFeedbackCards(true); // ✅ FIXED: Reset to avoid duplicates from polling
+      }, 30000);
+      
+      return () => {
+        console.log('🧹 [ROADMAP] Cleaning up polling interval');
+        clearInterval(interval);
+      };
     }
-  }, [isOpen, companyId]);
+  }, [isOpen, companyId, userId]);
   
-  async function loadFeedbackCards() {
+  async function loadFeedbackCards(reset: boolean = false) {
     try {
-      setLoading(true);
+      if (reset) {
+        setLoading(true);
+        setOffset(0);
+      }
       
-      // Load both feedback tickets and backlog items
-      const [ticketsResponse, backlogResponse] = await Promise.all([
-        fetch(`/api/feedback/tickets?companyId=${companyId}`),
-        fetch(`/api/backlog/items?companyId=${companyId}`)
-      ]);
+      const currentOffset = reset ? 0 : offset;
       
-      const tickets = ticketsResponse.ok ? await ticketsResponse.json() : [];
-      const backlogItems = backlogResponse.ok ? await backlogResponse.json() : [];
+      // Privacy-aware loading based on user role
+      console.log('📥 [ROADMAP] Loading tickets:', {
+        companyId,
+        userId: userId.substring(0, 10) + '...',
+        limit,
+        offset: currentOffset,
+      });
       
-      // Transform to cards (combine tickets + backlog items)
+      const ticketsResponse = await fetch(
+        `/api/feedback/tickets?companyId=${companyId}&userId=${userId}&limit=${limit}&offset=${currentOffset}`
+      );
+      
+      console.log('📡 [ROADMAP] Response status:', ticketsResponse.status);
+      
+      if (!ticketsResponse.ok) {
+        console.error('❌ [ROADMAP] Failed to load tickets:', ticketsResponse.status);
+        const errorData = await ticketsResponse.json().catch(() => ({}));
+        console.error('Error details:', errorData);
+        if (reset) setCards([]);
+        return;
+      }
+      
+      const tickets = await ticketsResponse.json();
+      console.log('✅ [ROADMAP] Received tickets:', tickets.length);
+      
+      // Transform to cards
       const feedbackCards: FeedbackCard[] = tickets.map((ticket: any) => ({
         id: ticket.id,
         ticketId: ticket.ticketId,
         createdBy: ticket.createdByName || 'Usuario',
-        createdByEmail: ticket.createdByEmail || '',
-        userRole: ticket.createdByRole || 'user',
-        userDomain: ticket.companyDomain || companyId,
+        createdByEmail: ticket.createdByEmail || ticket.reportedByEmail || '',
+        userRole: (ticket.createdByRole || ticket.reportedByRole || 'user') as UserRole,
+        userDomain: ticket.companyDomain || ticket.userDomain || companyId,
         title: ticket.title,
         description: ticket.description || '',
         agentName: ticket.agentName || 'General',
@@ -165,13 +206,87 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
         createdAt: new Date(ticket.createdAt),
       }));
       
-      setCards(feedbackCards);
+      if (reset) {
+        setCards(feedbackCards);
+      } else {
+        // Append new cards (for pagination)
+        setCards(prev => [...prev, ...feedbackCards]);
+      }
+      
+      setHasMore(feedbackCards.length === limit);
       
     } catch (error) {
       console.error('Failed to load feedback cards:', error);
-      setCards([]);
+      if (reset) setCards([]);
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+    }
+  }
+  
+  // Load more cards (pagination) - Manual action
+  async function loadMore() {
+    if (loading || !hasMore) return;
+    
+    const nextOffset = offset + limit;
+    setOffset(nextOffset);
+    
+    try {
+      console.log('📥 [ROADMAP] Loading more tickets...', { offset: nextOffset, limit });
+      
+      const ticketsResponse = await fetch(
+        `/api/feedback/tickets?companyId=${companyId}&userId=${userId}&limit=${limit}&offset=${nextOffset}`
+      );
+      
+      if (!ticketsResponse.ok) {
+        console.error('❌ [ROADMAP] Failed to load more tickets');
+        return;
+      }
+      
+      const tickets = await ticketsResponse.json();
+      console.log('✅ [ROADMAP] Loaded', tickets.length, 'more tickets');
+      
+      // Transform and append
+      const feedbackCards: FeedbackCard[] = tickets.map((ticket: any) => ({
+        id: ticket.id,
+        ticketId: ticket.ticketId,
+        createdBy: ticket.createdByName || 'Usuario',
+        createdByEmail: ticket.createdByEmail || ticket.reportedByEmail || '',
+        userRole: (ticket.createdByRole || ticket.reportedByRole || 'user') as UserRole,
+        userDomain: ticket.companyDomain || ticket.userDomain || companyId,
+        title: ticket.title,
+        description: ticket.description || '',
+        agentName: ticket.agentName || 'General',
+        conversationId: ticket.conversationId || '',
+        screenshot: ticket.screenshot,
+        annotations: ticket.annotations || [],
+        aiSummary: ticket.aiSummary || 'Pendiente análisis',
+        okrAlignment: ticket.okrAlignment || [],
+        kpiImpact: {
+          csat: ticket.estimatedCSAT || 0,
+          nps: ticket.estimatedNPS || 0,
+          roi: ticket.estimatedROI || 0,
+          customKPIs: ticket.customKPIs || []
+        },
+        upvotes: ticket.upvotes || 0,
+        upvotedBy: ticket.upvotedBy || [],
+        shares: ticket.shares || 0,
+        lane: ticket.lane || 'backlog',
+        priority: ticket.priority || 'medium',
+        estimatedEffort: ticket.estimatedEffort || 'm',
+        createdAt: new Date(ticket.createdAt),
+      }));
+      
+      // Append without duplicates
+      setCards(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const newCards = feedbackCards.filter(c => !existingIds.has(c.id));
+        return [...prev, ...newCards];
+      });
+      
+      setHasMore(feedbackCards.length === limit);
+      
+    } catch (error) {
+      console.error('❌ Failed to load more cards:', error);
     }
   }
   
@@ -201,41 +316,72 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
   }
   
   // Drag & drop handlers
-  function handleDragStart(cardId: string) {
+  function handleDragStart(cardId: string, e: React.DragEvent) {
+    e.stopPropagation(); // Prevent event bubbling
     setDraggedCard(cardId);
+    console.log('🎯 [DRAG] Started dragging card:', cardId);
   }
   
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
   }
   
-  async function handleDrop(targetLane: Lane) {
-    if (!draggedCard) return;
+  async function handleDrop(targetLane: Lane, e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedCard) {
+      console.log('⚠️ [DROP] No card being dragged');
+      return;
+    }
     
     const card = cards.find(c => c.id === draggedCard);
-    if (!card || card.lane === targetLane) {
+    if (!card) {
+      console.log('⚠️ [DROP] Card not found:', draggedCard);
       setDraggedCard(null);
       return;
     }
     
+    if (card.lane === targetLane) {
+      console.log('ℹ️ [DROP] Card already in target lane');
+      setDraggedCard(null);
+      return;
+    }
+    
+    console.log('📦 [DROP] Dropping card:', {
+      cardId: draggedCard,
+      fromLane: card.lane,
+      toLane: targetLane,
+      cardTitle: card.title,
+    });
+    
     try {
-      // Optimistic update
-      setCards(prev => prev.map(c => 
-        c.id === draggedCard ? { ...c, lane: targetLane } : c
-      ));
+      // Optimistic update - ONLY update the specific dragged card
+      setCards(prev => prev.map(c => {
+        if (c.id === draggedCard) {
+          console.log('  ✓ Updating card:', c.id, 'to lane:', targetLane);
+          return { ...c, lane: targetLane };
+        }
+        return c;
+      }));
       
-      // Update in backend
-      await fetch(`/api/backlog/items/${draggedCard}`, {
+      // Update in backend (use feedback tickets endpoint)
+      const response = await fetch(`/api/feedback/tickets/${draggedCard}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lane: targetLane }),
       });
       
-      console.log('✅ Card moved to', targetLane);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      console.log('✅ [DROP] Card moved to', targetLane, 'in backend');
       
     } catch (error) {
-      console.error('Failed to move card:', error);
-      loadFeedbackCards(); // Reload on error
+      console.error('❌ [DROP] Failed to move card:', error);
+      loadFeedbackCards(true); // Reload on error
     } finally {
       setDraggedCard(null);
     }
@@ -325,6 +471,57 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
           </div>
         </div>
         
+        {/* Analytics Summary */}
+        <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
+          <div className="flex items-center gap-6 text-sm">
+            {/* Total Feedback */}
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-blue-600" />
+              <span className="font-semibold text-slate-700">Total:</span>
+              <span className="font-bold text-blue-600">{cards.length}</span>
+            </div>
+            
+            {/* By User Type */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+                <span className="text-xs text-slate-600">Usuarios:</span>
+                <span className="font-bold text-blue-600">{cards.filter(c => c.userRole === 'user').length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-purple-600"></div>
+                <span className="text-xs text-slate-600">Expertos:</span>
+                <span className="font-bold text-purple-600">{cards.filter(c => c.userRole === 'expert').length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-yellow-600"></div>
+                <span className="text-xs text-slate-600">Admins:</span>
+                <span className="font-bold text-yellow-600">{cards.filter(c => c.userRole === 'admin').length}</span>
+              </div>
+            </div>
+            
+            {/* By Priority */}
+            <div className="flex items-center gap-3 ml-auto">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-600">P0:</span>
+                <span className="font-bold text-red-600">{cards.filter(c => c.priority === 'critical').length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-600">P1:</span>
+                <span className="font-bold text-orange-600">{cards.filter(c => c.priority === 'high').length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-600">P2:</span>
+                <span className="font-bold text-yellow-600">{cards.filter(c => c.priority === 'medium').length}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-600">P3:</span>
+                <span className="font-bold text-slate-600">{cards.filter(c => c.priority === 'low').length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Kanban Board */}
@@ -357,7 +554,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
                     <div
                       className="flex-1 bg-slate-50 border-l-2 border-r-2 border-b-2 border-slate-200 rounded-b-xl p-3 space-y-3 overflow-y-auto"
                       onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(lane.id)}
+                      onDrop={(e) => handleDrop(lane.id, e)}
                     >
                       {loading ? (
                         <div className="flex items-center justify-center h-32">
@@ -376,7 +573,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
                             <div
                               key={card.id}
                               draggable
-                              onDragStart={() => handleDragStart(card.id)}
+                              onDragStart={(e) => handleDragStart(card.id, e)}
                               onClick={() => setSelectedCard(card)}
                               className={`${roleColors.bg} border-2 ${roleColors.border} rounded-lg p-4 cursor-move hover:shadow-lg transition-all ${
                                 draggedCard === card.id ? 'opacity-50 scale-95' : ''
@@ -405,10 +602,20 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
                                 </span>
                               </div>
                               
-                              {/* Ticket ID */}
-                              <div className="mb-2">
+                              {/* Ticket ID & Badges */}
+                              <div className="mb-2 flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-mono font-bold text-slate-700">
                                   {card.ticketId}
+                                </span>
+                                
+                                {/* Priority badge */}
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  card.priority === 'critical' ? 'bg-red-600 text-white' :
+                                  card.priority === 'high' ? 'bg-orange-600 text-white' :
+                                  card.priority === 'medium' ? 'bg-yellow-600 text-white' :
+                                  'bg-slate-400 text-white'
+                                }`}>
+                                  P{card.priority === 'critical' ? '0' : card.priority === 'high' ? '1' : card.priority === 'medium' ? '2' : '3'}
                                 </span>
                               </div>
                               
@@ -431,26 +638,49 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
                                 </div>
                               )}
                               
-                              {/* KPI Impact */}
-                              <div className="space-y-1 mb-3 text-xs">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-slate-600">CSAT:</span>
-                                  <span className={`font-bold ${card.kpiImpact.csat >= 4 ? 'text-green-700' : 'text-slate-700'}`}>
-                                    {card.kpiImpact.csat.toFixed(1)}+
-                                  </span>
+                              {/* Feedback Rating Display */}
+                              <div className="space-y-2 mb-3">
+                                {/* Original Feedback Rating */}
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-slate-600 font-medium">Calificación:</span>
+                                  {card.userRole === 'expert' ? (
+                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                      card.kpiImpact.csat >= 4 ? 'bg-green-100 text-green-700' :
+                                      card.kpiImpact.csat >= 2.5 ? 'bg-yellow-100 text-yellow-700' :
+                                      'bg-red-100 text-red-700'
+                                    }`}>
+                                      {card.kpiImpact.csat >= 4 ? '⭐ Sobresaliente' :
+                                       card.kpiImpact.csat >= 2.5 ? '✓ Aceptable' :
+                                       '✗ Inaceptable'}
+                                    </span>
+                                  ) : (
+                                    <div className="flex items-center gap-0.5">
+                                      {[1, 2, 3, 4, 5].map(star => (
+                                        <span key={star} className={`text-base ${
+                                          star <= Math.round(card.kpiImpact.csat) ? 'text-yellow-500' : 'text-slate-300'
+                                        }`}>★</span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-slate-600">NPS:</span>
-                                  <span className={`font-bold ${card.kpiImpact.nps >= 98 ? 'text-green-700' : 'text-slate-700'}`}>
-                                    {card.kpiImpact.nps}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-slate-600">ROI:</span>
-                                  <span className="font-bold text-purple-700">
-                                    {card.kpiImpact.roi}x
-                                  </span>
-                                </div>
+                                
+                                {/* KPI Impact */}
+                                {card.kpiImpact.nps > 0 && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600">NPS:</span>
+                                    <span className={`font-bold ${card.kpiImpact.nps >= 9 ? 'text-green-700' : 'text-slate-700'}`}>
+                                      {card.kpiImpact.nps}/10
+                                    </span>
+                                  </div>
+                                )}
+                                {card.kpiImpact.csat > 0 && card.userRole === 'expert' && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600">CSAT:</span>
+                                    <span className={`font-bold ${card.kpiImpact.csat >= 4 ? 'text-green-700' : 'text-slate-700'}`}>
+                                      {card.kpiImpact.csat}/5
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                               
                               {/* Social metrics */}
@@ -476,6 +706,19 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail }: 
                 );
               })}
             </div>
+            
+            {/* Load More Button */}
+            {!loading && hasMore && (
+              <div className="mt-4 flex justify-center">
+                <button
+                  onClick={loadMore}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm flex items-center gap-2"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                  Cargar más feedback ({cards.length} de muchos)
+                </button>
+              </div>
+            )}
           </div>
           
           {/* Rudy Chatbot Panel */}

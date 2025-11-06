@@ -166,3 +166,4 @@ JWT_SECRET=(secret)
 **Status:** ✅ Production operational  
 **Next Review:** When deploying to new environment
 
+

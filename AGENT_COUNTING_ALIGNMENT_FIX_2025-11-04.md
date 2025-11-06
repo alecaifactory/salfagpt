@@ -190,3 +190,4 @@ c.isAgent === true || (c.isAgent === undefined && !c.agentId)
 **Risk:** Low (isolated visual fixes)  
 **Backward Compatible:** Yes (just correcting counts)
 
+

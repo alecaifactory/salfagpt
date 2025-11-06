@@ -32,43 +32,143 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       );
     }
     
-    // 2. CRITICAL: Only allow alec@getaifactory.com
-    if (session.email !== 'alec@getaifactory.com') {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden - SuperAdmin only' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log('🔐 [TICKETS] Session verified:', {
+      userId: session.id?.substring(0, 10) + '...',
+      email: session.email,
+      role: session.role,
+    });
     
-    // 3. Get companyId from query (optional - if not provided, load all)
+    // 2. Get query parameters
     const url = new URL(request.url);
     const companyId = url.searchParams.get('companyId');
+    const requestedUserId = url.searchParams.get('userId');
+    const limit = parseInt(url.searchParams.get('limit') || '50');
+    const offset = parseInt(url.searchParams.get('offset') || '0');
     
-    // 4. Load feedback tickets (without orderBy to avoid index requirement)
+    console.log('🔍 [TICKETS] Query params:', {
+      companyId,
+      requestedUserId: requestedUserId?.substring(0, 10) + '...',
+      limit,
+      offset,
+    });
+    
+    // 3. Privacy-aware loading based on user role
     let query: any = firestore.collection('feedback_tickets');
     
-    // Filter by domain if provided
-    if (companyId && companyId !== 'all') {
-      query = query.where('userDomain', '==', companyId);
+    // SuperAdmin (alec@getaifactory.com): Can see all tickets, optionally filtered by domain
+    if (session.email === 'alec@getaifactory.com') {
+      console.log('✅ [TICKETS] SuperAdmin access - loading all tickets');
+      if (companyId && companyId !== 'all') {
+        console.log(`   Filtering by domain: ${companyId}`);
+        query = query.where('userDomain', '==', companyId);
+      }
+    }
+    // Admin: Can see tickets from their domain
+    else if (session.role === 'admin') {
+      const adminDomain = session.email.split('@')[1];
+      query = query.where('userDomain', '==', adminDomain);
+    }
+    // Expert: Can see tickets from their domain
+    else if (session.role === 'expert') {
+      const expertDomain = session.email.split('@')[1];
+      query = query.where('userDomain', '==', expertDomain);
+    }
+    // User: Can only see their own tickets
+    else {
+      query = query.where('reportedBy', '==', session.id);
     }
     
-    const ticketsSnapshot = await query.limit(200).get();
+    // 4. Load tickets with pagination
+    const ticketsSnapshot = await query.limit(limit).get();
     
-    // 5. Transform data and sort in memory
-    const tickets = ticketsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
-        updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
-      };
-    });
+    // 5. Transform data with complete metadata
+    const tickets = ticketsSnapshot.docs
+      .map(doc => {
+        const data = doc.data();
+        
+        // Build ticket with all necessary fields for roadmap display
+        return {
+          id: doc.id,
+          
+          // Core fields
+          feedbackId: data.feedbackId || '',
+          messageId: data.messageId || '',
+          conversationId: data.conversationId || '',
+          ticketId: data.ticketId || doc.id,
+          
+          // Title & Description
+          title: data.title || 'Sin título',
+          description: data.description || '',
+          category: data.category || 'other',
+          
+          // User info for display
+          createdByName: data.reportedByName || data.createdBy || 'Usuario',
+          createdByEmail: data.reportedByEmail || '',
+          createdByRole: data.reportedByRole || 'user',
+          companyDomain: data.userDomain || data.companyDomain || 'unknown',
+          reportedBy: data.reportedBy || '',
+          
+          // Agent context
+          agentId: data.agentId || '',
+          agentName: data.agentName || 'General',
+          
+          // Feedback data
+          originalFeedback: data.originalFeedback || {},
+          
+          // Visual context
+          screenshot: data.originalFeedback?.screenshots?.[0]?.imageDataUrl || '',
+          annotations: data.originalFeedback?.screenshots?.[0]?.annotations || [],
+          
+          // AI Analysis
+          aiSummary: data.aiAnalysis?.summary || data.description || 'Pendiente análisis',
+          aiAnalysis: data.aiAnalysis || {},
+          
+          // OKR/KPI alignment
+          okrAlignment: data.okrAlignment || [],
+          estimatedCSAT: data.estimatedCSAT || data.originalFeedback?.csatScore || 0,
+          estimatedNPS: data.estimatedNPS || data.originalFeedback?.npsScore || 0,
+          estimatedROI: data.estimatedROI || 0,
+          customKPIs: data.customKPIs || [],
+          
+          // Roadmap state
+          lane: data.lane || 'backlog',
+          priority: data.priority || 'medium',
+          status: data.status || 'new',
+          estimatedEffort: data.estimatedEffort || 'm',
+          userImpact: data.userImpact || 'medium',
+          
+          // Social features
+          upvotes: data.upvotes || 0,
+          upvotedBy: data.upvotedBy || [],
+          views: data.views || 0,
+          viewedBy: data.viewedBy || [],
+          shares: data.shares || 0,
+          sharedBy: data.sharedBy || [],
+          
+          // Timestamps
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || Date.now()),
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt || Date.now()),
+          resolvedAt: data.resolvedAt?.toDate ? data.resolvedAt.toDate() : null,
+          assignedAt: data.assignedAt?.toDate ? data.assignedAt.toDate() : null,
+          
+          // Other
+          assignedTo: data.assignedTo,
+          source: data.source || 'production',
+        };
+      })
+      .slice(offset, offset + limit); // Apply pagination offset
     
     // Sort by createdAt desc in memory
     tickets.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     
-    console.log(`✅ Loaded ${tickets.length} feedback tickets${companyId ? ` for ${companyId}` : ''}`);
+    console.log(`✅ Loaded ${tickets.length} feedback tickets (role: ${session.role}, domain: ${session.email.split('@')[1]})`);
+    console.log('📊 Tickets by lane:', {
+      backlog: tickets.filter(t => t.lane === 'backlog').length,
+      roadmap: tickets.filter(t => t.lane === 'roadmap').length,
+      in_development: tickets.filter(t => t.lane === 'in_development').length,
+      expert_review: tickets.filter(t => t.lane === 'expert_review').length,
+      production: tickets.filter(t => t.lane === 'production').length,
+    });
     
     return new Response(
       JSON.stringify(tickets),

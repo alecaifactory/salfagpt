@@ -326,3 +326,4 @@ const count = conversationsByUser.get(doc.id); // ✅ Works!
 **Estimated time to verify:** 2-3 minutes  
 **Expected outcome:** All three interfaces show 6 agents for alec@getaifactory.com
 
+

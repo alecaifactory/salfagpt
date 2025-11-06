@@ -507,3 +507,4 @@ Alec
 **Status:** Diagnóstico completo  
 **Próximo paso:** Usuario hace logout/login o hard refresh
 
+
