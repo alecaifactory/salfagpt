@@ -248,25 +248,37 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         domain: ticketData.userDomain,
       });
     } catch (error) {
-      console.error('❌ Ticket creation failed:', error);
+      console.error('❌ Ticket creation failed (non-critical):', error);
       console.error('Failed with data:', {
         feedbackType,
         userId: userId.substring(0, 8) + '...',
         conversationId,
         userEmail,
+        userName,
+        conversationTitle,
       });
-      // Re-throw to see error in response
-      throw error;
+      console.error('Full error stack:', error instanceof Error ? error.stack : error);
+      // Don't throw - feedback is still saved, ticket creation is optional
+      ticketId = undefined;
     }
 
     // 8. Return success
+    const response: any = {
+      success: true,
+      feedbackId,
+      message: 'Feedback recibido exitosamente',
+    };
+    
+    // Include ticketId if created successfully
+    if (ticketId) {
+      response.ticketId = ticketId;
+    } else {
+      response.warning = 'Feedback guardado pero no se pudo crear ticket';
+      console.warn('⚠️ Returning response without ticketId');
+    }
+    
     return new Response(
-      JSON.stringify({
-        success: true,
-        feedbackId,
-        ticketId,
-        message: 'Feedback recibido exitosamente',
-      }),
+      JSON.stringify(response),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
