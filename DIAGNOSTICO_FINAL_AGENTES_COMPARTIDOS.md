@@ -187,3 +187,4 @@ Déjame verificar si hay un filtro especial para admins/experts:
 <function_calls>
 <invoke name="grep">
 <parameter name="pattern">if.*admin.*expert
+

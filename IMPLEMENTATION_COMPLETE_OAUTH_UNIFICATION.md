@@ -366,3 +366,4 @@ Backward Compatible: Yes"
 **This implementation now matches your requirements perfectly!** 🎉
 
 Users can login first via OAuth, and admins can upgrade them later. Email is the unifying key for everything.
+

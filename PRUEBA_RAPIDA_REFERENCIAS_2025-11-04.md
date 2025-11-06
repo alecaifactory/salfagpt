@@ -203,3 +203,4 @@
 **Creado por:** Alec (Cursor AI Assistant)  
 **Propósito:** Diagnóstico rápido de referencias para no-admin
 
+

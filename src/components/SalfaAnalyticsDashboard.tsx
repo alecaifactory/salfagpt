@@ -1132,4 +1132,3 @@ function ChartInitializer({ conversationsOverTime, messagesByAssistant, messages
 
   return null;
 }
-

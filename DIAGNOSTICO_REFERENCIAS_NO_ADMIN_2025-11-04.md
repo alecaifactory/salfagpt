@@ -589,3 +589,4 @@ Si ves estos logs → Hay un problema:
 **Solución:** Mensajes antiguos no tienen referencias (esperado)  
 **Próximo Paso:** Testear con mensaje nuevo como usuario no-admin
 
+

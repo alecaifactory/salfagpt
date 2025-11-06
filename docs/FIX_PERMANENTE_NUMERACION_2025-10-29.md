@@ -534,3 +534,4 @@ Ahora los números en el texto **coinciden exactamente** con los badges disponib
 
 
 
+

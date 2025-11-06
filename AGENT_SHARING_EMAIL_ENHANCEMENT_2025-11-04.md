@@ -397,3 +397,4 @@ The agent IS assigned correctly in Firestore. The issue is likely:
 3. ✅ Both (implement enhancement + fix current issue)
 
 Let me know and I'll proceed!
+

@@ -115,13 +115,63 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       // Extract domain from email
       const userDomain = userEmail.split('@')[1] || 'unknown';
       
+      // Get user name from users collection
+      let userName = userEmail.split('@')[0]; // Fallback
+      try {
+        const userDoc = await firestore.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          userName = userDoc.data()?.name || userName;
+        }
+      } catch (err) {
+        console.warn('Could not fetch user name, using email fallback');
+      }
+      
+      // Get conversation title from conversations collection
+      let conversationTitle = 'General';
+      try {
+        const convDoc = await firestore.collection('conversations').doc(conversationId).get();
+        if (convDoc.exists) {
+          conversationTitle = convDoc.data()?.title || conversationTitle;
+        }
+      } catch (err) {
+        console.warn('Could not fetch conversation title, using default');
+      }
+      
       // Determine feedback category based on type and content
       const feedbackCategory = determineFeedbackCategory(feedbackType, expertRating, userStars, expertNotes || userComment);
+      
+      // Build originalFeedback without undefined values
+      const originalFeedback: any = {
+        type: feedbackType,
+        rating: feedbackType === 'expert' ? expertRating : userStars,
+        screenshots: screenshots || [],
+      };
+      
+      // Add optional fields only if they exist
+      if (expertNotes || userComment) {
+        originalFeedback.comment = expertNotes || userComment;
+      }
+      if (feedbackData.screenshotAnalysis) {
+        originalFeedback.screenshotAnalysis = feedbackData.screenshotAnalysis;
+      }
+      if (feedbackType === 'expert') {
+        if (npsScore !== undefined && npsScore !== null) {
+          originalFeedback.npsScore = npsScore;
+        }
+        if (csatScore !== undefined && csatScore !== null) {
+          originalFeedback.csatScore = csatScore;
+        }
+      } else {
+        if (userStars !== undefined && userStars !== null) {
+          originalFeedback.userStars = userStars;
+        }
+      }
       
       const ticketData: any = {
         feedbackId,
         messageId,
         conversationId,
+        ticketId: `TKT-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         
         // ✅ Title and description
         title: generateDetailedTitle(feedbackType, expertRating || userStars, expertNotes || userComment),
@@ -134,33 +184,43 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         status: 'new',
         lane: 'backlog', // ✅ Always starts in backlog
         
-        // ✅ User information for prioritization
+        // ✅ User information for prioritization (standardized field names)
         reportedBy: userId,
         reportedByEmail: userEmail,
         reportedByRole: userRole,
+        reportedByName: userName,
         userDomain: userDomain,
+        companyDomain: userDomain, // Alias for consistency
+        createdBy: userName, // Alias
+        createdByRole: userRole, // Alias
         
-        // ✅ CRITICAL: originalFeedback must always be present
-        originalFeedback: {
-          type: feedbackType,
-          rating: feedbackType === 'expert' ? expertRating : userStars,
-          comment: expertNotes || userComment,
-          screenshots: screenshots || [],
-          screenshotAnalysis: feedbackData.screenshotAnalysis,
-        },
+        // ✅ Agent context
+        agentId: conversationId,
+        agentName: conversationTitle,
         
-        // ✅ Store expert scores at ticket level for easy access
-        ...(feedbackType === 'expert' && {
-          npsScore,
-          csatScore,
-        }),
+        // ✅ CRITICAL: originalFeedback with no undefined values
+        originalFeedback: originalFeedback,
+        
+        // ✅ Store expert scores at ticket level for easy access in roadmap
+        estimatedNPS: feedbackType === 'expert' ? (npsScore || 0) : 0,
+        estimatedCSAT: feedbackType === 'expert' ? (csatScore || 0) : (userStars || 0),
+        estimatedROI: 0, // Can be calculated later by AI or admin
+        okrAlignment: [],
+        customKPIs: [],
         
         // ✅ Roadmap metadata
         userImpact: determineUserImpact(feedbackType, expertRating, userStars),
         estimatedEffort: 'm',
+        
+        // ✅ Social features
         upvotes: 0,
         upvotedBy: [],
+        views: 0,
+        viewedBy: [],
         shares: 0,
+        sharedBy: [],
+        shareChain: [],
+        viralCoefficient: 0,
         
         // ✅ Timestamps
         createdAt: new Date(),
@@ -169,7 +229,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       };
 
       const ticketRef = await firestore.collection('feedback_tickets').add(ticketData);
-      ticketId = ticketRef.id;
+      const firestoreTicketId = ticketRef.id;
+      ticketId = ticketData.ticketId; // Use the TKT-* format for user-facing ID
 
       // Update feedback with ticketId
       await feedbackRef.update({
@@ -178,8 +239,24 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
 
       console.log(`✅ Ticket created: ${ticketId}`);
+      console.log('📋 Ticket data:', {
+        ticketId,
+        title: ticketData.title,
+        lane: ticketData.lane,
+        priority: ticketData.priority,
+        userRole: ticketData.reportedByRole,
+        domain: ticketData.userDomain,
+      });
     } catch (error) {
-      console.warn('⚠️ Ticket creation failed (non-critical):', error);
+      console.error('❌ Ticket creation failed:', error);
+      console.error('Failed with data:', {
+        feedbackType,
+        userId: userId.substring(0, 8) + '...',
+        conversationId,
+        userEmail,
+      });
+      // Re-throw to see error in response
+      throw error;
     }
 
     // 8. Return success

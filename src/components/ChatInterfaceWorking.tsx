@@ -6372,8 +6372,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         <RoadmapModal
           isOpen={showRoadmap}
           onClose={() => setShowRoadmap(false)}
-          companyId="aifactory"
+          companyId="getaifactory.com"
           userEmail={userEmail}
+          userId={userId}
+          userRole={userRole || 'admin'}
         />
       )}
 
