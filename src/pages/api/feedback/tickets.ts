@@ -55,26 +55,28 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     // 3. Privacy-aware loading based on user role
     let query: any = firestore.collection('feedback_tickets');
     
-    // SuperAdmin (alec@getaifactory.com): Can see all tickets, optionally filtered by domain
-    if (session.email === 'alec@getaifactory.com') {
-      console.log('✅ [TICKETS] SuperAdmin access - loading all tickets');
+    // Admin OR SuperAdmin: Can see ALL tickets from ALL users/domains
+    // ✅ CHANGE: Admins now see all feedback (not just their domain)
+    if (session.role === 'admin' || session.email === 'alec@getaifactory.com') {
+      console.log('✅ [TICKETS] Admin/SuperAdmin access - loading all tickets from all users');
+      
+      // Optional domain filter for organizing view
       if (companyId && companyId !== 'all') {
-        console.log(`   Filtering by domain: ${companyId}`);
+        console.log(`   Optional filtering by domain: ${companyId}`);
         query = query.where('userDomain', '==', companyId);
+      } else {
+        console.log('   Loading ALL tickets (no domain filter)');
       }
     }
-    // Admin: Can see tickets from their domain
-    else if (session.role === 'admin') {
-      const adminDomain = session.email.split('@')[1];
-      query = query.where('userDomain', '==', adminDomain);
-    }
-    // Expert: Can see tickets from their domain
+    // Expert: Can see tickets from their domain only
     else if (session.role === 'expert') {
       const expertDomain = session.email.split('@')[1];
+      console.log(`✅ [TICKETS] Expert access - loading tickets from domain: ${expertDomain}`);
       query = query.where('userDomain', '==', expertDomain);
     }
     // User: Can only see their own tickets
     else {
+      console.log(`✅ [TICKETS] User access - loading own tickets only for: ${session.id}`);
       query = query.where('reportedBy', '==', session.id);
     }
     
@@ -187,3 +189,4 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     );
   }
 };
+

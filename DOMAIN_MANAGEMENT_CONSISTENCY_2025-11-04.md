@@ -494,3 +494,4 @@ Shared Agents: 3 (2 + 1 + 0)
 **Remember:** Domain Management and User Management share the same data source, so counts are always consistent and real-time.
 
 
+

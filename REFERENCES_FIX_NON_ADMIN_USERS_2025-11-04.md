@@ -269,3 +269,4 @@ After:
 **Summary:** The fix ensures that references built from RAG search results are **saved to Firestore** along with the message, making them available to **all users** (admin, expert, standard) when they load message history, not just the user who created the message.
 
 
+
