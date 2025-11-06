@@ -590,3 +590,4 @@ Si ves estos logs → Hay un problema:
 **Próximo Paso:** Testear con mensaje nuevo como usuario no-admin
 
 
+

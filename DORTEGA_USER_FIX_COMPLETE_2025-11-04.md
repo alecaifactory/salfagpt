@@ -224,3 +224,4 @@ User `dortega@novatec.cl` should now have full access to the platform with the s
 **Next Action:** Have user test login and verify they can see and use GOP GPT M3
 
 
+
