@@ -1228,6 +1228,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
       const result = await response.json();
       console.log('✅ Feedback submitted successfully:', result);
+      
+      // Check if ticket creation failed
+      if (result.warning) {
+        console.warn('⚠️ Warning:', result.warning);
+        console.warn('   Feedback saved but ticket not created');
+        console.warn('   Check server logs for ticket creation error');
+      }
 
       // Close feedback input modals
       setShowExpertFeedback(false);
@@ -1241,6 +1248,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           feedbackType: feedback.feedbackType,
         });
         setHighlightTicketId(result.ticketId);
+      } else {
+        // Show warning toast if ticket wasn't created
+        console.warn('⚠️ Ticket not created - feedback saved but won\'t appear in Roadmap');
       }
     } catch (error) {
       console.error('❌ Error submitting feedback:', error);
