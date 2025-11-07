@@ -154,7 +154,14 @@ export const POST: APIRoute = async ({ params, request }) => {
               // ✅ LEGACY: Source IDs-based search (if agent search disabled or failed)
               if (ragResults.length === 0 && activeSourceIds.length > 0) {
                 console.log('  🔍 Using source IDs-based search (LEGACY)...');
-                const searchResult = await searchRelevantChunksOptimized(userId, message, {
+                
+                // 🔑 CRITICAL: Get effective owner for shared agents
+                // This ensures we search chunks indexed under owner's userId
+                const { getEffectiveOwnerForContext } = await import('../../../../lib/firestore');
+                const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
+                console.log(`  🔑 Using effectiveUserId for chunk search: ${effectiveUserId}${effectiveUserId !== userId ? ' (owner)' : ' (self)'}`);
+                
+                const searchResult = await searchRelevantChunksOptimized(effectiveUserId, message, {
                   topK: ragTopK,
                   minSimilarity: ragMinSimilarity,
                   activeSourceIds,
@@ -184,10 +191,15 @@ export const POST: APIRoute = async ({ params, request }) => {
                     console.warn('⚠️ No activeSourceIds provided (agent search mode) - no context to load');
                     additionalContext = '';
                   } else {
+                    // 🔑 Get effective owner for chunk existence check
+                    const { getEffectiveOwnerForContext } = await import('../../../../lib/firestore');
+                    const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
+                    console.log(`  🔑 Checking chunks with effectiveUserId: ${effectiveUserId}`);
+                    
                     // Load chunks directly to check if they exist
                     const chunksSnapshot = await firestore
                       .collection('document_chunks')
-                      .where('userId', '==', userId)
+                      .where('userId', '==', effectiveUserId) // ✅ Use effectiveUserId
                       .where('sourceId', 'in', activeSourceIds.slice(0, 10)) // Firestore 'in' limit
                       .limit(1)
                       .get();
@@ -220,7 +232,9 @@ export const POST: APIRoute = async ({ params, request }) => {
                     } else {
                       // Chunks exist but similarity too low - lower threshold and retry
                       console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
-                      const retrySearchResult = await searchRelevantChunksOptimized(userId, message, {
+                      console.log(`  🔑 Retrying with effectiveUserId: ${effectiveUserId}`);
+                      
+                      const retrySearchResult = await searchRelevantChunksOptimized(effectiveUserId, message, {
                         topK: ragTopK * 2, // Double topK
                         minSimilarity: 0.2, // Lower threshold (more permissive)
                         activeSourceIds,
