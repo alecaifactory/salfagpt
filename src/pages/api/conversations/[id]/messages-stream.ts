@@ -495,11 +495,36 @@ export const POST: APIRoute = async ({ params, request }) => {
                 });
               } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
                 // Emergency fallback mode: Create references from full documents
-                // This only happens if RAG failed completely (very rare)
-                console.warn('⚠️ Creating references for emergency fallback mode');
-                references = []; // Will be populated if we loaded fullSources above
-                // Note: In emergency fallback, we don't have individual chunks,
-                // so references will be minimal or empty
+                // This only happens if RAG failed completely (very rare - documents not indexed)
+                console.warn('⚠️ Creating references for emergency fallback mode (documents not indexed)');
+                console.log(`   Loading metadata for ${Math.min(activeSourceIds.length, 10)} sources...`);
+                
+                // ✅ FIX: Load source metadata to create references from full documents
+                // Note: Firestore 'in' query limited to 10 values
+                const sourceIdsToReference = activeSourceIds.slice(0, 10); 
+                const sourcesSnapshot = await firestore
+                  .collection('context_sources')
+                  .where('__name__', 'in', sourceIdsToReference)
+                  .get();
+                
+                references = sourcesSnapshot.docs.map((doc, index) => ({
+                  id: index + 1,
+                  sourceId: doc.id,
+                  sourceName: doc.data().name || 'Documento',
+                  chunkIndex: -1, // -1 indicates full document (not a chunk)
+                  similarity: 0.5, // Default similarity for full document fallback
+                  snippet: (doc.data().extractedData || '').substring(0, 300),
+                  fullText: doc.data().extractedData || '',
+                  metadata: {
+                    tokenCount: Math.ceil((doc.data().extractedData?.length || 0) / 4),
+                    isFullDocument: true,
+                  }
+                }));
+                
+                console.log(`📚 Created ${references.length} references from full documents (emergency fallback)`);
+                references.forEach(ref => {
+                  console.log(`  [${ref.id}] ${ref.sourceName} - Full Document - ${ref.metadata.tokenCount} tokens`);
+                });
               } else {
                 // OLD CODE PATH (legacy): Should not execute anymore
                 // Keeping for absolute backward compatibility
