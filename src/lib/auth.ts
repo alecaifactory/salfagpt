@@ -30,17 +30,23 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET
 const JWT_SECRET = process.env.JWT_SECRET 
   || import.meta.env.JWT_SECRET;
 
-const BASE_URL = process.env.PUBLIC_BASE_URL 
-  || ENV_CONFIG?.baseUrl 
-  || import.meta.env.PUBLIC_BASE_URL 
-  || 'http://localhost:3000';
+// CRITICAL FIX: Detect if we're running on localhost
+// Use localhost URL when running locally, regardless of PUBLIC_BASE_URL env var
+// Check DEV_PORT (set when running npm run dev) to determine if we're in local development
+const isLocalhost = process.env.DEV_PORT === '3000' || process.env.NODE_ENV === 'development';
 
-const REDIRECT_URI = process.env.PUBLIC_BASE_URL 
-  ? `${process.env.PUBLIC_BASE_URL}/auth/callback`
-  : (ENV_CONFIG?.oauth?.redirectUri || `${BASE_URL}/auth/callback`);
+const BASE_URL = isLocalhost
+  ? 'http://localhost:3000' // Force localhost when running locally
+  : (process.env.PUBLIC_BASE_URL 
+      || ENV_CONFIG?.baseUrl 
+      || import.meta.env.PUBLIC_BASE_URL 
+      || 'http://localhost:3000');
+
+const REDIRECT_URI = `${BASE_URL}/auth/callback`;
 
 console.log('🔐 OAuth Configuration:');
 console.log(`  Environment: ${ENV_CONFIG?.name || 'local'}`);
+console.log(`  Is Localhost: ${isLocalhost ? 'YES ✅' : 'NO (Production)'}`);
 console.log(`  Project: ${process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET'}`);
 console.log(`  Client ID: ${GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET'}`);
 console.log(`  Base URL: ${BASE_URL}`);
