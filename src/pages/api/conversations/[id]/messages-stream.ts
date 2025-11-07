@@ -624,16 +624,29 @@ export const POST: APIRoute = async ({ params, request }) => {
               // Calculate total response time
               const totalResponseTime = Date.now() - streamStartTime; // ✅ Time from start to completion
 
-              // Save message with references and responseTime
+              // 🔍 TRACEABILITY: Get effective owner info for audit trail
+              const { getEffectiveOwnerForContext, getUserById } = await import('../../../../lib/firestore');
+              const effectiveOwnerUserId = await getEffectiveOwnerForContext(agentId, userId);
+              const wasSharedAccess = effectiveOwnerUserId !== userId;
+              
+              // Save message with references, responseTime, and traceability metadata
               const aiMsg = await addMessage(
                 conversationId,
-                userId,
+                userId, // ✅ Current user who made the request
                 'assistant',
                 { type: 'text', text: fullResponse },
                 Math.ceil(fullResponse.length / 4),
                 undefined, // contextSections (not used here)
                 references.length > 0 ? references : undefined, // Save references!
-                totalResponseTime // ✅ Save response time in milliseconds
+                totalResponseTime, // ✅ Response time in milliseconds
+                // ✅ NEW: Traceability metadata
+                wasSharedAccess ? {
+                  accessType: 'shared',
+                  effectiveOwnerUserId: effectiveOwnerUserId,
+                  currentUserId: userId,
+                  agentOwnerId: effectiveOwnerUserId,
+                  timestamp: new Date().toISOString()
+                } : undefined
               );
 
               // Update conversation stats

@@ -117,12 +117,12 @@ export interface Conversation {
 export interface Message {
   id: string;
   conversationId: string;
-  userId: string;
+  userId: string; // ✅ Current user who made the request (for ownership & permissions)
   role: 'user' | 'assistant' | 'system';
   content: MessageContent;
   timestamp: Date;
   tokenCount: number;
-  responseTime?: number; // ✅ NEW: Response time in milliseconds (for assistant messages)
+  responseTime?: number; // Response time in milliseconds (for assistant messages)
   contextSections?: ContextSection[];
   references?: Array<{
     id: number;
@@ -139,8 +139,16 @@ export interface Message {
       startPage?: number;
       endPage?: number;
     };
-  }>; // NEW: RAG chunk references for traceability
+  }>; // RAG chunk references for traceability
   source?: 'localhost' | 'production'; // For analytics tracking
+  // ✅ NEW: Shared access traceability (when user accesses shared agent's context)
+  sharedAccessMetadata?: {
+    accessType: 'shared' | 'own'; // How context was accessed
+    effectiveOwnerUserId: string; // Whose chunks/context were used
+    currentUserId: string; // Who actually made the request
+    agentOwnerId: string; // Who owns the agent
+    timestamp: string; // When this access occurred
+  };
 }
 
 export interface MessageContent {
@@ -482,26 +490,41 @@ export async function addMessage(
       endPage?: number;
     };
   }>,
-  responseTime?: number // ✅ NEW: Response time in milliseconds
+  responseTime?: number, // Response time in milliseconds
+  sharedAccessMetadata?: { // ✅ NEW: Traceability for shared access
+    accessType: 'shared' | 'own';
+    effectiveOwnerUserId: string;
+    currentUserId: string;
+    agentOwnerId: string;
+    timestamp: string;
+  }
 ): Promise<Message> {
   const messageRef = firestore.collection(COLLECTIONS.MESSAGES).doc();
   
   const message: Message = {
     id: messageRef.id,
     conversationId,
-    userId,
+    userId, // ✅ Current user who made the request (never the effective owner!)
     role,
     content,
     timestamp: new Date(),
     tokenCount,
-    ...(responseTime !== undefined && { responseTime }), // ✅ Include responseTime if provided
+    ...(responseTime !== undefined && { responseTime }), // Include responseTime if provided
     ...(contextSections !== undefined && { contextSections }), // Only include if defined
     ...(references !== undefined && { references }), // Only include if defined
+    ...(sharedAccessMetadata !== undefined && { sharedAccessMetadata }), // ✅ Include traceability
     source: getEnvironmentSource(), // Track source for analytics
   };
 
   await messageRef.set(message);
-  console.log(`💬 Message created from ${message.source}:`, messageRef.id);
+  
+  // ✅ Enhanced logging for traceability
+  if (sharedAccessMetadata) {
+    console.log(`💬 Message created from ${message.source}:`, messageRef.id);
+    console.log(`   🔍 SHARED ACCESS: User ${sharedAccessMetadata.currentUserId} used owner ${sharedAccessMetadata.effectiveOwnerUserId}'s context`);
+  } else {
+    console.log(`💬 Message created from ${message.source}:`, messageRef.id);
+  }
 
   // Update conversation
   const conversation = await getConversation(conversationId);
