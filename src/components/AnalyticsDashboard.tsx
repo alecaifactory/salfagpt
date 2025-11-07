@@ -5,9 +5,11 @@ import {
   Globe,
   UsersIcon,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Share2
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import SharedAgentsAnalytics from './SharedAgentsAnalytics';
 
 interface Props {
   isOpen: boolean;
@@ -164,9 +166,26 @@ function DomainReportsSection({
         >
           Agents & Conversations
         </button>
+        <button
+          onClick={() => setSelectedReport('shared')}
+          className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+            selectedReport === 'shared'
+              ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2 justify-center">
+            <Share2 className="w-4 h-4" />
+            Shared Agents
+          </div>
+        </button>
       </div>
       
       {/* Report Content */}
+      {selectedReport === 'shared' && (
+        <SharedAgentsAnalytics />
+      )}
+      
       {selectedReport === 'domains' && (
         <div>
           <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
