@@ -82,6 +82,7 @@ export async function searchByAgent(
     // 🔑 CRITICAL: Get effective owner (original owner if shared, else current user)
     const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
     console.log(`  🔑 Effective owner for context: ${effectiveUserId}${effectiveUserId !== userId ? ' (shared agent)' : ' (own agent)'}`);
+    console.log(`     Current user ID: ${userId}`);
 
     // 1. Generate query embedding
     console.log('  1/4 Generating query embedding...');
@@ -122,15 +123,69 @@ export async function searchByAgent(
     
     // Fallback to Firestore (always for dev, or if BigQuery failed)
     if (assignedSourceIds.length === 0) {
-      const sourcesSnapshot = await firestore
+      console.log(`  🔍 Searching Firestore for sources assigned to agent ${agentId}...`);
+      console.log(`     Step 1: Trying with effectiveUserId: ${effectiveUserId}`);
+      
+      // ✅ FIX: Try with effectiveUserId first, then fallback to agent owner if no sources found
+      let sourcesSnapshot = await firestore
         .collection(COLLECTIONS.CONTEXT_SOURCES)
         .where('userId', '==', effectiveUserId) // ✅ Use effective owner
         .where('assignedToAgents', 'array-contains', agentId)
         .select('__name__') // Only get IDs, not full documents
         .get();
       
+      console.log(`     Step 1 result: ${sourcesSnapshot.size} sources found`);
+      
+      // If no sources found with effectiveUserId, try with agent's original owner
+      // This handles cases where agent is not explicitly shared but users should still see references
+      if (sourcesSnapshot.empty) {
+        console.log(`     Step 2: No sources found with effectiveUserId, checking agent owner...`);
+        
+        const { getConversation } = await import('./firestore');
+        const agent = await getConversation(agentId);
+        
+        if (agent) {
+          console.log(`     Agent found: owner userId = ${agent.userId}`);
+          console.log(`     Comparing: effectiveUserId (${effectiveUserId}) vs agent.userId (${agent.userId})`);
+          console.log(`     Are they different? ${agent.userId !== effectiveUserId}`);
+          
+          if (agent.userId !== effectiveUserId) {
+            console.log(`  📚 Trying agent owner's sources: ${agent.userId}`);
+            console.log(`     (This allows references to work even if agent is not explicitly shared)`);
+            
+            sourcesSnapshot = await firestore
+              .collection(COLLECTIONS.CONTEXT_SOURCES)
+              .where('userId', '==', agent.userId) // ✅ Use agent owner's userId
+              .where('assignedToAgents', 'array-contains', agentId)
+              .select('__name__')
+              .get();
+            
+            console.log(`     Step 2 result: ${sourcesSnapshot.size} sources found from owner`);
+            
+            if (sourcesSnapshot.size > 0) {
+              console.log(`  ✅ SUCCESS! Found ${sourcesSnapshot.size} sources from agent owner - references will be generated`);
+            } else {
+              console.log(`  ⚠️ PROBLEM: No sources found even from agent owner`);
+              console.log(`     Possible causes:`);
+              console.log(`       1. Agent has no context sources assigned (assignedToAgents field)`);
+              console.log(`       2. Sources exist but assignedToAgents doesn't include this agentId`);
+              console.log(`       3. Database query issue`);
+            }
+          } else {
+            console.log(`     Same user - not trying owner lookup (would be redundant)`);
+          }
+        } else {
+          console.log(`     ⚠️ Agent not found in database: ${agentId}`);
+        }
+      } else {
+        console.log(`     ✅ SUCCESS! Found ${sourcesSnapshot.size} sources with effectiveUserId`);
+      }
+      
       assignedSourceIds = sourcesSnapshot.docs.map(doc => doc.id);
-      console.log(`  ✓ Found ${assignedSourceIds.length} sources from Firestore (${Date.now() - startSources}ms)`);
+      console.log(`  📊 FINAL RESULT: ${assignedSourceIds.length} sources will be used for RAG search`);
+      if (assignedSourceIds.length > 0) {
+        console.log(`     Source IDs: ${assignedSourceIds.slice(0, 3).join(', ')}${assignedSourceIds.length > 3 ? '...' : ''}`);
+      }
     }
 
     if (assignedSourceIds.length === 0) {
