@@ -199,18 +199,19 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
     }
 
     const body = await request.json();
-    const { name, domainId } = body;
+    const { name, domainId, companyInfo } = body;
 
     // Validate required fields
-    if (!name && !domainId) {
+    if (!name && !domainId && !companyInfo) {
       return new Response(
-        JSON.stringify({ error: 'At least one field (name or domainId) is required' }),
+        JSON.stringify({ error: 'At least one field (name, domainId, or companyInfo) is required' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
     const updates: any = {};
     if (name) updates.name = name;
+    if (companyInfo) updates.companyInfo = companyInfo;
     
     // If domainId is changing, we need to:
     // 1. Create new domain with new ID

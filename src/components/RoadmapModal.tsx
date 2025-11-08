@@ -32,6 +32,10 @@ import {
   BarChart3,
   Send,
   Loader2,
+  Calendar,
+  Zap,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface RoadmapModalProps {
@@ -120,6 +124,9 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
   const [rudyMessages, setRudyMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const [rudyInput, setRudyInput] = useState('');
   const [rudyLoading, setRudyLoading] = useState(false);
+  
+  // Analytics state
+  const [showAnalytics, setShowAnalytics] = useState(false);
   
   // Load feedback cards with real-time updates
   useEffect(() => {
@@ -435,14 +442,14 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
   
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full h-[90vh] max-w-[95vw] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full h-[92vh] max-w-[98vw] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div className="flex items-center gap-4">
-            <Target className="w-8 h-8 text-blue-600" />
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <Target className="w-6 h-6 text-blue-600" />
             <div>
-              <h2 className="text-2xl font-bold text-slate-800">Roadmap Flow</h2>
-              <p className="text-sm text-slate-600">
+              <h2 className="text-lg font-bold text-slate-800">Roadmap Flow</h2>
+              <p className="text-xs text-slate-600">
                 {cards.length} items • Backlog → Roadmap → Development → Review → Production
               </p>
             </div>
@@ -519,8 +526,202 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                 <span className="font-bold text-slate-600">{cards.filter(c => c.priority === 'low').length}</span>
               </div>
             </div>
+            
+            {/* Analytics Toggle */}
+            <button
+              onClick={() => setShowAnalytics(!showAnalytics)}
+              className="flex items-center gap-1 px-3 py-1 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 text-slate-600" />
+              <span className="text-xs font-medium text-slate-700">Analytics</span>
+              {showAnalytics ? (
+                <ChevronUp className="w-4 h-4 text-slate-600" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-600" />
+              )}
+            </button>
           </div>
         </div>
+        
+        {/* Roadmap Analytics (Expandable) */}
+        {showAnalytics && (
+          <div className="px-4 py-2 bg-white border-b border-slate-200 overflow-y-auto max-h-[200px]">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              
+              {/* Timeline Breakdown */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Calendar className="w-4 h-4 text-slate-700" />
+                  <h3 className="text-xs font-bold text-slate-800">Timeline Breakdown</h3>
+                </div>
+                
+                {(() => {
+                  // Calculate timeline stats
+                  const productionCards = cards.filter(c => c.lane === 'production');
+                  const now = new Date();
+                  const thisMonth = productionCards.filter(c => {
+                    const d = new Date(c.createdAt);
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                  }).length;
+                  
+                  const lastMonth = productionCards.filter(c => {
+                    const d = new Date(c.createdAt);
+                    const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    return d.getMonth() === last.getMonth() && d.getFullYear() === last.getFullYear();
+                  }).length;
+                  
+                  const thisYear = productionCards.filter(c => {
+                    const d = new Date(c.createdAt);
+                    return d.getFullYear() === now.getFullYear();
+                  }).length;
+                  
+                  const velocity = lastMonth > 0 ? (thisMonth / lastMonth) : 1;
+                  
+                  return (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                        <span className="text-xs text-slate-600">Este mes:</span>
+                        <span className="text-sm font-bold text-slate-900">{thisMonth}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                        <span className="text-xs text-slate-600">Mes anterior:</span>
+                        <span className="text-sm font-bold text-slate-900">{lastMonth}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                        <span className="text-xs text-slate-600">Este año:</span>
+                        <span className="text-sm font-bold text-slate-900">{thisYear}</span>
+                      </div>
+                      <div className="flex items-center justify-between p-2 bg-gradient-to-r from-purple-50 to-blue-50 rounded border border-purple-200">
+                        <div className="flex items-center gap-1">
+                          <Zap className="w-3 h-3 text-purple-600" />
+                          <span className="text-xs font-semibold text-purple-900">Velocidad:</span>
+                        </div>
+                        <span className="text-sm font-bold text-purple-600">{velocity.toFixed(1)}x</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
+              {/* Lane Distribution */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <TrendingUp className="w-4 h-4 text-slate-700" />
+                  <h3 className="text-xs font-bold text-slate-800">Por Etapa</h3>
+                </div>
+                
+                {LANES.map(lane => {
+                  const count = cards.filter(c => c.lane === lane.id).length;
+                  const percentage = cards.length > 0 ? (count / cards.length) * 100 : 0;
+                  
+                  return (
+                    <div key={lane.id} className="space-y-0.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700">{lane.title}</span>
+                        <span className="font-bold text-slate-900">{count} ({percentage.toFixed(0)}%)</span>
+                      </div>
+                      <div className="w-full bg-slate-200 rounded-full h-1.5">
+                        <div
+                          className={`bg-${lane.color}-600 h-1.5 rounded-full transition-all duration-300`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Impact Metrics */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <DollarSign className="w-4 h-4 text-slate-700" />
+                  <h3 className="text-xs font-bold text-slate-800">Impacto Agregado</h3>
+                </div>
+                
+                {(() => {
+                  const totalCSAT = cards.reduce((sum, c) => sum + (c.kpiImpact.csat || 0), 0);
+                  const totalNPS = cards.reduce((sum, c) => sum + (c.kpiImpact.nps || 0), 0);
+                  const totalROI = cards.reduce((sum, c) => sum + (c.kpiImpact.roi || 0), 0);
+                  const avgCSAT = cards.length > 0 ? totalCSAT / cards.length : 0;
+                  
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-2 bg-gradient-to-br from-green-50 to-emerald-50 rounded border border-green-200">
+                        <div className="text-[10px] text-green-700 font-medium">CSAT Total</div>
+                        <div className="text-lg font-bold text-green-900">+{totalCSAT.toFixed(1)}</div>
+                        <div className="text-[9px] text-green-600">Avg: +{avgCSAT.toFixed(2)}</div>
+                      </div>
+                      <div className="p-2 bg-gradient-to-br from-blue-50 to-cyan-50 rounded border border-blue-200">
+                        <div className="text-[10px] text-blue-700 font-medium">NPS Total</div>
+                        <div className="text-lg font-bold text-blue-900">+{totalNPS}</div>
+                        <div className="text-[9px] text-blue-600">{cards.length} features</div>
+                      </div>
+                      <div className="p-2 bg-gradient-to-br from-purple-50 to-pink-50 rounded border border-purple-200">
+                        <div className="text-[10px] text-purple-700 font-medium">ROI Total</div>
+                        <div className="text-lg font-bold text-purple-900">{totalROI.toFixed(0)}x</div>
+                        <div className="text-[9px] text-purple-600">Multiplier</div>
+                      </div>
+                      <div className="p-2 bg-gradient-to-br from-orange-50 to-yellow-50 rounded border border-orange-200">
+                        <div className="text-[10px] text-orange-700 font-medium">High Impact</div>
+                        <div className="text-lg font-bold text-orange-900">{cards.filter(c => c.kpiImpact.csat >= 4.0).length}</div>
+                        <div className="text-[9px] text-orange-600">CSAT ≥4.0</div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
+              {/* OKR Alignment */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Target className="w-4 h-4 text-slate-700" />
+                  <h3 className="text-xs font-bold text-slate-800">Alineación OKRs</h3>
+                </div>
+                
+                {(() => {
+                  // Aggregate OKR counts
+                  const okrCounts: Record<string, number> = {};
+                  cards.forEach(card => {
+                    card.okrAlignment.forEach(okr => {
+                      okrCounts[okr] = (okrCounts[okr] || 0) + 1;
+                    });
+                  });
+                  
+                  const topOKRs = Object.entries(okrCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6);
+                  
+                  return (
+                    <div className="space-y-1.5">
+                      {topOKRs.length > 0 ? topOKRs.map(([okr, count]) => {
+                        const percentage = cards.length > 0 ? (count / cards.length) * 100 : 0;
+                        return (
+                          <div key={okr} className="space-y-0.5">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="font-medium text-slate-700 truncate mr-2">{okr}</span>
+                              <span className="font-bold text-slate-900 whitespace-nowrap">{count} ({percentage.toFixed(0)}%)</span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-1">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-purple-500 h-1 rounded-full transition-all duration-300"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="text-center text-slate-500 text-xs py-2">
+                          Sin OKRs asignados
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+              
+            </div>
+          </div>
+        )}
         
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">

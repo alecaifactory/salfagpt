@@ -13,20 +13,24 @@ import {
   FileText,
   MessageSquare,
   Share2,
+  Target,
+  TrendingUp,
+  Search,
+  Loader2,
+  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import type { Domain as DomainType, DomainCompanyInfo } from '../lib/domains';
+import DomainCompanyInfoEditor from './DomainCompanyInfoEditor';
 
-export interface Domain {
-  id: string;
-  name: string;
-  enabled: boolean;
-  createdBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  allowedAgents: string[];
-  allowedContextSources: string[];
-  userCount?: number;
-  description?: string;
+// Re-export for component use
+export interface Domain extends DomainType {
+  // Include all fields from DomainType
+  createdAgentCount?: number;
+  sharedAgentCount?: number;
+  totalAgentCount?: number;
+  contextCount?: number;
 }
 
 interface DomainManagementModalProps {
@@ -61,6 +65,9 @@ export default function DomainManagementModal({
   
   // 🆕 Edit domain state
   const [editingDomain, setEditingDomain] = useState<Domain | null>(null);
+  
+  // 🆕 Company info editor state
+  const [editingCompanyInfo, setEditingCompanyInfo] = useState<Domain | null>(null);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
@@ -77,8 +84,8 @@ export default function DomainManagementModal({
     setError(null);
     
     try {
-      // 🆕 Use stats endpoint for accurate real-time counts
-      const response = await fetch('/api/domains/stats');
+      // 🚀 Use optimized stats endpoint for faster loading
+      const response = await fetch('/api/domains/stats-optimized');
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -570,6 +577,14 @@ export default function DomainManagementModal({
                             Edit
                           </button>
                           <button
+                            onClick={() => setEditingCompanyInfo(domain)}
+                            className="px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded hover:from-blue-700 hover:to-purple-700 text-xs font-medium flex items-center gap-1"
+                            title="Company Info (Mission, Vision, OKRs, KPIs, Web)"
+                          >
+                            <Target className="w-3.5 h-3.5" />
+                            Info
+                          </button>
+                          <button
                             onClick={() => handleDeleteDomain(domain.id)}
                             className="p-1 text-slate-400 hover:text-red-600"
                             title="Delete domain"
@@ -769,6 +784,15 @@ export default function DomainManagementModal({
         <EditDomainModal
           domain={editingDomain}
           onClose={() => setEditingDomain(null)}
+          onSave={loadDomains}
+        />
+      )}
+
+      {/* Company Info Editor */}
+      {editingCompanyInfo && (
+        <DomainCompanyInfoEditor
+          domain={editingCompanyInfo}
+          onClose={() => setEditingCompanyInfo(null)}
           onSave={loadDomains}
         />
       )}

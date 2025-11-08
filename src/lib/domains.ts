@@ -26,6 +26,64 @@ export interface Domain {
   userCount?: number;               // Number of users in this domain
   description?: string;             // Optional description
   settings?: DomainSettings;        // Domain-specific settings
+  
+  // 🆕 Business Intelligence & Strategy (2025-11-08)
+  companyInfo?: DomainCompanyInfo;  // Mission, vision, OKRs, KPIs, web data
+}
+
+/**
+ * Company information and strategic data for domain
+ */
+export interface DomainCompanyInfo {
+  // Core Strategy
+  mission?: string;                 // Company mission statement
+  vision?: string;                  // Company vision statement
+  purpose?: string;                 // Core purpose
+  
+  // Objectives & Results
+  okrs?: Array<{
+    objective: string;              // High-level objective
+    keyResults: string[];           // Measurable key results
+    quarter?: string;               // Time period (e.g., 'Q4 2025')
+  }>;
+  
+  kpis?: Array<{
+    name: string;                   // KPI name
+    target: string;                 // Target value
+    current?: string;               // Current value
+    unit?: string;                  // Unit (%, $, count, etc.)
+  }>;
+  
+  // Web Intelligence
+  webData?: {
+    scrapedAt?: Date;               // When data was scraped
+    scrapedBy?: string;             // User who initiated scrape
+    websiteUrl?: string;            // Primary website URL
+    aboutText?: string;             // About/description from website
+    services?: string[];            // Services offered
+    products?: string[];            // Products offered
+    industry?: string;              // Industry classification
+    size?: string;                  // Company size estimate
+    foundedYear?: string;           // Year founded
+    headquarters?: string;          // HQ location
+    socialLinks?: {                 // Social media presence
+      linkedin?: string;
+      twitter?: string;
+      facebook?: string;
+    };
+    rawData?: string;               // Full scraped content
+    status?: 'idle' | 'scraping' | 'completed' | 'error';
+    error?: string;                 // Error message if scraping failed
+  };
+  
+  // AI-Generated Insights
+  aiAnalysis?: {
+    generatedAt?: Date;
+    summary?: string;               // AI-generated company summary
+    strengths?: string[];           // Identified strengths
+    focusAreas?: string[];          // Key focus areas
+    relevanceScore?: number;        // 0-100 relevance to platform
+  };
 }
 
 export interface DomainSettings {
