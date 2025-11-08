@@ -5,13 +5,14 @@ import type { ScreenshotAnnotation, AnnotatedScreenshot } from '../types/feedbac
 interface ScreenshotAnnotatorProps {
   onComplete: (screenshot: AnnotatedScreenshot) => void;
   onCancel: () => void;
+  existingScreenshot?: AnnotatedScreenshot; // For re-editing
 }
 
 type DrawingTool = 'circle' | 'rectangle' | 'arrow' | 'text' | 'eraser';
 
-export default function ScreenshotAnnotator({ onComplete, onCancel }: ScreenshotAnnotatorProps) {
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [annotations, setAnnotations] = useState<ScreenshotAnnotation[]>([]);
+export default function ScreenshotAnnotator({ onComplete, onCancel, existingScreenshot }: ScreenshotAnnotatorProps) {
+  const [screenshot, setScreenshot] = useState<string | null>(existingScreenshot?.imageDataUrl || null);
+  const [annotations, setAnnotations] = useState<ScreenshotAnnotation[]>(existingScreenshot?.annotations || []);
   const [activeTool, setActiveTool] = useState<DrawingTool>('circle');
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<ScreenshotAnnotation> | null>(null);
@@ -22,7 +23,10 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
   const [isCapturing, setIsCapturing] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const [dimensions, setDimensions] = useState({ 
+    width: existingScreenshot?.width || 0, 
+    height: existingScreenshot?.height || 0 
+  });
 
   // ✅ CHANGED: Don't auto-capture on mount - wait for user to click "Capturar"
   // This allows scrolling to the desired position first
@@ -303,8 +307,8 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
     setAnnotations(annotations.slice(0, -1));
   };
 
-  // Step 1: Allow scrolling and positioning before capture
-  if (!screenshot && !isCapturing) {
+  // Step 1: Allow scrolling and positioning before capture (skip if editing existing)
+  if (!screenshot && !isCapturing && !existingScreenshot) {
     return (
       <>
         {/* Semi-transparent overlay - allows seeing through to scroll */}
@@ -367,7 +371,9 @@ export default function ScreenshotAnnotator({ onComplete, onCancel }: Screenshot
       {/* Toolbar */}
       <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold text-slate-800 mr-4">Anotar Captura</h3>
+          <h3 className="text-lg font-bold text-slate-800 mr-4">
+            {existingScreenshot ? 'Editar Captura' : 'Anotar Captura'}
+          </h3>
           
           {/* Drawing Tools */}
           <button
