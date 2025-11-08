@@ -108,6 +108,10 @@ export default function StellaSidebarChat({
   const [showScreenshotTool, setShowScreenshotTool] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
   const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
+  const [editingAttachment, setEditingAttachment] = useState<{
+    attachment: Attachment;
+    index: number;
+  } | null>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -173,11 +177,49 @@ export default function StellaSidebarChat({
     };
   }
   
-  // Handle screenshot complete
+  // Handle screenshot complete (new or edited)
   async function handleScreenshotComplete(annotatedScreenshot: AnnotatedScreenshot) {
     setShowScreenshotTool(false);
     
-    // Analyze screenshot with AI
+    // Check if we're editing an existing attachment
+    if (editingAttachment) {
+      // Update existing attachment
+      const updatedAttachment: Attachment = {
+        ...editingAttachment.attachment,
+        screenshot: annotatedScreenshot,
+        aiAnalysis: undefined, // Will be re-analyzed
+      };
+      
+      // Re-analyze with AI
+      try {
+        const response = await fetch('/api/stella/analyze-screenshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            screenshot: annotatedScreenshot,
+            uiContext: captureUIContext(),
+            category: currentSession?.category,
+          }),
+        });
+        
+        const data = await response.json();
+        updatedAttachment.aiAnalysis = data.analysis;
+      } catch (error) {
+        console.error('Error analyzing screenshot:', error);
+      }
+      
+      // Update in array
+      setPendingAttachments(prev =>
+        prev.map((att, idx) =>
+          idx === editingAttachment.index ? updatedAttachment : att
+        )
+      );
+      
+      setEditingAttachment(null);
+      return;
+    }
+    
+    // New attachment - Analyze screenshot with AI
     try {
       const response = await fetch('/api/stella/analyze-screenshot', {
         method: 'POST',
@@ -214,9 +256,22 @@ export default function StellaSidebarChat({
     }
   }
   
+  // Handle screenshot cancel
+  function handleScreenshotCancel() {
+    setShowScreenshotTool(false);
+    setEditingAttachment(null);
+  }
+  
+  // Start editing an attachment
+  function handleEditAttachment(attachment: Attachment, index: number) {
+    setEditingAttachment({ attachment, index });
+    setShowScreenshotTool(true);
+  }
+  
   // Send message
   async function sendMessage() {
-    if (!inputText.trim() || !currentSession) return;
+    // Need at least text OR attachments
+    if ((!inputText.trim() && pendingAttachments.length === 0) || !currentSession) return;
     
     setIsSubmitting(true);
     
@@ -225,7 +280,7 @@ export default function StellaSidebarChat({
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
-        content: inputText,
+        content: inputText.trim() || '📸 Captura de pantalla adjunta',
         timestamp: new Date(),
         attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
       };
@@ -629,13 +684,23 @@ export default function StellaSidebarChat({
                       )}
                     </div>
                     
-                    {/* Remove button */}
-                    <button
-                      onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
-                      className="flex-shrink-0 text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+                    {/* Edit and Remove buttons */}
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      <button
+                        onClick={() => handleEditAttachment(att, idx)}
+                        className="p-1 text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-200 transition-colors"
+                        title="Editar anotaciones"
+                      >
+                        <Paintbrush className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
+                        className="p-1 text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="Eliminar"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -645,6 +710,23 @@ export default function StellaSidebarChat({
           {/* Input Area */}
           <div className="p-4 border-t border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800">
             <div className="flex flex-col gap-2">
+              {/* Attachments info above textarea */}
+              {pendingAttachments.length > 0 && (
+                <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 rounded-lg px-3 py-2">
+                  <ImageIcon className="w-4 h-4" />
+                  <span className="font-semibold">
+                    {pendingAttachments.length} captura{pendingAttachments.length !== 1 ? 's' : ''} lista{pendingAttachments.length !== 1 ? 's' : ''} para enviar
+                  </span>
+                  <span className="text-violet-500 dark:text-violet-400">•</span>
+                  <button
+                    onClick={() => setPendingAttachments([])}
+                    className="text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 underline"
+                  >
+                    Limpiar todas
+                  </button>
+                </div>
+              )}
+              
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -654,7 +736,11 @@ export default function StellaSidebarChat({
                     sendMessage();
                   }
                 }}
-                placeholder="Escribe tu mensaje a Stella..."
+                placeholder={
+                  pendingAttachments.length > 0
+                    ? "Agrega un mensaje para acompañar tus capturas..."
+                    : "Escribe tu mensaje a Stella..."
+                }
                 rows={3}
                 className="w-full px-3 py-2 border-2 border-violet-200 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
               />
@@ -687,11 +773,20 @@ export default function StellaSidebarChat({
                   
                   <button
                     onClick={sendMessage}
-                    disabled={!inputText.trim() || isSubmitting}
+                    disabled={(!inputText.trim() && pendingAttachments.length === 0) || isSubmitting}
                     className="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-lg hover:from-violet-700 hover:to-purple-700 disabled:opacity-50 text-xs font-bold flex items-center gap-1.5 shadow-sm"
                   >
-                    <Send className="w-3.5 h-3.5" />
-                    Enviar
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" />
+                        Enviar {pendingAttachments.length > 0 && `(${pendingAttachments.length})`}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -733,12 +828,15 @@ export default function StellaSidebarChat({
         </div>
       )}
       
-      {/* Screenshot Annotator Modal */}
+      {/* Screenshot Annotator Modal - Higher z-index than Stella */}
       {showScreenshotTool && (
-        <ScreenshotAnnotator
-          onComplete={handleScreenshotComplete}
-          onCancel={() => setShowScreenshotTool(false)}
-        />
+        <div className="fixed inset-0 z-[10000]">
+          <ScreenshotAnnotator
+            onComplete={handleScreenshotComplete}
+            onCancel={handleScreenshotCancel}
+            existingScreenshot={editingAttachment?.attachment.screenshot}
+          />
+        </div>
       )}
       
       {/* Attachment Viewer Modal */}
@@ -747,16 +845,20 @@ export default function StellaSidebarChat({
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-violet-600" />
-                Captura de Pantalla
-              </h3>
-              <button
-                onClick={() => setViewingAttachment(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-3">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-violet-600" />
+                  Captura de Pantalla
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewingAttachment(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
             
             {/* Image */}
