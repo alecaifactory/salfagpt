@@ -444,7 +444,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full h-[92vh] max-w-[98vw] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <Target className="w-6 h-6 text-blue-600" />
             <div>
@@ -479,7 +479,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
         </div>
         
         {/* Analytics Summary */}
-        <div className="px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
+        <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-200">
           <div className="flex items-center gap-6 text-sm">
             {/* Total Feedback */}
             <div className="flex items-center gap-2">
@@ -726,8 +726,8 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
         {/* Main Content */}
         <div className="flex-1 flex overflow-hidden">
           {/* Kanban Board */}
-          <div className={`${showRudy ? 'flex-[2]' : 'flex-1'} overflow-x-auto p-6 transition-all`}>
-            <div className="flex gap-4 h-full">
+          <div className={`${showRudy ? 'flex-[2]' : 'flex-1'} overflow-x-auto p-3 transition-all`}>
+            <div className="flex gap-2.5 h-full">
               {LANES.map((lane) => {
                 const laneCards = getCardsForLane(lane.id);
                 const LaneIcon = lane.icon;
@@ -735,25 +735,25 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                 return (
                   <div
                     key={lane.id}
-                    className="flex-1 min-w-[280px] max-w-[320px] flex flex-col"
+                    className="flex-1 min-w-[220px] max-w-[260px] flex flex-col"
                   >
                     {/* Lane Header */}
-                    <div className={`bg-${lane.color}-50 border-2 border-${lane.color}-300 rounded-t-xl p-4`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <LaneIcon className={`w-5 h-5 text-${lane.color}-600`} />
-                        <h3 className={`text-sm font-bold text-${lane.color}-800`}>
+                    <div className={`bg-${lane.color}-50 border-2 border-${lane.color}-300 rounded-t-xl p-2`}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <LaneIcon className={`w-4 h-4 text-${lane.color}-600`} />
+                        <h3 className={`text-xs font-bold text-${lane.color}-800`}>
                           {lane.title}
                         </h3>
-                        <span className={`ml-auto px-2 py-1 bg-${lane.color}-200 text-${lane.color}-800 rounded-full text-sm font-bold`}>
+                        <span className={`ml-auto px-1.5 py-0.5 bg-${lane.color}-200 text-${lane.color}-800 rounded-full text-xs font-bold`}>
                           {laneCards.length}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-600">{lane.description}</p>
+                      <p className="text-[10px] text-slate-600">{lane.description}</p>
                     </div>
                     
                     {/* Lane Content */}
                     <div
-                      className="flex-1 bg-slate-50 border-l-2 border-r-2 border-b-2 border-slate-200 rounded-b-xl p-3 space-y-3 overflow-y-auto"
+                      className="flex-1 bg-slate-50 border-l-2 border-r-2 border-b-2 border-slate-200 rounded-b-xl p-2 space-y-2 overflow-y-auto"
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(lane.id, e)}
                     >
@@ -776,41 +776,41 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                               draggable
                               onDragStart={(e) => handleDragStart(card.id, e)}
                               onClick={() => setSelectedCard(card)}
-                              className={`${roleColors.bg} border-2 ${roleColors.border} rounded-lg p-4 cursor-move hover:shadow-lg transition-all ${
+                              className={`${roleColors.bg} border-2 ${roleColors.border} rounded-lg p-2.5 cursor-move hover:shadow-lg transition-all ${
                                 draggedCard === card.id ? 'opacity-50 scale-95' : ''
                               }`}
                             >
                               {/* Header: User info */}
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <div className={`w-8 h-8 rounded-full ${roleColors.badge} flex items-center justify-center text-xs font-bold flex-shrink-0`}>
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                  <div className={`w-6 h-6 rounded-full ${roleColors.badge} flex items-center justify-center text-[10px] font-bold flex-shrink-0`}>
                                     {card.createdBy.substring(0, 2).toUpperCase()}
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <p className={`text-xs font-semibold ${roleColors.text} truncate`}>
+                                    <p className={`text-[10px] font-semibold ${roleColors.text} truncate`}>
                                       {card.createdBy}
                                     </p>
-                                    <p className="text-xs text-slate-500 truncate flex items-center gap-1">
-                                      <Building2 className="w-3 h-3" />
+                                    <p className="text-[9px] text-slate-500 truncate flex items-center gap-0.5">
+                                      <Building2 className="w-2.5 h-2.5" />
                                       {card.userDomain}
                                     </p>
                                   </div>
                                 </div>
                                 
                                 {/* Role badge */}
-                                <span className={`${roleColors.badge} px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0`}>
+                                <span className={`${roleColors.badge} px-1.5 py-0.5 rounded-full text-[9px] font-bold flex-shrink-0`}>
                                   {card.userRole.toUpperCase()}
                                 </span>
                               </div>
                               
                               {/* Ticket ID & Badges */}
-                              <div className="mb-2 flex items-center gap-2 flex-wrap">
-                                <span className="text-xs font-mono font-bold text-slate-700">
+                              <div className="mb-1.5 flex items-center gap-1.5 flex-wrap">
+                                <span className="text-[10px] font-mono font-bold text-slate-700">
                                   {card.ticketId}
                                 </span>
                                 
                                 {/* Priority badge */}
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                <span className={`px-1 py-0.5 rounded text-[9px] font-bold ${
                                   card.priority === 'critical' ? 'bg-red-600 text-white' :
                                   card.priority === 'high' ? 'bg-orange-600 text-white' :
                                   card.priority === 'medium' ? 'bg-yellow-600 text-white' :
@@ -821,31 +821,31 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                               </div>
                               
                               {/* Title */}
-                              <h4 className="font-semibold text-sm text-slate-800 mb-2 line-clamp-2">
+                              <h4 className="font-semibold text-xs text-slate-800 mb-1.5 line-clamp-2">
                                 {card.title}
                               </h4>
                               
                               {/* Agent context */}
-                              <div className="flex items-center gap-1 mb-3 text-xs text-slate-600">
-                                <MessageSquare className="w-3 h-3" />
+                              <div className="flex items-center gap-1 mb-2 text-[10px] text-slate-600">
+                                <MessageSquare className="w-2.5 h-2.5" />
                                 <span className="truncate">Agente: {card.agentName}</span>
                               </div>
                               
                               {/* Screenshot indicator */}
                               {card.screenshot && (
-                                <div className="flex items-center gap-1 mb-3 text-xs text-blue-600">
-                                  <ImageIcon className="w-3 h-3" />
+                                <div className="flex items-center gap-1 mb-2 text-[10px] text-blue-600">
+                                  <ImageIcon className="w-2.5 h-2.5" />
                                   <span>Con captura</span>
                                 </div>
                               )}
                               
                               {/* Feedback Rating Display */}
-                              <div className="space-y-2 mb-3">
+                              <div className="space-y-1.5 mb-2">
                                 {/* Original Feedback Rating */}
-                                <div className="flex items-center justify-between text-xs">
+                                <div className="flex items-center justify-between text-[10px]">
                                   <span className="text-slate-600 font-medium">Calificación:</span>
                                   {card.userRole === 'expert' ? (
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
                                       card.kpiImpact.csat >= 4 ? 'bg-green-100 text-green-700' :
                                       card.kpiImpact.csat >= 2.5 ? 'bg-yellow-100 text-yellow-700' :
                                       'bg-red-100 text-red-700'
@@ -857,7 +857,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                                   ) : (
                                     <div className="flex items-center gap-0.5">
                                       {[1, 2, 3, 4, 5].map(star => (
-                                        <span key={star} className={`text-base ${
+                                        <span key={star} className={`text-xs ${
                                           star <= Math.round(card.kpiImpact.csat) ? 'text-yellow-500' : 'text-slate-300'
                                         }`}>★</span>
                                       ))}
@@ -867,7 +867,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                                 
                                 {/* KPI Impact */}
                                 {card.kpiImpact.nps > 0 && (
-                                  <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center justify-between text-[10px]">
                                     <span className="text-slate-600">NPS:</span>
                                     <span className={`font-bold ${card.kpiImpact.nps >= 9 ? 'text-green-700' : 'text-slate-700'}`}>
                                       {card.kpiImpact.nps}/10
@@ -875,7 +875,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                                   </div>
                                 )}
                                 {card.kpiImpact.csat > 0 && card.userRole === 'expert' && (
-                                  <div className="flex items-center justify-between text-xs">
+                                  <div className="flex items-center justify-between text-[10px]">
                                     <span className="text-slate-600">CSAT:</span>
                                     <span className={`font-bold ${card.kpiImpact.csat >= 4 ? 'text-green-700' : 'text-slate-700'}`}>
                                       {card.kpiImpact.csat}/5
@@ -885,13 +885,13 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                               </div>
                               
                               {/* Social metrics */}
-                              <div className="flex items-center gap-3 text-xs border-t border-slate-200 pt-2">
-                                <div className="flex items-center gap-1 text-slate-600">
-                                  <ThumbsUp className="w-3 h-3" />
+                              <div className="flex items-center gap-2 text-[10px] border-t border-slate-200 pt-1.5">
+                                <div className="flex items-center gap-0.5 text-slate-600">
+                                  <ThumbsUp className="w-2.5 h-2.5" />
                                   <span className="font-medium">{card.upvotes}</span>
                                 </div>
-                                <div className="flex items-center gap-1 text-slate-600">
-                                  <Share2 className="w-3 h-3" />
+                                <div className="flex items-center gap-0.5 text-slate-600">
+                                  <Share2 className="w-2.5 h-2.5" />
                                   <span className="font-medium">{card.shares}</span>
                                 </div>
                                 <div className="ml-auto">
