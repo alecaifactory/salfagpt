@@ -22,7 +22,8 @@ import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
 import StellaMarkerTool from './StellaMarkerTool_v2';
-import StellaSidebarChat from './StellaSidebarChat';
+import StellaSidebarChat, { type StellaAttachment } from './StellaSidebarChat';
+import ScreenshotAnnotator from './ScreenshotAnnotator';
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
 import AgentPromptEnhancer from './AgentPromptEnhancer'; // ✅ NEW: AI-powered prompt enhancement
@@ -404,6 +405,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
   const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
+  
+  // Stella screenshot tool state (managed at top level to capture full UI including Stella)
+  const [showStellaScreenshotTool, setShowStellaScreenshotTool] = useState(false);
+  const [editingStellaAttachment, setEditingStellaAttachment] = useState<{
+    attachment: StellaAttachment;
+    index: number;
+  } | null>(null);
   // DISABLED FULL-TEXT MODE: RAG is now the ONLY option
   // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
   const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
@@ -1005,6 +1013,110 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
     console.log('✅ Stopped impersonation');
     window.location.href = '/chat'; // Reload as original user
+  }
+  
+  // Stella screenshot handlers (NEW)
+  function handleStellaRequestScreenshot() {
+    setShowStellaScreenshotTool(true);
+    setEditingStellaAttachment(null);
+  }
+  
+  function handleStellaRequestEditScreenshot(attachment: StellaAttachment, index: number) {
+    setEditingStellaAttachment({ attachment, index });
+    setShowStellaScreenshotTool(true);
+  }
+  
+  async function handleStellaScreenshotComplete(annotatedScreenshot: any) {
+    setShowStellaScreenshotTool(false);
+    
+    // Get UI context
+    const uiContext = {
+      currentAgent: selectedAgent || undefined,
+      currentChat: currentConversation || undefined,
+      consoleErrors: [],
+      pageUrl: window.location.href,
+    };
+    
+    // If editing, update existing
+    if (editingStellaAttachment) {
+      const updatedAttachment: StellaAttachment = {
+        ...editingStellaAttachment.attachment,
+        screenshot: annotatedScreenshot,
+        aiAnalysis: undefined,
+      };
+      
+      // Re-analyze
+      try {
+        const response = await fetch('/api/stella/analyze-screenshot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            screenshot: annotatedScreenshot,
+            uiContext,
+            category: 'bug', // Default, can be updated
+          }),
+        });
+        
+        const data = await response.json();
+        updatedAttachment.aiAnalysis = data.analysis;
+      } catch (error) {
+        console.error('Error analyzing screenshot:', error);
+      }
+      
+      // Update via window function
+      if ((window as any).stellaUpdateAttachment) {
+        (window as any).stellaUpdateAttachment(updatedAttachment, editingStellaAttachment.index);
+      }
+      
+      setEditingStellaAttachment(null);
+      return;
+    }
+    
+    // New attachment - analyze
+    try {
+      const response = await fetch('/api/stella/analyze-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          screenshot: annotatedScreenshot,
+          uiContext,
+          category: 'bug',
+        }),
+      });
+      
+      const data = await response.json();
+      
+      const attachment: StellaAttachment = {
+        id: `att-${Date.now()}`,
+        type: 'screenshot',
+        screenshot: annotatedScreenshot,
+        aiAnalysis: data.analysis,
+        uiContext,
+      };
+      
+      // Add via window function
+      if ((window as any).stellaAddAttachment) {
+        (window as any).stellaAddAttachment(attachment);
+      }
+    } catch (error) {
+      console.error('Error analyzing screenshot:', error);
+      
+      const attachment: StellaAttachment = {
+        id: `att-${Date.now()}`,
+        type: 'screenshot',
+        screenshot: annotatedScreenshot,
+        uiContext,
+      };
+      
+      if ((window as any).stellaAddAttachment) {
+        (window as any).stellaAddAttachment(attachment);
+      }
+    }
+  }
+  
+  function handleStellaScreenshotCancel() {
+    setShowStellaScreenshotTool(false);
+    setEditingStellaAttachment(null);
   }
 
   // REMOVED: Duplicate loadConversations useEffect
@@ -6610,6 +6722,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             agentId: selectedAgent || undefined,
             conversationId: currentConversation || undefined,
           }}
+          onRequestScreenshot={handleStellaRequestScreenshot}
+          onRequestEditScreenshot={handleStellaRequestEditScreenshot}
+        />
+      )}
+      
+      {/* Stella Screenshot Tool - Fullscreen modal OUTSIDE Stella (z-10000) */}
+      {showStellaScreenshotTool && (
+        <ScreenshotAnnotator
+          onComplete={handleStellaScreenshotComplete}
+          onCancel={handleStellaScreenshotCancel}
+          existingScreenshot={editingStellaAttachment?.attachment.screenshot}
         />
       )}
 
