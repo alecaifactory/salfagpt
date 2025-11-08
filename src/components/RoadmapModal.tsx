@@ -448,7 +448,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
           <div className="flex items-center gap-3">
             <Target className="w-6 h-6 text-blue-600" />
             <div>
-              <h2 className="text-lg font-bold text-slate-800">Roadmap Flow</h2>
+              <h2 className="text-sm font-bold text-slate-800">Roadmap Flow</h2>
               <p className="text-xs text-slate-600">
                 {cards.length} items • Backlog → Roadmap → Development → Review → Production
               </p>
@@ -648,22 +648,22 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-2 bg-gradient-to-br from-green-50 to-emerald-50 rounded border border-green-200">
                         <div className="text-[10px] text-green-700 font-medium">CSAT Total</div>
-                        <div className="text-lg font-bold text-green-900">+{totalCSAT.toFixed(1)}</div>
+                        <div className="text-sm font-bold text-green-900">+{totalCSAT.toFixed(1)}</div>
                         <div className="text-[9px] text-green-600">Avg: +{avgCSAT.toFixed(2)}</div>
                       </div>
                       <div className="p-2 bg-gradient-to-br from-blue-50 to-cyan-50 rounded border border-blue-200">
                         <div className="text-[10px] text-blue-700 font-medium">NPS Total</div>
-                        <div className="text-lg font-bold text-blue-900">+{totalNPS}</div>
+                        <div className="text-sm font-bold text-blue-900">+{totalNPS}</div>
                         <div className="text-[9px] text-blue-600">{cards.length} features</div>
                       </div>
                       <div className="p-2 bg-gradient-to-br from-purple-50 to-pink-50 rounded border border-purple-200">
                         <div className="text-[10px] text-purple-700 font-medium">ROI Total</div>
-                        <div className="text-lg font-bold text-purple-900">{totalROI.toFixed(0)}x</div>
+                        <div className="text-sm font-bold text-purple-900">{totalROI.toFixed(0)}x</div>
                         <div className="text-[9px] text-purple-600">Multiplier</div>
                       </div>
                       <div className="p-2 bg-gradient-to-br from-orange-50 to-yellow-50 rounded border border-orange-200">
                         <div className="text-[10px] text-orange-700 font-medium">High Impact</div>
-                        <div className="text-lg font-bold text-orange-900">{cards.filter(c => c.kpiImpact.csat >= 4.0).length}</div>
+                        <div className="text-sm font-bold text-orange-900">{cards.filter(c => c.kpiImpact.csat >= 4.0).length}</div>
                         <div className="text-[9px] text-orange-600">CSAT ≥4.0</div>
                       </div>
                     </div>
@@ -741,7 +741,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     <div className={`bg-${lane.color}-50 border-2 border-${lane.color}-300 rounded-t-xl p-4`}>
                       <div className="flex items-center gap-2 mb-2">
                         <LaneIcon className={`w-5 h-5 text-${lane.color}-600`} />
-                        <h3 className={`text-lg font-bold text-${lane.color}-800`}>
+                        <h3 className={`text-sm font-bold text-${lane.color}-800`}>
                           {lane.title}
                         </h3>
                         <span className={`ml-auto px-2 py-1 bg-${lane.color}-200 text-${lane.color}-800 rounded-full text-sm font-bold`}>
@@ -932,7 +932,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     <Bot className="w-7 h-7 text-purple-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-white">Rudy</h3>
+                    <h3 className="text-sm font-bold text-white">Rudy</h3>
                     <p className="text-xs text-purple-100">AI Roadmap Assistant</p>
                   </div>
                 </div>
@@ -1026,7 +1026,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
               <div className="flex items-start justify-between p-6 border-b border-slate-200">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg font-mono font-bold text-slate-700">
+                    <span className="text-sm font-mono font-bold text-slate-700">
                       {selectedCard.ticketId}
                     </span>
                     
@@ -1035,7 +1035,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     </span>
                   </div>
                   
-                  <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                  <h2 className="text-lg font-bold text-slate-800 mb-2">
                     {selectedCard.title}
                   </h2>
                   
@@ -1086,7 +1086,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                       <p className="text-xs text-green-700 mb-1">CSAT</p>
-                      <p className="text-3xl font-bold text-green-800">
+                      <p className="text-xl font-bold text-green-800">
                         {selectedCard.kpiImpact.csat.toFixed(1)}+
                       </p>
                       <p className="text-xs text-slate-500 mt-1">Target: 4+</p>
@@ -1094,7 +1094,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
                       <p className="text-xs text-blue-700 mb-1">NPS</p>
-                      <p className="text-3xl font-bold text-blue-800">
+                      <p className="text-xl font-bold text-blue-800">
                         {selectedCard.kpiImpact.nps}
                       </p>
                       <p className="text-xs text-slate-500 mt-1">Target: &gt;98</p>
@@ -1102,7 +1102,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     
                     <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
                       <p className="text-xs text-purple-700 mb-1">ROI</p>
-                      <p className="text-3xl font-bold text-purple-800">
+                      <p className="text-xl font-bold text-purple-800">
                         {selectedCard.kpiImpact.roi}x
                       </p>
                       <p className="text-xs text-slate-500 mt-1">Estimado</p>
@@ -1175,15 +1175,15 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                 <div className="border-t border-slate-200 pt-4">
                   <div className="flex items-center justify-around text-center">
                     <div>
-                      <p className="text-2xl font-bold text-blue-600">{selectedCard.upvotes}</p>
+                      <p className="text-lg font-bold text-blue-600">{selectedCard.upvotes}</p>
                       <p className="text-xs text-slate-600">Upvotes</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-purple-600">{selectedCard.shares}</p>
+                      <p className="text-lg font-bold text-purple-600">{selectedCard.shares}</p>
                       <p className="text-xs text-slate-600">Shares</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-green-600">{selectedCard.upvotedBy.length}</p>
+                      <p className="text-lg font-bold text-green-600">{selectedCard.upvotedBy.length}</p>
                       <p className="text-xs text-slate-600">Supporters</p>
                     </div>
                   </div>
