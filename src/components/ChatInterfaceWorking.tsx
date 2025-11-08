@@ -1017,14 +1017,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   // Stella screenshot handlers (NEW)
   function handleStellaRequestScreenshot() {
-    // Temporarily hide Stella to capture clean UI
-    setShowStellaSidebar(false);
-    
-    // Wait for Stella to slide out, then open screenshot tool
-    setTimeout(() => {
-      setShowStellaScreenshotTool(true);
-      setEditingStellaAttachment(null);
-    }, 350); // Wait for 300ms transition + 50ms buffer
+    // Open screenshot tool immediately - will capture full UI including Stella
+    setShowStellaScreenshotTool(true);
+    setEditingStellaAttachment(null);
   }
   
   function handleStellaRequestEditScreenshot(attachment: StellaAttachment, index: number) {
@@ -1034,9 +1029,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   async function handleStellaScreenshotComplete(annotatedScreenshot: any) {
     setShowStellaScreenshotTool(false);
-    
-    // Re-open Stella after screenshot completion
-    setShowStellaSidebar(true);
     
     // Get UI context
     const uiContext = {
@@ -1126,8 +1118,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   function handleStellaScreenshotCancel() {
     setShowStellaScreenshotTool(false);
     setEditingStellaAttachment(null);
-    // Re-open Stella after canceling
-    setShowStellaSidebar(true);
   }
 
   // REMOVED: Duplicate loadConversations useEffect
@@ -6738,15 +6728,6 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         />
       )}
       
-      {/* Stella Screenshot Tool - Fullscreen modal OUTSIDE Stella (z-10000) */}
-      {showStellaScreenshotTool && (
-        <ScreenshotAnnotator
-          onComplete={handleStellaScreenshotComplete}
-          onCancel={handleStellaScreenshotCancel}
-          existingScreenshot={editingStellaAttachment?.attachment.screenshot}
-        />
-      )}
-
       {/* Changelog Modal - In-app changelog */}
       <ChangelogModal
         isOpen={showChangelog}
@@ -6756,6 +6737,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         }}
         highlightFeatureId={highlightFeatureId || undefined}
       />
+      
+      {/* Stella Screenshot Tool - Rendered LAST for highest z-index, captures EVERYTHING including Stella */}
+      {showStellaScreenshotTool && (
+        <ScreenshotAnnotator
+          onComplete={handleStellaScreenshotComplete}
+          onCancel={handleStellaScreenshotCancel}
+          existingScreenshot={editingStellaAttachment?.attachment.screenshot}
+        />
+      )}
     </div>
   );
 }
