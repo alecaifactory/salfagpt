@@ -3387,7 +3387,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           {userRole !== 'user' && (
             <button
               onClick={createNewConversation}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 dark:bg-blue-600 text-white rounded-lg font-semibold hover:bg-slate-800 dark:hover:bg-blue-700 transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
             >
               <Plus className="w-5 h-5" />
               Nuevo Agente
@@ -3410,7 +3410,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </span>
                 <Bot className="w-4 h-4" />
                 <span>Agentes</span>
-                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs font-semibold">
+                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-semibold">
                   {conversations.filter(c => 
                     (c.isAgent === true || (c.isAgent === undefined && !c.agentId)) && 
                     c.status !== 'archived'
@@ -3447,7 +3447,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       }
                     }}
                     onBlur={() => saveConversationTitle(agent.id, editingTitle)}
-                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
+                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
                     autoFocus
                   />
                   <button
@@ -3499,7 +3499,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           setAgentForContextConfig(agent.id);
                           setShowAgentContextModal(true);
                         }}
-                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                         title="Configurar Contexto"
                       >
                         <SettingsIcon className="w-3.5 h-3.5" />
@@ -3526,7 +3526,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           e.stopPropagation();
                           startEditingConversation(agent);
                         }}
-                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                         title="Editar nombre"
                       >
                         <Pencil className="w-3.5 h-3.5" />
@@ -3566,7 +3566,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           e.stopPropagation();
                           createNewChatForAgent(agent.id);
                         }}
-                        className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                        className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                         title="Nuevo chat"
                       >
                         <div className="relative">
@@ -3718,7 +3718,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   setEditingFolderId(folder.id);
                                   setEditingFolderName(folder.name);
                                 }}
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                                 title="Renombrar"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -3752,7 +3752,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 {/* Agent Tag */}
                                 {chat.agentId && (
                                   <div className="flex items-center gap-1">
-                                    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
                                       <MessageSquare className="w-2.5 h-2.5" />
                                       {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
                                     </span>
@@ -3779,7 +3779,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                         e.stopPropagation();
                                         startEditingConversation(chat);
                                       }}
-                                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                                       title="Editar nombre"
                                     >
                                       <Pencil className="w-3.5 h-3.5" />
@@ -3912,7 +3912,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             {/* Agent Tag - Always show for chats */}
                             {chat.agentId && (
                               <div className="flex items-center gap-1">
-                                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
                                   <MessageSquare className="w-2.5 h-2.5" />
                                   {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
                                 </span>
@@ -3943,7 +3943,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   e.stopPropagation();
                                   startEditingConversation(chat);
                                 }}
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
+                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
                                 title="Editar nombre"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
@@ -4002,7 +4002,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       <div className="flex items-center gap-2">
                         <Folder className="w-3.5 h-3.5 text-blue-600" />
                         <span className="text-xs font-semibold text-slate-700">Agentes</span>
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-semibold">
+                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold">
                           {conversations.filter(c => c.status === 'archived' && c.isAgent).length}
                         </span>
                       </div>
@@ -4028,7 +4028,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   onClick={() => setCurrentConversation(conv.id)}
                                   className="flex-1 flex items-center gap-2 text-left min-w-0"
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-500" />
+                                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
                                   <span className="text-xs font-medium truncate text-blue-700">
                                     {conv.title}
                                   </span>
@@ -4169,249 +4169,271 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             </button>
 
             {showUserMenu && (
-              <div 
-                className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 py-2 min-w-[380px] z-50">
+              <>
+                {/* Backdrop - Click outside to close */}
+                <div 
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowUserMenu(false)}
+                />
                 
-                {/* SECTION 1: Gestión de Dominios */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <div className="px-4 py-2">
-                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Gestión de Dominios
-                      </p>
-                    </div>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowDomainManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="font-medium">Dominios</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowUserManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="font-medium">Usuarios</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowDomainPromptModal(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                      <span className="font-medium">Prompt de Dominio</span>
-                    </button>
-                    
-                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
+                {/* Menu Modal */}
+                <div 
+                  className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 z-50 min-w-[800px] max-w-[90vw]"
+                  onClick={(e) => e.stopPropagation()}
+                >
                 
-                {/* SECTION 2: Gestión de Agentes */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <div className="px-4 py-2">
-                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Gestión de Agentes
-                      </p>
-                    </div>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowAgentManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <MessageSquare className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">Agentes</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowContextManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Database className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">Contexto</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowProviderManagement(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Boxes className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">Providers</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowRAGConfig(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Network className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">RAG</span>
-                    </button>
-                    
-                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* Agent Evaluation - Experts and Admins */}
-                {userEmail && (userEmail === 'alec@getaifactory.com' || userEmail.includes('expert') || userEmail.includes('agent_')) && (
-                  <>
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowAgentEvaluation(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">Evaluación Rápida</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowEvaluationSystem(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <FlaskConical className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <span className="font-medium">Evaluación Avanzada</span>
-                    </button>
-                    
-                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* SECTION 3: Analíticas */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <>
-                    <div className="px-4 py-2">
-                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        Analíticas
-                      </p>
-                    </div>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowSalfaAnalytics(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
-                      <span className="font-medium">SalfaGPT</span>
-                    </button>
-                    
-                    <button
-                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                      onClick={() => {
-                        setShowAnalytics(true);
-                        setShowUserMenu(false);
-                      }}
-                    >
-                      <BarChart3 className="w-5 h-5 text-green-600 dark:text-green-400" />
-                      <span className="font-medium">Analíticas Avanzadas</span>
-                    </button>
-                    
-                    <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
-                  </>
-                )}
-                
-                {/* SECTION 4: Producto */}
-                <div className="px-4 py-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    Producto
-                  </p>
+                {/* Header */}
+                <div className="px-5 py-2.5 border-b border-slate-200 dark:border-slate-600 flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">Menú de Navegación</h3>
+                  <button
+                    onClick={() => setShowUserMenu(false)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  >
+                    <XIcon className="w-4 h-4" />
+                  </button>
                 </div>
                 
-                {/* Roadmap & Backlog - SuperAdmin Only */}
-                {userEmail === 'alec@getaifactory.com' && (
-                  <button
-                    onClick={() => {
-                      setShowRoadmap(true);
-                      setShowUserMenu(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <Target className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <div className="flex-1 text-left">
-                      <span className="font-medium">Roadmap & Backlog</span>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Kanban + Rudy AI</p>
+                {/* Grid Layout with Columns */}
+                <div className="grid grid-cols-4 gap-3 p-3">
+                  
+                  {/* COLUMN 1: Gestión de Dominios */}
+                  {userEmail === 'alec@getaifactory.com' && (
+                    <div className="space-y-1.5">
+                      <div className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 rounded">
+                        <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                          Gestión de Dominios
+                        </p>
+                      </div>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowDomainManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Globe className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Dominios</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowUserManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Usuarios</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowDomainPromptModal(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Prompt de Dominio</span>
+                      </button>
                     </div>
-                  </button>
-                )}
+                  )}
+                  
+                  {/* COLUMN 2: Gestión de Agentes */}
+                  {userEmail === 'alec@getaifactory.com' && (
+                    <div className="space-y-1.5">
+                      <div className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded">
+                        <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
+                          Gestión de Agentes
+                        </p>
+                      </div>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowAgentManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Agentes</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowContextManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Database className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Contexto</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowProviderManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Boxes className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Providers</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowRAGConfig(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Network className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">RAG</span>
+                      </button>
+                      
+                      {/* Evaluation Options */}
+                      {(userEmail.includes('expert') || userEmail.includes('agent_')) && (
+                        <>
+                          <button
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            onClick={() => {
+                              setShowAgentEvaluation(true);
+                              setShowUserMenu(false);
+                            }}
+                          >
+                            <Zap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                            <span className="font-medium whitespace-nowrap">Eval. Rápida</span>
+                          </button>
+                          
+                          <button
+                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            onClick={() => {
+                              setShowEvaluationSystem(true);
+                              setShowUserMenu(false);
+                            }}
+                          >
+                            <FlaskConical className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                            <span className="font-medium whitespace-nowrap">Eval. Avanzada</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* COLUMN 3: Analíticas */}
+                  {userEmail === 'alec@getaifactory.com' && (
+                    <div className="space-y-1.5">
+                      <div className="px-2 py-1 bg-green-50 dark:bg-green-900/30 rounded">
+                        <p className="text-[10px] font-bold text-green-700 dark:text-green-300 uppercase tracking-wide">
+                          Analíticas
+                        </p>
+                      </div>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowSalfaAnalytics(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <TrendingUp className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">SalfaGPT</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowAnalytics(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <BarChart3 className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Analíticas Avanzadas</span>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* COLUMN 4: Producto */}
+                  <div className="space-y-1.5">
+                    <div className="px-2 py-1 bg-purple-50 dark:bg-purple-900/30 rounded">
+                      <p className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                        Producto
+                      </p>
+                    </div>
+                    
+                    {/* Roadmap & Backlog - SuperAdmin Only */}
+                    {userEmail === 'alec@getaifactory.com' && (
+                      <button
+                        onClick={() => {
+                          setShowRoadmap(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Target className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                          <div className="flex-1 text-left">
+                            <div className="font-medium whitespace-nowrap">Roadmap</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">Kanban + Rudy AI</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    
+                    {/* Mi Feedback - FOR ALL USERS */}
+                    <button
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      onClick={() => {
+                        setShowMyFeedback(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      <span className="font-medium whitespace-nowrap">Mi Feedback</span>
+                    </button>
+                    
+                    {/* Configuración - HIDDEN FOR USER ROLE */}
+                    {userRole !== 'user' && (
+                      <button
+                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowUserSettings(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Settings className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Configuración</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
                 
-                {/* Mi Feedback - FOR ALL USERS */}
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => {
-                    setShowMyFeedback(true);
-                    setShowUserMenu(false);
-                  }}
-                >
-                  <MessageCircle className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  <span className="font-medium">Mi Feedback</span>
-                </button>
-                
-                {/* Configuración - HIDDEN FOR USER ROLE */}
-                {userRole !== 'user' && (
+                {/* Footer with Logout */}
+                <div className="border-t border-slate-200 dark:border-slate-600 px-3 py-2.5">
                   <button
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    onClick={() => {
-                      setShowUserSettings(true);
-                      setShowUserMenu(false);
+                    className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 rounded transition-colors font-medium"
+                    onClick={async () => {
+                      try {
+                        // Call server-side logout to clear session
+                        await fetch('/auth/logout', { method: 'GET' });
+                        // Redirect to landing page
+                        window.location.href = '/';
+                      } catch (error) {
+                        console.error('Logout error:', error);
+                        // Fallback: clear cookie manually and redirect
+                        document.cookie = 'flow_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+                        window.location.href = '/';
+                      }
                     }}
                   >
-                    <Settings className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    <span className="font-medium">Configuración</span>
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Cerrar Sesión</span>
                   </button>
-                )}
-                
-                <div className="border-t border-slate-200 dark:border-slate-600 my-2" />
-                
-                {/* Cerrar Sesión - ALWAYS VISIBLE */}
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                  onClick={async () => {
-                    try {
-                      // Call server-side logout to clear session
-                      await fetch('/auth/logout', { method: 'GET' });
-                      // Redirect to landing page
-                      window.location.href = '/';
-                    } catch (error) {
-                      console.error('Logout error:', error);
-                      // Fallback: clear cookie manually and redirect
-                      document.cookie = 'flow_session=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-                      window.location.href = '/';
-                    }
-                  }}
-                >
-                  <LogOut className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  <span className="font-medium">Cerrar Sesión</span>
-                </button>
+                </div>
               </div>
+              </>
             )}
           </div>
         </div>
@@ -4449,7 +4471,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 {/* Agent Tag - Shows which agent is being used for this chat */}
                 {getParentAgent() && (
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold flex items-center gap-1">
+                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold flex items-center gap-1">
                       <MessageSquare className="w-3 h-3" />
                       Agente: {getParentAgent()?.title}
                     </span>
@@ -4612,7 +4634,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         {copiedMessageId === msg.id ? (
                           <Check className="w-4 h-4 text-green-300" />
                         ) : (
-                          <Copy className="w-4 h-4 text-blue-200" />
+                          <Copy className="w-4 h-4 text-white/70" />
                         )}
                       </button>
                     </div>
@@ -4847,7 +4869,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   </div>
                   
                   {/* Context Breakdown by Component - NUEVO */}
-                  <div className="bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200 rounded-lg p-3">
+                  <div className="bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 rounded-lg p-3">
                     <h5 className="text-xs font-bold text-slate-700 mb-2">📊 Desglose Detallado</h5>
                     <div className="space-y-1.5 text-[10px]">
                       <div className="flex items-center justify-between">
@@ -4872,7 +4894,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                               </span>
                             )}
                             {calculateContextUsage().fullTextSources > 0 && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-bold flex items-center gap-1">
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[9px] font-bold flex items-center gap-1">
                                 📝 {calculateContextUsage().fullTextSources} Full
                               </span>
                             )}
@@ -4943,7 +4965,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     <div className="space-y-2">
                       {currentDomainPrompt && (
                         <div className="text-xs bg-blue-50 border border-blue-200 p-2 rounded">
-                          <p className="font-semibold text-blue-800 mb-1">📋 Domain Prompt:</p>
+                          <p className="font-semibold text-blue-700 mb-1">📋 Domain Prompt:</p>
                           <p className="text-slate-700">
                             {currentDomainPrompt.substring(0, 100)}
                             {currentDomainPrompt.length > 100 && '...'}
@@ -5015,11 +5037,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* RAG Bulk Actions - NUEVO - More Evident */}
                     {contextSources.filter(s => s.enabled && s.ragEnabled).length > 0 && (
-                      <div className="mb-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-300 rounded-lg p-3">
+                      <div className="mb-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-700">⚙️ Modo de Búsqueda</span>
-                            <span className="text-[9px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
+                            <span className="text-[9px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-semibold">
                               Aplicar a todos
                             </span>
                           </div>
@@ -5068,7 +5090,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     )}
                     {/* ✅ NEW: Show stats-based display (no source list needed for BigQuery RAG) */}
                     {contextStats && contextStats.activeCount > 0 ? (
-                      <div className="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-300 rounded-lg p-3">
+                      <div className="bg-gradient-to-r from-green-50 to-indigo-50 border-2 border-green-300 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <Sparkles className="w-4 h-4 text-green-600" />
                           <span className="text-xs font-bold text-green-800">
@@ -5181,7 +5203,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                               
                               {/* CLI Tag - Show if uploaded via CLI */}
                               {source.tags?.includes('cli') && (
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded flex-shrink-0">
+                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-bold rounded flex-shrink-0">
                                   🔷 CLI
                                 </span>
                               )}
@@ -5344,7 +5366,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                               ? 'bg-green-100 text-green-700' 
                                               : log.ragConfiguration.hadFallback
                                               ? 'bg-yellow-100 text-yellow-700'
-                                              : 'bg-blue-100 text-blue-700'
+                                              : 'bg-blue-50 text-blue-700'
                                           }`}
                                           title={
                                             log.ragConfiguration.actuallyUsed 
@@ -5398,7 +5420,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                       {/* Expandable details on click */}
                       <details className="mt-2">
-                        <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-800 font-medium">
+                        <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 font-medium">
                           Ver detalles completos de cada interacción
                         </summary>
                         <div className="mt-2 space-y-2">
@@ -5492,10 +5514,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                           console.log('🔍 Opening reference from context log:', ref);
                                           setSelectedReference(ref);
                                         }}
-                                        className="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 hover:bg-blue-100 transition-colors"
+                                        className="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 hover:bg-blue-50 transition-colors"
                                       >
                                         <div className="flex items-start gap-2">
-                                          <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-bold text-[9px] border border-blue-300 flex-shrink-0">
+                                          <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-bold text-[9px] border border-blue-200 flex-shrink-0">
                                             [{ref.id}]
                                           </span>
                                           <div className="flex-1 min-w-0">
@@ -5661,7 +5683,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   }
                 }}
                 placeholder="Escribe un mensaje..."
-                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
@@ -5729,7 +5751,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>Max: {workflow.config.maxFileSize} MB</span>
                     {workflow.config.model && (
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded">
                         {workflow.config.model === 'gemini-2.5-flash' ? 'Flash' : 'Pro'}
                       </span>
                     )}
@@ -5837,7 +5859,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       <div className="flex items-center gap-2">
                         <Folder className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-slate-800">Agentes</span>
-                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
                           {conversations.filter(c => c.status === 'archived' && c.isAgent).length}
                         </span>
                       </div>
@@ -5857,7 +5879,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                               className={`p-3 rounded-lg border transition-colors ${
                                 currentConversation === conv.id
                                   ? 'bg-blue-50 border-blue-400'
-                                  : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-blue-50/50'
+                                  : 'bg-white border-slate-200 hover:border-blue-200 hover:bg-blue-50/50'
                               }`}
                             >
                               <div className="flex items-center justify-between">
@@ -5868,7 +5890,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   }}
                                   className="flex-1 flex items-center gap-3 text-left min-w-0"
                                 >
-                                  <MessageSquare className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                  <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0" />
                                   <div className="min-w-0 flex-1">
                                     <p className="font-medium text-slate-800 truncate">{conv.title}</p>
                                     <p className="text-xs text-slate-500">
