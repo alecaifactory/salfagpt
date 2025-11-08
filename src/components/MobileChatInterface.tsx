@@ -462,7 +462,7 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
                 <MessageSquare className="w-4 h-4" />
                 <span>Conversaciones</span>
                 <span className="text-xs text-slate-500">
-                  ({conversations.filter(c => c.status !== 'archived').length})
+                  ({agents.filter(c => c.status !== 'archived').length})
                 </span>
               </div>
               <ChevronRight
@@ -474,12 +474,12 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
             
             {showConversationsSection && (
               <div className="mt-2 space-y-2">
-                {conversations.filter(c => c.status !== 'archived').length === 0 ? (
+                {agents.filter(c => c.status !== 'archived').length === 0 ? (
                   <div className="text-xs text-slate-500 text-center py-4">
                     No hay conversaciones
                   </div>
                 ) : (
-                  conversations.filter(c => c.status !== 'archived').map(conv => (
+                  agents.filter(c => c.status !== 'archived').map(conv => (
                     <button
                       key={conv.id}
                       onClick={() => selectAgent(conv.id)}

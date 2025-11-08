@@ -477,13 +477,13 @@ export default function StellaSidebarChat({
           
           {/* Screenshot Tool */}
           <div className="p-3 border-b border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-slate-800/50">
-            <button
+              <button
               onClick={onRequestScreenshot}
               className="w-full px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold shadow-sm"
             >
               <Camera className="w-4 h-4" />
               Capturar Pantalla
-            </button>
+              </button>
             
             {pendingAttachments.length > 0 && (
               <div className="mt-2 text-xs text-violet-700 dark:text-violet-300 flex items-center gap-1">
@@ -547,7 +547,7 @@ export default function StellaSidebarChat({
                           {/* Metadata */}
                           <div className="px-2 py-1 bg-violet-50 dark:bg-violet-900/20 text-[9px] text-violet-600 dark:text-violet-400 flex items-center justify-between">
                             <span className="flex items-center gap-1">
-                              <ImageIcon className="w-3 h-3" />
+                            <ImageIcon className="w-3 h-3" />
                               {att.screenshot.annotations.length} anotaciones
                             </span>
                             <button
@@ -578,82 +578,85 @@ export default function StellaSidebarChat({
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Pending Attachments Preview */}
-          {pendingAttachments.length > 0 && (
-            <div className="px-4 pb-3 border-t border-violet-200 dark:border-violet-800 max-h-48 overflow-y-auto">
-              <div className="space-y-2">
-                {pendingAttachments.map((att, idx) => (
-                  <div key={att.id} className="bg-violet-100 dark:bg-violet-900/30 rounded-lg p-2 flex items-start gap-2">
-                    {/* Thumbnail */}
-                    <div 
-                      className="w-16 h-16 flex-shrink-0 rounded border border-violet-300 dark:border-violet-600 overflow-hidden cursor-pointer group relative"
-                      onClick={() => setViewingAttachment(att)}
-                    >
-                      <img
-                        src={att.screenshot.imageDataUrl}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
-                        <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100" />
-                      </div>
-                    </div>
-                    
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-violet-900 dark:text-violet-100">
-                        Captura {idx + 1}
-                      </p>
-                      <p className="text-[10px] text-violet-700 dark:text-violet-300">
-                        {att.screenshot.annotations.length} anotaciones
-                      </p>
-                      {att.aiAnalysis && (
-                        <p className="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 line-clamp-1">
-                          <Sparkles className="w-2.5 h-2.5 inline" /> {att.aiAnalysis}
-                        </p>
-                      )}
-                    </div>
-                    
-                    {/* Edit and Remove buttons */}
-                    <div className="flex-shrink-0 flex items-center gap-1">
-                      <button
-                        onClick={() => onRequestEditScreenshot(att, idx)}
-                        className="p-1 text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-200 transition-colors"
-                        title="Editar anotaciones"
-                      >
-                        <Paintbrush className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
-                        className="p-1 text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                        title="Eliminar"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
           
           {/* Input Area */}
           <div className="p-4 border-t border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800">
-            <div className="flex flex-col gap-2">
-              {/* Attachments info above textarea */}
+            <div className="flex flex-col gap-3">
+              {/* Pending Attachments - Thumbnails above textarea */}
               {pendingAttachments.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 rounded-lg px-3 py-2">
-                  <ImageIcon className="w-4 h-4" />
-                  <span className="font-semibold">
-                    {pendingAttachments.length} captura{pendingAttachments.length !== 1 ? 's' : ''} lista{pendingAttachments.length !== 1 ? 's' : ''} para enviar
-                  </span>
-                  <span className="text-violet-500 dark:text-violet-400">•</span>
-                  <button
-                    onClick={() => setPendingAttachments([])}
-                    className="text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 underline"
-                  >
-                    Limpiar todas
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Adjuntos ({pendingAttachments.length})
+                    </p>
+                    <button
+                      onClick={() => setPendingAttachments([])}
+                      className="text-[10px] text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 underline"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                  
+                  {/* Thumbnails grid */}
+                  <div className="flex flex-wrap gap-2">
+                    {pendingAttachments.map((att, idx) => (
+                      <div
+                        key={att.id}
+                        className="relative group"
+                      >
+                        {/* Thumbnail */}
+                        <div
+                          className="w-20 h-20 rounded-lg border-2 border-violet-300 dark:border-violet-600 overflow-hidden cursor-pointer bg-slate-100 dark:bg-slate-700"
+                          onClick={() => setViewingAttachment(att)}
+                        >
+                          <img
+                            src={att.screenshot.imageDataUrl}
+                            alt={`Captura ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                            <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100" />
+                          </div>
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="absolute -top-1 -right-1 flex gap-0.5">
+                          <button
+                            onClick={() => onRequestEditScreenshot(att, idx)}
+                            className="w-5 h-5 bg-violet-600 text-white rounded-full flex items-center justify-center hover:bg-violet-700 shadow-sm"
+                            title="Editar"
+                          >
+                            <Paintbrush className="w-2.5 h-2.5" />
+                          </button>
+                          <button
+                            onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
+                            className="w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 shadow-sm"
+                            title="Eliminar"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                        
+                        {/* Annotation count badge */}
+                        <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 bg-violet-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold shadow-sm">
+                          {att.screenshot.annotations.length}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* AI Analysis preview (if available) */}
+                  {pendingAttachments[0]?.aiAnalysis && (
+                    <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg px-2 py-1.5">
+                      <p className="text-[9px] text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" />
+                        <span className="line-clamp-2">{pendingAttachments[0].aiAnalysis}</span>
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -671,7 +674,7 @@ export default function StellaSidebarChat({
                     ? "Agrega un mensaje para acompañar tus capturas..."
                     : "Escribe tu mensaje a Stella..."
                 }
-                rows={3}
+                rows={pendingAttachments.length > 0 ? 2 : 3}
                 className="w-full px-3 py-2 border-2 border-violet-200 dark:border-violet-700 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
               />
               
@@ -713,7 +716,7 @@ export default function StellaSidebarChat({
                       </>
                     ) : (
                       <>
-                        <Send className="w-3.5 h-3.5" />
+                    <Send className="w-3.5 h-3.5" />
                         Enviar {pendingAttachments.length > 0 && `(${pendingAttachments.length})`}
                       </>
                     )}

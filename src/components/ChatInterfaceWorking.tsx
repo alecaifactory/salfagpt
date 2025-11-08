@@ -1017,8 +1017,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   // Stella screenshot handlers (NEW)
   function handleStellaRequestScreenshot() {
-    setShowStellaScreenshotTool(true);
-    setEditingStellaAttachment(null);
+    // Temporarily hide Stella to capture clean UI
+    setShowStellaSidebar(false);
+    
+    // Wait for Stella to slide out, then open screenshot tool
+    setTimeout(() => {
+      setShowStellaScreenshotTool(true);
+      setEditingStellaAttachment(null);
+    }, 350); // Wait for 300ms transition + 50ms buffer
   }
   
   function handleStellaRequestEditScreenshot(attachment: StellaAttachment, index: number) {
@@ -1028,6 +1034,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   async function handleStellaScreenshotComplete(annotatedScreenshot: any) {
     setShowStellaScreenshotTool(false);
+    
+    // Re-open Stella after screenshot completion
+    setShowStellaSidebar(true);
     
     // Get UI context
     const uiContext = {
@@ -1117,6 +1126,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   function handleStellaScreenshotCancel() {
     setShowStellaScreenshotTool(false);
     setEditingStellaAttachment(null);
+    // Re-open Stella after canceling
+    setShowStellaSidebar(true);
   }
 
   // REMOVED: Duplicate loadConversations useEffect
