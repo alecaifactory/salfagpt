@@ -28,7 +28,11 @@
     "prepublishOnly": "npm run build:cli",
     "verify:agents": "tsx scripts/verify-agents.ts",
     "fix:mark-agents": "tsx scripts/fix-mark-agents.ts",
-    "test:mcp": "tsx scripts/test-mcp-server.ts"
+    "test:mcp": "tsx scripts/test-mcp-server.ts",
+    "seed:changelog": "tsx scripts/seed-changelog.ts",
+    "seed:changelog:enhanced": "tsx scripts/seed-changelog-enhanced.ts",
+    "roadmap:add-changelog": "tsx scripts/add-changelog-to-roadmap.ts",
+    "init:onboarding": "tsx scripts/init-feature-onboarding.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
@@ -71,6 +75,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "dotenv": "^17.2.3",
     "firebase-admin": "^12.7.0",
+    "tsx": "^4.20.6",
     "typescript": "^5.7.2"
   },
   "files": [

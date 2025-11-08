@@ -1,5 +1,5 @@
 ---
-import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
+import ResponsiveChatWrapper from '../components/ResponsiveChatWrapper.tsx';
 import { verifyJWT } from '../lib/auth';
 import { isUserDomainEnabled, getDomainFromEmail } from '../lib/domains';
 import '../styles/global.css';
@@ -129,7 +129,7 @@ try {
     </script>
   </head>
   <body class="h-full m-0 p-0">
-    <ChatInterfaceWorking 
+    <ResponsiveChatWrapper 
       client:only="react" 
       userId={userId}
       userEmail={userEmail}
