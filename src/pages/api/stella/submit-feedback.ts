@@ -26,7 +26,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
     
     const body = await request.json();
-    const { userId, session: feedbackSession, pageContext } = body;
+    const { userId, userEmail, userName, session: feedbackSession, pageContext } = body;
     
     // Verify user owns this session
     if (session.id !== userId) {
@@ -60,6 +60,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Create feedback_tickets document (PRIVATE to user)
     const ticketData = {
       userId,  // CRITICAL: User ownership
+      userEmail,
+      userName,
       sessionId: sessionRef.id,
       ticketId,
       category: feedbackSession.category,
@@ -77,6 +79,35 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const ticketRef = await firestore.collection('feedback_tickets').add(ticketData);
     
     console.log('✅ Stella feedback submitted:', ticketId, 'by user:', userId);
+    
+    // Create notification for all admins/superadmins
+    try {
+      const adminsSnapshot = await firestore
+        .collection('users')
+        .where('role', 'in', ['admin', 'superadmin'])
+        .get();
+      
+      const notificationPromises = adminsSnapshot.docs.map(adminDoc => {
+        return firestore.collection('feedback_notifications').add({
+          adminId: adminDoc.id,
+          ticketId: ticketRef.id,
+          ticketNumber: ticketId,
+          category: feedbackSession.category,
+          submittedBy: userId,
+          submittedByEmail: userEmail,
+          submittedByName: userName,
+          title: ticketData.title,
+          isRead: false,
+          createdAt: new Date(),
+          source: getEnvironmentSource(),
+        });
+      });
+      
+      await Promise.all(notificationPromises);
+      console.log('🔔 Notifications sent to', adminsSnapshot.size, 'admins');
+    } catch (error) {
+      console.warn('⚠️ Failed to create notifications (non-critical):', error);
+    }
     
     // If user is Admin or SuperAdmin, create backlog item
     const userDoc = await firestore.collection('users').doc(userId).get();

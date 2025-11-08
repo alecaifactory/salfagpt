@@ -382,7 +382,8 @@ export async function createConversation(
 
 export async function getConversations(
   userId: string,
-  folderId?: string
+  folderId?: string,
+  includeArchived: boolean = false  // ✅ NEW: Default to excluding archived
 ): Promise<Conversation[]> {
   let query = firestore
     .collection(COLLECTIONS.CONVERSATIONS)
@@ -394,12 +395,19 @@ export async function getConversations(
 
   const snapshot = await query.orderBy('lastMessageAt', 'desc').get();
   
-  return snapshot.docs.map(doc => ({
+  const allConversations = snapshot.docs.map(doc => ({
     ...doc.data(),
     createdAt: doc.data().createdAt.toDate(),
     updatedAt: doc.data().updatedAt.toDate(),
     lastMessageAt: doc.data().lastMessageAt.toDate(),
   })) as Conversation[];
+  
+  // ✅ CRITICAL: Filter out archived conversations by default
+  if (includeArchived) {
+    return allConversations;
+  }
+  
+  return allConversations.filter(conv => conv.status !== 'archived');
 }
 
 export async function getConversation(conversationId: string): Promise<Conversation | null> {

@@ -1,0 +1,23 @@
+---
+// Changelog Page - Public/Private changelog viewer
+// Created: 2025-11-08
+// Redesigned: Flat, minimal, readable
+
+import Layout from '../layouts/Layout.astro';
+import ChangelogViewerFlat from '../components/ChangelogViewerFlat';
+import { getSession } from '../lib/auth';
+
+const session = getSession(Astro);
+const isAuthenticated = !!session;
+
+// For now, changelog is private (requires authentication)
+// In future, can make public by removing this check
+if (!isAuthenticated) {
+  return Astro.redirect('/auth/login?redirect=/changelog');
+}
+---
+
+<Layout title="Changelog | AI Factory">
+  <ChangelogViewerFlat client:only="react" />
+</Layout>
+

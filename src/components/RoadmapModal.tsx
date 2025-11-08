@@ -36,6 +36,10 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  FileText,
+  Copy,
+  CheckCircle,
+  Clock,
 } from 'lucide-react';
 
 interface RoadmapModalProps {
@@ -127,6 +131,19 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
   
   // Analytics state
   const [showAnalytics, setShowAnalytics] = useState(false);
+  
+  // Spec generation state
+  const [generatingSpec, setGeneratingSpec] = useState(false);
+  const [generatedSpec, setGeneratedSpec] = useState<string | null>(null);
+  const [specCopied, setSpecCopied] = useState(false);
+  const [showSpecLog, setShowSpecLog] = useState(false);
+  const [specGenerations, setSpecGenerations] = useState<Array<{
+    specId: string;
+    title: string;
+    generatedAt: Date;
+    generatedBy: string;
+    markdown: string;
+  }>>([]);
   
   // Load feedback cards with real-time updates
   useEffect(() => {
@@ -436,6 +453,75 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
     } finally {
       setRudyLoading(false);
     }
+  }
+  
+  // Generate developer specification
+  async function generateSpec(card: FeedbackCard) {
+    setGeneratingSpec(true);
+    setSpecCopied(false);
+    
+    try {
+      const response = await fetch('/api/roadmap/generate-spec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: card.id,
+          ticketId: card.ticketId,
+          title: card.title,
+          description: card.description,
+          category: 'feature-request',
+          priority: card.priority,
+          csatImpact: card.kpiImpact.csat,
+          npsImpact: card.kpiImpact.nps,
+          roiImpact: card.kpiImpact.roi,
+          okrAlignment: card.okrAlignment,
+          createdBy: card.createdBy,
+          createdByEmail: card.createdByEmail,
+          userRole: card.userRole,
+          userDomain: card.userDomain,
+          agentName: card.agentName,
+          screenshot: card.screenshot,
+          annotations: card.annotations,
+          aiSummary: card.aiSummary,
+          upvotes: card.upvotes,
+          companyId,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setGeneratedSpec(data.markdown);
+        
+        // Add to local log
+        setSpecGenerations(prev => [{
+          specId: data.specId,
+          title: card.title,
+          generatedAt: new Date(data.generatedAt),
+          generatedBy: userEmail,
+          markdown: data.markdown,
+        }, ...prev]);
+        
+        // Auto-copy to clipboard
+        copySpecToClipboard(data.markdown);
+      } else {
+        alert('Error generando especificación: ' + data.error);
+      }
+      
+    } catch (error) {
+      console.error('Error generating spec:', error);
+      alert('Error al generar especificación');
+    } finally {
+      setGeneratingSpec(false);
+    }
+  }
+  
+  // Copy spec to clipboard
+  function copySpecToClipboard(markdown: string) {
+    navigator.clipboard.writeText(markdown).then(() => {
+      setSpecCopied(true);
+      setTimeout(() => setSpecCopied(false), 2000);
+    });
   }
   
   if (!isOpen) return null;
@@ -1055,12 +1141,51 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                   </div>
                 </div>
                 
-                <button
-                  onClick={() => setSelectedCard(null)}
-                  className="text-slate-400 hover:text-slate-600 p-2"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Generate Spec Button - Admin/SuperAdmin only */}
+                  <button
+                    onClick={() => generateSpec(selectedCard)}
+                    disabled={generatingSpec}
+                    className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:from-slate-300 disabled:to-slate-400 transition-all text-sm font-medium"
+                    title="Generar especificación para desarrollador"
+                  >
+                    {generatingSpec ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Generando...</span>
+                      </>
+                    ) : specCopied ? (
+                      <>
+                        <CheckCircle className="w-4 h-4" />
+                        <span>¡Copiado!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>Generate Spec</span>
+                      </>
+                    )}
+                  </button>
+                  
+                  {/* Show spec log */}
+                  {specGenerations.length > 0 && (
+                    <button
+                      onClick={() => setShowSpecLog(!showSpecLog)}
+                      className="px-3 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 flex items-center gap-2"
+                      title="Ver historial de especificaciones"
+                    >
+                      <Clock className="w-4 h-4" />
+                      <span>{specGenerations.length}</span>
+                    </button>
+                  )}
+                  
+                  <button
+                    onClick={() => setSelectedCard(null)}
+                    className="text-slate-400 hover:text-slate-600 p-2"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               
               {/* Card Detail Content */}
@@ -1170,6 +1295,84 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     <ChevronRight className="w-5 h-5 text-blue-600" />
                   </button>
                 </div>
+                
+                {/* Generated Spec Display */}
+                {generatedSpec && (
+                  <div className="border-2 border-purple-200 rounded-lg overflow-hidden">
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 px-4 py-3 border-b border-purple-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-5 h-5 text-purple-600" />
+                          <h3 className="font-bold text-purple-900">Developer Specification</h3>
+                        </div>
+                        <button
+                          onClick={() => copySpecToClipboard(generatedSpec)}
+                          className="flex items-center gap-2 px-3 py-1 bg-white border border-purple-300 rounded-lg hover:bg-purple-50 text-sm font-medium text-purple-700"
+                        >
+                          {specCopied ? (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              <span>¡Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span>Copiar</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-slate-50 max-h-[300px] overflow-y-auto">
+                      <pre className="text-xs font-mono text-slate-700 whitespace-pre-wrap">{generatedSpec}</pre>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Spec Generation Log */}
+                {showSpecLog && specGenerations.length > 0 && (
+                  <div className="border-2 border-slate-200 rounded-lg">
+                    <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-slate-600" />
+                          <h3 className="font-bold text-slate-800 text-sm">Historial de Especificaciones</h3>
+                        </div>
+                        <button
+                          onClick={() => setShowSpecLog(false)}
+                          className="text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto divide-y divide-slate-200">
+                      {specGenerations.map((spec, idx) => (
+                        <div key={idx} className="p-3 hover:bg-slate-50">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-slate-800">{spec.title}</p>
+                              <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-600">
+                                <span>ID: {spec.specId}</span>
+                                <span>•</span>
+                                <span>{spec.generatedBy}</span>
+                                <span>•</span>
+                                <span>{spec.generatedAt.toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => copySpecToClipboard(spec.markdown)}
+                              className="px-2 py-1 border border-slate-300 rounded hover:bg-slate-100 text-[10px] font-medium flex items-center gap-1"
+                            >
+                              <Copy className="w-3 h-3" />
+                              Copiar
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Social Metrics */}
                 <div className="border-t border-slate-200 pt-4">

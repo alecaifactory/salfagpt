@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -32,6 +32,10 @@ import ExpertFeedbackPanel from './ExpertFeedbackPanel'; // ✅ Feedback system
 import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
 import MyFeedbackView from './MyFeedbackView'; // ✅ User's own feedback tracking
 import FeedbackSuccessToast from './FeedbackSuccessToast'; // ✅ Success notification
+import NotificationBell from './NotificationBell'; // ✅ NEW: Changelog notifications
+import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW: Feature onboarding
+import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
+import FeedbackNotificationBell from './FeedbackNotificationBell'; // ✅ NEW: Feedback notifications
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -394,6 +398,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showEvaluationSystem, setShowEvaluationSystem] = useState(false); // NEW: Full evaluation system
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false); // NEW: Roadmap modal
+  const [showChangelog, setShowChangelog] = useState(false); // NEW: In-app changelog modal
+  const [highlightFeatureId, setHighlightFeatureId] = useState<string | null>(null); // NEW: Auto-scroll to feature
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
@@ -3373,14 +3379,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       >
         {/* Header with Salfacorp Logo */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-3">
-          {/* Salfacorp Logo and Brand */}
-          <div className="flex items-center justify-center gap-3">
-            <h1 className="text-xl font-bold text-slate-800 dark:text-white">SALFAGPT</h1>
-            <img 
-              src="/images/Logo Salfacorp.png" 
-              alt="Salfacorp" 
-              className="w-10 h-10 object-contain"
-            />
+          {/* Salfacorp Logo and Brand with Notification Bell */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-slate-800 dark:text-white">SALFAGPT</h1>
+              <img 
+                src="/images/Logo Salfacorp.png" 
+                alt="Salfacorp" 
+                className="w-10 h-10 object-contain"
+              />
+            </div>
+            {/* Notification Bell */}
+            <NotificationBell />
           </div>
           
           {/* New Agent Button - HIDDEN FOR USER ROLE */}
@@ -4363,6 +4373,21 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </p>
                     </div>
                     
+                    {/* Changelog - Available to all users - Opens in-app modal */}
+                    <button
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      onClick={() => {
+                        setShowChangelog(true);
+                        setShowUserMenu(false);
+                      }}
+                    >
+                      <Newspaper className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                      <span className="font-medium whitespace-nowrap">Novedades</span>
+                      <span className="ml-auto px-1.5 py-0.5 bg-purple-600 text-white text-[9px] rounded-full font-bold">
+                        NUEVO
+                      </span>
+                    </button>
+                    
                     {/* Roadmap & Backlog - SuperAdmin Only */}
                     {userEmail === 'alec@getaifactory.com' && (
                       <button
@@ -4447,7 +4472,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
       {/* Main Chat Area */}
       <div 
-        className="flex-1 flex flex-col"
+        className="flex-1 flex flex-col transition-all duration-300"
+        style={{
+          marginRight: showStellaSidebar ? '384px' : '0', // 384px = w-96 (Stella width)
+        }}
         onClick={() => {
           // ✅ NEW: Deselect agent filter when clicking in main area
           if (selectedAgent) {
@@ -4585,6 +4613,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             )}
           </div>
           <div className="flex items-center gap-2 ml-auto">
+            {/* Feedback Notification Bell - Admin/SuperAdmin only */}
+            {currentUser && (
+              <FeedbackNotificationBell
+                userId={currentUser.id}
+                userRole={currentUser.role || userRole || 'user'}
+                onOpenRoadmap={() => setShowRoadmap(true)}
+              />
+            )}
+            
+            {/* Feature Notification Center - New features with tutorials */}
+            <FeatureNotificationCenter 
+              onOpenChangelog={(featureId) => {
+                setHighlightFeatureId(featureId);
+                setShowChangelog(true);
+              }}
+            />
+            
             {/* Nuevo Chat Button - Only show when agent is selected - Moved to right */}
             {selectedAgent && (
               <button
@@ -4596,13 +4641,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               </button>
             )}
             
-            {/* Launch Stella Button - Opens sidebar */}
+            {/* Abrir Stella Button - Opens sidebar */}
             <button
               onClick={() => setShowStellaSidebar(true)}
               className="px-3 py-1.5 text-sm bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center gap-2 font-semibold shadow-sm"
             >
               <Wand2 className="w-4 h-4" />
-              Launch Stella
+              Abrir Stella
             </button>
           </div>
         </div>
@@ -6567,6 +6612,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           }}
         />
       )}
+
+      {/* Changelog Modal - In-app changelog */}
+      <ChangelogModal
+        isOpen={showChangelog}
+        onClose={() => {
+          setShowChangelog(false);
+          setHighlightFeatureId(null);
+        }}
+        highlightFeatureId={highlightFeatureId || undefined}
+      />
     </div>
   );
 }

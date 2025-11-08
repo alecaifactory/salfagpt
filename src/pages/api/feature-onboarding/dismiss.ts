@@ -1,0 +1,42 @@
+// Dismiss Feature API
+// POST: Mark feature as dismissed (user not interested)
+
+import type { APIRoute } from 'astro';
+import { getSession } from '../../../lib/auth';
+import { dismissFeature } from '../../../lib/feature-onboarding';
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    const { featureId } = await request.json();
+    
+    if (!featureId) {
+      return new Response(
+        JSON.stringify({ error: 'featureId required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    await dismissFeature(session.id, featureId);
+
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('❌ Dismiss feature error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Failed to dismiss feature' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+};
+

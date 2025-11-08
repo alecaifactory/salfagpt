@@ -1,0 +1,669 @@
+/**
+ * API: Generate Developer Specification from Roadmap Card
+ * 
+ * POST /api/roadmap/generate-spec
+ * 
+ * Generates comprehensive markdown specification for developers
+ * with full context and traceability.
+ */
+
+import type { APIRoute } from 'astro';
+import { getSession } from '../../../lib/auth';
+import { firestore } from '../../../lib/firestore';
+
+export const POST: APIRoute = async ({ request, cookies }) => {
+  try {
+    // 1. Verify authentication
+    const session = getSession({ cookies } as any);
+    if (!session) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+    }
+
+    // 2. Verify admin/superadmin role
+    if (!['admin', 'superadmin'].includes(session.role || '')) {
+      return new Response(JSON.stringify({ error: 'Forbidden - Admin only' }), { status: 403 });
+    }
+
+    // 3. Parse request
+    const body = await request.json();
+    const { 
+      cardId, 
+      ticketId, 
+      title, 
+      description,
+      category,
+      priority,
+      csatImpact,
+      npsImpact,
+      roiImpact,
+      okrAlignment,
+      createdBy,
+      createdByEmail,
+      userRole,
+      userDomain,
+      agentName,
+      screenshot,
+      annotations,
+      aiSummary,
+      upvotes,
+      companyId,
+    } = body;
+
+    // 4. Get user info
+    const userDoc = await firestore.collection('users').doc(session.id).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // 5. Generate spec ID
+    const specId = `SPEC-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const timestamp = new Date();
+
+    // 6. Generate comprehensive markdown specification
+    const markdown = generateDeveloperSpec({
+      // Generation metadata
+      specId,
+      generatedAt: timestamp,
+      generatedBy: userData?.name || session.email || 'Admin',
+      generatedByEmail: session.email || '',
+      generatedByRole: session.role || 'admin',
+      
+      // Source card
+      sourceCardId: cardId,
+      sourceTicketId: ticketId,
+      
+      // Requester info
+      requestedBy: createdBy,
+      requestedByEmail: createdByEmail,
+      requestedByRole: userRole,
+      
+      // Organization
+      organization: userDomain || companyId,
+      domain: userDomain,
+      
+      // Feature details
+      title,
+      description,
+      category,
+      priority,
+      agentContext: agentName,
+      
+      // Impact metrics
+      expectedCSAT: csatImpact,
+      expectedNPS: npsImpact,
+      expectedROI: roiImpact,
+      okrAlignment,
+      userEngagement: upvotes,
+      
+      // Visual context
+      hasScreenshot: !!screenshot,
+      screenshotUrl: screenshot,
+      annotations: annotations || [],
+      aiAnalysis: aiSummary,
+    });
+
+    // 7. Store generation log in Firestore
+    const logEntry = {
+      specId,
+      sourceCardId: cardId,
+      sourceTicketId: ticketId,
+      generatedBy: session.id,
+      generatedByEmail: session.email,
+      generatedByName: userData?.name || session.email,
+      generatedByRole: session.role,
+      companyId: companyId || userDomain,
+      
+      // Content
+      title,
+      markdown,
+      
+      // Timestamps
+      createdAt: timestamp,
+      
+      // Metadata
+      requestedBy: createdBy,
+      requestedByEmail: createdByEmail,
+      category,
+      priority,
+      
+      // Metrics
+      expectedImpact: {
+        csat: csatImpact,
+        nps: npsImpact,
+        roi: roiImpact,
+      },
+      
+      source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
+    };
+
+    await firestore.collection('spec_generations').add(logEntry);
+
+    // 8. Return specification
+    return new Response(JSON.stringify({
+      success: true,
+      specId,
+      markdown,
+      generatedAt: timestamp.toISOString(),
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+  } catch (error) {
+    console.error('Error generating spec:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to generate specification',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }), { status: 500 });
+  }
+};
+
+// Generate comprehensive developer specification
+function generateDeveloperSpec(data: any): string {
+  const {
+    specId,
+    generatedAt,
+    generatedBy,
+    generatedByEmail,
+    generatedByRole,
+    sourceCardId,
+    sourceTicketId,
+    requestedBy,
+    requestedByEmail,
+    requestedByRole,
+    organization,
+    domain,
+    title,
+    description,
+    category,
+    priority,
+    agentContext,
+    expectedCSAT,
+    expectedNPS,
+    expectedROI,
+    okrAlignment,
+    userEngagement,
+    hasScreenshot,
+    screenshotUrl,
+    annotations,
+    aiAnalysis,
+  } = data;
+
+  return `# Developer Specification: ${title}
+
+## 📋 Metadata
+
+| Field | Value |
+|-------|-------|
+| **Spec ID** | \`${specId}\` |
+| **Source Card** | \`${sourceCardId}\` |
+| **Source Ticket** | \`${sourceTicketId}\` |
+| **Generated** | ${generatedAt.toLocaleString('es-ES')} |
+| **Generated By** | ${generatedBy} (${generatedByEmail}) |
+| **Generator Role** | ${generatedByRole.toUpperCase()} |
+
+---
+
+## 👤 Requester Information
+
+**Original Request By:** ${requestedBy}  
+**Email:** ${requestedByEmail}  
+**Role:** ${requestedByRole.toUpperCase()}  
+**Organization:** ${organization}  
+**Domain:** ${domain}  
+
+**User Engagement:**
+- Upvotes: ${userEngagement}
+- Indicates user demand and priority
+
+---
+
+## 🎯 Feature Overview
+
+### Title
+**${title}**
+
+### Description
+${description}
+
+### Category
+\`${category}\`
+
+### Priority Level
+**${priority.toUpperCase()}** - ${getPriorityDescription(priority)}
+
+### Agent Context
+This feature was requested in the context of: **${agentContext}**
+
+---
+
+## 📊 Expected Business Impact
+
+### CSAT Impact
+**+${expectedCSAT.toFixed(1)} points**
+
+Target: Achieve ${expectedCSAT >= 4 ? '⭐ High Impact' : 'Positive Impact'} on customer satisfaction.
+
+### NPS Impact
+**+${expectedNPS} points**
+
+Target Net Promoter Score improvement of ${expectedNPS} points.
+
+### ROI Estimate
+**${expectedROI}x multiplier**
+
+Expected return on investment: ${expectedROI}x of development cost.
+
+### Success Criteria (CSAT/NPS Targets)
+- ✅ **CSAT Target:** 4.0+ (Current expectation: ${expectedCSAT.toFixed(1)})
+- ✅ **NPS Target:** 98+ (Current expectation: ${expectedNPS})
+- ✅ **User Delight:** Create memorable, exceptional experience
+
+---
+
+## 🎯 OKR Alignment
+
+This feature aligns with the following company objectives:
+
+${okrAlignment && okrAlignment.length > 0 ? okrAlignment.map((okr: string) => `- 📌 **${okr}**`).join('\n') : '- No specific OKR alignment documented'}
+
+**Strategic Value:** ${getPriorityDescription(priority)}
+
+---
+
+## 🖼️ Visual Context
+
+${hasScreenshot ? `
+### Screenshot Available
+**URL:** \`${screenshotUrl}\`
+
+**What to look for:**
+- User interface elements mentioned in feedback
+- Current pain points visible in screenshot
+- Areas needing improvement
+- Workflow issues demonstrated
+
+${annotations && annotations.length > 0 ? `
+**Annotations (${annotations.length}):**
+User has marked specific areas of concern. Review annotations for precise requirements.
+` : ''}
+` : '**No screenshot provided** - Request visual mockups from design team if needed.'}
+
+---
+
+## 🤖 AI Analysis
+
+${aiAnalysis || 'AI analysis not available for this request.'}
+
+---
+
+## 📝 User Story
+
+**As a** ${requestedByRole === 'user' ? 'user' : requestedByRole === 'expert' ? 'power user' : 'administrator'},  
+**I want** ${title.toLowerCase()},  
+**So that** I can ${inferBenefit(title, description, expectedCSAT)}
+
+---
+
+## ✅ Acceptance Criteria
+
+Based on the user request and expected impact, the following must be met:
+
+1. **Functional Requirements:**
+   - Feature implements core functionality described in: "${description}"
+   - Works seamlessly within ${agentContext} agent context
+   - Handles edge cases gracefully
+
+2. **Quality Standards:**
+   - CSAT target: **4.0+** (Expected: ${expectedCSAT.toFixed(1)})
+   - NPS target: **98+** (Expected: ${expectedNPS})
+   - No critical bugs in production
+   - Performance: Response time <2s (p95)
+
+3. **User Experience:**
+   - Intuitive UI/UX (no training required)
+   - Clear feedback for all actions
+   - Error handling with helpful messages
+   - Mobile-responsive (if applicable)
+
+4. **Documentation:**
+   - Feature documented in \`docs/features/\`
+   - User-facing help text included
+   - API documentation (if backend changes)
+
+5. **Testing:**
+   - Unit tests for core logic
+   - Integration tests for user flows
+   - Manual QA with ${requestedBy} (original requester)
+   - Accessibility compliance (WCAG 2.1 AA)
+
+---
+
+## 🏗️ Implementation Guidelines
+
+### Design Principles
+
+1. **Delightful Experience**
+   - Aim for "wow" moments
+   - Smooth animations and transitions
+   - Thoughtful micro-interactions
+   - Anticipate user needs
+
+2. **Minimal Friction**
+   - Reduce clicks to complete task
+   - Smart defaults
+   - Inline editing where possible
+   - Keyboard shortcuts
+
+3. **Transparency**
+   - Show what's happening (loading states)
+   - Explain why (helpful tooltips)
+   - Provide feedback (success/error messages)
+
+### Technical Considerations
+
+**Category:** \`${category}\`
+
+${getCategoryGuidance(category)}
+
+**Priority:** \`${priority}\`
+
+${getPriorityGuidance(priority)}
+
+---
+
+## 🔍 Research & Context
+
+### User Feedback
+- **Requested by:** ${requestedBy} (${requestedByRole})
+- **Organization:** ${organization}
+- **Upvotes:** ${userEngagement} (indicates demand)
+
+### Similar Requests
+Check \`feedback_tickets\` collection for related requests:
+\`\`\`
+category == "${category}" AND status != "resolved"
+\`\`\`
+
+### Historical Context
+Review similar features in Production lane for patterns and learnings.
+
+---
+
+## 📦 Deliverables
+
+1. **Code Implementation**
+   - Frontend components (if UI changes)
+   - Backend API endpoints (if data changes)
+   - Database schema updates (if needed)
+
+2. **Testing**
+   - Test plan document
+   - Test results summary
+   - QA sign-off
+
+3. **Documentation**
+   - Feature documentation (\`docs/features/\`)
+   - API documentation (if applicable)
+   - User guide updates
+
+4. **Deployment**
+   - Staged rollout plan
+   - Rollback procedure
+   - Monitoring setup
+
+---
+
+## 🎯 Success Metrics
+
+### Pre-Launch
+- [ ] All acceptance criteria met
+- [ ] CSAT simulation: 4.0+ predicted
+- [ ] Performance benchmarks passed
+- [ ] Security review completed
+
+### Post-Launch (Track for 30 days)
+- [ ] Actual CSAT: Target 4.0+ (Expected: ${expectedCSAT.toFixed(1)})
+- [ ] Actual NPS: Target 98+ (Expected: ${expectedNPS})
+- [ ] User adoption: >50% of active users
+- [ ] Error rate: <0.1%
+- [ ] Support tickets: <5 related issues
+
+### ROI Validation
+- Development cost: [TBD]
+- Expected benefit: ${expectedROI}x multiplier
+- Validation period: 30 days post-launch
+
+---
+
+## 🚨 Risks & Mitigation
+
+### Identified Risks
+
+1. **Scope Creep**
+   - Risk: Feature grows beyond original request
+   - Mitigation: Stick to acceptance criteria, schedule follow-ups for enhancements
+
+2. **Performance Impact**
+   - Risk: New feature slows down existing functionality
+   - Mitigation: Performance testing required, set SLA: <2s (p95)
+
+3. **User Adoption**
+   - Risk: Users don't discover or use new feature
+   - Mitigation: In-app announcement, onboarding tooltip, documentation
+
+4. **Integration Complexity**
+   - Risk: Breaks existing features
+   - Mitigation: Comprehensive testing, feature flag for gradual rollout
+
+---
+
+## 📞 Stakeholder Contact
+
+### Original Requester
+- **Name:** ${requestedBy}
+- **Email:** ${requestedByEmail}
+- **Role:** ${requestedByRole}
+- **Available for:** Requirements clarification, UAT testing, feedback
+
+### Spec Generator
+- **Name:** ${generatedBy}
+- **Email:** ${generatedByEmail}
+- **Role:** ${generatedByRole}
+- **Responsible for:** Spec accuracy, developer handoff
+
+### Approval Required From
+- [ ] ${requestedBy} (Original requester - UAT sign-off)
+- [ ] ${generatedBy} (Admin - Business requirements approval)
+- [ ] Technical Lead (Architecture review)
+- [ ] QA Lead (Test plan approval)
+
+---
+
+## 🔗 References
+
+### Source Documents
+- **Roadmap Card:** \`${sourceCardId}\`
+- **Feedback Ticket:** \`${sourceTicketId}\`
+${hasScreenshot ? `- **Screenshot:** ${screenshotUrl}` : ''}
+
+### Related Features
+Search for related implementations in:
+- \`docs/features/\` - Similar feature documentation
+- Production lane - Patterns from shipped features
+- \`feedback_tickets\` - Related user requests
+
+### Technical Documentation
+- Platform architecture: \`.cursor/rules/alignment.mdc\`
+- Data schema: \`.cursor/rules/data.mdc\`
+- Frontend patterns: \`.cursor/rules/frontend.mdc\`
+- Backend patterns: \`.cursor/rules/backend.mdc\`
+
+---
+
+## ✨ Developer Notes
+
+### Quick Start
+
+1. **Understand the request:**
+   - Read full description above
+   - Review screenshot (if available)
+   - Check AI analysis
+   - Contact ${requestedBy} for questions
+
+2. **Design approach:**
+   - Sketch UI mockup (if UI changes)
+   - Design data model (if backend changes)
+   - Identify affected components
+   - Plan testing strategy
+
+3. **Implement:**
+   - Create feature branch: \`feat/${category}-${title.toLowerCase().replace(/\s+/g, '-')}-$(date +%Y-%m-%d)\`
+   - Follow acceptance criteria
+   - Add tests as you code
+   - Document as you build
+
+4. **Validate:**
+   - Test with ${requestedBy} (UAT)
+   - Measure CSAT/NPS impact
+   - Verify OKR alignment
+   - Get stakeholder sign-off
+
+### Key Considerations
+
+- **User type:** ${requestedByRole} - Design for this persona
+- **Context:** ${agentContext} - Ensure it works in this environment
+- **Priority:** ${priority} - Impacts timeline and thoroughness
+- **Expected impact:** CSAT ${expectedCSAT.toFixed(1)}, NPS ${expectedNPS} - High bar for quality
+
+---
+
+## 📅 Recommended Timeline
+
+**Priority:** ${priority.toUpperCase()}
+
+${getTimelineRecommendation(priority)}
+
+---
+
+## 🎊 Success Vision
+
+When this feature is successfully implemented, users will:
+
+1. ✅ Experience ${expectedCSAT >= 4.5 ? 'exceptional delight' : expectedCSAT >= 4.0 ? 'high satisfaction' : 'improved satisfaction'}
+2. ✅ ${inferSuccessOutcome(title, expectedNPS)}
+3. ✅ Achieve ${expectedROI}x return on their time investment
+4. ✅ Align with ${okrAlignment?.length || 0} strategic objective(s)
+
+**This is more than a feature - it's a commitment to user success.** 🌟
+
+---
+
+**Specification ID:** \`${specId}\`  
+**Generated:** ${generatedAt.toISOString()}  
+**Ready for:** Developer assignment and implementation  
+**Track in:** \`spec_generations\` collection (Firestore)
+
+---
+
+*This specification was auto-generated from roadmap card feedback. For questions or clarifications, contact ${generatedByEmail}.*
+`;
+}
+
+// Helper functions
+function getPriorityDescription(priority: string): string {
+  const descriptions: Record<string, string> = {
+    'critical': 'Immediate action required - blocking users or causing significant pain',
+    'high': 'Important - Should be addressed soon, significant user impact',
+    'medium': 'Standard priority - Include in next planning cycle',
+    'low': 'Nice to have - Schedule when capacity allows',
+  };
+  return descriptions[priority] || 'Standard priority';
+}
+
+function getPriorityGuidance(priority: string): string {
+  const guidance: Record<string, string> = {
+    'critical': `
+**Timeline:** Immediate (within 1 week)
+**Testing:** Expedited but thorough
+**Rollback:** Must have immediate rollback capability
+**Communication:** Notify users of fix ETA
+`,
+    'high': `
+**Timeline:** Next sprint (2-3 weeks)
+**Testing:** Full test coverage required
+**Review:** Code review + QA testing
+**Communication:** Include in release notes
+`,
+    'medium': `
+**Timeline:** Next planning cycle (4-6 weeks)
+**Testing:** Standard test coverage
+**Review:** Standard review process
+**Communication:** Include in monthly updates
+`,
+    'low': `
+**Timeline:** When capacity allows (8-12 weeks)
+**Testing:** Basic coverage acceptable
+**Review:** Can batch with other features
+**Communication:** Optional - include in quarterly summary
+`,
+  };
+  return guidance[priority] || 'Standard timeline and process';
+}
+
+function getCategoryGuidance(category: string): string {
+  const guidance: Record<string, string> = {
+    'feature-request': `
+This is a **new capability** request.
+- Design with extensibility in mind
+- Consider future enhancements
+- Plan for user onboarding
+- Include feature flag for gradual rollout
+`,
+    'bug': `
+This is a **bug fix**.
+- Identify root cause
+- Add tests to prevent regression
+- Document the fix
+- Consider impact on related features
+`,
+    'ui-improvement': `
+This is a **UI/UX enhancement**.
+- Focus on user experience
+- Maintain design system consistency
+- Consider accessibility (WCAG 2.1 AA)
+- Add smooth transitions and feedback
+`,
+    'performance': `
+This is a **performance optimization**.
+- Benchmark current performance
+- Set measurable targets
+- Profile before and after
+- Document improvements
+`,
+  };
+  return guidance[category] || 'Standard implementation approach';
+}
+
+function getTimelineRecommendation(priority: string): string {
+  const timelines: Record<string, string> = {
+    'critical': '**Immediate:** Start today, ship within 1 week',
+    'high': '**Next Sprint:** 2-3 weeks',
+    'medium': '**Next Cycle:** 4-6 weeks',
+    'low': '**Backlog:** 8-12 weeks or when capacity allows',
+  };
+  return timelines[priority] || '4-6 weeks (standard timeline)';
+}
+
+function inferBenefit(title: string, description: string, csat: number): string {
+  if (csat >= 4.5) return 'have an exceptional, delightful experience that exceeds expectations';
+  if (csat >= 4.0) return 'accomplish my goals more efficiently and with greater satisfaction';
+  if (csat >= 3.0) return 'complete my tasks more effectively';
+  return 'improve my workflow';
+}
+
+function inferSuccessOutcome(title: string, nps: number): string {
+  if (nps >= 95) return 'Become enthusiastic promoters of the platform';
+  if (nps >= 80) return 'Recommend the feature to colleagues';
+  if (nps >= 50) return 'Feel positive about the improvement';
+  return 'Appreciate the enhancement';
+}
+

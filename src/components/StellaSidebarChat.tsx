@@ -31,19 +31,26 @@ import {
   ExternalLink,
   ArrowRight,
   Eraser,
-  Check
+  Check,
+  Maximize2,
+  Eye
 } from 'lucide-react';
+import ScreenshotAnnotator from './ScreenshotAnnotator';
+import type { AnnotatedScreenshot, ScreenshotAnnotation } from '../types/feedback';
 
 type FeedbackCategory = 'bug' | 'feature' | 'improvement';
-type SelectionMode = 'point' | 'area' | 'brush' | 'clip' | 'screen' | 'none';
 
 interface Attachment {
   id: string;
-  type: 'screenshot' | 'selection' | 'clip';
-  mode: SelectionMode;
-  dataUrl?: string;
-  timestamp: number;
-  annotations?: any[];
+  type: 'screenshot';
+  screenshot: AnnotatedScreenshot;
+  aiAnalysis?: string; // AI inference of the screenshot
+  uiContext?: {
+    currentAgent?: string;
+    currentChat?: string;
+    consoleErrors?: string[];
+    pageUrl?: string;
+  };
 }
 
 interface Message {
@@ -97,9 +104,10 @@ export default function StellaSidebarChat({
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Selection tools
-  const [activeSelectionTool, setActiveSelectionTool] = useState<SelectionMode>('none');
-  const [pendingAttachment, setPendingAttachment] = useState<Attachment | null>(null);
+  // Screenshot tools
+  const [showScreenshotTool, setShowScreenshotTool] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
+  const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -144,6 +152,68 @@ export default function StellaSidebarChat({
     return messages[category];
   }
   
+  // Capture UI context (agent, chat, console errors)
+  function captureUIContext() {
+    // Get console errors from browser
+    const consoleErrors: string[] = [];
+    
+    // Try to get errors from console (if available)
+    try {
+      // This would need browser extension or console logging system
+      // For now, we'll capture what's available in currentPageContext
+    } catch (e) {
+      // Silent fail
+    }
+    
+    return {
+      currentAgent: currentPageContext?.agentId,
+      currentChat: currentPageContext?.conversationId,
+      consoleErrors,
+      pageUrl: currentPageContext?.pageUrl || window.location.href,
+    };
+  }
+  
+  // Handle screenshot complete
+  async function handleScreenshotComplete(annotatedScreenshot: AnnotatedScreenshot) {
+    setShowScreenshotTool(false);
+    
+    // Analyze screenshot with AI
+    try {
+      const response = await fetch('/api/stella/analyze-screenshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          screenshot: annotatedScreenshot,
+          uiContext: captureUIContext(),
+          category: currentSession?.category,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      // Create attachment with AI analysis
+      const attachment: Attachment = {
+        id: `att-${Date.now()}`,
+        type: 'screenshot',
+        screenshot: annotatedScreenshot,
+        aiAnalysis: data.analysis,
+        uiContext: captureUIContext(),
+      };
+      
+      setPendingAttachments(prev => [...prev, attachment]);
+    } catch (error) {
+      console.error('Error analyzing screenshot:', error);
+      // Still add attachment without AI analysis
+      const attachment: Attachment = {
+        id: `att-${Date.now()}`,
+        type: 'screenshot',
+        screenshot: annotatedScreenshot,
+        uiContext: captureUIContext(),
+      };
+      setPendingAttachments(prev => [...prev, attachment]);
+    }
+  }
+  
   // Send message
   async function sendMessage() {
     if (!inputText.trim() || !currentSession) return;
@@ -157,7 +227,7 @@ export default function StellaSidebarChat({
         role: 'user',
         content: inputText,
         timestamp: new Date(),
-        attachments: pendingAttachment ? [pendingAttachment] : undefined,
+        attachments: pendingAttachments.length > 0 ? pendingAttachments : undefined,
       };
       
       setSessions(prev => prev.map(s => 
@@ -167,7 +237,7 @@ export default function StellaSidebarChat({
       ));
       
       setInputText('');
-      setPendingAttachment(null);
+      setPendingAttachments([]);
       
       // Generate AI response
       const aiResponse = await generateStellaResponse(userMessage, currentSession);
@@ -211,7 +281,7 @@ export default function StellaSidebarChat({
     };
   }
   
-  // Submit feedback (creates ticket)
+  // Submit feedback (creates ticket in Roadmap)
   async function submitFeedback() {
     if (!currentSession) return;
     
@@ -223,6 +293,8 @@ export default function StellaSidebarChat({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
+          userEmail,
+          userName,
           session: currentSession,
           pageContext: currentPageContext,
         }),
@@ -242,11 +314,11 @@ export default function StellaSidebarChat({
           : s
       ));
       
-      // Add confirmation message
+      // Add confirmation message with clickable link
       const confirmMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'stella',
-        content: `✅ Feedback enviado exitosamente!\n\n**Ticket:** ${data.ticketId}\n\nHe creado un ticket en el backlog con toda la información de nuestra conversación.`,
+        content: `✅ Feedback enviado exitosamente!\n\n**Ticket:** ${data.ticketId}\n\nHe creado un ticket en el backlog del Roadmap con toda la información de nuestra conversación, incluyendo las capturas de pantalla con anotaciones y el análisis AI del contexto.`,
         timestamp: new Date(),
       };
       
@@ -258,15 +330,18 @@ export default function StellaSidebarChat({
       
     } catch (error) {
       console.error('Failed to submit feedback:', error);
+      alert('Error al enviar feedback. Por favor intenta nuevamente.');
     } finally {
       setIsSubmitting(false);
     }
   }
   
-  if (!isOpen) return null;
-  
   return (
-    <div className="fixed right-0 top-0 bottom-0 w-96 bg-gradient-to-b from-violet-50 to-white dark:from-slate-800 dark:to-slate-900 border-l border-violet-200 dark:border-violet-900 shadow-2xl z-50 flex flex-col">
+    <div 
+      className={`fixed right-0 top-0 bottom-0 w-96 bg-gradient-to-b from-violet-50 to-white dark:from-slate-800 dark:to-slate-900 border-l border-violet-200 dark:border-violet-900 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0 z-[9999]' : 'translate-x-full z-[9999]'
+      }`}
+    >
       
       {/* Header */}
       <div className="bg-gradient-to-r from-violet-600 to-purple-600 p-4 flex items-center justify-between">
@@ -415,82 +490,21 @@ export default function StellaSidebarChat({
             </button>
           </div>
           
-          {/* Selection Tools */}
+          {/* Screenshot Tool */}
           <div className="p-3 border-b border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-slate-800/50">
-            <p className="text-[10px] font-semibold text-violet-900 dark:text-violet-100 mb-2">
-              Herramientas de Selección:
-            </p>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setActiveSelectionTool('point')}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeSelectionTool === 'point'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
-                }`}
-                title="Punto"
-              >
-                <Circle className="w-3 h-3" />
-              </button>
-              
-              <button
-                onClick={() => setActiveSelectionTool('area')}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeSelectionTool === 'area'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
-                }`}
-                title="Área"
-              >
-                <Square className="w-3 h-3" />
-              </button>
-              
-              <button
-                onClick={() => setActiveSelectionTool('brush')}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeSelectionTool === 'brush'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
-                }`}
-                title="Lápiz"
-              >
-                <Paintbrush className="w-3 h-3" />
-              </button>
-              
-              <button
-                onClick={() => setActiveSelectionTool('clip')}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeSelectionTool === 'clip'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
-                }`}
-                title="Clip"
-              >
-                <Video className="w-3 h-3" />
-              </button>
-              
-              <button
-                onClick={() => setActiveSelectionTool('screen')}
-                className={`flex-1 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all flex items-center justify-center gap-1 ${
-                  activeSelectionTool === 'screen'
-                    ? 'bg-violet-600 text-white shadow-md'
-                    : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-violet-100 dark:hover:bg-violet-900/30 border border-violet-200 dark:border-violet-700'
-                }`}
-                title="Pantalla"
-              >
-                <Camera className="w-3 h-3" />
-              </button>
-            </div>
+            <button
+              onClick={() => setShowScreenshotTool(true)}
+              className="w-full px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold shadow-sm"
+            >
+              <Camera className="w-4 h-4" />
+              Capturar Pantalla
+            </button>
             
-            {activeSelectionTool !== 'none' && (
-              <p className="text-[10px] text-violet-700 dark:text-violet-300 mt-2 flex items-center gap-1">
-                <ArrowRight className="w-3 h-3" />
-                {activeSelectionTool === 'point' && 'Click en la pantalla donde quieras marcar'}
-                {activeSelectionTool === 'area' && 'Arrastra para seleccionar un área'}
-                {activeSelectionTool === 'brush' && 'Dibuja libremente sobre la pantalla'}
-                {activeSelectionTool === 'clip' && 'Click para iniciar/detener grabación'}
-                {activeSelectionTool === 'screen' && 'Click para capturar pantalla completa'}
-              </p>
+            {pendingAttachments.length > 0 && (
+              <div className="mt-2 text-xs text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                <ImageIcon className="w-3 h-3" />
+                {pendingAttachments.length} captura{pendingAttachments.length !== 1 ? 's' : ''} adjunta{pendingAttachments.length !== 1 ? 's' : ''}
+              </div>
             )}
           </div>
           
@@ -516,18 +530,51 @@ export default function StellaSidebarChat({
                     <div className="mt-2 space-y-2">
                       {msg.attachments.map((att) => (
                         <div key={att.id} className="rounded-lg overflow-hidden border border-violet-300 dark:border-violet-600">
-                          {att.dataUrl && (
+                          {/* Screenshot preview */}
+                          <div 
+                            className="relative cursor-pointer group"
+                            onClick={() => setViewingAttachment(att)}
+                          >
                             <img
-                              src={att.dataUrl}
-                              alt="Adjunto"
+                              src={att.screenshot.imageDataUrl}
+                              alt="Captura anotada"
                               className="w-full max-h-40 object-contain bg-slate-100 dark:bg-slate-700"
                             />
+                            {/* View fullscreen overlay */}
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full p-2">
+                                <Maximize2 className="w-4 h-4 text-violet-600" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* AI Analysis summary */}
+                          {att.aiAnalysis && (
+                            <div className="px-2 py-1.5 bg-violet-100 dark:bg-violet-900/30 text-[10px] text-violet-700 dark:text-violet-300">
+                              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                                <Sparkles className="w-3 h-3" />
+                                Análisis AI:
+                              </p>
+                              <p className="line-clamp-2">{att.aiAnalysis}</p>
+                            </div>
                           )}
-                          <div className="px-2 py-1 bg-violet-100 dark:bg-violet-900/30 text-[10px] text-violet-700 dark:text-violet-300 flex items-center gap-1">
-                            <ImageIcon className="w-3 h-3" />
-                            {att.type === 'screenshot' && 'Screenshot'}
-                            {att.type === 'selection' && 'Selección'}
-                            {att.type === 'clip' && 'Clip grabado'}
+                          
+                          {/* Metadata */}
+                          <div className="px-2 py-1 bg-violet-50 dark:bg-violet-900/20 text-[9px] text-violet-600 dark:text-violet-400 flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <ImageIcon className="w-3 h-3" />
+                              {att.screenshot.annotations.length} anotaciones
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewingAttachment(att);
+                              }}
+                              className="flex items-center gap-1 hover:text-violet-800 dark:hover:text-violet-200"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Ver detalles
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -546,27 +593,51 @@ export default function StellaSidebarChat({
             <div ref={messagesEndRef} />
           </div>
           
-          {/* Pending Attachment Preview */}
-          {pendingAttachment && (
-            <div className="px-4 pb-3 border-t border-violet-200 dark:border-violet-800">
-              <div className="bg-violet-100 dark:bg-violet-900/30 rounded-lg p-2 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                <div className="flex-1">
-                  <p className="text-xs font-semibold text-violet-900 dark:text-violet-100">
-                    Adjunto listo
-                  </p>
-                  <p className="text-[10px] text-violet-700 dark:text-violet-300">
-                    {pendingAttachment.type === 'screenshot' && 'Screenshot capturado'}
-                    {pendingAttachment.type === 'selection' && 'Selección capturada'}
-                    {pendingAttachment.type === 'clip' && 'Clip grabado'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setPendingAttachment(null)}
-                  className="text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+          {/* Pending Attachments Preview */}
+          {pendingAttachments.length > 0 && (
+            <div className="px-4 pb-3 border-t border-violet-200 dark:border-violet-800 max-h-48 overflow-y-auto">
+              <div className="space-y-2">
+                {pendingAttachments.map((att, idx) => (
+                  <div key={att.id} className="bg-violet-100 dark:bg-violet-900/30 rounded-lg p-2 flex items-start gap-2">
+                    {/* Thumbnail */}
+                    <div 
+                      className="w-16 h-16 flex-shrink-0 rounded border border-violet-300 dark:border-violet-600 overflow-hidden cursor-pointer group relative"
+                      onClick={() => setViewingAttachment(att)}
+                    >
+                      <img
+                        src={att.screenshot.imageDataUrl}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                        <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100" />
+                      </div>
+                    </div>
+                    
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-violet-900 dark:text-violet-100">
+                        Captura {idx + 1}
+                      </p>
+                      <p className="text-[10px] text-violet-700 dark:text-violet-300">
+                        {att.screenshot.annotations.length} anotaciones
+                      </p>
+                      {att.aiAnalysis && (
+                        <p className="text-[10px] text-violet-600 dark:text-violet-400 mt-0.5 line-clamp-1">
+                          <Sparkles className="w-2.5 h-2.5 inline" /> {att.aiAnalysis}
+                        </p>
+                      )}
+                    </div>
+                    
+                    {/* Remove button */}
+                    <button
+                      onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
+                      className="flex-shrink-0 text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -658,6 +729,98 @@ export default function StellaSidebarChat({
                 </div>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Screenshot Annotator Modal */}
+      {showScreenshotTool && (
+        <ScreenshotAnnotator
+          onComplete={handleScreenshotComplete}
+          onCancel={() => setShowScreenshotTool(false)}
+        />
+      )}
+      
+      {/* Attachment Viewer Modal */}
+      {viewingAttachment && (
+        <div className="fixed inset-0 z-[10000] bg-black bg-opacity-90 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-violet-600" />
+                Captura de Pantalla
+              </h3>
+              <button
+                onClick={() => setViewingAttachment(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Image */}
+            <div className="flex-1 overflow-auto p-4 bg-slate-50 dark:bg-slate-900">
+              <img
+                src={viewingAttachment.screenshot.imageDataUrl}
+                alt="Captura completa"
+                className="max-w-full h-auto mx-auto rounded-lg shadow-lg"
+              />
+            </div>
+            
+            {/* Details */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+              {/* AI Analysis */}
+              {viewingAttachment.aiAnalysis && (
+                <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-violet-900 dark:text-violet-100 mb-1 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Análisis AI:
+                  </p>
+                  <p className="text-sm text-violet-700 dark:text-violet-300 whitespace-pre-wrap">
+                    {viewingAttachment.aiAnalysis}
+                  </p>
+                </div>
+              )}
+              
+              {/* UI Context */}
+              {viewingAttachment.uiContext && (
+                <div className="bg-slate-100 dark:bg-slate-800 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                    Contexto UI:
+                  </p>
+                  <div className="space-y-1 text-xs text-slate-700 dark:text-slate-300">
+                    {viewingAttachment.uiContext.currentAgent && (
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-3 h-3" />
+                        <span className="font-medium">Agente:</span>
+                        <span>{viewingAttachment.uiContext.currentAgent}</span>
+                      </div>
+                    )}
+                    {viewingAttachment.uiContext.currentChat && (
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="w-3 h-3" />
+                        <span className="font-medium">Chat:</span>
+                        <span className="font-mono text-[10px]">{viewingAttachment.uiContext.currentChat}</span>
+                      </div>
+                    )}
+                    {viewingAttachment.uiContext.pageUrl && (
+                      <div className="flex items-center gap-2">
+                        <ExternalLink className="w-3 h-3" />
+                        <span className="font-medium">URL:</span>
+                        <span className="truncate">{viewingAttachment.uiContext.pageUrl}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Annotations count */}
+              <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                <span>{viewingAttachment.screenshot.annotations.length} anotaciones en la captura</span>
+                <span>{new Date(viewingAttachment.screenshot.createdAt).toLocaleString('es')}</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
