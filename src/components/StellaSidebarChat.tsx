@@ -35,12 +35,11 @@ import {
   Maximize2,
   Eye
 } from 'lucide-react';
-import ScreenshotAnnotator from './ScreenshotAnnotator';
 import type { AnnotatedScreenshot, ScreenshotAnnotation } from '../types/feedback';
 
 type FeedbackCategory = 'bug' | 'feature' | 'improvement';
 
-interface Attachment {
+export interface StellaAttachment {
   id: string;
   type: 'screenshot';
   screenshot: AnnotatedScreenshot;
@@ -53,19 +52,19 @@ interface Attachment {
   };
 }
 
-interface Message {
+export interface StellaMessage {
   id: string;
   role: 'user' | 'stella';
   content: string;
   timestamp: Date;
-  attachments?: Attachment[];
+  attachments?: StellaAttachment[];
 }
 
-interface FeedbackSession {
+export interface StellaFeedbackSession {
   id: string;
   category: FeedbackCategory;
   ticketId?: string;
-  messages: Message[];
+  messages: StellaMessage[];
   status: 'active' | 'submitted';
   createdAt: Date;
   kanbanCardUrl?: string;
@@ -83,6 +82,9 @@ interface StellaSidebarChatProps {
     conversationId?: string;
     selectedText?: string;
   };
+  onRequestScreenshot: () => void; // Request parent to open screenshot tool
+  onRequestEditScreenshot: (attachment: StellaAttachment, index: number) => void; // Request edit
+  onAddAttachment?: (attachment: StellaAttachment) => void; // Called when parent completes screenshot
 }
 
 export default function StellaSidebarChat({
@@ -91,11 +93,14 @@ export default function StellaSidebarChat({
   userId,
   userEmail,
   userName,
-  currentPageContext
+  currentPageContext,
+  onRequestScreenshot,
+  onRequestEditScreenshot,
+  onAddAttachment
 }: StellaSidebarChatProps) {
   
   // Session management
-  const [sessions, setSessions] = useState<FeedbackSession[]>([]);
+  const [sessions, setSessions] = useState<StellaFeedbackSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [showCategorySelector, setShowCategorySelector] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<FeedbackCategory | null>(null);
@@ -104,14 +109,9 @@ export default function StellaSidebarChat({
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Screenshot tools
-  const [showScreenshotTool, setShowScreenshotTool] = useState(false);
-  const [pendingAttachments, setPendingAttachments] = useState<Attachment[]>([]);
-  const [viewingAttachment, setViewingAttachment] = useState<Attachment | null>(null);
-  const [editingAttachment, setEditingAttachment] = useState<{
-    attachment: Attachment;
-    index: number;
-  } | null>(null);
+  // Screenshot tools - managed by parent
+  const [pendingAttachments, setPendingAttachments] = useState<StellaAttachment[]>([]);
+  const [viewingAttachment, setViewingAttachment] = useState<StellaAttachment | null>(null);
   
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -177,96 +177,26 @@ export default function StellaSidebarChat({
     };
   }
   
-  // Handle screenshot complete (new or edited)
-  async function handleScreenshotComplete(annotatedScreenshot: AnnotatedScreenshot) {
-    setShowScreenshotTool(false);
-    
-    // Check if we're editing an existing attachment
-    if (editingAttachment) {
-      // Update existing attachment
-      const updatedAttachment: Attachment = {
-        ...editingAttachment.attachment,
-        screenshot: annotatedScreenshot,
-        aiAnalysis: undefined, // Will be re-analyzed
+  // Add attachment from parent (after screenshot completion)
+  useEffect(() => {
+    if (onAddAttachment) {
+      // Expose function to parent to add attachments
+      (window as any).stellaAddAttachment = (attachment: StellaAttachment) => {
+        setPendingAttachments(prev => [...prev, attachment]);
       };
       
-      // Re-analyze with AI
-      try {
-        const response = await fetch('/api/stella/analyze-screenshot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screenshot: annotatedScreenshot,
-            uiContext: captureUIContext(),
-            category: currentSession?.category,
-          }),
-        });
-        
-        const data = await response.json();
-        updatedAttachment.aiAnalysis = data.analysis;
-      } catch (error) {
-        console.error('Error analyzing screenshot:', error);
-      }
-      
-      // Update in array
-      setPendingAttachments(prev =>
-        prev.map((att, idx) =>
-          idx === editingAttachment.index ? updatedAttachment : att
-        )
-      );
-      
-      setEditingAttachment(null);
-      return;
+      (window as any).stellaUpdateAttachment = (attachment: StellaAttachment, index: number) => {
+        setPendingAttachments(prev =>
+          prev.map((att, idx) => (idx === index ? attachment : att))
+        );
+      };
     }
     
-    // New attachment - Analyze screenshot with AI
-    try {
-      const response = await fetch('/api/stella/analyze-screenshot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          screenshot: annotatedScreenshot,
-          uiContext: captureUIContext(),
-          category: currentSession?.category,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      // Create attachment with AI analysis
-      const attachment: Attachment = {
-        id: `att-${Date.now()}`,
-        type: 'screenshot',
-        screenshot: annotatedScreenshot,
-        aiAnalysis: data.analysis,
-        uiContext: captureUIContext(),
-      };
-      
-      setPendingAttachments(prev => [...prev, attachment]);
-    } catch (error) {
-      console.error('Error analyzing screenshot:', error);
-      // Still add attachment without AI analysis
-      const attachment: Attachment = {
-        id: `att-${Date.now()}`,
-        type: 'screenshot',
-        screenshot: annotatedScreenshot,
-        uiContext: captureUIContext(),
-      };
-      setPendingAttachments(prev => [...prev, attachment]);
-    }
-  }
-  
-  // Handle screenshot cancel
-  function handleScreenshotCancel() {
-    setShowScreenshotTool(false);
-    setEditingAttachment(null);
-  }
-  
-  // Start editing an attachment
-  function handleEditAttachment(attachment: Attachment, index: number) {
-    setEditingAttachment({ attachment, index });
-    setShowScreenshotTool(true);
-  }
+    return () => {
+      delete (window as any).stellaAddAttachment;
+      delete (window as any).stellaUpdateAttachment;
+    };
+  }, [onAddAttachment]);
   
   // Send message
   async function sendMessage() {
@@ -548,7 +478,7 @@ export default function StellaSidebarChat({
           {/* Screenshot Tool */}
           <div className="p-3 border-b border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-slate-800/50">
             <button
-              onClick={() => setShowScreenshotTool(true)}
+              onClick={onRequestScreenshot}
               className="w-full px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold shadow-sm"
             >
               <Camera className="w-4 h-4" />
@@ -687,7 +617,7 @@ export default function StellaSidebarChat({
                     {/* Edit and Remove buttons */}
                     <div className="flex-shrink-0 flex items-center gap-1">
                       <button
-                        onClick={() => handleEditAttachment(att, idx)}
+                        onClick={() => onRequestEditScreenshot(att, idx)}
                         className="p-1 text-violet-600 dark:text-violet-400 hover:text-violet-800 dark:hover:text-violet-200 transition-colors"
                         title="Editar anotaciones"
                       >
@@ -825,17 +755,6 @@ export default function StellaSidebarChat({
               </button>
             ))}
           </div>
-        </div>
-      )}
-      
-      {/* Screenshot Annotator Modal - Higher z-index than Stella */}
-      {showScreenshotTool && (
-        <div className="fixed inset-0 z-[10000]">
-          <ScreenshotAnnotator
-            onComplete={handleScreenshotComplete}
-            onCancel={handleScreenshotCancel}
-            existingScreenshot={editingAttachment?.attachment.screenshot}
-          />
         </div>
       )}
       
