@@ -62,16 +62,17 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
       // Import html2canvas dynamically
       const html2canvas = (await import('html2canvas')).default;
       
-      // Capture the entire body (includes sidebar, chat, and right panel)
+      // Capture the entire body (includes sidebar, chat, Stella, and all UI)
       const bodyElement = document.body;
       
-      // Hide the screenshot modal temporarily while capturing
-      const modals = document.querySelectorAll('[role="dialog"], .fixed.z-50');
-      modals.forEach(modal => {
-        (modal as HTMLElement).style.display = 'none';
-      });
+      // Hide ONLY the screenshot capture modal (the positioning dialog and toolbar)
+      // Keep Stella visible for capture
+      const screenshotModal = document.querySelector('.screenshot-capture-modal');
+      if (screenshotModal) {
+        (screenshotModal as HTMLElement).style.display = 'none';
+      }
 
-      console.log('📸 Capturing full UI (body element)...');
+      console.log('📸 Capturing full UI including Stella...');
       
       // Capture with html2canvas
       const canvas = await html2canvas(bodyElement, {
@@ -88,13 +89,13 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
         scrollX: -window.scrollX,
       });
 
-      // Restore modals
-      modals.forEach(modal => {
-        (modal as HTMLElement).style.display = '';
-      });
+      // Restore screenshot modal
+      if (screenshotModal) {
+        (screenshotModal as HTMLElement).style.display = '';
+      }
 
       const dataUrl = canvas.toDataURL('image/png', 0.9);
-      console.log('✅ Full UI captured:', canvas.width, 'x', canvas.height);
+      console.log('✅ Full UI captured (including Stella):', canvas.width, 'x', canvas.height);
       
       return dataUrl;
     } catch (error) {
@@ -312,10 +313,10 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
     return (
       <>
         {/* Semi-transparent overlay - allows seeing through to scroll */}
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-30 pointer-events-none" />
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-30 pointer-events-none screenshot-capture-modal" />
         
         {/* Floating capture button - stays in center */}
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-auto">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-auto screenshot-capture-modal">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md">
             <div className="text-center mb-4">
               <Camera className="w-12 h-12 text-violet-600 mx-auto mb-3" />
@@ -356,7 +357,7 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
   // Step 2: Show loader while capturing
   if (!screenshot && isCapturing) {
     return (
-      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center screenshot-capture-modal">
         <div className="bg-white rounded-xl p-6 flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
           <span className="text-violet-700 font-medium">Capturando pantalla...</span>
@@ -367,9 +368,9 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
 
   // Step 3: Annotate the captured screenshot
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col screenshot-capture-modal">
       {/* Toolbar */}
-      <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
+      <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between screenshot-capture-modal">
         <div className="flex items-center gap-2">
           <h3 className="text-lg font-bold text-slate-800 mr-4">
             {existingScreenshot ? 'Editar Captura' : 'Anotar Captura'}
@@ -547,7 +548,7 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
       </div>
 
       {/* Help Text */}
-      <div className="bg-white border-t border-slate-200 p-3">
+      <div className="bg-white border-t border-slate-200 p-3 screenshot-capture-modal">
         <div className="max-w-4xl mx-auto flex items-center justify-between text-sm">
           <div className="flex items-center gap-6 text-slate-600">
             <div className="flex items-center gap-2">
