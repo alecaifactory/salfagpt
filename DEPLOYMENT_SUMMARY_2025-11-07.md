@@ -2,10 +2,10 @@
 
 **Project:** SALFACORP (salfagpt)  
 **Service:** cr-salfagpt-ai-ft-prod  
-**Region:** us-central1  
+**Region:** us-east4 ✅  
 **Status:** ✅ DEPLOYED SUCCESSFULLY  
-**Revision:** cr-salfagpt-ai-ft-prod-00002-hbr  
-**URL:** https://cr-salfagpt-ai-ft-prod-3snj65wckq-uc.a.run.app
+**Revision:** cr-salfagpt-ai-ft-prod-00048-6t5  
+**URL:** https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
 
 ---
 
@@ -158,7 +158,7 @@
 
 **Project:** salfagpt (SALFACORP)  
 **Service:** cr-salfagpt-ai-ft-prod  
-**Region:** us-central1  
+**Region:** us-east4 ✅  
 **Memory:** 2Gi  
 **CPU:** 2  
 **Timeout:** 300s  
