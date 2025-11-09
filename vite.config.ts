@@ -22,6 +22,10 @@ export default defineConfig({
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
+    alias: {
+      // Force whatwg-url to not be bundled
+      'whatwg-url': 'whatwg-url/lib/public-api.js',
+    },
   },
   ssr: {
     // Don't try to bundle these server-side packages
@@ -30,6 +34,11 @@ export default defineConfig({
       'whatwg-url',
       'tr46', 
       'webidl-conversions',
+    ],
+    noExternal: [
+      // Ensure these are NOT externalized (opposite of above for client)
+      'lucide-react',
+      'react-markdown',
     ],
   },
   server: {

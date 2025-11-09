@@ -79,16 +79,16 @@ export default function ExportButton({
 
       // Sheet 2: Evaluations (if exist)
       if (data.evaluations && data.evaluations.length > 0) {
-        const evaluationsData = data.evaluations.map((eval: any) => ({
-          'Fecha Evaluación': new Date(eval.evaluatedAt).toLocaleString('es-CL'),
-          'Expert': eval.expertName,
-          'Calificación': eval.expertRating,
-          'NPS': eval.npsScore,
-          'CSAT': eval.csatScore,
-          'Tipo Corrección': eval.correctionType,
-          'Propuesta': eval.proposedCorrection?.substring(0, 500),
-          'Estado': eval.status,
-          'Aprobado Por': eval.approvedBy || 'Pendiente'
+        const evaluationsData = data.evaluations.map((evaluation: any) => ({
+          'Fecha Evaluación': new Date(evaluation.evaluatedAt).toLocaleString('es-CL'),
+          'Expert': evaluation.expertName,
+          'Calificación': evaluation.expertRating,
+          'NPS': evaluation.npsScore,
+          'CSAT': evaluation.csatScore,
+          'Tipo Corrección': evaluation.correctionType,
+          'Propuesta': evaluation.proposedCorrection?.substring(0, 500),
+          'Estado': evaluation.status,
+          'Aprobado Por': evaluation.approvedBy || 'Pendiente'
         }));
 
         const ws2 = XLSX.utils.json_to_sheet(evaluationsData);

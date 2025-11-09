@@ -89,21 +89,21 @@ export const GET: APIRoute = async ({ request, cookies }) => {
           .get();
 
         evalSnapshot.docs.forEach(doc => {
-          const data = doc.data();
+          const evalData = doc.data();
           evaluations.push({
             id: doc.id,
-            feedbackId: data.feedbackId,
-            evaluatedAt: data.evaluatedAt?.toDate() || new Date(),
-            expertId: data.expertId,
-            expertName: data.expertName,
-            expertRating: data.expertRating,
-            npsScore: data.npsScore,
-            csatScore: data.csatScore,
-            correctionType: data.correctionType,
-            proposedCorrection: data.proposedCorrection,
-            status: data.status,
-            approvedBy: data.approvedBy,
-            appliedAt: data.appliedAt?.toDate()
+            feedbackId: evalData.feedbackId,
+            evaluatedAt: evalData.evaluatedAt?.toDate() || new Date(),
+            expertId: evalData.expertId,
+            expertName: evalData.expertName,
+            expertRating: evalData.expertRating,
+            npsScore: evalData.npsScore,
+            csatScore: evalData.csatScore,
+            correctionType: evalData.correctionType,
+            proposedCorrection: evalData.proposedCorrection,
+            status: evalData.status,
+            approvedBy: evalData.approvedBy,
+            appliedAt: evalData.appliedAt?.toDate()
           });
         });
       }
