@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Logout</title>
+  <script>
+    // Clear all cookies
+    document.cookie.split(";").forEach(function(c) { 
+      document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+    });
+    
+    // Clear localStorage
+    localStorage.clear();
+    
+    // Clear sessionStorage
+    sessionStorage.clear();
+    
+    // Redirect to login
+    setTimeout(() => {
+      window.location.href = '/auth/login';
+    }, 500);
+  </script>
+</head>
+<body style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc; font-family: system-ui;">
+  <div style="text-align: center;">
+    <h2 style="color: #334155;">Cerrando sesión...</h2>
+    <p style="color: #64748b;">Serás redirigido al login.</p>
+  </div>
+</body>
+</html>

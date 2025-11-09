@@ -36,11 +36,21 @@ try {
     return Astro.redirect('/auth/login?error=session_expired&redirect=/chat');
   }
   
-  // ✅ CRITICAL: Use Google OAuth numeric ID (permanent, unique identifier)
-  userId = decoded.id || decoded.sub; // Google OAuth ID
+  // ✅ CRITICAL FIX: For backward compatibility, use Google OAuth ID if available
+  // Old JWT has: decoded.googleUserId (numeric Google ID)
+  // New JWT has: decoded.id (hash ID)
+  // Data is stored with Google OAuth ID, so use that preferentially
+  userId = decoded.googleUserId || decoded.id || decoded.sub; // Prefer Google OAuth ID
   userEmail = decoded.email || 'usuario@flow.ai';
   userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
   userRole = decoded.role || 'user'; // ✅ Extract role from JWT
+  
+  console.log('🔍 DEBUG userId selection:', {
+    googleUserId: decoded.googleUserId,
+    decodedId: decoded.id,
+    selected: userId,
+    email: userEmail
+  });
   
   // Log successful authentication
   console.log('✅ User authenticated:', {
