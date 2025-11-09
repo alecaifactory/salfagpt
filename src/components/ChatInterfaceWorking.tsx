@@ -1048,41 +1048,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       const updatedAttachment: StellaAttachment = {
         ...editingStellaAttachment.attachment,
         screenshot: annotatedScreenshot,
-        aiAnalysis: undefined,
+        aiAnalysis: '⏳ Analizando con AI...', // Temporary while analyzing
       };
       
-      // Re-analyze
-      try {
-        const response = await fetch('/api/stella/analyze-screenshot', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            screenshot: annotatedScreenshot,
-            uiContext,
-            category: 'bug', // Default, can be updated
-          }),
-        });
-        
-        const data = await response.json();
-        updatedAttachment.aiAnalysis = data.analysis;
-      } catch (error) {
-        console.error('Error analyzing screenshot:', error);
-      }
-      
-      // Update in state
+      // Update immediately (show thumbnail right away)
       setStellaPendingAttachments(prev =>
         prev.map((att, idx) =>
           idx === editingStellaAttachment.index ? updatedAttachment : att
         )
       );
       
-      setEditingStellaAttachment(null);
-      return;
-    }
-    
-    // New attachment - analyze
-    try {
-      const response = await fetch('/api/stella/analyze-screenshot', {
+      // Re-analyze in background
+      fetch('/api/stella/analyze-screenshot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1090,32 +1067,77 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           uiContext,
           category: 'bug',
         }),
-      });
+      })
+        .then(res => res.json())
+        .then(data => {
+          // Update with AI analysis
+          setStellaPendingAttachments(prev =>
+            prev.map((att, idx) =>
+              idx === editingStellaAttachment!.index
+                ? { ...att, aiAnalysis: data.analysis }
+                : att
+            )
+          );
+        })
+        .catch(error => {
+          console.error('Error analyzing screenshot:', error);
+          setStellaPendingAttachments(prev =>
+            prev.map((att, idx) =>
+              idx === editingStellaAttachment!.index
+                ? { ...att, aiAnalysis: 'Error al analizar' }
+                : att
+            )
+          );
+        });
       
-      const data = await response.json();
-      
-      const attachment: StellaAttachment = {
-        id: `att-${Date.now()}`,
-        type: 'screenshot',
-        screenshot: annotatedScreenshot,
-        aiAnalysis: data.analysis,
-        uiContext,
-      };
-      
-      // Add to state
-      setStellaPendingAttachments(prev => [...prev, attachment]);
-    } catch (error) {
-      console.error('Error analyzing screenshot:', error);
-      
-      const attachment: StellaAttachment = {
-        id: `att-${Date.now()}`,
-        type: 'screenshot',
-        screenshot: annotatedScreenshot,
-        uiContext,
-      };
-      
-      setStellaPendingAttachments(prev => [...prev, attachment]);
+      setEditingStellaAttachment(null);
+      return;
     }
+    
+    // New attachment - add immediately, analyze in background
+    const attachmentId = `att-${Date.now()}`;
+    const attachment: StellaAttachment = {
+      id: attachmentId,
+      type: 'screenshot',
+      screenshot: annotatedScreenshot,
+      aiAnalysis: '⏳ Analizando con AI...', // Temporary
+      uiContext,
+    };
+    
+    // Add to state immediately (instant UI feedback)
+    setStellaPendingAttachments(prev => [...prev, attachment]);
+    
+    // Analyze in background
+    fetch('/api/stella/analyze-screenshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        screenshot: annotatedScreenshot,
+        uiContext,
+        category: 'bug',
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        // Update with AI analysis
+        setStellaPendingAttachments(prev =>
+          prev.map(att =>
+            att.id === attachmentId
+              ? { ...att, aiAnalysis: data.analysis }
+              : att
+          )
+        );
+      })
+      .catch(error => {
+        console.error('Error analyzing screenshot:', error);
+        setStellaPendingAttachments(prev =>
+          prev.map(att =>
+            att.id === attachmentId
+              ? { ...att, aiAnalysis: 'Error al analizar' }
+              : att
+          )
+        );
+      });
   }
   
   function handleStellaScreenshotCancel() {
