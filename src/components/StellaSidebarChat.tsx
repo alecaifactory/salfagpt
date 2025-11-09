@@ -427,7 +427,7 @@ export default function StellaSidebarChat({
         <>
           {/* Session Header with Category Badge */}
           <div className="p-4 border-b border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-800">
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {currentSession.category === 'bug' && (
                   <div className="px-3 py-1 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center gap-1.5">
@@ -461,37 +461,40 @@ export default function StellaSidebarChat({
                 </button>
               </div>
               
-              {currentSession.ticketId && (
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="font-mono font-bold text-violet-700 dark:text-violet-300">
-                    {currentSession.ticketId}
-                  </span>
-                  {currentSession.kanbanCardUrl && (
-                    <a
-                      href={currentSession.kanbanCardUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-violet-600 dark:text-violet-400 hover:text-violet-800"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                {/* Ticket ID */}
+                {currentSession.ticketId && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="font-mono font-bold text-violet-700 dark:text-violet-300">
+                      {currentSession.ticketId}
+                    </span>
+                    {currentSession.kanbanCardUrl && (
+                      <a
+                        href={currentSession.kanbanCardUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-violet-600 dark:text-violet-400 hover:text-violet-800"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+                
+                {/* New Feedback Button - Moved to header right side */}
+                <button
+                  onClick={() => {
+                    setShowCategorySelector(true);
+                    setCurrentSessionId(null);
+                    setSelectedCategory(null);
+                  }}
+                  className="px-3 py-1.5 text-xs bg-violet-600 dark:bg-violet-700 text-white hover:bg-violet-700 dark:hover:bg-violet-600 rounded-lg transition-colors flex items-center gap-1.5 font-semibold shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Nuevo
+                </button>
+              </div>
             </div>
-            
-            {/* New Feedback Button */}
-            <button
-              onClick={() => {
-                setShowCategorySelector(true);
-                setCurrentSessionId(null);
-                setSelectedCategory(null);
-              }}
-              className="w-full px-3 py-1.5 text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/30 rounded-lg transition-colors flex items-center justify-center gap-2 font-semibold"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Nuevo Feedback
-            </button>
           </div>
           
           {/* Screenshot Tool */}
