@@ -155,9 +155,9 @@ try {
     </script>
   </head>
   <body class="h-full m-0 p-0">
-    <!-- DIRECT COMPONENT: Bypass ResponsiveChatWrapper to avoid loading loop -->
+    <!-- ULTRA SIMPLE: client:only for zero SSR -->
     <ChatInterfaceWorking 
-      client:load
+      client:only="react"
       userId={userId}
       userEmail={userEmail}
       userName={userName}
