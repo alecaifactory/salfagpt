@@ -412,6 +412,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   // Stella screenshot tool state (managed at top level to capture full UI including Stella)
   const [showStellaScreenshotTool, setShowStellaScreenshotTool] = useState(false);
+  const [stellaPendingAttachments, setStellaPendingAttachments] = useState<StellaAttachment[]>([]);
   const [editingStellaAttachment, setEditingStellaAttachment] = useState<{
     attachment: StellaAttachment;
     index: number;
@@ -1068,10 +1069,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         console.error('Error analyzing screenshot:', error);
       }
       
-      // Update via window function
-      if ((window as any).stellaUpdateAttachment) {
-        (window as any).stellaUpdateAttachment(updatedAttachment, editingStellaAttachment.index);
-      }
+      // Update in state
+      setStellaPendingAttachments(prev =>
+        prev.map((att, idx) =>
+          idx === editingStellaAttachment.index ? updatedAttachment : att
+        )
+      );
       
       setEditingStellaAttachment(null);
       return;
@@ -1099,10 +1102,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         uiContext,
       };
       
-      // Add via window function
-      if ((window as any).stellaAddAttachment) {
-        (window as any).stellaAddAttachment(attachment);
-      }
+      // Add to state
+      setStellaPendingAttachments(prev => [...prev, attachment]);
     } catch (error) {
       console.error('Error analyzing screenshot:', error);
       
@@ -1113,9 +1114,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         uiContext,
       };
       
-      if ((window as any).stellaAddAttachment) {
-        (window as any).stellaAddAttachment(attachment);
-      }
+      setStellaPendingAttachments(prev => [...prev, attachment]);
     }
   }
   
@@ -6748,6 +6747,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           }}
           onRequestScreenshot={handleStellaRequestScreenshot}
           onRequestEditScreenshot={handleStellaRequestEditScreenshot}
+          pendingAttachmentsFromParent={stellaPendingAttachments}
+          onAttachmentsChange={setStellaPendingAttachments}
         />
       )}
       
