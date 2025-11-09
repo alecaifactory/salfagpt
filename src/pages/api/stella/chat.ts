@@ -231,7 +231,7 @@ Do not reference specific user details.
 - Provide CPO/CTO level insights
 - Suggest concrete next steps
 - Use data to support recommendations`;
-
+    
     // Build user message with context
     const userMessageWithContext = `**Tipo de feedback:** ${getCategoryLabel(category)}
 
@@ -244,7 +244,7 @@ ${attachments && attachments.length > 0 ? `**Adjuntos:** ${attachments.length} s
 ${sanitizedMessage}`;
 
     const startTime = Date.now();
-    
+
     const result = await genAI.models.generateContent({
       model: stellaConfig.aiConfig.model,
       contents: userMessageWithContext,

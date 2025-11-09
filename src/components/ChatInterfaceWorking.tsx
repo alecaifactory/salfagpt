@@ -6773,7 +6773,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           onAttachmentsChange={setStellaPendingAttachments}
         />
       )}
-      
+
       {/* Changelog Modal - In-app changelog */}
       <ChangelogModal
         isOpen={showChangelog}
