@@ -6895,6 +6895,38 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         isOpen={showStellaConfig}
         onClose={() => setShowStellaConfig(false)}
       />
+      
+      {/* ✨ NEW: Expert Review System Panels */}
+      <SupervisorExpertPanel
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+        isOpen={showSupervisorPanel}
+        onClose={() => setShowSupervisorPanel(false)}
+      />
+      
+      <SpecialistExpertPanel
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        isOpen={showSpecialistPanel}
+        onClose={() => setShowSpecialistPanel(false)}
+      />
+      
+      <AdminApprovalPanel
+        userId={userId}
+        userEmail={userEmail}
+        isOpen={showAdminApproval}
+        onClose={() => setShowAdminApproval(false)}
+      />
+      
+      <DomainQualityDashboard
+        userId={userId}
+        userEmail={userEmail}
+        isOpen={showQualityDashboard}
+        onClose={() => setShowQualityDashboard(false)}
+      />
     </div>
   );
 }
