@@ -37,6 +37,7 @@ import NotificationBell from './NotificationBell'; // ✅ NEW: Changelog notific
 import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW: Feature onboarding
 import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
 import FeedbackNotificationBell from './FeedbackNotificationBell'; // ✅ NEW: Feedback notifications
+import StellaConfigurationPanel from './StellaConfigurationPanel'; // ✅ NEW: Stella SuperAdmin config
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -393,6 +394,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   
   // User Management state (SuperAdmin only)
   const [showUserManagement, setShowUserManagement] = useState(false);
+  
+  // Stella Configuration state (SuperAdmin only - alec@getaifactory.com)
+  const [showStellaConfig, setShowStellaConfig] = useState(false);
   const [showAgentManagement, setShowAgentManagement] = useState(false);
   const [showAgentConfiguration, setShowAgentConfiguration] = useState(false);
   const [showAgentEvaluation, setShowAgentEvaluation] = useState(false);
@@ -3476,10 +3480,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   const getWorkflowStatusIcon = (status: Workflow['status']) => {
     switch (status) {
-      case 'running': return <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'failed': return <XCircle className="w-4 h-4 text-red-600" />;
-      default: return <Play className="w-4 h-4 text-slate-400" />;
+      case 'running': return <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin" />;
+      case 'completed': return <CheckCircle className="w-3.5 h-3.5 text-green-600" />;
+      case 'failed': return <XCircle className="w-3.5 h-3.5 text-red-600" />;
+      default: return <Play className="w-3.5 h-3.5 text-slate-400" />;
     }
   };
 
@@ -3491,11 +3495,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         style={{ width: `${leftPanelWidth}px` }}
       >
         {/* Header with Salfacorp Logo */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-3">
+        <div className="p-1.5 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-1">
           {/* Salfacorp Logo and Brand with Notification Bell */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl font-bold text-slate-800 dark:text-white">SALFAGPT</h1>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-xs font-bold text-slate-800 dark:text-white">SALFAGPT</h1>
               <img 
                 src="/images/Logo Salfacorp.png" 
                 alt="Salfacorp" 
@@ -3510,28 +3514,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           {userRole !== 'user' && (
             <button
               onClick={createNewConversation}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-1.5 px-2 py-1 bg-blue-600 text-white rounded-md font-semibold hover:bg-blue-700 transition-colors shadow-sm"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-3.5 h-3.5" />
               Nuevo Agente
             </button>
           )}
         </div>
 
         {/* NEW: Reorganized Sidebar with Collapsible Sections */}
-        <div className="flex-1 overflow-y-auto p-2 dark:bg-slate-800 space-y-2">
+        <div className="flex-1 overflow-y-auto p-1.5 dark:bg-slate-800 space-y-1">
           
           {/* 1. AGENTES Section - Collapsible */}
-          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-800">
             <button
               onClick={() => setShowAgentsSection(!showAgentsSection)}
-              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              className="w-full px-2 py-1 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className={`transform transition-transform ${showAgentsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
-                <Bot className="w-4 h-4" />
+                <Bot className="w-3.5 h-3.5" />
                 <span>Agentes</span>
                 <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-semibold">
                   {conversations.filter(c => 
@@ -3543,13 +3547,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             </button>
             
             {showAgentsSection && (
-              <div className="px-2 pb-2 space-y-1">
+              <div className="px-2 pb-1 space-y-1">
                 {conversations
                   .filter(c => c.isAgent !== false && c.status !== 'archived')
                   .map(agent => (
                     <div
                       key={agent.id}
-                      className={`w-full p-2 rounded-lg transition-colors group ${
+                      className={`w-full p-1.5 rounded-md transition-colors group ${
                         selectedAgent === agent.id
                           ? 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -3557,7 +3561,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     >
               {editingConversationId === agent.id ? (
                 // Edit mode
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <input
                     type="text"
                     value={editingTitle}
@@ -3570,7 +3574,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       }
                     }}
                     onBlur={() => saveConversationTitle(agent.id, editingTitle)}
-                    className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
+                    className="flex-1 text-xs font-medium text-slate-700 px-2 py-1 border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600"
                     autoFocus
                   />
                   <button
@@ -3599,10 +3603,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       // ✅ NEW: Load prompts for this agent
                       await loadPromptsForAgent(agent.id);
                     }}
-                    className="flex-1 flex items-center gap-2 text-left cursor-pointer"
+                    className="flex-1 flex items-center gap-1.5 text-left cursor-pointer"
                     style={{ maxWidth: '90%' }}
                   >
-                    <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200">
+                    <span className="text-xs font-medium truncate text-slate-700 dark:text-slate-200">
                       {agent.title}
                     </span>
                     {agent.isShared && (
@@ -3708,16 +3712,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           </div>
           
           {/* 2. PROYECTOS Section - Collapsible */}
-          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
-            <div className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-800">
+            <div className="w-full px-2 py-1 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200">
               <button
                 onClick={() => setShowProjectsSection(!showProjectsSection)}
-                className="flex-1 flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors py-1 -my-1 rounded-lg"
+                className="flex-1 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors py-1 -my-1 rounded-md"
               >
                 <span className={`transform transition-transform ${showProjectsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
-                <FileText className="w-4 h-4" />
+                <FileText className="w-3.5 h-3.5" />
                 <span>Proyectos</span>
                 <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
                   {folders.length}
@@ -3743,7 +3747,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             </div>
             
             {showProjectsSection && (
-              <div className="px-2 pb-2 space-y-1">
+              <div className="px-2 pb-1 space-y-1">
                 {folders.map(folder => {
                   const folderChats = conversations.filter(c => c.folderId === folder.id && c.status !== 'archived');
                   const isExpanded = expandedFolders.has(folder.id);
@@ -3751,11 +3755,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   return (
                     <div
                       key={folder.id}
-                      className="border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden"
+                      className="border border-slate-200 dark:border-slate-600 rounded-md overflow-hidden"
                     >
                       {/* Folder Header with Drag & Drop */}
                       <div
-                        className="p-2 bg-slate-50 dark:bg-slate-700/50 hover:bg-green-50 dark:hover:bg-green-900/20 group transition-colors"
+                        className="p-1.5 bg-slate-50 dark:bg-slate-700/50 hover:bg-green-50 dark:hover:bg-green-900/20 group transition-colors"
                         onDragOver={(e) => {
                           e.preventDefault();
                           e.currentTarget.classList.add('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
@@ -3775,7 +3779,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         }}
                       >
                         {editingFolderId === folder.id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <input
                               type="text"
                               value={editingFolderName}
@@ -3789,7 +3793,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 }
                               }}
                               onBlur={() => renameFolder(folder.id, editingFolderName)}
-                              className="flex-1 text-sm px-2 py-1 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-slate-200"
+                              className="flex-1 text-xs px-2 py-1 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-slate-200"
                               autoFocus
                             />
                             <button
@@ -3822,13 +3826,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   return newSet;
                                 });
                               }}
-                              className="flex items-center gap-2 flex-1 text-left"
+                              className="flex items-center gap-1.5 flex-1 text-left"
                               style={{ maxWidth: '90%' }}
                             >
                               <span className={`transform transition-transform text-slate-500 dark:text-slate-400 ${isExpanded ? 'rotate-90' : ''}`}>
                                 ▶
                               </span>
-                              <span className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
+                              <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
                                 {folder.name}
                               </span>
                               <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold whitespace-nowrap">
@@ -3860,18 +3864,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       
                       {/* Chats under this folder - Collapsible */}
                       {isExpanded && folderChats.length > 0 && (
-                        <div className="px-2 py-2 space-y-1 bg-white dark:bg-slate-800">
+                        <div className="px-2 py-1 space-y-1 bg-white dark:bg-slate-800">
                           {folderChats.map(chat => (
                             <div
                               key={chat.id}
-                              className={`w-full p-2 rounded-lg transition-colors group ${
+                              className={`w-full p-1.5 rounded-md transition-colors group ${
                                 currentConversation === chat.id
                                   ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-700'
                               }`}
                               onClick={() => setCurrentConversation(chat.id)}
                             >
-                              <div className="flex flex-col gap-2">
+                              <div className="flex flex-col gap-1.5">
                                 {/* Agent Tag */}
                                 {chat.agentId && (
                                   <div className="flex items-center gap-1">
@@ -3885,7 +3889,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 {/* Chat Title and Actions */}
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1" style={{ maxWidth: '90%' }}>
-                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200 block truncate">
+                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block truncate">
                                       {chat.title}
                                     </span>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -3928,7 +3932,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       
                       {/* Empty state when folder is expanded but has no chats */}
                       {isExpanded && folderChats.length === 0 && (
-                        <div className="px-3 py-2 text-center text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
+                        <div className="px-2 py-1 text-center text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
                           Arrastra chats aquí
                         </div>
                       )}
@@ -3936,7 +3940,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   );
                 })}
                 {folders.length === 0 && (
-                  <div className="px-2 py-3 text-center text-xs text-slate-500">
+                  <div className="px-2 py-1 text-center text-xs text-slate-500">
                     No hay proyectos creados
                   </div>
                 )}
@@ -3945,16 +3949,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           </div>
           
           {/* 3. CHATS Section - Collapsible, shows chats for selected agent */}
-          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+          <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-800">
             <button
               onClick={() => setShowChatsSection(!showChatsSection)}
-              className="w-full px-3 py-2 flex items-center justify-between text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              className="w-full px-2 py-1 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <span className={`transform transition-transform ${showChatsSection ? 'rotate-90' : ''}`}>
                   ▶
                 </span>
-                <MessageSquare className="w-4 h-4" />
+                <MessageSquare className="w-3.5 h-3.5" />
                 <span>Chats</span>
                 <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
                   {selectedAgent 
@@ -3971,7 +3975,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             </button>
             
             {showChatsSection && (
-              <div className="px-2 pb-2 space-y-1">
+              <div className="px-2 pb-1 space-y-1">
                 {(() => {
                   // Filter chats based on selectedAgent AND exclude chats that are in folders
                   // ✅ NEW: When no agent selected, show ALL chats (from all agents)
@@ -3981,7 +3985,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   
                   if (filteredChats.length === 0) {
                     return (
-                      <div className="px-2 py-3 text-center text-xs text-slate-500">
+                      <div className="px-2 py-1 text-center text-xs text-slate-500">
                         {selectedAgent ? 'No hay chats para este agente' : 'No hay chats sin proyecto'}
                       </div>
                     );
@@ -3990,7 +3994,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   return filteredChats.map(chat => (
                       <div
                         key={chat.id}
-                        className={`w-full p-2 rounded-lg transition-colors group ${
+                        className={`w-full p-1.5 rounded-md transition-colors group ${
                           currentConversation === chat.id
                             ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
                             : 'hover:bg-slate-50 dark:hover:bg-slate-700'
@@ -4001,7 +4005,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         }}
                       >
                         {editingConversationId === chat.id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <input
                               type="text"
                               value={editingTitle}
@@ -4014,7 +4018,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 }
                               }}
                               onBlur={() => saveConversationTitle(chat.id, editingTitle)}
-                              className="flex-1 text-sm font-medium text-slate-700 px-2 py-1 border border-purple-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-slate-700 dark:text-slate-200"
+                              className="flex-1 text-xs font-medium text-slate-700 px-2 py-1 border border-purple-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-slate-700 dark:text-slate-200"
                               autoFocus
                             />
                             <button
@@ -4031,7 +4035,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             </button>
                           </div>
                         ) : (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-1.5">
                             {/* Agent Tag - Always show for chats */}
                             {chat.agentId && (
                               <div className="flex items-center gap-1">
@@ -4049,7 +4053,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 className="flex-1 text-left cursor-pointer"
                                 style={{ maxWidth: '90%' }}
                               >
-                                <span className="text-sm font-medium truncate text-slate-700 dark:text-slate-200 block">
+                                <span className="text-xs font-medium truncate text-slate-700 dark:text-slate-200 block">
                                   {chat.title}
                                 </span>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -4098,10 +4102,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           <div className="border-t border-slate-200 bg-slate-50">
             <button
               onClick={() => setShowArchivedSection(!showArchivedSection)}
-              className="w-full px-4 py-3 flex items-center justify-between text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+              className="w-full px-2 py-1 flex items-center justify-between text-xs text-slate-600 hover:bg-slate-100 transition-colors"
             >
-              <div className="flex items-center gap-2">
-                <Archive className="w-4 h-4" />
+              <div className="flex items-center gap-1.5">
+                <Archive className="w-3.5 h-3.5" />
                 <span className="font-medium">Archivados</span>
                 <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
                   {conversations.filter(c => c.status === 'archived').length}
@@ -4114,15 +4118,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             
             {/* Expanded archived section with folders */}
             {showArchivedSection && (
-              <div className="px-2 pb-2 space-y-2">
+              <div className="px-2 pb-1 space-y-1">
                 {/* Agentes Folder */}
                 {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-md overflow-hidden">
                     <button
                       onClick={() => setExpandedArchivedAgents(!expandedArchivedAgents)}
-                      className="w-full px-3 py-2 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
+                      className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <Folder className="w-3.5 h-3.5 text-blue-600" />
                         <span className="text-xs font-semibold text-slate-700">Agentes</span>
                         <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold">
@@ -4142,14 +4146,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           .map(conv => (
                             <div
                               key={conv.id}
-                              className={`w-full p-2 rounded transition-colors bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 ${
+                              className={`w-full p-1.5 rounded transition-colors bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 ${
                                 currentConversation === conv.id ? 'ring-2 ring-blue-400' : ''
                               }`}
                             >
-                              <div className="flex items-center gap-2 group">
+                              <div className="flex items-center gap-1.5 group">
                                 <button
                                   onClick={() => setCurrentConversation(conv.id)}
-                                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
                                   <span className="text-xs font-medium truncate text-blue-700">
@@ -4188,12 +4192,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                 {/* Conversaciones Folder */}
                 {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-md overflow-hidden">
                     <button
                       onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
-                      className="w-full px-3 py-2 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
+                      className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <Folder className="w-3.5 h-3.5 text-purple-600" />
                         <span className="text-xs font-semibold text-slate-700">Conversaciones</span>
                         <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
@@ -4213,14 +4217,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           .map(conv => (
                             <div
                               key={conv.id}
-                              className={`w-full p-2 rounded transition-colors bg-purple-50/50 hover:bg-purple-50 border border-purple-200/50 ${
+                              className={`w-full p-1.5 rounded transition-colors bg-purple-50/50 hover:bg-purple-50 border border-purple-200/50 ${
                                 currentConversation === conv.id ? 'ring-2 ring-purple-400' : ''
                               }`}
                             >
-                              <div className="flex items-center gap-2 group">
+                              <div className="flex items-center gap-1.5 group">
                                 <button
                                   onClick={() => setCurrentConversation(conv.id)}
-                                  className="flex-1 flex items-center gap-2 text-left min-w-0"
+                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                                 >
                                   <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-purple-500" />
                                   <span className="text-xs font-medium truncate text-purple-700">
@@ -4260,7 +4264,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 {/* Show all archived link at bottom */}
                 <button
                   onClick={() => setShowArchivedConversations(true)}
-                  className="w-full px-3 py-2 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded font-medium"
+                  className="w-full px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded font-medium"
                 >
                   Ver todos los archivados ({conversations.filter(c => c.status === 'archived').length})
                 </button>
@@ -4272,17 +4276,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         {/* Context Sources moved to Agent Configuration Modal */}
 
         {/* User Menu */}
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-slate-200 p-1.5">
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors"
+              className="w-full flex items-center gap-1.5 p-1.5 rounded-md hover:bg-slate-50 transition-colors"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center flex-shrink-0">
-                <User className="w-4 h-4 text-white" />
+                <User className="w-3.5 h-3.5 text-white" />
               </div>
               <div className="min-w-0 flex-1 text-left">
-                <p className="text-sm font-medium text-slate-700 truncate">
+                <p className="text-xs font-medium text-slate-700 truncate">
                   {userName || userEmail || userId}
                 </p>
                 {userName && userEmail && (
@@ -4301,23 +4305,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 
                 {/* Menu Modal */}
                 <div 
-                  className="absolute bottom-full left-0 mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 z-50 min-w-[800px] max-w-[90vw]"
+                  className="absolute bottom-full left-0 mb-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 z-50 min-w-[800px] max-w-[90vw]"
                   onClick={(e) => e.stopPropagation()}
                 >
                 
                 {/* Header */}
-                <div className="px-5 py-2.5 border-b border-slate-200 dark:border-slate-600 flex items-center justify-between">
+                <div className="px-2 py-1.5 border-b border-slate-200 dark:border-slate-600 flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300">Menú de Navegación</h3>
                   <button
                     onClick={() => setShowUserMenu(false)}
                     className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                   >
-                    <XIcon className="w-4 h-4" />
+                    <XIcon className="w-3.5 h-3.5" />
                   </button>
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-4 gap-3 p-3">
+                <div className="grid grid-cols-4 gap-1.5 p-1.5">
                   
                   {/* COLUMN 1: Gestión de Dominios */}
                   {userEmail === 'alec@getaifactory.com' && (
@@ -4329,7 +4333,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowDomainManagement(true);
                           setShowUserMenu(false);
@@ -4340,7 +4344,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowUserManagement(true);
                           setShowUserMenu(false);
@@ -4351,7 +4355,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowDomainPromptModal(true);
                           setShowUserMenu(false);
@@ -4373,7 +4377,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowAgentManagement(true);
                           setShowUserMenu(false);
@@ -4384,7 +4388,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowContextManagement(true);
                           setShowUserMenu(false);
@@ -4395,7 +4399,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowProviderManagement(true);
                           setShowUserMenu(false);
@@ -4406,7 +4410,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowRAGConfig(true);
                           setShowUserMenu(false);
@@ -4420,7 +4424,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       {(userEmail.includes('expert') || userEmail.includes('agent_')) && (
                         <>
                           <button
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                             onClick={() => {
                               setShowAgentEvaluation(true);
                               setShowUserMenu(false);
@@ -4431,7 +4435,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           </button>
                           
                           <button
-                            className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                             onClick={() => {
                               setShowEvaluationSystem(true);
                               setShowUserMenu(false);
@@ -4455,7 +4459,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowSalfaAnalytics(true);
                           setShowUserMenu(false);
@@ -4466,7 +4470,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowAnalytics(true);
                           setShowUserMenu(false);
@@ -4488,7 +4492,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* Changelog - Available to all users - Opens in-app modal */}
                     <button
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                       onClick={() => {
                         setShowChangelog(true);
                         setShowUserMenu(false);
@@ -4501,6 +4505,25 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </span>
                     </button>
                     
+                    {/* Configurar Stella - SuperAdmin Only */}
+                    {userEmail === 'alec@getaifactory.com' && (
+                      <button
+                        onClick={() => {
+                          setShowStellaConfig(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 rounded transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Wand2 className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 flex-shrink-0" />
+                          <div className="flex-1 text-left">
+                            <div className="font-medium whitespace-nowrap">Configurar Stella</div>
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">CPO/CTO AI Setup</div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    
                     {/* Roadmap & Backlog - SuperAdmin Only */}
                     {userEmail === 'alec@getaifactory.com' && (
                       <button
@@ -4510,7 +4533,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         }}
                         className="w-full px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                           <Target className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
                           <div className="flex-1 text-left">
                             <div className="font-medium whitespace-nowrap">Roadmap</div>
@@ -4522,7 +4545,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* Mi Feedback - FOR ALL USERS */}
                     <button
-                      className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                      className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                       onClick={() => {
                         setShowMyFeedback(true);
                         setShowUserMenu(false);
@@ -4535,7 +4558,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     {/* Configuración - HIDDEN FOR USER ROLE */}
                     {userRole !== 'user' && (
                       <button
-                        className="w-full flex items-center gap-2 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowUserSettings(true);
                           setShowUserMenu(false);
@@ -4549,9 +4572,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </div>
                 
                 {/* Footer with Logout */}
-                <div className="border-t border-slate-200 dark:border-slate-600 px-3 py-2.5">
+                <div className="border-t border-slate-200 dark:border-slate-600 px-2 py-1.5">
                   <button
-                    className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 rounded transition-colors font-medium"
+                    className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 rounded transition-colors font-medium"
                     onClick={async () => {
                       try {
                         // Call server-side logout to clear session
@@ -4598,20 +4621,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       >
         {/* Top Bar - Always visible */}
         <div 
-          className="border-b border-slate-200 dark:border-slate-700 px-6 py-3 bg-white dark:bg-slate-800 flex items-center justify-between"
+          className="border-b border-slate-200 dark:border-slate-700 px-2 py-1 bg-white dark:bg-slate-800 flex items-center justify-between"
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking header
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             {currentConversation ? (
               <>
-                <MessageSquare className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                  <h2 className="text-xs font-semibold text-slate-800 dark:text-white">
                     {conversations.find(c => c.id === currentConversation)?.title || 'Agente'}
                   </h2>
                 {/* Agent Tag - Shows which agent is being used for this chat */}
                 {getParentAgent() && (
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-1.5 mt-1">
                     <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold flex items-center gap-1">
                       <MessageSquare className="w-3 h-3" />
                       Agente: {getParentAgent()?.title}
@@ -4629,7 +4652,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       setShowAgentModelSelector(!showAgentModelSelector);
                     }}
                     disabled={currentConversation?.startsWith('temp-')}
-                    className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                    className={`px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all ${
                       currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
                         ? 'bg-purple-100 text-purple-700 hover:bg-purple-200'
                         : 'bg-green-100 text-green-700 hover:bg-green-200'
@@ -4645,27 +4668,27 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   {showAgentModelSelector && (
                     <div 
                       onClick={(e) => e.stopPropagation()}
-                      className="absolute top-full left-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl z-50 min-w-[280px]"
+                      className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-md shadow-xl z-50 min-w-[280px]"
                     >
-                      <div className="p-3 border-b border-slate-200 dark:border-slate-600">
+                      <div className="p-1.5 border-b border-slate-200 dark:border-slate-600">
                         <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Modelo del Agente</p>
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                           Solo afecta a este agente
                         </p>
                       </div>
                       
-                      <div className="p-2 space-y-1">
+                      <div className="p-1.5 space-y-1">
                         {/* Flash Option */}
                         <button
                           onClick={() => changeAgentModel('gemini-2.5-flash')}
-                          className={`w-full p-3 rounded-lg text-left transition-all ${
+                          className={`w-full p-1.5 rounded-md text-left transition-all ${
                             currentAgentConfig?.preferredModel === 'gemini-2.5-flash'
                               ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
                               : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Sparkles className="w-4 h-4 text-green-600" />
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Sparkles className="w-3.5 h-3.5 text-green-600" />
                             <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Flash</span>
                             <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold">
                               Rápido
@@ -4679,14 +4702,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         {/* Pro Option */}
                         <button
                           onClick={() => changeAgentModel('gemini-2.5-pro')}
-                          className={`w-full p-3 rounded-lg text-left transition-all ${
+                          className={`w-full p-1.5 rounded-md text-left transition-all ${
                             currentAgentConfig?.preferredModel === 'gemini-2.5-pro'
                               ? 'bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-500'
                               : 'hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-transparent'
                           }`}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <Sparkles className="w-4 h-4 text-purple-600" />
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                             <span className="font-semibold text-slate-800 dark:text-white">Gemini 2.5 Pro</span>
                             <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold">
                               Avanzado
@@ -4698,10 +4721,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         </button>
                       </div>
                       
-                      <div className="p-2 border-t border-slate-200 dark:border-slate-600">
+                      <div className="p-1.5 border-t border-slate-200 dark:border-slate-600">
                         <button
                           onClick={() => setShowAgentModelSelector(false)}
-                          className="w-full px-3 py-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                          className="w-full px-2 py-1.5 text-[10px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                         >
                           Cerrar
                         </button>
@@ -4713,9 +4736,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               </>
             ) : (
               <>
-                <Wand2 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                <Wand2 className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+                  <h2 className="text-xs font-semibold text-slate-800 dark:text-white">
                     SalfaGPT
                   </h2>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -4725,7 +4748,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               </>
             )}
           </div>
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-1.5 ml-auto">
             {/* Feedback Notification Bell - Admin/SuperAdmin only */}
             {currentUser && (
               <FeedbackNotificationBell
@@ -4747,9 +4770,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             {selectedAgent && (
               <button
                 onClick={() => createNewChatForAgent(selectedAgent)}
-                className="px-3 py-1.5 text-sm bg-purple-600 text-white hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-2 font-semibold shadow-sm"
+                className="px-2 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded-md transition-colors flex items-center gap-1.5 font-semibold shadow-sm"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 Nuevo Chat
               </button>
             )}
@@ -4757,9 +4780,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             {/* Abrir Stella Button - Opens sidebar */}
             <button
               onClick={() => setShowStellaSidebar(true)}
-              className="px-3 py-1.5 text-sm bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center gap-2 font-semibold shadow-sm"
+              className="px-2 py-1.5 text-xs bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-md transition-all flex items-center gap-1.5 font-semibold shadow-sm"
             >
-              <Wand2 className="w-4 h-4" />
+              <Wand2 className="w-3.5 h-3.5" />
               Abrir Stella
             </button>
           </div>
@@ -4767,7 +4790,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         
         {/* Messages */}
         <div 
-          className="flex-1 overflow-y-auto p-6"
+          className="flex-1 overflow-y-auto p-1.5"
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking messages
         >
           {messages.length === 0 ? (
@@ -4778,33 +4801,33 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             messages.map(msg => (
               <div
                 key={msg.id}
-                className={`mb-4 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
+                className={`mb-1 ${msg.role === 'user' ? 'text-right' : 'text-left'}`}
               >
                 {msg.role === 'user' ? (
-                  <div className="inline-block max-w-2xl rounded-lg bg-blue-600 text-white">
-                    <div className="px-4 pt-3 pb-2 border-b border-blue-500 flex items-center justify-between">
-                      <span className="text-sm font-semibold">Tú:</span>
+                  <div className="inline-block max-w-lg rounded-md bg-blue-600 text-white">
+                    <div className="px-2 pt-1 pb-1 border-b border-blue-500 flex items-center justify-between">
+                      <span className="text-xs font-semibold">Tú:</span>
                       <button
                         onClick={() => copyMessageAsMarkdown(msg.content, msg.id)}
                         className="p-1.5 rounded hover:bg-blue-700 transition-colors"
                         title="Copiar en formato Markdown"
                       >
                         {copiedMessageId === msg.id ? (
-                          <Check className="w-4 h-4 text-green-300" />
+                          <Check className="w-3.5 h-3.5 text-green-300" />
                         ) : (
-                          <Copy className="w-4 h-4 text-white/70" />
+                          <Copy className="w-3.5 h-3.5 text-white/70" />
                         )}
                       </button>
                     </div>
-                    <div className="px-4 pb-4 pt-2">
+                    <div className="px-2 pb-4 pt-1">
                       {msg.content}
                     </div>
                   </div>
                 ) : (
-                  <div className="inline-block max-w-3xl rounded-lg bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div className="px-5 pt-3 pb-2 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
-                      <div className="flex items-center gap-2">
+                  <div className="inline-block max-w-xl rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="px-2 pt-1 pb-1 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
+                      <div className="flex items-center gap-1.5">
                         {/* Copy button */}
                         <button
                           onClick={() => copyMessageAsMarkdown(msg.content, msg.id)}
@@ -4812,9 +4835,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           title="Copiar en formato Markdown"
                         >
                           {copiedMessageId === msg.id ? (
-                            <Check className="w-4 h-4 text-green-600" />
+                            <Check className="w-3.5 h-3.5 text-green-600" />
                           ) : (
-                            <Copy className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                            <Copy className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                           )}
                         </button>
                         {/* Show response time if available */}
@@ -4825,10 +4848,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         )}
                       </div>
                     </div>
-                    <div className="p-5">
+                    <div className="p-1.5">
                       {/* Show thinking steps if present */}
                       {msg.thinkingSteps && msg.thinkingSteps.length > 0 ? (
-                        <div className="space-y-3 min-w-[320px]">
+                        <div className="space-y-1 min-w-[320px]">
                           {msg.thinkingSteps.map((step, index) => {
                             // Generate ellipsis based on dots count (1, 2, or 3)
                             // dots cycles: 0, 1, 2, 3 → display: ".", "..", "...", "."
@@ -4847,20 +4870,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             return (
                               <div
                                 key={step.id}
-                                className={`flex items-center gap-3 transition-all duration-300 ${
+                                className={`flex items-center gap-1.5 transition-all duration-300 ${
                                   step.status === 'complete' ? 'opacity-50' : 
                                   step.status === 'active' ? 'opacity-100' : 
                                   'opacity-30'
                                 }`}
                               >
                                 {step.status === 'complete' ? (
-                                  <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                  <CheckCircle className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
                                 ) : step.status === 'active' ? (
-                                  <Loader2 className="w-4 h-4 text-blue-600 animate-spin flex-shrink-0" />
+                                  <Loader2 className="w-3.5 h-3.5 text-blue-600 animate-spin flex-shrink-0" />
                                 ) : (
-                                  <div className="w-4 h-4 rounded-full border-2 border-slate-300 flex-shrink-0" />
+                                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 flex-shrink-0" />
                                 )}
-                                <span className={`text-sm min-w-[280px] ${
+                                <span className={`text-xs min-w-[280px] ${
                                   step.status === 'active' ? 'font-semibold text-slate-800 dark:text-slate-100' : 
                                   'text-slate-600 dark:text-slate-400'
                                 }`}>
@@ -4903,7 +4926,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           
                           {/* Feedback Buttons - Only for assistant messages that are not streaming */}
                           {!msg.isStreaming && (
-                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center gap-2">
+                            <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-700 flex items-center gap-1.5">
                               <span className="text-xs text-slate-500 dark:text-slate-400">
                                 ¿Te fue útil esta respuesta?
                               </span>
@@ -4915,7 +4938,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     setFeedbackMessageId(msg.id);
                                     setShowExpertFeedback(true);
                                   }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xs font-medium"
+                                  className="flex items-center gap-1.5 px-2 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-md transition-colors text-xs font-medium"
                                   title="Feedback Experto"
                                 >
                                   <Award className="w-3.5 h-3.5" />
@@ -4929,7 +4952,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   setFeedbackMessageId(msg.id);
                                   setShowUserFeedback(true);
                                 }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-violet-100 to-yellow-100 hover:from-violet-200 hover:to-yellow-200 text-violet-700 rounded-lg transition-colors text-xs font-medium"
+                                className="flex items-center gap-1.5 px-2 py-1.5 bg-gradient-to-r from-violet-100 to-yellow-100 hover:from-violet-200 hover:to-yellow-200 text-violet-700 rounded-md transition-colors text-xs font-medium"
                                 title="Tu Opinión"
                               >
                                 <Star className="w-3.5 h-3.5" />
@@ -4950,15 +4973,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
         {/* Input Area */}
         <div 
-          className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4"
+          className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1.5"
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking input area
         >
           <div className="max-w-4xl mx-auto">
             {/* Context Button */}
-            <div className="mb-3 flex justify-center">
+            <div className="mb-1 flex justify-center">
               <button
                 onClick={() => setShowContextPanel(!showContextPanel)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-colors border border-slate-200"
+                className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md transition-colors border border-slate-200"
               >
                 <span className="font-medium">Contexto:</span>
                 <span className={`${
@@ -4969,7 +4992,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   {calculateContextUsage().usagePercent}%
                 </span>
                 <span className="text-slate-400">•</span>
-                <Sparkles className="w-4 h-4 text-blue-600" />
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                 <span className="font-medium text-slate-700">
                   {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
                 </span>
@@ -4982,20 +5005,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
             {/* Context Panel */}
             {showContextPanel && (
-              <div className="mb-3 bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div className="mb-1 bg-white rounded-md border border-slate-200 overflow-hidden">
                 {/* Header with stats */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border-b border-slate-200">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-1.5 border-b border-slate-200">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
-                      <h4 className="text-sm font-bold text-slate-800">Desglose del Contexto</h4>
+                      <h4 className="text-xs font-bold text-slate-800">Desglose del Contexto</h4>
                       {getParentAgent() && (
                         <p className="text-xs text-blue-600 mt-1">
                           📋 Usando contexto del agente: <span className="font-semibold">{getParentAgent()?.title}</span>
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    <div className="flex items-center gap-1.5">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                         calculateContextUsage().usagePercent > 80 ? 'bg-red-100 text-red-700' :
                         calculateContextUsage().usagePercent > 50 ? 'bg-yellow-100 text-yellow-700' :
                         'bg-green-100 text-green-700'
@@ -5005,20 +5028,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-3 text-xs mb-3">
-                    <div className="bg-white rounded p-2">
+                  <div className="grid grid-cols-3 gap-1.5 text-xs mb-1">
+                    <div className="bg-white rounded p-1.5">
                       <p className="text-slate-500 mb-1">Total Tokens</p>
                       <p className="font-bold text-slate-800">
                         {calculateContextUsage().estimatedTokens.toLocaleString()}
                       </p>
                     </div>
-                    <div className="bg-white rounded p-2">
+                    <div className="bg-white rounded p-1.5">
                       <p className="text-slate-500 mb-1">Disponible</p>
                       <p className="font-bold text-slate-800">
                         {(calculateContextUsage().modelWindow - calculateContextUsage().estimatedTokens).toLocaleString()}
                       </p>
                     </div>
-                    <div className="bg-white rounded p-2">
+                    <div className="bg-white rounded p-1.5">
                       <p className="text-slate-500 mb-1">Capacidad</p>
                       <p className="font-bold text-slate-800">
                         {(calculateContextUsage().modelWindow / 1000).toFixed(0)}K
@@ -5027,8 +5050,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   </div>
                   
                   {/* Context Breakdown by Component - NUEVO */}
-                  <div className="bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 rounded-lg p-3">
-                    <h5 className="text-xs font-bold text-slate-700 mb-2">📊 Desglose Detallado</h5>
+                  <div className="bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 rounded-md p-1.5">
+                    <h5 className="text-xs font-bold text-slate-700 mb-1">📊 Desglose Detallado</h5>
                     <div className="space-y-1.5 text-[10px]">
                       <div className="flex items-center justify-between">
                         <span className="text-slate-600">System Prompt:</span>
@@ -5104,10 +5127,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </div>
 
                 {/* Content breakdown */}
-                <div className="p-4 space-y-3 max-h-96 overflow-y-auto">
+                <div className="p-1.5 space-y-1 max-h-96 overflow-y-auto">
                   {/* System Prompt - 🔑 HIERARCHICAL: Domain + Agent */}
-                  <div className="border border-slate-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="border border-slate-200 rounded-md p-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <h5 className="text-xs font-semibold text-slate-700">System Prompt</h5>
                       <span className="text-xs text-slate-500">
                         ~{(() => {
@@ -5120,9 +5143,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </span>
                     </div>
                     {/* Show hierarchical structure */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {currentDomainPrompt && (
-                        <div className="text-xs bg-blue-50 border border-blue-200 p-2 rounded">
+                        <div className="text-xs bg-blue-50 border border-blue-200 p-1.5 rounded">
                           <p className="font-semibold text-blue-700 mb-1">📋 Domain Prompt:</p>
                           <p className="text-slate-700">
                             {currentDomainPrompt.substring(0, 100)}
@@ -5130,7 +5153,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           </p>
                         </div>
                       )}
-                      <div className="text-xs bg-slate-50 p-2 rounded">
+                      <div className="text-xs bg-slate-50 p-1.5 rounded">
                         <p className="font-semibold text-slate-700 mb-1">
                           {currentDomainPrompt ? '✨ Agent Prompt:' : 'System Prompt:'}
                         </p>
@@ -5146,8 +5169,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                   {/* Messages */}
                   {messages.length > 0 && (
-                    <div className="border border-slate-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
+                    <div className="border border-slate-200 rounded-md p-1.5">
+                      <div className="flex items-center justify-between mb-1">
                         <h5 className="text-xs font-semibold text-slate-700">Historial de Conversación</h5>
                         <span className="text-xs text-slate-500">
                           {messages.length} mensajes • ~{Math.ceil(messages.reduce((sum, m) => sum + m.content.length, 0) / 4)} tokens
@@ -5155,7 +5178,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </div>
                       <div className="space-y-1">
                         {messages.slice(-3).map((msg, idx) => (
-                          <div key={msg.id} className="text-xs bg-slate-50 p-2 rounded">
+                          <div key={msg.id} className="text-xs bg-slate-50 p-1.5 rounded">
                             <span className={`font-semibold ${msg.role === 'user' ? 'text-blue-600' : 'text-purple-600'}`}>
                               {msg.role === 'user' ? '👤 Usuario' : '🤖 Asistente'}:
                             </span>
@@ -5175,8 +5198,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                   {/* Context Sources with RAG Controls - HIDDEN FOR USER ROLE */}
                   {userRole !== 'user' && (
-                  <div className="border border-slate-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
+                  <div className="border border-slate-200 rounded-md p-1.5">
+                    <div className="flex items-center justify-between mb-1">
                       <h5 className="text-xs font-semibold text-slate-700">Fuentes de Contexto</h5>
                       <span className="text-xs text-slate-500">
                         {contextStats ? (
@@ -5195,16 +5218,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* RAG Bulk Actions - NUEVO - More Evident */}
                     {contextSources.filter(s => s.enabled && s.ragEnabled).length > 0 && (
-                      <div className="mb-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
+                      <div className="mb-1 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200 rounded-md p-1.5">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
                             <span className="text-xs font-bold text-slate-700">⚙️ Modo de Búsqueda</span>
                             <span className="text-[9px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-semibold">
                               Aplicar a todos
                             </span>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-1.5">
                           <button
                             onClick={() => {
                               // Enable RAG for all sources that have it available
@@ -5212,7 +5235,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 s.enabled && s.ragEnabled ? { ...s, useRAGMode: true } : s
                               ));
                             }}
-                            className="px-3 py-2 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
+                            className="px-2 py-1 bg-green-600 text-white rounded-md text-xs font-bold hover:bg-green-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
                           >
                             🔍 Todos RAG
                             <span className="text-[10px] opacity-90">(Optimizado)</span>
@@ -5224,13 +5247,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                 s.enabled ? { ...s, useRAGMode: false } : s
                               ));
                             }}
-                            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
+                            className="px-2 py-1 bg-blue-600 text-white rounded-md text-xs font-bold hover:bg-blue-700 transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1"
                           >
                             📝 Todos Full-Text
                             <span className="text-[10px] opacity-90">(Completo)</span>
                           </button>
                         </div>
-                        <div className="mt-2 text-center">
+                        <div className="mt-1 text-center">
                           <p className="text-[9px] text-slate-600">
                             Ahorro estimado con RAG: 
                             <span className="font-bold text-green-600 ml-1">
@@ -5248,17 +5271,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     )}
                     {/* ✅ NEW: Show stats-based display (no source list needed for BigQuery RAG) */}
                     {contextStats && contextStats.activeCount > 0 ? (
-                      <div className="bg-gradient-to-r from-green-50 to-indigo-50 border-2 border-green-300 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="w-4 h-4 text-green-600" />
+                      <div className="bg-gradient-to-r from-green-50 to-indigo-50 border-2 border-green-300 rounded-md p-1.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Sparkles className="w-3.5 h-3.5 text-green-600" />
                           <span className="text-xs font-bold text-green-800">
                             BigQuery RAG Activo
                           </span>
                         </div>
-                        <p className="text-xs text-slate-700 mb-2">
+                        <p className="text-xs text-slate-700 mb-1">
                           <span className="font-bold text-green-600">{contextStats.activeCount} fuentes</span> indexadas con embeddings semánticos.
                         </p>
-                        <div className="bg-white/50 rounded p-2 text-[10px] text-slate-600">
+                        <div className="bg-white/50 rounded p-1.5 text-[10px] text-slate-600">
                           <p className="flex items-center gap-1 mb-1">
                             <span>⚡</span>
                             <span>BigQuery busca fragmentos relevantes automáticamente</span>
@@ -5270,7 +5293,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         </div>
                       </div>
                     ) : contextStats && contextStats.totalCount > 0 ? (
-                      <p className="text-xs text-slate-500 bg-yellow-50 border border-yellow-200 p-3 rounded text-center">
+                      <p className="text-xs text-slate-500 bg-yellow-50 border border-yellow-200 p-1.5 rounded text-center">
                         <span className="font-semibold">{contextStats.totalCount} fuentes asignadas</span>, pero ninguna activa.
                         <br />
                         <button 
@@ -5278,13 +5301,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             setShowAgentContextModal(true);
                             setAgentForContextConfig(currentConversation);
                           }}
-                          className="text-blue-600 hover:underline mt-2 inline-block font-medium"
+                          className="text-blue-600 hover:underline mt-1 inline-block font-medium"
                         >
                           → Activar fuentes
                         </button>
                       </p>
                     ) : contextStats ? (
-                      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 p-3 rounded text-center">
+                      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 p-1.5 rounded text-center">
                         No hay fuentes asignadas a este agente.
                         <br />
                         <button 
@@ -5292,20 +5315,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             setShowAgentContextModal(true);
                             setAgentForContextConfig(currentConversation);
                           }}
-                          className="text-blue-600 hover:underline mt-2 inline-block font-medium"
+                          className="text-blue-600 hover:underline mt-1 inline-block font-medium"
                         >
                           → Configurar fuentes
                         </button>
                       </p>
                     ) : (
-                      <p className="text-xs text-slate-400 bg-slate-50 p-2 rounded text-center animate-pulse">
+                      <p className="text-xs text-slate-400 bg-slate-50 p-1.5 rounded text-center animate-pulse">
                         Cargando estado de fuentes...
                       </p>
                     )}
                     
                     {/* OLD: Source list hidden - BigQuery handles RAG automatically */}
                     {false && contextSources.length > 0 && (
-                      <div className="space-y-2 max-h-96 overflow-y-auto hidden">
+                      <div className="space-y-1 max-h-96 overflow-y-auto hidden">
                         {contextSources.map(source => {
                           // Calculate tokens for this source
                           const fullTextTokens = Math.floor((source.extractedData?.length || 0) / 4);
@@ -5319,15 +5342,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           return (
                           <div
                             key={source.id}
-                            className={`w-full border rounded p-2 transition-all ${
+                            className={`w-full border rounded p-1.5 transition-all ${
                               source.enabled 
                                 ? 'bg-green-50 border-green-200 shadow-sm'
                                 : 'bg-slate-50 border-slate-200 opacity-50'
                             }`}
                           >
                             {/* Header: Name and badges only (NO toggle here - está en sidebar) */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0">
                                 <FileText className={`w-3.5 h-3.5 flex-shrink-0 ${source.enabled ? 'text-green-600' : 'text-slate-400'}`} />
                                 <p className={`text-xs font-semibold truncate ${source.enabled ? 'text-slate-800' : 'text-slate-500'}`}>
                                   {source.name}
@@ -5367,7 +5390,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                               )}
                               
                               {/* RAG/Full Toggle Switch - Like ON/OFF toggle */}
-                              <div className="flex items-center gap-2 flex-shrink-0">
+                              <div className="flex items-center gap-1.5 flex-shrink-0">
                                 <span className="text-[10px] font-medium text-slate-600">
                                   {sourceRAGMode ? '🔍 RAG' : '📝 Full'}
                                 </span>
@@ -5390,7 +5413,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     }`}
                                   >
                                     <div
-                                      className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
+                                      className={`w-3.5 h-3.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ${
                                         sourceRAGMode ? 'translate-x-5' : 'translate-x-0.5'
                                       } mt-0.5`}
                                     />
@@ -5420,7 +5443,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             
                             {/* RAG Stats - Show when RAG enabled and using RAG mode */}
                             {source.ragEnabled && sourceRAGMode && source.ragMetadata && (
-                              <div className="mt-2 bg-purple-50 border border-purple-200 rounded px-2 py-1.5 space-y-0.5">
+                              <div className="mt-1 bg-purple-50 border border-purple-200 rounded px-2 py-1.5 space-y-0.5">
                                 <div className="flex items-center justify-between text-[9px]">
                                   <span className="text-purple-700 font-medium">✅ Indexado con RAG</span>
                                   <span className="text-purple-600 font-bold">{source.ragMetadata.chunkCount} chunks</span>
@@ -5452,7 +5475,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                             
                             {/* Preview text - only if not showing RAG stats */}
                             {!source.ragEnabled && (
-                              <p className="text-xs text-slate-600 mt-1 line-clamp-2">
+                              <p className="text-xs text-slate-600 mt-1 line-clamp-1.5">
                                 {source.extractedData?.substring(0, 100)}
                                 {(source.extractedData?.length || 0) > 100 && '...'}
                               </p>
@@ -5467,8 +5490,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                   {/* Context Logs - New Section */}
                   {contextLogs.length > 0 && (
-                    <div className="border border-slate-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
+                    <div className="border border-slate-200 rounded-md p-1.5">
+                      <div className="flex items-center justify-between mb-1">
                         <h5 className="text-xs font-semibold text-slate-700">📊 Log de Contexto por Interacción</h5>
                         <span className="text-xs text-slate-500">
                           {contextLogs.length} interacciones registradas
@@ -5498,15 +5521,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   key={log.id} 
                                   className={`border-b border-slate-100 hover:bg-slate-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                                 >
-                                  <td className="px-2 py-2 text-slate-600">
+                                  <td className="px-2 py-1 text-slate-600">
                                     {new Date(log.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                                   </td>
-                                  <td className="px-2 py-2 text-slate-800">
+                                  <td className="px-2 py-1 text-slate-800">
                                     <div className="max-w-xs truncate" title={log.userMessage}>
                                       {log.userMessage}
                                     </div>
                                   </td>
-                                  <td className="px-2 py-2">
+                                  <td className="px-2 py-1">
                                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${
                                       log.model === 'gemini-2.5-pro' 
                                         ? 'bg-purple-100 text-purple-700' 
@@ -5515,7 +5538,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                       {log.model === 'gemini-2.5-pro' ? 'Pro' : 'Flash'}
                                     </span>
                                   </td>
-                                  <td className="px-2 py-2 text-center">
+                                  <td className="px-2 py-1 text-center">
                                     {log.ragConfiguration ? (
                                       <div className="flex flex-col items-center gap-0.5">
                                         <span 
@@ -5548,19 +5571,19 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                       </span>
                                     )}
                                   </td>
-                                  <td className="px-2 py-2 text-right font-mono text-slate-700">
+                                  <td className="px-2 py-1 text-right font-mono text-slate-700">
                                     {log.totalInputTokens.toLocaleString()}
                                   </td>
-                                  <td className="px-2 py-2 text-right font-mono text-slate-700">
+                                  <td className="px-2 py-1 text-right font-mono text-slate-700">
                                     {log.totalOutputTokens.toLocaleString()}
                                   </td>
-                                  <td className="px-2 py-2 text-right font-mono font-semibold text-slate-800">
+                                  <td className="px-2 py-1 text-right font-mono font-semibold text-slate-800">
                                     {log.contextWindowUsed.toLocaleString()}
                                   </td>
-                                  <td className="px-2 py-2 text-right font-mono text-slate-600">
+                                  <td className="px-2 py-1 text-right font-mono text-slate-600">
                                     {log.contextWindowAvailable.toLocaleString()}
                                   </td>
-                                  <td className="px-2 py-2 text-center">
+                                  <td className="px-2 py-1 text-center">
                                     <span className={`px-1.5 py-0.5 rounded font-semibold ${
                                       parseFloat(usagePercent) > 80 ? 'bg-red-100 text-red-700' :
                                       parseFloat(usagePercent) > 50 ? 'bg-yellow-100 text-yellow-700' :
@@ -5577,14 +5600,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       </div>
 
                       {/* Expandable details on click */}
-                      <details className="mt-2">
+                      <details className="mt-1">
                         <summary className="cursor-pointer text-xs text-blue-600 hover:text-blue-700 font-medium">
                           Ver detalles completos de cada interacción
                         </summary>
-                        <div className="mt-2 space-y-2">
+                        <div className="mt-1 space-y-1">
                           {contextLogs.map((log, idx) => (
-                            <div key={log.id} className="border border-slate-200 rounded p-2 bg-white">
-                              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                            <div key={log.id} className="border border-slate-200 rounded p-1.5 bg-white">
+                              <div className="grid grid-cols-2 gap-1.5 text-[10px]">
                                 <div>
                                   <p className="font-semibold text-slate-700 mb-1">#{idx + 1} - {new Date(log.timestamp).toLocaleTimeString()}</p>
                                   <p className="text-slate-600"><strong>Pregunta:</strong> {log.userMessage}</p>
@@ -5607,7 +5630,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   
                                   {/* NEW: RAG Configuration Details */}
                                   {log.ragConfiguration && (
-                                    <div className="mt-2 p-2 bg-slate-50 rounded border border-slate-200">
+                                    <div className="mt-1 p-1.5 bg-slate-50 rounded border border-slate-200">
                                       <p className="font-semibold text-slate-700 mb-1">🔍 Configuración RAG:</p>
                                       <div className="space-y-0.5 text-[9px]">
                                         <p>
@@ -5651,16 +5674,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                   )}
                                 </div>
                               </div>
-                              <div className="mt-2 text-[10px]">
+                              <div className="mt-1 text-[10px]">
                                 <p className="text-slate-600"><strong>Respuesta:</strong></p>
-                                <p className="text-slate-700 bg-slate-50 p-2 rounded mt-1 max-h-20 overflow-y-auto">
+                                <p className="text-slate-700 bg-slate-50 p-1.5 rounded mt-1 max-h-20 overflow-y-auto">
                                   {log.aiResponse}
                                 </p>
                               </div>
                               
                               {/* NEW: Display chunk references used in response */}
                               {log.references && log.references.length > 0 && (
-                                <div className="mt-2 text-[10px]">
+                                <div className="mt-1 text-[10px]">
                                   <p className="text-slate-600 font-semibold mb-1">
                                     📚 Referencias utilizadas ({log.references.length} chunks):
                                   </p>
@@ -5672,14 +5695,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                           console.log('🔍 Opening reference from context log:', ref);
                                           setSelectedReference(ref);
                                         }}
-                                        className="w-full text-left bg-blue-50 border border-blue-200 rounded p-2 hover:bg-blue-50 transition-colors"
+                                        className="w-full text-left bg-blue-50 border border-blue-200 rounded p-1.5 hover:bg-blue-50 transition-colors"
                                       >
-                                        <div className="flex items-start gap-2">
+                                        <div className="flex items-start gap-1.5">
                                           <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded font-bold text-[9px] border border-blue-200 flex-shrink-0">
                                             [{ref.id}]
                                           </span>
                                           <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <div className="flex items-center justify-between gap-1.5 mb-0.5">
                                               <p className="text-[9px] font-semibold text-slate-800 truncate">
                                                 {ref.sourceName}
                                               </p>
@@ -5691,7 +5714,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                                 {(ref.similarity * 100).toFixed(1)}%
                                               </span>
                                             </div>
-                                            <p className="text-[9px] text-slate-600 line-clamp-2">
+                                            <p className="text-[9px] text-slate-600 line-clamp-1.5">
                                               {ref.snippet}
                                             </p>
                                             <p className="text-[8px] text-slate-500 mt-0.5">
@@ -5760,8 +5783,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               const progressPercent = (progressCount / sampleQuestions.length) * 100;
               
               return (
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="mb-1">
+                  <div className="flex items-center justify-between mb-1">
                     <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
                       💡 Preguntas de ejemplo
                     </p>
@@ -5770,31 +5793,31 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {/* Previous Button */}
                     <button
                       onClick={prevSampleQuestion}
-                      className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                      className="flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                       title="Pregunta anterior"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                       </svg>
                     </button>
                     
                     {/* Questions */}
-                    <div className="flex-1 grid grid-cols-3 gap-2 overflow-hidden">
+                    <div className="flex-1 grid grid-cols-3 gap-1.5 overflow-hidden">
                       {visibleQuestions.map((question, idx) => (
                         <button
                           key={`${visibleStart + idx}-${question}`}
                           onClick={() => handleSampleQuestionClick(question)}
-                          className="group relative px-3 py-2.5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 rounded-lg hover:shadow-md hover:scale-[1.02] transition-all text-left"
+                          className="group relative px-2 py-1.5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 rounded-md hover:shadow-md hover:scale-[1.02] transition-all text-left"
                           title={question}
                         >
-                          <p className="text-xs text-slate-700 dark:text-slate-200 font-medium line-clamp-2 leading-snug">
+                          <p className="text-xs text-slate-700 dark:text-slate-200 font-medium line-clamp-1.5 leading-snug">
                             {question}
                           </p>
-                          <div className="absolute inset-0 bg-blue-600 dark:bg-blue-500 opacity-0 group-hover:opacity-5 rounded-lg transition-opacity" />
+                          <div className="absolute inset-0 bg-blue-600 dark:bg-blue-500 opacity-0 group-hover:opacity-5 rounded-md transition-opacity" />
                         </button>
                       ))}
                     </div>
@@ -5802,18 +5825,18 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     {/* Next Button */}
                     <button
                       onClick={nextSampleQuestion}
-                      className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                      className="flex-shrink-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                       title="Siguiente pregunta"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </button>
                   </div>
                   
                   {/* Progress Bar - Shows how many questions have been seen */}
-                  <div className="mt-2 px-11">
-                    <div className="flex items-center gap-2">
+                  <div className="mt-1 px-11">
+                    <div className="flex items-center gap-1.5">
                       <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
                         <div 
                           className="bg-blue-500 h-1 rounded-full transition-all duration-300 ease-out"
@@ -5829,7 +5852,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               );
             })()}
 
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <input
                 type="text"
                 value={input}
@@ -5841,28 +5864,28 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                   }
                 }}
                 placeholder="Escribe un mensaje..."
-                className="flex-1 px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="flex-1 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
                 <button
                   onClick={stopProcessing}
-                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 font-medium"
+                  className="px-2 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center gap-1.5 font-medium"
                 >
-                  <StopCircle className="w-5 h-5" />
+                  <StopCircle className="w-3.5 h-3.5" />
                   Detener
                 </button>
               ) : (
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim()}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
                 >
-                  <Send className="w-5 h-5" />
+                  <Send className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center mt-1">
               SalfaGPT puede cometer errores. Verifica la información importante.
             </p>
           </div>
@@ -5881,23 +5904,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
             onMouseDown={() => setIsResizingRight(true)}
           />
 
-          <div className="p-4 border-b border-slate-200">
-            <h3 className="text-lg font-bold text-slate-800">Workflows</h3>
+          <div className="p-1.5 border-b border-slate-200">
+            <h3 className="text-xs font-bold text-slate-800">Workflows</h3>
             <p className="text-xs text-slate-500 mt-1">Procesa documentos y APIs</p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-1.5 space-y-1">
             {workflows.map((workflow) => (
               <div
                 key={workflow.id}
-                className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:shadow-md transition-all cursor-pointer"
+                className="p-1.5 bg-slate-50 rounded-md border border-slate-200 hover:shadow-md transition-all cursor-pointer"
                 onClick={() => console.log('Open workflow:', workflow.id)}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{workflow.icon}</span>
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs">{workflow.icon}</span>
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-800">{workflow.name}</h4>
+                      <h4 className="text-xs font-semibold text-slate-800">{workflow.name}</h4>
                       <p className="text-xs text-slate-500">{workflow.description}</p>
                     </div>
                   </div>
@@ -5905,7 +5928,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </div>
 
                 {/* Workflow Config Preview */}
-                <div className="mt-2 pt-2 border-t border-slate-200">
+                <div className="mt-1 pt-1 border-t border-slate-200">
                   <div className="flex items-center justify-between text-xs text-slate-600">
                     <span>Max: {workflow.config.maxFileSize} MB</span>
                     {workflow.config.model && (
@@ -5917,14 +5940,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </div>
 
                 {/* Action Buttons */}
-                <div className="mt-3 flex gap-2">
+                <div className="mt-1 flex gap-1.5">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setPreSelectedSourceType(workflow.sourceType);
                       setShowAddSourceModal(true);
                     }}
-                    className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
                   >
                     <Play className="w-3 h-3" />
                     Ejecutar
@@ -5934,7 +5957,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                       e.stopPropagation();
                       setConfigWorkflow(workflow);
                     }}
-                    className="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs rounded hover:bg-slate-100 transition-colors"
+                    className="px-2 py-1.5 border border-slate-300 text-slate-700 text-xs rounded hover:bg-slate-100 transition-colors"
                   >
                     <Settings className="w-3 h-3" />
                   </button>
@@ -5942,7 +5965,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                 {/* Workflow Output Preview */}
                 {workflow.status === 'completed' && workflow.output && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                  <div className="mt-1 p-1.5 bg-green-50 border border-green-200 rounded text-xs text-green-800">
                     <p className="font-medium">✓ Completado</p>
                     <p className="mt-1 text-[10px] text-green-700">
                       {workflow.output.substring(0, 80)}...
@@ -5951,7 +5974,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 )}
 
                 {workflow.status === 'failed' && (
-                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                  <div className="mt-1 p-1.5 bg-red-50 border border-red-200 rounded text-xs text-red-800">
                     <p className="font-medium">✗ Error</p>
                   </div>
                 )}
@@ -5960,10 +5983,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           </div>
 
           {/* Toggle Panel Button */}
-          <div className="p-4 border-t border-slate-200">
+          <div className="p-1.5 border-t border-slate-200">
             <button
               onClick={() => setShowRightPanel(false)}
-              className="w-full px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded transition-colors"
+              className="w-full px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 rounded transition-colors"
             >
               Ocultar Panel →
             </button>
@@ -5984,14 +6007,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       {/* Add Source Modal */}
       {/* View All Archived Modal */}
       {showArchivedConversations && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-1.5">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <div className="flex items-center gap-3">
-                <Archive className="w-6 h-6 text-amber-600" />
-                <h2 className="text-xl font-bold text-slate-800">Archivados</h2>
-                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold">
+            <div className="flex items-center justify-between p-1.5 border-b border-slate-200">
+              <div className="flex items-center gap-1.5">
+                <Archive className="w-3.5 h-3.5 text-amber-600" />
+                <h2 className="text-xs font-bold text-slate-800">Archivados</h2>
+                <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
                   {conversations.filter(c => c.status === 'archived').length}
                 </span>
               </div>
@@ -5999,23 +6022,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 onClick={() => setShowArchivedConversations(false)}
                 className="text-slate-400 hover:text-slate-600"
               >
-                <XIcon className="w-6 h-6" />
+                <XIcon className="w-3.5 h-3.5" />
               </button>
             </div>
             
             {/* Archived list with folders */}
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto p-1.5">
+              <div className="space-y-1">
                 {/* Agentes Archivados Folder */}
                 {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-md overflow-hidden">
                     {/* Folder Header */}
                     <button
                       onClick={() => setExpandedArchivedAgents(!expandedArchivedAgents)}
-                      className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-colors"
+                      className="w-full px-2 py-1 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Folder className="w-4 h-4 text-blue-600" />
+                      <div className="flex items-center gap-1.5">
+                        <Folder className="w-3.5 h-3.5 text-blue-600" />
                         <span className="font-semibold text-slate-800">Agentes</span>
                         <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
                           {conversations.filter(c => c.status === 'archived' && c.isAgent).length}
@@ -6028,13 +6051,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* Folder Content */}
                     {expandedArchivedAgents && (
-                      <div className="p-2 space-y-2">
+                      <div className="p-1.5 space-y-1">
                         {conversations
                           .filter(c => c.status === 'archived' && c.isAgent)
                           .map(conv => (
                             <div
                               key={conv.id}
-                              className={`p-3 rounded-lg border transition-colors ${
+                              className={`p-1.5 rounded-md border transition-colors ${
                                 currentConversation === conv.id
                                   ? 'bg-blue-50 border-blue-400'
                                   : 'bg-white border-slate-200 hover:border-blue-200 hover:bg-blue-50/50'
@@ -6046,9 +6069,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     setCurrentConversation(conv.id);
                                     setShowArchivedConversations(false);
                                   }}
-                                  className="flex-1 flex items-center gap-3 text-left min-w-0"
+                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                                 >
-                                  <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                  <MessageSquare className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
                                   <div className="min-w-0 flex-1">
                                     <p className="font-medium text-slate-800 truncate">{conv.title}</p>
                                     <p className="text-xs text-slate-500">
@@ -6061,7 +6084,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     e.stopPropagation();
                                     unarchiveConversation(conv.id);
                                   }}
-                                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
+                                  className="px-2 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
                                 >
                                   <ArchiveRestore className="w-3.5 h-3.5" />
                                   Restaurar
@@ -6076,14 +6099,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
                 {/* Conversaciones Archivadas Folder */}
                 {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 rounded-md overflow-hidden">
                     {/* Folder Header */}
                     <button
                       onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
-                      className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-colors"
+                      className="w-full px-2 py-1 bg-slate-50 hover:bg-slate-100 flex items-center justify-between transition-colors"
                     >
-                      <div className="flex items-center gap-2">
-                        <Folder className="w-4 h-4 text-purple-600" />
+                      <div className="flex items-center gap-1.5">
+                        <Folder className="w-3.5 h-3.5 text-purple-600" />
                         <span className="font-semibold text-slate-800">Conversaciones</span>
                         <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
                           {conversations.filter(c => c.status === 'archived' && !c.isAgent).length}
@@ -6096,13 +6119,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     
                     {/* Folder Content */}
                     {expandedArchivedChats && (
-                      <div className="p-2 space-y-2">
+                      <div className="p-1.5 space-y-1">
                         {conversations
                           .filter(c => c.status === 'archived' && !c.isAgent)
                           .map(conv => (
                             <div
                               key={conv.id}
-                              className={`p-3 rounded-lg border transition-colors ${
+                              className={`p-1.5 rounded-md border transition-colors ${
                                 currentConversation === conv.id
                                   ? 'bg-purple-50 border-purple-400'
                                   : 'bg-white border-slate-200 hover:border-purple-300 hover:bg-purple-50/50'
@@ -6114,9 +6137,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     setCurrentConversation(conv.id);
                                     setShowArchivedConversations(false);
                                   }}
-                                  className="flex-1 flex items-center gap-3 text-left min-w-0"
+                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                                 >
-                                  <MessageSquare className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                                  <MessageSquare className="w-3.5 h-3.5 text-purple-500 flex-shrink-0" />
                                   <div className="min-w-0 flex-1">
                                     <p className="font-medium text-slate-800 truncate">{conv.title}</p>
                                     <p className="text-xs text-slate-500">
@@ -6129,7 +6152,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                                     e.stopPropagation();
                                     unarchiveConversation(conv.id);
                                   }}
-                                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
+                                  className="px-2 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
                                 >
                                   <ArchiveRestore className="w-3.5 h-3.5" />
                                   Restaurar
@@ -6145,8 +6168,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 {/* Empty state if no archived items */}
                 {conversations.filter(c => c.status === 'archived').length === 0 && (
                   <div className="text-center py-8 text-slate-500">
-                    <Archive className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                    <p className="text-sm">No hay elementos archivados</p>
+                    <Archive className="w-12 h-12 mx-auto mb-1 text-slate-300" />
+                    <p className="text-xs">No hay elementos archivados</p>
                   </div>
                 )}
               </div>
@@ -6527,15 +6550,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       
       {/* ✅ NEW: Prompt Saved Toast */}
       {showPromptSavedToast && (
-        <div className="fixed top-20 right-6 z-50 animate-fade-in">
-          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-2xl p-4 flex items-start gap-3 max-w-md border border-green-400">
+        <div className="fixed top-1.50 right-6 z-50 animate-fade-in">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl shadow-2xl p-1.5 flex items-start gap-1.5 max-w-md border border-green-400">
             <div className="flex-shrink-0 mt-0.5">
               <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <Check className="w-6 h-6 text-white" />
+                <Check className="w-3.5 h-3.5 text-white" />
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold mb-1">
+              <p className="text-xs font-bold mb-1">
                 ✅ Prompt Guardado Exitosamente
               </p>
               <p className="text-xs text-green-50">
@@ -6551,7 +6574,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               onClick={() => setShowPromptSavedToast(false)}
               className="flex-shrink-0 text-green-100 hover:text-white transition-colors"
             >
-              <XIcon className="w-5 h-5" />
+              <XIcon className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -6587,20 +6610,20 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
       {/* Impersonation Banner */}
       {isImpersonating && impersonatedUser && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-6 py-3 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5" />
+        <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-2 py-1 flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" />
             <div>
               <span className="font-bold">Impersonando: </span>
               <span className="font-medium">{impersonatedUser.name} ({impersonatedUser.email})</span>
-              <span className="ml-3 text-sm opacity-90">
+              <span className="ml-3 text-xs opacity-90">
                 Roles: {impersonatedUser.roles?.join(', ')}
               </span>
             </div>
           </div>
           <button
             onClick={stopImpersonation}
-            className="px-4 py-1.5 bg-white text-orange-700 rounded-lg hover:bg-orange-50 text-sm font-medium transition-colors"
+            className="px-2 py-1.5 bg-white text-orange-700 rounded-md hover:bg-orange-50 text-xs font-medium transition-colors"
           >
             Detener Impersonación
           </button>
@@ -6634,40 +6657,40 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       
       {/* Delete Confirmation Modal */}
       {deleteConfirmation && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-1.5">
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl max-w-md w-full">
             {/* Header */}
-            <div className="bg-red-600 p-6 rounded-t-xl">
-              <div className="flex items-center gap-3 text-white">
+            <div className="bg-red-600 p-1.5 rounded-t-xl">
+              <div className="flex items-center gap-1.5 text-white">
                 <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
                   <AlertCircle className="w-7 h-7" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold">⚠️ Eliminar Agente</h2>
-                  <p className="text-sm text-red-100">Esta acción no se puede deshacer</p>
+                  <h2 className="text-xs font-bold">⚠️ Eliminar Agente</h2>
+                  <p className="text-xs text-red-100">Esta acción no se puede deshacer</p>
                 </div>
               </div>
             </div>
             
             {/* Content */}
-            <div className="p-6">
-              <p className="text-slate-700 dark:text-slate-300 mb-4">
+            <div className="p-1.5">
+              <p className="text-slate-700 dark:text-slate-300 mb-1">
                 Estás a punto de <strong>eliminar permanentemente</strong> el agente:
               </p>
               
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-                <p className="font-bold text-red-900 dark:text-red-300 text-lg text-center">
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-md p-1.5 mb-6">
+                <p className="font-bold text-red-900 dark:text-red-300 text-xs text-center">
                   {deleteConfirmation.conversationTitle}
                 </p>
               </div>
               
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-                <p className="text-sm text-yellow-800 dark:text-yellow-300">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-1.5 mb-6">
+                <p className="text-xs text-yellow-800 dark:text-yellow-300">
                   <strong>⚠️ Advertencia:</strong> Se eliminarán todos los mensajes, contexto y configuración asociados. Esta acción es irreversible.
                 </p>
               </div>
               
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Para confirmar, escribe el nombre exacto del agente:
               </p>
               
@@ -6676,23 +6699,23 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 value={deleteConfirmationInput}
                 onChange={(e) => setDeleteConfirmationInput(e.target.value)}
                 placeholder={deleteConfirmation.conversationTitle}
-                className="w-full px-4 py-3 border-2 border-red-300 dark:border-red-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                className="w-full px-2 py-1 border-2 border-red-300 dark:border-red-700 rounded-md focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                 autoFocus
               />
               
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Escribe exactamente: <code className="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded font-mono text-xs">{deleteConfirmation.conversationTitle}</code>
               </p>
             </div>
             
             {/* Footer */}
-            <div className="p-6 pt-0 flex gap-3">
+            <div className="p-1.5 pt-0 flex gap-1.5">
               <button
                 onClick={() => {
                   setDeleteConfirmation(null);
                   setDeleteConfirmationInput('');
                 }}
-                className="flex-1 px-4 py-2 border-2 border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300"
+                className="flex-1 px-2 py-1 border-2 border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-slate-700 dark:text-slate-300"
               >
                 Cancelar
               </button>
@@ -6700,9 +6723,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               <button
                 onClick={deleteConversationPermanently}
                 disabled={deleteConfirmationInput !== deleteConfirmation.conversationTitle}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-2"
+                className="flex-1 px-2 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed font-bold flex items-center justify-center gap-1.5"
               >
-                <XIcon className="w-5 h-5" />
+                <XIcon className="w-3.5 h-3.5" />
                 Eliminar Permanentemente
               </button>
             </div>
@@ -6746,6 +6769,14 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
           existingScreenshot={editingStellaAttachment?.attachment.screenshot}
         />
       )}
+      
+      {/* Stella Configuration Panel - SuperAdmin Only */}
+      <StellaConfigurationPanel
+        userId={userId}
+        userEmail={userEmail || ''}
+        isOpen={showStellaConfig}
+        onClose={() => setShowStellaConfig(false)}
+      />
     </div>
   );
 }

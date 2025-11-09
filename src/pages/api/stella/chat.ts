@@ -21,6 +21,9 @@
 import type { APIRoute } from 'astro';
 import { GoogleGenAI } from '@google/genai';
 import { getSession } from '../../../lib/auth';
+import { buildStellaContext, buildInfrastructureContext } from '../../../lib/stella-context';
+import { hashUserId, redactPII, sanitizeConversationForAI, containsPII } from '../../../lib/privacy-utils';
+import { loadStellaConfiguration, logStellaInteraction } from './chat-helpers';
 
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY ||
   (typeof import.meta !== 'undefined' && import.meta.env
@@ -190,35 +193,86 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     
     const genAI = new GoogleGenAI({ apiKey: GOOGLE_AI_API_KEY });
     
+    // Load Stella configuration
+    const stellaConfig = await loadStellaConfiguration();
+    
+    // Privacy: Hash userId and sanitize data
+    const hashedUserId = hashUserId(userId);
+    const sanitizedHistory = sanitizeConversationForAI(conversationHistory || []);
+    const sanitizedMessage = redactPII(message);
+    const piiDetected = containsPII(message);
+    
+    // Build enhanced context
+    const dynamicContext = await buildStellaContext(userId, category, message);
+    const infrastructureContext = buildInfrastructureContext(stellaConfig.organizationId);
+    
+    // Build comprehensive system prompt
+    const enhancedSystemPrompt = `${stellaConfig.organizationPrompt}
+
+${stellaConfig.stellaRolePrompt}
+
+${dynamicContext}
+
+${infrastructureContext}
+
+# Current Session (Privacy-Safe)
+- User: ${hashedUserId}
+- Category: ${category}
+- Page: ${pageContext?.pageUrl || 'Unknown'}
+- Agent: ${pageContext?.agentId || 'None'}
+
+# Privacy Notice
+User data anonymized. Focus on product insights and technical recommendations.
+Do not reference specific user details.
+
+# Your Response Guidelines
+- Be concise (2-3 sentences max)
+- Reference roadmap/bugs/features when relevant
+- Provide CPO/CTO level insights
+- Suggest concrete next steps
+- Use data to support recommendations`;
+
     // Build user message with context
     const userMessageWithContext = `**Tipo de feedback:** ${getCategoryLabel(category)}
 
-**Contexto actual:**
-- Página: ${pageContext?.pageUrl || 'Unknown'}
-- Agente activo: ${pageContext?.agentId || 'Ninguno'}
-- Chat: ${pageContext?.conversationId || 'Ninguno'}
-
 **Conversación previa:**
-${formatConversationHistory(conversationHistory)}
+${formatConversationHistory(sanitizedHistory)}
 
-${attachments && attachments.length > 0 ? `**Adjuntos:** ${attachments.length} screenshot(s)\n` : ''}
+${attachments && attachments.length > 0 ? `**Adjuntos:** ${attachments.length} screenshot(s) con anotaciones\n` : ''}
 
 **Mensaje del usuario:**
-${message}`;
+${sanitizedMessage}`;
 
+    const startTime = Date.now();
+    
     const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: stellaConfig.aiConfig.model,
       contents: userMessageWithContext,
       config: {
-        systemInstruction: STELLA_SYSTEM_PROMPT,
-        temperature: 0.7,
-        maxOutputTokens: 300,
+        systemInstruction: enhancedSystemPrompt,
+        temperature: stellaConfig.aiConfig.temperature,
+        maxOutputTokens: stellaConfig.aiConfig.maxOutputTokens,
       }
     });
     
     const response = result.text || getFallbackResponse(category, message);
+    const responseTime = Date.now() - startTime;
     
-    console.log('🤖 Stella response generated (Gemini 2.5 Flash) for user:', userId);
+    // Audit log
+    if (stellaConfig.privacyConfig.auditTrail) {
+      await logStellaInteraction({
+        hashedUserId,
+        sessionId,
+        category,
+        modelUsed: stellaConfig.aiConfig.model,
+        inputTokens: result.usageMetadata?.promptTokenCount || 0,
+        outputTokens: result.usageMetadata?.candidatesTokenCount || 0,
+        piiDetected,
+        responseTime,
+      });
+    }
+    
+    console.log('🤖 Stella response generated:', stellaConfig.aiConfig.model, '| Tokens:', result.usageMetadata?.totalTokenCount || 0, '| Time:', responseTime, 'ms');
     
     return new Response(JSON.stringify({
       response,

@@ -1,0 +1,201 @@
+═══════════════════════════════════════════════════════════════════
+ARCHIVOS CLAVE PARA NUEVA CONVERSACIÓN
+═══════════════════════════════════════════════════════════════════
+
+📋 PROMPTS Y CONTEXTO:
+───────────────────────────────────────────────────────────────
+1. PROMPT_NUEVA_CONVERSACION_USERID_STELLA.md ⭐ PRINCIPAL
+   → Prompt completo con TODO el contexto
+   → Problema, solución, estado, siguientes pasos
+   → Copiar y pegar para retomar
+
+2. RESUMEN_EJECUTIVO_NUEVA_CONVERSACION.md
+   → Executive summary conciso
+   → Quick reference
+   
+3. ARCHIVOS_CLAVE_NUEVA_CONVERSACION.txt ⭐ ESTE ARCHIVO
+   → Lista de todos los archivos relevantes
+
+───────────────────────────────────────────────────────────────
+
+🔧 SCRIPTS EJECUTABLES:
+───────────────────────────────────────────────────────────────
+4. scripts/migrate-all-user-formats.mjs ⭐ MIGRATION SCRIPT
+   → Convierte todos los ID formats a hash
+   → Comando: npm run migrate:all-users:execute
+   
+5. scripts/find-alec-conversations.mjs
+   → Encuentra conversations de alec por cualquier userId
+   → Ya ejecutado: Found 10 convs con numeric ID
+
+6. scripts/migrate-users-to-hash-ids.mjs
+   → Script original (más simple)
+   → Backup/alternative approach
+
+───────────────────────────────────────────────────────────────
+
+📚 GUÍAS DE MIGRACIÓN:
+───────────────────────────────────────────────────────────────
+7. COMPLETE_MIGRATION_GUIDE_2025-11-09.md ⭐ GUÍA COMPLETA
+   → Step-by-step migration process
+   → Safety measures
+   → Testing procedures
+   
+8. EXECUTE_MIGRATION_NOW.md
+   → Quick start para ejecutar
+   → 3 comandos simples
+   
+9. MIGRATION_PLAN_USERID_2025-11-09.md
+   → Plan detallado
+   → Expected results
+   
+10. POST_MIGRATION_TEST_CHECKLIST.md ⭐ TESTING
+    → Complete feature test list
+    → Success criteria
+    → Issue troubleshooting
+
+───────────────────────────────────────────────────────────────
+
+🔍 ANÁLISIS Y DIAGNÓSTICO:
+───────────────────────────────────────────────────────────────
+11. LOG_ANALYSIS_2025-11-09.md
+    → Analysis del log file actual
+    → Current session details
+    → Issue identification
+    
+12. USERID_ISSUE_DIAGNOSIS_2025-11-09.md
+    → Root cause analysis
+    → Fix options
+    
+13. QUICK_FIX_ALEC_AGENTS_2025-11-09.md
+    → Specific fix para alec@getaifactory.com
+
+───────────────────────────────────────────────────────────────
+
+📊 DOCUMENTACIÓN VISUAL:
+───────────────────────────────────────────────────────────────
+14. docs/BEFORE_AFTER_USERID_VISUAL.md ⭐ ASCII DIAGRAMS
+    → Visual comparison Before/After
+    → Data flow diagrams
+    → Performance comparisons
+    
+15. docs/USERID_STANDARDIZATION_PROJECT_2025-11-08.md
+    → Complete project overview
+    → Architecture decisions
+    
+16. docs/USERID_REFACTOR_SUMMARY.md
+    → Quick reference guide
+    
+17. docs/IMPLEMENTATION_STEPS_USERID_FIX.md
+    → Implementation details
+
+───────────────────────────────────────────────────────────────
+
+🔐 CÓDIGO MODIFICADO:
+───────────────────────────────────────────────────────────────
+18. src/pages/auth/callback.ts ⭐ JWT FIX
+    → Línea 89: id: firestoreUser?.id (was: userInfo.id)
+    → Añadido: googleUserId, domain fields
+    → Estado: Modified, not committed
+    
+19. src/lib/firestore.ts
+    → Línea 931: export function generateUserId()
+    → Estado: Modified, not committed
+    
+20. package.json
+    → Scripts: migrate:all-users, migrate:all-users:execute
+    → Estado: Modified, not committed
+
+───────────────────────────────────────────────────────────────
+
+📝 LOGS Y MONITORING:
+───────────────────────────────────────────────────────────────
+21. ASK: UserIDs - terminal.log ⭐ ACTIVE LOG FILE
+    → Server output en tiempo real
+    → Accesible por agente
+    → Muestra authentication flows, queries, errors
+    → Demostración de Stella feedback concept
+
+───────────────────────────────────────────────────────────────
+
+🛡️ BACKUP Y ROLLBACK:
+───────────────────────────────────────────────────────────────
+Tag: backup-20251108-210520
+Branch: backup/userid-refactor-20251108-210520
+Worktree: /Users/alec/.cursor/worktrees/salfagpt/backup-20251108-210520
+Port: 3001 (backup server, código original)
+
+Rollback command:
+  git reset --hard backup-20251108-210520
+
+───────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
+ORDEN DE PRIORIDAD PARA LEER:
+═══════════════════════════════════════════════════════════════════
+
+HIGH PRIORITY (Leer primero):
+  1. PROMPT_NUEVA_CONVERSACION_USERID_STELLA.md
+  2. COMPLETE_MIGRATION_GUIDE_2025-11-09.md
+  3. POST_MIGRATION_TEST_CHECKLIST.md
+  4. ASK: UserIDs - terminal.log (log file actual)
+
+MEDIUM PRIORITY (Contexto adicional):
+  5. docs/BEFORE_AFTER_USERID_VISUAL.md (diagramas)
+  6. EXECUTE_MIGRATION_NOW.md (quick start)
+  7. LOG_ANALYSIS_2025-11-09.md (current state)
+
+LOW PRIORITY (Reference):
+  8. All other docs in docs/ folder
+  9. Original issue docs (HASH_BASED_USER_IDS_2025-10-22.md, etc.)
+
+───────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
+COMANDOS INMEDIATOS:
+═══════════════════════════════════════════════════════════════════
+
+# Ver archivos de contexto:
+ls -lh PROMPT_NUEVA_CONVERSACION_USERID_STELLA.md
+ls -lh RESUMEN_EJECUTIVO_NUEVA_CONVERSACION.md
+
+# Preview migración:
+npm run migrate:all-users
+
+# Ejecutar migración:
+npm run migrate:all-users:execute
+
+# Monitorear logs:
+tail -f "ASK: UserIDs - terminal.log"
+
+# Verificar estado:
+git status
+git worktree list
+
+───────────────────────────────────────────────────────────────
+
+═══════════════════════════════════════════════════════════════════
+PRÓXIMOS PASOS EN ORDEN:
+═══════════════════════════════════════════════════════════════════
+
+Paso 1: Ejecutar migración (2-3 min)
+Paso 2: Verificar en Firestore Console
+Paso 3: Re-login con alec@getaifactory.com
+Paso 4: Verificar 10+ conversations visible ✅
+Paso 5: Run complete testing checklist
+Paso 6: Commit cambios
+Paso 7: Diseñar Stella feedback architecture
+Paso 8: Implementar structured logging MVP
+Paso 9: Test & document
+
+───────────────────────────────────────────────────────────────
+
+✅ TODO LISTO PARA NUEVA CONVERSACIÓN
+
+Archivos de contexto creados ✅
+Migration scripts ready ✅
+Backup completo ✅
+Server logging activo ✅
+Documentation comprehensiva ✅
+
+
