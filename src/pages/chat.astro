@@ -1,5 +1,5 @@
 ---
-import ResponsiveChatWrapper from '../components/ResponsiveChatWrapper.tsx';
+import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
 import { verifyJWT } from '../lib/auth';
 import { isUserDomainEnabled, getDomainFromEmail } from '../lib/domains';
 import '../styles/global.css';
@@ -145,23 +145,13 @@ try {
     </script>
   </head>
   <body class="h-full m-0 p-0">
-    <!-- WORKAROUND: Use load instead of only to avoid hydration mismatch -->
-    <ResponsiveChatWrapper 
+    <!-- DIRECT COMPONENT: Bypass ResponsiveChatWrapper to avoid loading loop -->
+    <ChatInterfaceWorking 
       client:load
       userId={userId}
       userEmail={userEmail}
       userName={userName}
       userRole={userRole}
     />
-    
-    <!-- Fallback: If hydration fails completely, show message -->
-    <noscript>
-      <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #f8fafc;">
-        <div style="text-align: center; color: #64748b;">
-          <h2>JavaScript Required</h2>
-          <p>Please enable JavaScript to use this application.</p>
-        </div>
-      </div>
-    </noscript>
   </body>
 </html>
