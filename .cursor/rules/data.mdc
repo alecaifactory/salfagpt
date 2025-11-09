@@ -39,7 +39,24 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ message_queue           # Queue system items (2025-10-31)│
 │  ├─ queue_configs           # Queue settings (2025-10-31)│
 │  ├─ queue_metrics           # Queue analytics (2025-10-31)│
-│  └─ tool_executions         # Cloud Function tool executions (2025-11-02)│
+│  ├─ tool_executions         # Cloud Function tool executions (2025-11-02)│
+│  ├─ quality_funnel_events   # Funnel stage tracking (2025-11-09)│
+│  ├─ funnel_conversion_rates # Aggregated conversion rates (2025-11-09)│
+│  ├─ funnel_bottlenecks      # Bottleneck alerts (2025-11-09)│
+│  ├─ milestone_times         # Time to complete stages (2025-11-09)│
+│  ├─ user_badges             # Gamification badges (2025-11-09)│
+│  ├─ achievement_events      # Badge award events (2025-11-09)│
+│  ├─ csat_events             # CSAT ratings (2025-11-09)│
+│  ├─ nps_events              # NPS scores (2025-11-09)│
+│  ├─ social_sharing_events   # Social sharing tracking (2025-11-09)│
+│  ├─ csat_metrics            # CSAT aggregated (2025-11-09)│
+│  ├─ nps_metrics             # NPS aggregated (2025-11-09)│
+│  ├─ social_metrics          # Social aggregated (2025-11-09)│
+│  ├─ user_contribution_metrics # User personal metrics (2025-11-09)│
+│  ├─ expert_performance_metrics # Expert personal metrics (2025-11-09)│
+│  ├─ specialist_performance_metrics # Specialist metrics (2025-11-09)│
+│  ├─ admin_domain_metrics    # Admin domain metrics (2025-11-09)│
+│  └─ impact_notifications_shown # Impact notification tracking (2025-11-09)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
