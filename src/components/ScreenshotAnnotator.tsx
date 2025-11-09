@@ -313,10 +313,10 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
     return (
       <>
         {/* Semi-transparent overlay - allows seeing through to scroll */}
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-30 pointer-events-none screenshot-capture-modal" />
+        <div className="fixed inset-0 z-[10000] bg-black bg-opacity-30 pointer-events-none screenshot-capture-modal" />
         
         {/* Floating capture button - stays in center */}
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[60] pointer-events-auto screenshot-capture-modal">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[10001] pointer-events-auto screenshot-capture-modal">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md">
             <div className="text-center mb-4">
               <Camera className="w-12 h-12 text-violet-600 mx-auto mb-3" />
@@ -357,7 +357,7 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
   // Step 2: Show loader while capturing
   if (!screenshot && isCapturing) {
     return (
-      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center screenshot-capture-modal">
+      <div className="fixed inset-0 z-[10000] bg-black bg-opacity-50 flex items-center justify-center screenshot-capture-modal">
         <div className="bg-white rounded-xl p-6 flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
           <span className="text-violet-700 font-medium">Capturando pantalla...</span>
@@ -368,7 +368,7 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
 
   // Step 3: Annotate the captured screenshot
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-90 flex flex-col screenshot-capture-modal">
+    <div className="fixed inset-0 z-[10000] bg-black bg-opacity-90 flex flex-col screenshot-capture-modal">
       {/* Toolbar */}
       <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between screenshot-capture-modal">
         <div className="flex items-center gap-2">
