@@ -267,11 +267,24 @@ export default function StellaSidebarChat({
   
   // Submit feedback (creates ticket in Roadmap)
   async function submitFeedback() {
-    if (!currentSession) return;
+    if (!currentSession) {
+      console.error('No current session');
+      alert('Error: No hay sesión activa');
+      return;
+    }
     
     setIsSubmitting(true);
     
     try {
+      console.log('📤 Submitting feedback:', {
+        userId,
+        userEmail,
+        userName,
+        sessionId: currentSession.id,
+        category: currentSession.category,
+        messagesCount: currentSession.messages.length,
+      });
+      
       const response = await fetch('/api/stella/submit-feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -284,7 +297,14 @@ export default function StellaSidebarChat({
         }),
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
       const data = await response.json();
+      
+      console.log('✅ Feedback submitted successfully:', data);
       
       // Update session with ticket info
       setSessions(prev => prev.map(s => 
@@ -298,11 +318,11 @@ export default function StellaSidebarChat({
           : s
       ));
       
-      // Add confirmation message with clickable link
-      const confirmMessage: Message = {
+      // Add confirmation message with impact assessment prompt
+      const confirmMessage: StellaMessage = {
         id: `msg-${Date.now()}`,
         role: 'stella',
-        content: `✅ Feedback enviado exitosamente!\n\n**Ticket:** ${data.ticketId}\n\nHe creado un ticket en el backlog del Roadmap con toda la información de nuestra conversación, incluyendo las capturas de pantalla con anotaciones y el análisis AI del contexto.`,
+        content: `✅ Feedback enviado exitosamente!\n\n**Ticket creado:** ${data.ticketId}\n\n${data.kanbanCardUrl ? `🔗 **Ver en Roadmap:** ${window.location.origin}${data.kanbanCardUrl}\n\n` : ''}📋 **Estado:** Backlog (pendiente de revisión)\n🎯 **Prioridad:** Medium (puede ajustarse)\n\n---\n\n**📊 Ayúdame a priorizarlo:**\n\nPara que el equipo pueda priorizar mejor este item, ¿puedes compartir?\n\n1️⃣ **Impacto en CSAT:** ¿Qué tanto mejoraría la satisfacción del usuario?\n   • ¿Cuántos usuarios afecta?\n   • ¿CSAT actual vs esperado con este fix?\n\n2️⃣ **Impacto en NPS:** ¿Contribuye a recomendación?\n   • ¿Es un \"wow factor\" que usuarios compartirían?\n   • ¿NPS target: 98+?\n\n3️⃣ **Urgencia:** ¿Es crítico?\n   • ¿Bloquea workflows importantes?\n   • ¿Necesitas desarrollo expedito?\n\nResponde en tu próximo mensaje y actualizaré la prioridad en el Roadmap. 🎯`,
         timestamp: new Date(),
       };
       
@@ -313,8 +333,21 @@ export default function StellaSidebarChat({
       ));
       
     } catch (error) {
-      console.error('Failed to submit feedback:', error);
-      alert('Error al enviar feedback. Por favor intenta nuevamente.');
+      console.error('❌ Failed to submit feedback:', error);
+      
+      // Add error message to chat
+      const errorMessage: StellaMessage = {
+        id: `msg-${Date.now()}`,
+        role: 'stella',
+        content: `❌ Hubo un error al enviar el feedback: ${error instanceof Error ? error.message : 'Error desconocido'}\n\nPor favor intenta nuevamente o contacta a soporte si el problema persiste.`,
+        timestamp: new Date(),
+      };
+      
+      setSessions(prev => prev.map(s => 
+        s.id === currentSessionId 
+          ? { ...s, messages: [...s.messages, errorMessage] }
+          : s
+      ));
     } finally {
       setIsSubmitting(false);
     }

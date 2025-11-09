@@ -109,44 +109,46 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       console.warn('⚠️ Failed to create notifications (non-critical):', error);
     }
     
-    // If user is Admin or SuperAdmin, create backlog item
-    const userDoc = await firestore.collection('users').doc(userId).get();
-    const userRole = userDoc.data()?.role || 'user';
-    
+    // ✅ ALWAYS create backlog item (for ALL users, not just admins)
     let kanbanCardUrl = undefined;
     
-    if (userRole === 'admin' || userRole === 'superadmin' || 
-        userId === '114671162830729001607') {  // SuperAdmin alec@getaifactory.com
+    try {
+      const backlogItem = {
+        title: extractTitle(feedbackSession.messages),
+        description: extractDescription(feedbackSession.messages),
+        type: feedbackSession.category === 'bug' ? 'bug' :
+              feedbackSession.category === 'feature' ? 'feature' : 'improvement',
+        priority: 'p2', // Medium by default, can be updated with impact assessment
+        status: 'backlog',
+        lane: 'backlog', // Roadmap lane
+        category: feedbackSession.category,
+        source: 'stella-chat',
+        stellaTicketId: ticketId,
+        stellaSessionId: sessionRef.id,
+        attachments: extractAttachments(feedbackSession.messages),
+        impactAssessment: null, // Will be filled when user responds with metrics
+        expedite: false, // Can be set to true for critical items
+        metadata: {
+          pageContext,
+          messageCount: feedbackSession.messages.length,
+          hasAttachments: extractAttachments(feedbackSession.messages).length > 0,
+          submittedViaStella: true,
+        },
+        createdBy: userId,
+        createdByEmail: userEmail,
+        createdByName: userName,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        source: getEnvironmentSource(),
+      };
       
-      try {
-        const backlogItem = {
-          title: extractTitle(feedbackSession.messages),
-          description: extractDescription(feedbackSession.messages),
-          type: feedbackSession.category === 'bug' ? 'bug' :
-                feedbackSession.category === 'feature' ? 'feature' : 'improvement',
-          priority: 'medium',
-          status: 'backlog',
-          category: feedbackSession.category,
-          source: 'stella-chat',
-          stellaTicketId: ticketId,
-          stellaSessionId: sessionRef.id,
-          metadata: {
-            pageContext,
-            messageCount: feedbackSession.messages.length,
-            hasAttachments: extractAttachments(feedbackSession.messages).length > 0,
-          },
-          createdBy: userId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        
-        const backlogRef = await firestore.collection('backlog_items').add(backlogItem);
-        kanbanCardUrl = `/roadmap#${backlogRef.id}`;
-        
-        console.log('📋 Kanban backlog item created for Admin/SuperAdmin');
-      } catch (error) {
-        console.warn('Failed to create Kanban item (non-critical):', error);
-      }
+      const backlogRef = await firestore.collection('backlog_items').add(backlogItem);
+      kanbanCardUrl = `/roadmap#${backlogRef.id}`;
+      
+      console.log('📋 Backlog item created:', backlogRef.id, '| Ticket:', ticketId);
+    } catch (error) {
+      console.error('❌ Failed to create backlog item:', error);
+      // Don't fail the whole request, but log the error
     }
     
     return new Response(JSON.stringify({
