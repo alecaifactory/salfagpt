@@ -13,7 +13,7 @@ type DrawingTool = 'circle' | 'rectangle' | 'arrow' | 'text' | 'eraser';
 export default function ScreenshotAnnotator({ onComplete, onCancel, existingScreenshot }: ScreenshotAnnotatorProps) {
   const [screenshot, setScreenshot] = useState<string | null>(existingScreenshot?.imageDataUrl || null);
   const [annotations, setAnnotations] = useState<ScreenshotAnnotation[]>(existingScreenshot?.annotations || []);
-  const [activeTool, setActiveTool] = useState<DrawingTool>('circle');
+  const [activeTool, setActiveTool] = useState<DrawingTool>('rectangle'); // ✅ Rectangle default
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentAnnotation, setCurrentAnnotation] = useState<Partial<ScreenshotAnnotation> | null>(null);
   const [textInput, setTextInput] = useState('');
