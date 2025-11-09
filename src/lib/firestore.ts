@@ -928,7 +928,7 @@ function getInitialRoles(email: string): UserRole[] {
  * Format: usr_<random_20_chars>
  * Example: usr_k3n9x2m4p8q1w5z7y0
  */
-function generateUserId(): string {
+export function generateUserId(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let id = 'usr_';
   for (let i = 0; i < 20; i++) {

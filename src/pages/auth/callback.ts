@@ -83,15 +83,18 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
     }
 
     // Prepare user data for session - INCLUDE ROLE from Firestore
-    // ✅ CRITICAL: Use Google OAuth numeric ID as primary identifier (permanent, won't change)
+    // ✅ CRITICAL: Use hash-based ID from Firestore (consistent with all data relationships)
+    // This eliminates ID type mismatches and enables direct comparisons throughout the platform
     const userData = {
-      id: userInfo.id, // Google OAuth numeric ID (permanent, unique)
+      id: firestoreUser?.id || userInfo.id, // Hash-based ID from Firestore (usr_xxx) - fallback to numeric if Firestore failed
+      googleUserId: userInfo.id, // Store Google OAuth numeric ID for reference
       email: userInfo.email,
       name: userInfo.name,
       picture: userInfo.picture,
       verified_email: userInfo.verified_email,
       role: firestoreUser?.role || 'user', // ✅ CRITICAL: Include role in JWT
       roles: firestoreUser?.roles || ['user'], // ✅ CRITICAL: Include roles in JWT
+      domain: getDomainFromEmail(userInfo.email), // Add domain for quick organizational access
     };
 
     // 🔒 Security logging: Successful authentication
