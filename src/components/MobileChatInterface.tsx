@@ -17,6 +17,7 @@ interface Conversation {
   conversationType?: string;
   isAgent?: boolean;
   isProject?: boolean;
+  agentId?: string;  // ✅ Parent agent ID (for conversations/chats)
   folderId?: string;
   status?: string;
 }
@@ -263,41 +264,53 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
     setMessages([]); // ✅ STEP 2: Start with blank chat
   };
   
+  // Current agent info
+  const currentAgentInfo = agents.find(a => a.id === currentAgent);
+  
+  // Sample questions by agent (defined once)
+  const AGENT_SAMPLE_QUESTIONS: Record<string, string[]> = {
+    'M001': [
+      '¿Diferencia entre Loteo DFL2 y Construcción Simultánea?',
+      '¿Diferencia entre condominio tipo A y tipo B?',
+      '¿Requisitos para aprobar permiso de edificios?',
+    ],
+    'S001': [
+      '¿Dónde busco los códigos de materiales?',
+      '¿Cómo hago un pedido de convenio?',
+      '¿Cómo genero informe de consumo de petróleo?',
+    ],
+    'S002': [
+      '¿Pasos para mantención de grúa Grove RT765E?',
+      '¿Cómo cambio filtro de aire motor Cummins?',
+      '¿Qué significa código de falla CF103 Scania?',
+    ],
+    'M003': [
+      '¿Qué procedimientos asociados al plan de calidad?',
+      '¿Qué planilla para controlar pérdidas de hormigón?',
+      '¿Transacción SAP para flujo de materiales?',
+    ],
+  };
+  
   // Get sample questions for current agent
   const getSampleQuestions = (): string[] => {
-    const agentInfo = conversationGroups.agents.find(a => a.id === currentAgent);
-    if (!agentInfo) return [];
+    if (!currentAgentInfo) {
+      console.log('📱 No current agent info');
+      return [];
+    }
     
-    // Sample questions by agent (from ChatInterfaceWorking)
-    const AGENT_SAMPLE_QUESTIONS: Record<string, string[]> = {
-      'M001': [
-        '¿Diferencia entre Loteo DFL2 y Loteo con Construcción Simultánea?',
-        '¿Diferencia entre condominio tipo A y tipo B?',
-        '¿Requisitos para aprobar permiso de edificios?',
-      ],
-      'S001': [
-        '¿Dónde busco los códigos de materiales?',
-        '¿Cómo hago un pedido de convenio?',
-        '¿Cómo genero el informe de consumo de petróleo?',
-      ],
-      'S002': [
-        '¿Pasos para mantención de grúa Grove RT765E?',
-        '¿Cómo cambio el filtro de aire de un motor Cummins?',
-        '¿Qué significa el código de falla CF103 en Scania R500?',
-      ],
-      'M003': [
-        '¿Qué procedimientos están asociados al plan de calidad?',
-        '¿Qué planilla uso para controlar pérdidas de hormigón?',
-        '¿Qué transacción de SAP para ver flujo de materiales?',
-      ],
-    };
+    console.log('📱 Getting samples for:', currentAgentInfo.title);
     
-    // Match by agent title
+    // Try to match agent code in title (M001, S001, S002, M003)
     const agentKey = Object.keys(AGENT_SAMPLE_QUESTIONS).find(key => 
-      agentInfo.title.includes(key)
+      currentAgentInfo.title.toUpperCase().includes(key)
     );
     
-    return agentKey ? AGENT_SAMPLE_QUESTIONS[agentKey] : [];
+    console.log('📱 Matched agent key:', agentKey);
+    
+    const questions = agentKey ? AGENT_SAMPLE_QUESTIONS[agentKey] : [];
+    console.log('📱 Sample questions:', questions.length);
+    
+    return questions;
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -307,28 +320,26 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
     }
   };
 
-  // Current agent info
-  const currentAgentInfo = agents.find(a => a.id === currentAgent);
-
-  // Group conversations by type (same as desktop)
-  // ✅ CRITICAL: Filter out archived conversations
+  // ✅ CRITICAL: Separate AGENTS from CONVERSATIONS (chats)
+  // Agents = Base templates (M001, S001, S002, M003)
+  // Conversations = Chats created from agents (have agentId field)
+  
+  const baseAgents = agents.filter(conv => 
+    conv.status !== 'archived' && 
+    conv.isAgent === true  // Only actual agents, not chats
+  );
+  
+  const userConversations = agents.filter(conv => 
+    conv.status !== 'archived' && 
+    conv.agentId !== undefined  // Has parent agent = is a conversation/chat
+  );
+  
   const conversationGroups = {
-    agents: agents.filter(conv => 
-      conv.status !== 'archived' && (
-        conv.conversationType === 'agent' || 
-        conv.isAgent === true ||
-        (!conv.conversationType && !conv.isProject)
-      )
-    ),
+    agents: baseAgents,
+    conversations: userConversations,
     projects: agents.filter(conv => 
-      conv.status !== 'archived' && (
-        conv.conversationType === 'project' || 
-        conv.isProject === true
-      )
-    ),
-    chats: agents.filter(conv => 
       conv.status !== 'archived' && 
-      conv.conversationType === 'chat'
+      conv.isProject === true
     ),
   };
 
@@ -452,7 +463,7 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
             )}
           </div>
 
-          {/* ✅ Conversaciones Section - All active conversations */}
+          {/* ✅ Conversaciones Section - Chats created from agents */}
           <div>
             <button
               onClick={() => setShowConversationsSection(!showConversationsSection)}
@@ -462,7 +473,7 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
                 <MessageSquare className="w-4 h-4" />
                 <span>Conversaciones</span>
                 <span className="text-xs text-slate-500">
-                  ({agents.filter(c => c.status !== 'archived').length})
+                  ({conversationGroups.conversations.length})
                 </span>
               </div>
               <ChevronRight
@@ -474,12 +485,12 @@ export default function MobileChatInterface({ userId, userEmail, userName, userR
             
             {showConversationsSection && (
               <div className="mt-2 space-y-2">
-                {agents.filter(c => c.status !== 'archived').length === 0 ? (
+                {conversationGroups.conversations.length === 0 ? (
                   <div className="text-xs text-slate-500 text-center py-4">
-                    No hay conversaciones
+                    No hay conversaciones activas
                   </div>
                 ) : (
-                  agents.filter(c => c.status !== 'archived').map(conv => (
+                  conversationGroups.conversations.map(conv => (
                     <button
                       key={conv.id}
                       onClick={() => selectAgent(conv.id)}

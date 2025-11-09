@@ -407,7 +407,15 @@ export async function getConversations(
     return allConversations;
   }
   
-  return allConversations.filter(conv => conv.status !== 'archived');
+  // Filter: Keep only if status is NOT 'archived' (undefined = active)
+  const filtered = allConversations.filter(conv => {
+    const isArchived = conv.status === 'archived';
+    return !isArchived;
+  });
+  
+  console.log(`📊 [getConversations] Total: ${allConversations.length}, Active: ${filtered.length}, Archived: ${allConversations.length - filtered.length}`);
+  
+  return filtered;
 }
 
 export async function getConversation(conversationId: string): Promise<Conversation | null> {
