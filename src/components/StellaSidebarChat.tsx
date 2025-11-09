@@ -438,7 +438,11 @@ export default function StellaSidebarChat({
                 
                 {/* Allow changing category */}
                 <button
-                  onClick={() => setShowCategorySelector(true)}
+                  onClick={() => {
+                    setShowCategorySelector(true);
+                    setCurrentSessionId(null);
+                    setSelectedCategory(null);
+                  }}
                   className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline"
                 >
                   Cambiar
@@ -466,7 +470,11 @@ export default function StellaSidebarChat({
             
             {/* New Feedback Button */}
             <button
-              onClick={() => setShowCategorySelector(true)}
+              onClick={() => {
+                setShowCategorySelector(true);
+                setCurrentSessionId(null);
+                setSelectedCategory(null);
+              }}
               className="w-full px-3 py-1.5 text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/30 rounded-lg transition-colors flex items-center justify-center gap-2 font-semibold"
             >
               <Plus className="w-3.5 h-3.5" />
