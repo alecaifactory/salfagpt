@@ -38,6 +38,10 @@ import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW:
 import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
 import FeedbackNotificationBell from './FeedbackNotificationBell'; // ✅ NEW: Feedback notifications
 import StellaConfigurationPanel from './StellaConfigurationPanel'; // ✅ NEW: Stella SuperAdmin config
+import SupervisorExpertPanel from './expert-review/SupervisorExpertPanel'; // ✅ NEW: Expert Review System
+import SpecialistExpertPanel from './expert-review/SpecialistExpertPanel'; // ✅ NEW: Expert Review System
+import DomainQualityDashboard from './expert-review/DomainQualityDashboard'; // ✅ NEW: Expert Review System
+import AdminApprovalPanel from './expert-review/AdminApprovalPanel'; // ✅ NEW: Expert Review System
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -331,6 +335,12 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [showAgentContextModal, setShowAgentContextModal] = useState(false);
+  
+  // ✨ NEW: Expert Review System States
+  const [showSupervisorPanel, setShowSupervisorPanel] = useState(false);
+  const [showSpecialistPanel, setShowSpecialistPanel] = useState(false);
+  const [showAdminApproval, setShowAdminApproval] = useState(false);
+  const [showQualityDashboard, setShowQualityDashboard] = useState(false);
   const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null); // ✅ Kept as string for backward compat
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
   
@@ -4518,8 +4528,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🎯 Opening Supervisor Expert Panel...');
-                            // TODO: setShowSupervisorPanel(true); (Step 6)
-                            alert('Panel Experto Supervisor - Disponible en Step 6');
+                            setShowSupervisorPanel(true);
                             setShowUserMenu(false);
                           }}
                         >
@@ -4534,8 +4543,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🎯 Opening Specialist Panel...');
-                            // TODO: setShowSpecialistPanel(true); (Step 7)
-                            alert('Panel Especialista - Disponible en Step 7');
+                            setShowSpecialistPanel(true);
                             setShowUserMenu(false);
                           }}
                         >
@@ -4550,8 +4558,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                           className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🔐 Opening Admin Approval Panel...');
-                            // TODO: setShowAdminApproval(true); (Step 8)
-                            alert('Panel de Aprobación Admin - Disponible en Step 8');
+                            setShowAdminApproval(true);
                             setShowUserMenu(false);
                           }}
                         >
@@ -4581,8 +4588,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                         className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           console.log('📊 Opening Quality Dashboard...');
-                          // TODO: setShowQualityDashboard(true); (Step 10)
-                          alert('Dashboard de Calidad (DQS) - Disponible en Step 10');
+                          setShowQualityDashboard(true);
                           setShowUserMenu(false);
                         }}
                       >
