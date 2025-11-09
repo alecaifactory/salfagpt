@@ -320,9 +320,21 @@ export default function StellaSidebarChat({
     }
   }
   
+  // Don't render at all if never opened (optimization)
+  const [hasBeenOpened, setHasBeenOpened] = useState(false);
+  
+  useEffect(() => {
+    if (isOpen && !hasBeenOpened) {
+      setHasBeenOpened(true);
+    }
+  }, [isOpen, hasBeenOpened]);
+  
+  // Don't render until first open (saves initial render cost)
+  if (!hasBeenOpened) return null;
+  
   return (
     <div 
-      className={`fixed right-0 top-0 bottom-0 w-96 bg-gradient-to-b from-violet-50 to-white dark:from-slate-800 dark:to-slate-900 border-l border-violet-200 dark:border-violet-900 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${
+      className={`fixed right-0 top-0 bottom-0 w-96 bg-gradient-to-b from-violet-50 to-white dark:from-slate-800 dark:to-slate-900 border-l border-violet-200 dark:border-violet-900 shadow-2xl flex flex-col transition-transform duration-200 ease-out ${
         isOpen ? 'translate-x-0 z-[9999]' : 'translate-x-full z-[9999]'
       }`}
     >
