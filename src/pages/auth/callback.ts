@@ -83,10 +83,17 @@ export const GET: APIRoute = async ({ url, cookies, redirect, request }) => {
     }
 
     // Prepare user data for session - INCLUDE ROLE from Firestore
-    // ✅ CRITICAL: Use hash-based ID from Firestore (consistent with all data relationships)
-    // This eliminates ID type mismatches and enables direct comparisons throughout the platform
+    // ✅ CRITICAL FIX: Use Google OAuth ID if it exists in Firestore (backward compatibility)
+    // Old users have data with Google OAuth ID, new users have hash IDs
+    // We need to use whatever ID the user's data is stored with
+    const useUserId = firestoreUser?.id || userInfo.id;
+    
+    // ✅ BACKWARD COMPATIBILITY: If user document ID is numeric (old format),
+    // it means their data is stored with Google OAuth ID - use that
+    const isOldUserFormat = /^\d+$/.test(useUserId);
+    
     const userData = {
-      id: firestoreUser?.id || userInfo.id, // Hash-based ID from Firestore (usr_xxx) - fallback to numeric if Firestore failed
+      id: isOldUserFormat ? useUserId : useUserId, // Use Firestore document ID (handles both formats)
       googleUserId: userInfo.id, // Store Google OAuth numeric ID for reference
       email: userInfo.email,
       name: userInfo.name,
