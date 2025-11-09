@@ -84,7 +84,8 @@ interface StellaSidebarChatProps {
   };
   onRequestScreenshot: () => void; // Request parent to open screenshot tool
   onRequestEditScreenshot: (attachment: StellaAttachment, index: number) => void; // Request edit
-  onAddAttachment?: (attachment: StellaAttachment) => void; // Called when parent completes screenshot
+  pendingAttachmentsFromParent?: StellaAttachment[]; // Attachments managed by parent
+  onAttachmentsChange?: (attachments: StellaAttachment[]) => void; // Notify parent of changes
 }
 
 export default function StellaSidebarChat({
@@ -96,7 +97,8 @@ export default function StellaSidebarChat({
   currentPageContext,
   onRequestScreenshot,
   onRequestEditScreenshot,
-  onAddAttachment
+  pendingAttachmentsFromParent = [],
+  onAttachmentsChange
 }: StellaSidebarChatProps) {
   
   // Session management
@@ -109,8 +111,8 @@ export default function StellaSidebarChat({
   const [inputText, setInputText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Screenshot tools - managed by parent
-  const [pendingAttachments, setPendingAttachments] = useState<StellaAttachment[]>([]);
+  // Screenshot tools - use parent's state
+  const pendingAttachments = pendingAttachmentsFromParent;
   const [viewingAttachment, setViewingAttachment] = useState<StellaAttachment | null>(null);
   
   // Refs
@@ -177,26 +179,23 @@ export default function StellaSidebarChat({
     };
   }
   
-  // Add attachment from parent (after screenshot completion)
-  useEffect(() => {
-    if (onAddAttachment) {
-      // Expose function to parent to add attachments
-      (window as any).stellaAddAttachment = (attachment: StellaAttachment) => {
-        setPendingAttachments(prev => [...prev, attachment]);
-      };
-      
-      (window as any).stellaUpdateAttachment = (attachment: StellaAttachment, index: number) => {
-        setPendingAttachments(prev =>
-          prev.map((att, idx) => (idx === index ? attachment : att))
-        );
-      };
+  // Helper to update attachments
+  function updateAttachments(newAttachments: StellaAttachment[]) {
+    if (onAttachmentsChange) {
+      onAttachmentsChange(newAttachments);
     }
-    
-    return () => {
-      delete (window as any).stellaAddAttachment;
-      delete (window as any).stellaUpdateAttachment;
-    };
-  }, [onAddAttachment]);
+  }
+  
+  // Helper to remove attachment
+  function removeAttachment(attachmentId: string) {
+    const updated = pendingAttachments.filter(a => a.id !== attachmentId);
+    updateAttachments(updated);
+  }
+  
+  // Helper to clear all attachments
+  function clearAllAttachments() {
+    updateAttachments([]);
+  }
   
   // Send message
   async function sendMessage() {
@@ -222,7 +221,7 @@ export default function StellaSidebarChat({
       ));
       
       setInputText('');
-      setPendingAttachments([]);
+      clearAllAttachments();
       
       // Generate AI response
       const aiResponse = await generateStellaResponse(userMessage, currentSession);
@@ -591,7 +590,7 @@ export default function StellaSidebarChat({
                       Adjuntos ({pendingAttachments.length})
                     </p>
                     <button
-                      onClick={() => setPendingAttachments([])}
+                      onClick={clearAllAttachments}
                       className="text-[10px] text-violet-600 dark:text-violet-400 hover:text-red-600 dark:hover:text-red-400 underline"
                     >
                       Limpiar
@@ -632,7 +631,7 @@ export default function StellaSidebarChat({
                             <Paintbrush className="w-2.5 h-2.5" />
                           </button>
                           <button
-                            onClick={() => setPendingAttachments(prev => prev.filter(a => a.id !== att.id))}
+                            onClick={() => removeAttachment(att.id)}
                             className="w-5 h-5 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 shadow-sm"
                             title="Eliminar"
                           >
