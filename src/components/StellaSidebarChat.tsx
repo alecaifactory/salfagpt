@@ -320,17 +320,8 @@ export default function StellaSidebarChat({
     }
   }
   
-  // Don't render at all if never opened (optimization)
-  const [hasBeenOpened, setHasBeenOpened] = useState(false);
-  
-  useEffect(() => {
-    if (isOpen && !hasBeenOpened) {
-      setHasBeenOpened(true);
-    }
-  }, [isOpen, hasBeenOpened]);
-  
-  // Don't render until first open (saves initial render cost)
-  if (!hasBeenOpened) return null;
+  // ✅ Always render (eager) for instant open, but lazy load data
+  // This prevents blank screen on first open
   
   return (
     <div 
@@ -499,16 +490,21 @@ export default function StellaSidebarChat({
           
           {/* Screenshot Tool */}
           <div className="p-3 border-b border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-slate-800/50">
-              <button
+            <button
               onClick={onRequestScreenshot}
               className="w-full px-3 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-lg transition-all flex items-center justify-center gap-2 font-semibold shadow-sm"
             >
               <Camera className="w-4 h-4" />
               Capturar Pantalla
-              </button>
+            </button>
+            
+            {/* Tooltip */}
+            <p className="mt-2 text-[10px] text-violet-600 dark:text-violet-400 text-center">
+              💡 Puedes hacer scroll antes de capturar para posicionar la sección deseada
+            </p>
             
             {pendingAttachments.length > 0 && (
-              <div className="mt-2 text-xs text-violet-700 dark:text-violet-300 flex items-center gap-1">
+              <div className="mt-2 text-xs text-violet-700 dark:text-violet-300 flex items-center gap-1 justify-center">
                 <ImageIcon className="w-3 h-3" />
                 {pendingAttachments.length} captura{pendingAttachments.length !== 1 ? 's' : ''} adjunta{pendingAttachments.length !== 1 ? 's' : ''}
               </div>
