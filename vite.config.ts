@@ -19,18 +19,18 @@ export default defineConfig({
       'tr46',
       'webidl-conversions',
     ],
-    esbuildOptions: {
-      // Explicitly exclude whatwg-url from client bundle
-      external: ['whatwg-url', 'node-fetch'],
-    },
   },
   resolve: {
     dedupe: ['react', 'react-dom'],
   },
-  build: {
-    rollupOptions: {
-      external: ['whatwg-url', 'node-fetch'],
-    },
+  ssr: {
+    // Don't try to bundle these server-side packages
+    external: [
+      'node-fetch',
+      'whatwg-url',
+      'tr46', 
+      'webidl-conversions',
+    ],
   },
   server: {
     fs: {
