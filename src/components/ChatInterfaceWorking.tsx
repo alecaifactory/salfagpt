@@ -4342,7 +4342,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-4 gap-1.5 p-1.5">
+                <div className="grid grid-cols-5 gap-1.5 p-1.5">
                   
                   {/* COLUMN 1: Gestión de Dominios */}
                   {userEmail === 'alec@getaifactory.com' && (
@@ -4503,7 +4503,96 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                     </div>
                   )}
                   
-                  {/* COLUMN 4: Producto */}
+                  {/* COLUMN 4: Evaluaciones */}
+                  {(['admin', 'expert', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
+                    <div className="space-y-1.5">
+                      <div className="px-2 py-1 bg-amber-50 dark:bg-amber-900/30 rounded">
+                        <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                          Evaluaciones
+                        </p>
+                      </div>
+                      
+                      {/* Panel Experto Supervisor - For Experts and Admins */}
+                      {(['expert', 'admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
+                        <button
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          onClick={() => {
+                            console.log('🎯 Opening Supervisor Expert Panel...');
+                            // TODO: setShowSupervisorPanel(true); (Step 6)
+                            alert('Panel Experto Supervisor - Disponible en Step 6');
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <Award className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <span className="font-medium whitespace-nowrap">Panel Supervisor</span>
+                        </button>
+                      )}
+                      
+                      {/* Panel Especialista - For Specialists */}
+                      {(userRole === 'specialist' || userEmail.includes('specialist') || userEmail === 'alec@getaifactory.com') && (
+                        <button
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          onClick={() => {
+                            console.log('🎯 Opening Specialist Panel...');
+                            // TODO: setShowSpecialistPanel(true); (Step 7)
+                            alert('Panel Especialista - Disponible en Step 7');
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <Target className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <span className="font-medium whitespace-nowrap">Mis Asignaciones</span>
+                        </button>
+                      )}
+                      
+                      {/* Aprobación de Correcciones - For Admins */}
+                      {(['admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
+                        <button
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          onClick={() => {
+                            console.log('🔐 Opening Admin Approval Panel...');
+                            // TODO: setShowAdminApproval(true); (Step 8)
+                            alert('Panel de Aprobación Admin - Disponible en Step 8');
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <CheckCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <span className="font-medium whitespace-nowrap">Aprobar Correcciones</span>
+                        </button>
+                      )}
+                      
+                      {/* Configuración de Dominio - For Admins */}
+                      {(['admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
+                        <button
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          onClick={() => {
+                            console.log('⚙️ Opening Domain Review Config...');
+                            // TODO: setShowDomainReviewConfig(true); (Step 4)
+                            alert('Configuración de Evaluación - Disponible en Step 4');
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <Settings className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                          <span className="font-medium whitespace-nowrap">Config. Evaluación</span>
+                        </button>
+                      )}
+                      
+                      {/* Dashboard de Calidad - For All with access */}
+                      <button
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          console.log('📊 Opening Quality Dashboard...');
+                          // TODO: setShowQualityDashboard(true); (Step 10)
+                          alert('Dashboard de Calidad (DQS) - Disponible en Step 10');
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Star className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Dashboard Calidad</span>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* COLUMN 5: Producto */}
                   <div className="space-y-1.5">
                     <div className="px-2 py-1 bg-purple-50 dark:bg-purple-900/30 rounded">
                       <p className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">

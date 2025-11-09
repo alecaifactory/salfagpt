@@ -145,6 +145,53 @@ export interface FeedbackTicket {
   sprintAssigned?: string; // Sprint ID
   roadmapQuarter?: string; // Q1 2025, Q2 2025, etc.
   releaseVersion?: string; // v1.2.0, etc.
+  
+  // ✨ NEW: Expert Review System (2025-11-09)
+  // All fields optional for backward compatibility
+  
+  // Domain context
+  domain?: string;                  // User's domain (e.g., 'maqsa.cl')
+  domainName?: string;              // Display name
+  
+  // Review workflow
+  reviewStatus?: import('./expert-review').ReviewStatus;
+  reviewHistory?: import('./expert-review').ReviewHistoryEntry[];
+  
+  // Correction proposal
+  correctionProposal?: import('./expert-review').CorrectionProposal;
+  
+  // Impact analysis
+  impactAnalysis?: import('./expert-review').ImpactAnalysis;
+  
+  // Impact scope
+  impactScope?: {
+    affectsAgents: string[];
+    affectsEntireDomain: boolean;
+    affectsDomainPrompt: boolean;
+    affectsSharedKnowledge: boolean;
+  };
+  
+  // Assignment tracking
+  expertAssignment?: import('./expert-review').ExpertAssignment;
+  
+  // Approval workflow
+  approvalWorkflow?: import('./expert-review').ApprovalWorkflow;
+  
+  // Implementation tracking
+  implementation?: import('./expert-review').ImplementationTracking;
+  
+  // Systemic issue
+  systemicIssue?: {
+    detectedBy: string;
+    detectedByEmail: string;
+    detectedAt: Date;
+    pattern: string;
+    occurrenceCount: number;
+    cannotFixBecause: string;
+    suggestedFeature: string;
+    expertRecommendation: string;
+    prioritizationRequestId?: string;
+  };
 }
 
 export type TicketCategory = 
