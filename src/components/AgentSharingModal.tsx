@@ -57,6 +57,7 @@ export function AgentSharingModal({
 
   // Handle sharing options
   const proceedWithoutApproval = async () => {
+    console.log('🛡️ SuperAdmin force share - bypassing evaluation check');
     setShowApprovalOptions(false);
     // Continue with sharing (SuperAdmin bypass)
     await executeShare();
