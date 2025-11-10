@@ -41,7 +41,10 @@
     "seed:changelog": "tsx scripts/seed-changelog.ts",
     "seed:changelog:enhanced": "tsx scripts/seed-changelog-enhanced.ts",
     "roadmap:add-changelog": "tsx scripts/add-changelog-to-roadmap.ts",
-    "init:onboarding": "tsx scripts/init-feature-onboarding.ts"
+    "init:onboarding": "tsx scripts/init-feature-onboarding.ts",
+    "migrate:multi-org": "tsx scripts/migrate-to-multi-org.ts",
+    "migrate:multi-org:dry-run": "tsx scripts/migrate-to-multi-org.ts --dry-run",
+    "staging:setup": "bash scripts/create-staging-mirror.sh"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
