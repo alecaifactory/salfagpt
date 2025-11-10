@@ -139,6 +139,8 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
 
   const allRoles: UserRole[] = [
     'admin',
+    'supervisor',
+    'especialista',
     'expert',
     'user',
     'context_signoff',
@@ -929,6 +931,8 @@ function CreateUserModal({
 
   const allRoles: UserRole[] = [
     'admin',
+    'supervisor',
+    'especialista',
     'expert',
     'user',
     'context_signoff',

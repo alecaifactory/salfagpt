@@ -3,6 +3,8 @@
 export type UserRole = 
   | 'admin'
   | 'expert'
+  | 'supervisor' // NEW: Can oversee expert reviews
+  | 'especialista' // NEW: Specialist expert (renamed from expert for clarity)
   | 'user'
   | 'context_signoff'
   | 'agent_signoff'
@@ -100,6 +102,42 @@ export const ROLE_PERMISSIONS: Record<UserRole, Partial<UserPermissions>> = {
     canDeleteAgent: false,
     canReviewAgent: true,
     canSignOffAgent: true,
+    canShareAgent: true,
+    canCollaborate: true,
+    canViewAnalytics: true,
+  },
+  supervisor: {
+    canManageUsers: false,
+    canManageSystem: false,
+    canCreateContext: true,
+    canEditContext: true,
+    canDeleteContext: false,
+    canReviewContext: true,
+    canSignOffContext: true,
+    canShareContext: true,
+    canCreateAgent: true,
+    canEditAgent: true,
+    canDeleteAgent: false,
+    canReviewAgent: true,
+    canSignOffAgent: true,
+    canShareAgent: true,
+    canCollaborate: true,
+    canViewAnalytics: true,
+  },
+  especialista: {
+    canManageUsers: false,
+    canManageSystem: false,
+    canCreateContext: true,
+    canEditContext: true,
+    canDeleteContext: false,
+    canReviewContext: true,
+    canSignOffContext: false,
+    canShareContext: true,
+    canCreateAgent: true,
+    canEditAgent: true,
+    canDeleteAgent: false,
+    canReviewAgent: true,
+    canSignOffAgent: false,
     canShareAgent: true,
     canCollaborate: true,
     canViewAnalytics: true,
@@ -366,6 +404,8 @@ export const getMergedPermissions = (roles: UserRole[]): UserPermissions => {
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   expert: 'Experto',
+  supervisor: 'Supervisor',
+  especialista: 'Especialista',
   user: 'Usuario',
   context_signoff: 'Aprobador de Contexto',
   agent_signoff: 'Aprobador de Agente',

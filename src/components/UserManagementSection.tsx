@@ -206,7 +206,9 @@ export default function UserManagementSection({
                             title={roleInfo.description}
                           >
                             <option value="admin">👑 Admin</option>
-                            <option value="expert">🎓 Expert</option>
+                            <option value="supervisor">👨‍💼 Supervisor</option>
+                            <option value="especialista">🎓 Especialista</option>
+                            <option value="expert">🎓 Experto (Legacy)</option>
                             <option value="user">👤 User</option>
                             <option value="context_signoff">✅ Context Signoff</option>
                             <option value="context_reviewer">👁️ Context Reviewer</option>
