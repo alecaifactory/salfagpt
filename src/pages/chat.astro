@@ -36,18 +36,17 @@ try {
     return Astro.redirect('/auth/login?error=session_expired&redirect=/chat');
   }
   
-  // ✅ CRITICAL FIX: For backward compatibility, use Google OAuth ID if available
-  // Old JWT has: decoded.googleUserId (numeric Google ID)
-  // New JWT has: decoded.id (hash ID)
-  // Data is stored with Google OAuth ID, so use that preferentially
-  userId = decoded.googleUserId || decoded.id || decoded.sub; // Prefer Google OAuth ID
+  // ✅ CRITICAL FIX: ALWAYS use hashed ID (decoded.id) for consistency
+  // Data in Firestore is stored with hashed IDs (usr_xxx format)
+  // Keep googleUserId in JWT for reference but use hashed ID for all queries
+  userId = decoded.id; // ALWAYS use hashed ID
   userEmail = decoded.email || 'usuario@flow.ai';
   userName = decoded.name || decoded.email?.split('@')[0] || 'Usuario';
   userRole = decoded.role || 'user'; // ✅ Extract role from JWT
   
   console.log('🔍 DEBUG userId selection:', {
+    hashedId: decoded.id,
     googleUserId: decoded.googleUserId,
-    decodedId: decoded.id,
     selected: userId,
     email: userEmail
   });
