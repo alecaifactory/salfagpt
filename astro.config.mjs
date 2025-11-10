@@ -48,6 +48,17 @@ export default defineConfig({
       'process.env.JWT_SECRET': JSON.stringify(process.env.JWT_SECRET),
       'process.env.GOOGLE_AI_API_KEY': JSON.stringify(process.env.GOOGLE_AI_API_KEY),
     },
+    // Cache busting for development
+    build: {
+      rollupOptions: {
+        output: {
+          // Add version hash to filenames to bust browser cache
+          entryFileNames: '[name].[hash].js',
+          chunkFileNames: '[name].[hash].js',
+          assetFileNames: '[name].[hash].[ext]'
+        }
+      }
+    },
     ssr: {
       // Don't bundle Google Cloud packages - they should be external
       external: [
