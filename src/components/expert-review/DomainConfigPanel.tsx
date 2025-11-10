@@ -115,37 +115,92 @@ export default function DomainConfigPanel({
   const [activeTab, setActiveTab] = useState<'experts' | 'thresholds' | 'automation' | 'goals'>('experts');
   const [showAddSupervisor, setShowAddSupervisor] = useState(false);
   const [showAddSpecialist, setShowAddSpecialist] = useState(false);
+  
+  // Domain selection (SuperAdmin can select, Admin uses their domain)
+  const [availableDomains, setAvailableDomains] = useState<string[]>([]);
+  const [selectedDomain, setSelectedDomain] = useState<string>('');
+  
+  // Users with access to agents in selected domain
   const [availableUsers, setAvailableUsers] = useState<Array<{
     id: string;
     email: string;
     name: string;
     role: string;
+    sharedAgentCount: number;
   }>>([]);
+  
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [specialistSpecialty, setSpecialistSpecialty] = useState<string>('');
   const [specialistDomains, setSpecialistDomains] = useState<string[]>([]);
   
-  // Derive domain from email
+  // Derive user's domain from email
   const userDomain = userEmail.split('@')[1];
   const isSuperAdmin = userRole === 'superadmin';
   
-  // Load config and users on mount
+  // Effective domain = selected (SuperAdmin) or user's domain (Admin)
+  const effectiveDomain = isSuperAdmin ? selectedDomain : userDomain;
+  
+  // Load available domains on mount (SuperAdmin only)
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && isSuperAdmin) {
+      loadAvailableDomains();
+    } else if (isOpen && !isSuperAdmin) {
+      // Admin: use their domain automatically
+      setSelectedDomain(userDomain);
+    }
+  }, [isOpen, isSuperAdmin, userDomain]);
+  
+  // Load config when domain is selected
+  useEffect(() => {
+    if (isOpen && effectiveDomain) {
       loadConfig();
       loadDomainUsers();
     }
-  }, [isOpen, userDomain]);
+  }, [isOpen, effectiveDomain]);
+  
+  const loadAvailableDomains = async () => {
+    try {
+      // Get all active domains from agents
+      const response = await fetch('/api/domains?activeOnly=true');
+      
+      if (response.ok) {
+        const data = await response.json();
+        const domains = data.domains || [];
+        setAvailableDomains(domains.map((d: any) => d.id || d.name));
+        console.log('✅ Loaded domains:', domains.length);
+        
+        // Auto-select first domain if available
+        if (domains.length > 0 && !selectedDomain) {
+          setSelectedDomain(domains[0].id || domains[0].name);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading domains:', error);
+    }
+  };
   
   const loadDomainUsers = async () => {
+    if (!effectiveDomain) return;
+    
     try {
-      // Get all users in the domain
-      const response = await fetch(`/api/users/domain?domain=${userDomain}`);
+      // Get users who have access to agents shared by this domain
+      const response = await fetch(`/api/users/with-domain-access?domain=${effectiveDomain}`);
       
       if (response.ok) {
         const users = await response.json();
         setAvailableUsers(users);
-        console.log('✅ Loaded domain users:', users.length);
+        console.log('✅ Loaded users with domain access:', users.length);
+      } else {
+        // Fallback: get all users in domain by email
+        const fallbackResponse = await fetch(`/api/users/domain?domain=${effectiveDomain}`);
+        if (fallbackResponse.ok) {
+          const users = await fallbackResponse.json();
+          setAvailableUsers(users.map((u: any) => ({
+            ...u,
+            sharedAgentCount: 0
+          })));
+          console.log('✅ Loaded domain users (fallback):', users.length);
+        }
       }
     } catch (error) {
       console.error('❌ Error loading domain users:', error);
@@ -153,10 +208,16 @@ export default function DomainConfigPanel({
   };
   
   const loadConfig = async () => {
+    if (!effectiveDomain) {
+      console.warn('⚠️ No effective domain, cannot load config');
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
       
-      const response = await fetch(`/api/expert-review/domain-config?domainId=${userDomain}`);
+      const response = await fetch(`/api/expert-review/domain-config?domainId=${effectiveDomain}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -178,13 +239,15 @@ export default function DomainConfigPanel({
   };
   
   const createDefaultConfig = async () => {
+    if (!effectiveDomain) return;
+    
     try {
       const response = await fetch('/api/expert-review/domain-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          domainId: userDomain,
-          domainName: userDomain,
+          domainId: effectiveDomain,
+          domainName: effectiveDomain,
           createdBy: userId
         })
       });
@@ -209,7 +272,7 @@ export default function DomainConfigPanel({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          domainId: userDomain,
+          domainId: effectiveDomain,
           config
         })
       });
@@ -230,7 +293,7 @@ export default function DomainConfigPanel({
   };
   
   const addSupervisor = async () => {
-    if (!config || !selectedUserId) return;
+    if (!config || !selectedUserId || !effectiveDomain) return;
     
     const selectedUser = availableUsers.find(u => u.id === selectedUserId);
     if (!selectedUser) return;
@@ -240,7 +303,7 @@ export default function DomainConfigPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          domainId: userDomain,
+          domainId: effectiveDomain,
           userId: selectedUser.id,
           userEmail: selectedUser.email,
           userName: selectedUser.name
@@ -260,7 +323,7 @@ export default function DomainConfigPanel({
   };
   
   const addSpecialist = async () => {
-    if (!config || !selectedUserId || !specialistSpecialty) return;
+    if (!config || !selectedUserId || !specialistSpecialty || !effectiveDomain) return;
     
     const selectedUser = availableUsers.find(u => u.id === selectedUserId);
     if (!selectedUser) return;
@@ -270,12 +333,12 @@ export default function DomainConfigPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          domainId: userDomain,
+          domainId: effectiveDomain,
           userId: selectedUser.id,
           userEmail: selectedUser.email,
           userName: selectedUser.name,
           specialty: specialistSpecialty,
-          domains: specialistDomains.length > 0 ? specialistDomains : [userDomain],
+          domains: specialistDomains.length > 0 ? specialistDomains : [effectiveDomain],
           maxConcurrentAssignments: 10
         })
       });
@@ -301,34 +364,73 @@ export default function DomainConfigPanel({
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-              <Settings className="w-6 h-6 text-white" />
+        <div className="p-6 border-b border-slate-200 dark:border-slate-700 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                <Settings className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                  Configuración de Evaluación
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {isSuperAdmin ? 'Configuración Global - Multi-Dominio' : `Dominio: ${userDomain}`}
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
-                Configuración de Evaluación
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                {isSuperAdmin ? 'Configuración Global' : `Dominio: ${userDomain}`}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6 text-slate-500" />
+            </button>
+          </div>
+          
+          {/* Domain Selector (SuperAdmin only) */}
+          {isSuperAdmin && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                1️⃣ Seleccionar Dominio
+              </label>
+              <select
+                value={selectedDomain}
+                onChange={(e) => setSelectedDomain(e.target.value)}
+                className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white font-medium"
+              >
+                <option value="">Selecciona un dominio...</option>
+                {availableDomains.map(domain => (
+                  <option key={domain} value={domain}>
+                    {domain}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-blue-900 dark:text-blue-300">
+                Los usuarios y configuración se cargarán para el dominio seleccionado
+              </p>
+            </div>
+          )}
+        </div>
+        
+        {/* No Domain Selected (SuperAdmin) */}
+        {isSuperAdmin && !selectedDomain ? (
+          <div className="flex-1 flex items-center justify-center p-12">
+            <div className="text-center">
+              <Target className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                Selecciona un Dominio
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 max-w-md">
+                Para configurar supervisores y especialistas, primero selecciona el dominio arriba.
+                Solo se mostrarán usuarios con acceso a agentes de ese dominio.
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            <X className="w-6 h-6 text-slate-500" />
-          </button>
-        </div>
-        
-        {/* Loading State */}
-        {loading ? (
+        ) : loading ? (
           <div className="flex-1 flex items-center justify-center p-12">
             <div className="text-center">
               <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-              <p className="text-slate-600 dark:text-slate-400">Cargando configuración...</p>
+              <p className="text-slate-600 dark:text-slate-400">Cargando configuración para {effectiveDomain}...</p>
             </div>
           </div>
         ) : !config ? (
@@ -448,13 +550,19 @@ export default function DomainConfigPanel({
                                 .filter(u => !config.supervisors.some(s => s.userId === u.id))
                                 .map(user => (
                                   <option key={user.id} value={user.id}>
-                                    {user.name} ({user.email}) - {user.role}
+                                    {user.name} ({user.email}) - {user.role} - {user.sharedAgentCount} agentes compartidos
                                   </option>
                                 ))}
                             </select>
                             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                              Solo usuarios con rol Admin o Supervisor
+                              Usuarios con acceso a agentes del dominio {effectiveDomain}
                             </p>
+                            {availableUsers.filter(u => ['admin', 'supervisor'].includes(u.role)).length === 0 && (
+                              <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-900 dark:text-amber-300">
+                                ⚠️ No hay usuarios con rol Admin/Supervisor que tengan acceso a agentes de {effectiveDomain}.
+                                Primero comparte agentes con usuarios de otros dominios en la sección de compartir agentes.
+                              </div>
+                            )}
                           </div>
                           
                           <div className="flex gap-2">
@@ -571,17 +679,23 @@ export default function DomainConfigPanel({
                             >
                               <option value="">Selecciona un experto...</option>
                               {availableUsers
-                                .filter(u => u.role === 'especialista')
+                                .filter(u => u.role === 'especialista' || u.role === 'expert')
                                 .filter(u => !config.specialists.some(s => s.userId === u.id))
                                 .map(user => (
                                   <option key={user.id} value={user.id}>
-                                    {user.name} ({user.email})
+                                    {user.name} ({user.email}) - {user.sharedAgentCount} agentes compartidos
                                   </option>
                                 ))}
                             </select>
                             <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-                              Solo usuarios con rol Especialista
+                              Usuarios con acceso a agentes del dominio {effectiveDomain}
                             </p>
+                            {availableUsers.filter(u => u.role === 'especialista' || u.role === 'expert').length === 0 && (
+                              <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded text-xs text-amber-900 dark:text-amber-300">
+                                ⚠️ No hay especialistas con acceso a agentes de {effectiveDomain}.
+                                Primero comparte agentes del dominio con usuarios especialistas.
+                              </div>
+                            )}
                           </div>
                           
                           <div>
