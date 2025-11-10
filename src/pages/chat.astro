@@ -162,6 +162,26 @@ try {
     </script>
   </head>
   <body class="h-full m-0 p-0">
+    <!-- 🚀 FORCE CACHE RELOAD: Add version timestamp to force fresh JavaScript -->
+    <script is:inline>
+      // Force reload if cached version detected
+      const CURRENT_VERSION = '2025-11-10-15-15';
+      const cachedVersion = localStorage.getItem('app_version');
+      
+      if (cachedVersion !== CURRENT_VERSION) {
+        console.log('🔄 New version detected, clearing cache...');
+        localStorage.setItem('app_version', CURRENT_VERSION);
+        
+        // Force hard reload to get fresh JavaScript
+        if (cachedVersion) {
+          console.log('   Old version:', cachedVersion);
+          console.log('   New version:', CURRENT_VERSION);
+          console.log('   🚀 Forcing hard reload...');
+          location.reload(true);
+        }
+      }
+    </script>
+    
     <!-- ULTRA SIMPLE: client:only for zero SSR -->
     <ChatInterfaceWorking 
       client:only="react"
