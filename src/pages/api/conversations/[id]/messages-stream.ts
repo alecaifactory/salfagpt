@@ -629,7 +629,16 @@ export const POST: APIRoute = async ({ params, request }) => {
               const effectiveOwnerUserId = await getEffectiveOwnerForContext(agentId, userId);
               const wasSharedAccess = effectiveOwnerUserId !== userId;
               
-              // Save message with references, responseTime, and traceability metadata
+              // ✅ CRITICAL FIX: Truncate fullText in references to avoid exceeding Firestore 1MB limit
+              // References with full document text can easily exceed 1MB
+              const truncatedReferences = references.map(ref => ({
+                ...ref,
+                fullText: ref.fullText 
+                  ? ref.fullText.substring(0, 5000) + (ref.fullText.length > 5000 ? '...[truncated]' : '')
+                  : undefined
+              }));
+              
+              // Save message with truncated references, responseTime, and traceability metadata
               const aiMsg = await addMessage(
                 conversationId,
                 userId, // ✅ Current user who made the request
@@ -637,7 +646,7 @@ export const POST: APIRoute = async ({ params, request }) => {
                 { type: 'text', text: fullResponse },
                 Math.ceil(fullResponse.length / 4),
                 undefined, // contextSections (not used here)
-                references.length > 0 ? references : undefined, // Save references!
+                truncatedReferences.length > 0 ? truncatedReferences : undefined, // Save truncated references!
                 totalResponseTime, // ✅ Response time in milliseconds
                 // ✅ NEW: Traceability metadata
                 wasSharedAccess ? {
