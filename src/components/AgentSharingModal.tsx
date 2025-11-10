@@ -61,12 +61,18 @@ export function AgentSharingModal({
     console.log('   Selected targets:', selectedTargets);
     console.log('   Access level:', accessLevel);
     
-    setShowApprovalOptions(false);
+    // ✅ DON'T close the modal immediately - keep it open to show success/error
+    // We'll close it after showing the success message
     
     if (selectedTargets.length === 0) {
       setError('Selecciona al menos un usuario o grupo primero');
       return;
     }
+    
+    // Clear previous states and show loading
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
     
     try {
       console.log('🚀 Executing force share NOW...');
@@ -83,6 +89,8 @@ export function AgentSharingModal({
           forcedByAdmin: true, // Flag para indicar bypass
         }),
       });
+      
+      setLoading(false);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -112,6 +120,7 @@ export function AgentSharingModal({
             .map((t: any) => t.email || t.id)
             .filter(Boolean);
           
+          // ✅ Show success in the approval modal
           setSuccess(
             `✅ Agente compartido exitosamente (forzado por SuperAdmin)!\n\n` +
             `Usuarios con acceso (${latestShare.sharedWith.length} total):\n` +
@@ -119,24 +128,37 @@ export function AgentSharingModal({
             `Los usuarios deben refrescar (Cmd+R) para ver el agente.`
           );
           
+          // ✅ Update existing shares list so user sees the change
           setExistingShares(shares);
           setSelectedTargets([]);
+          
+          // ✅ Close approval modal after 3 seconds to let user read success
+          setTimeout(() => {
+            setShowApprovalOptions(false);
+            // Success message stays in main modal for 10 more seconds
+          }, 3000);
           
           if (onShareUpdated) {
             onShareUpdated();
           }
           
-          setTimeout(() => setSuccess(null), 10000); // 10 seconds
+          // Clear success message after 13 seconds total (3 + 10)
+          setTimeout(() => setSuccess(null), 13000);
           
         } else {
           console.warn('⚠️ Share returned but not found in verification');
           setSuccess('Agente compartido, pero verificación pendiente. Recarga la página.');
+          setTimeout(() => setShowApprovalOptions(false), 3000);
         }
+      } else {
+        setLoading(false);
+        setError('Error al verificar que el agente fue compartido');
       }
       
     } catch (err) {
       console.error('❌ Force share error:', err);
       setError(err instanceof Error ? err.message : 'Error al forzar compartir');
+      setLoading(false);
     }
   };
   
@@ -739,13 +761,59 @@ export function AgentSharingModal({
             
             {/* Content */}
             <div className="p-6 space-y-6">
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-                <p className="text-sm text-amber-900 dark:text-amber-300">
-                  <strong>⚠️ Importante:</strong> Este agente no ha completado el proceso de evaluación y aprobación.
-                  Para compartirlo con usuarios de forma segura, elige una de las siguientes opciones:
-                </p>
-              </div>
+              {/* Loading State */}
+              {loading && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <p className="text-sm text-blue-900 dark:text-blue-300 font-medium">
+                      Compartiendo agente...
+                    </p>
+                  </div>
+                </div>
+              )}
               
+              {/* Success State */}
+              {success && !loading && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-green-900 dark:text-green-300 whitespace-pre-line">
+                        {success}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Error State */}
+              {error && !loading && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-red-900 dark:text-red-300">
+                        {error}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Warning - Only show if not loading and no success/error */}
+              {!loading && !success && !error && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                  <p className="text-sm text-amber-900 dark:text-amber-300">
+                    <strong>⚠️ Importante:</strong> Este agente no ha completado el proceso de evaluación y aprobación.
+                    Para compartirlo con usuarios de forma segura, elige una de las siguientes opciones:
+                  </p>
+                </div>
+              )}
+              
+              {/* Options - Hide during loading or after success */}
+              {!loading && !success && (
+                <>
               {/* Option 1: Create Full Evaluation */}
               <button
                 onClick={() => {
@@ -827,19 +895,28 @@ export function AgentSharingModal({
                   </div>
                 </button>
               )}
+                </>
+              )}
             </div>
             
             {/* Footer */}
             <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  ¿Qué opción prefieres para compartir este agente?
-                </p>
+                {!success && !loading && (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    ¿Qué opción prefieres para compartir este agente?
+                  </p>
+                )}
+                {success && !loading && (
+                  <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+                    ✅ Este modal se cerrará automáticamente en 3 segundos...
+                  </p>
+                )}
                 <button
                   onClick={cancelShare}
                   className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 >
-                  Cancelar
+                  {success ? 'Cerrar Ahora' : 'Cancelar'}
                 </button>
               </div>
             </div>
