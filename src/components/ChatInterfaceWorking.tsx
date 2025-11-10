@@ -320,6 +320,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [input, setInput] = useState('');
   const [thinkingMessageId, setThinkingMessageId] = useState<string | null>(null);
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false); // ✅ NEW: Prevent sample questions flash
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false); // ✅ NEW: Track conversation creation
+  const isTransitioningRef = useRef(false); // ✅ NEW: Track optimistic→real ID transition without causing re-render
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   
@@ -354,6 +357,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [showQualityDashboard, setShowQualityDashboard] = useState(false);
   const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null); // ✅ Kept as string for backward compat
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
+  
+  // ✅ NEW: Loading states for sidebar counts (smooth UX)
+  const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   
   // Multi-select state for agent context modal
   const [selectedContextIds, setSelectedContextIds] = useState<string[]>([]);
@@ -749,12 +755,17 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       }
     } catch (error) {
       console.error('❌ Error al cargar conversaciones:', error);
+    } finally {
+      // ✅ Clear loading state when all data is loaded
+      setIsLoadingCounts(false);
     }
   };
 
   const loadMessages = async (conversationId: string) => {
     try {
       console.log('📥 [LOAD MESSAGES] Loading messages for conversation:', conversationId);
+      setIsLoadingMessages(true); // ✅ Mark as loading to prevent flash
+      
       const response = await fetch(`/api/conversations/${conversationId}/messages`);
       if (response.ok) {
         const data = await response.json();
@@ -794,6 +805,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     } catch (error) {
       console.error('Error loading messages:', error);
       setMessages([]);
+    } finally {
+      setIsLoadingMessages(false); // ✅ Always clear loading state
     }
   };
 
@@ -1231,6 +1244,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     if (!currentConversation) {
       setMessages([]);
       setContextLogs([]);
+      setIsLoadingMessages(false); // ✅ Clear loading state
       return;
     }
 
@@ -1239,17 +1253,29 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       console.log('⏭️ Conversación temporal - no cargando mensajes de Firestore');
       setMessages([]);
       setContextLogs([]);
+      setIsLoadingMessages(false); // ✅ Clear loading state
+      return;
+    }
+
+    // ✅ FIX: Skip loading if we're in the middle of creating a conversation OR transitioning IDs
+    // This prevents the flash when optimisticId → realId transition happens
+    if (isCreatingConversation || isTransitioningRef.current) {
+      console.log('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes para evitar flash');
       return;
     }
 
     console.log('🔄 Cambiando a conversación:', currentConversation);
+    
+    // ✅ FIX: Set loading state BEFORE clearing messages
+    // This prevents sample questions from flashing during async load
+    setIsLoadingMessages(true);
     
     // Load logs for this specific conversation from Map
     const logsForConversation = conversationLogs.get(currentConversation) || [];
     setContextLogs(logsForConversation);
     console.log(`📊 Cargando ${logsForConversation.length} logs para esta conversación`);
     
-    // Load messages for this conversation
+    // Load messages for this conversation (will clear loading state in finally block)
     loadMessages(currentConversation);
     
     // Load context configuration for this conversation
@@ -1276,7 +1302,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     // Reset input
     setInput('');
     
-  }, [currentConversation, conversations]);
+  }, [currentConversation, conversations]); // Need conversations for currentConv lookup, but isTransitioningRef prevents re-trigger
 
   // Helper: Play notification sound
   const playNotificationSound = () => {
@@ -1560,6 +1586,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
       setConversations(prev => [optimisticChat, ...prev]);
       setCurrentConversation(optimisticId);
       setMessages([]);
+      setIsLoadingMessages(true); // ✅ Mark as loading during creation
+      setIsCreatingConversation(true); // ✅ FIX: Track conversation creation to prevent flash
       
       console.log('⚡ Chat optimista creado para agente:', agentId);
 
@@ -1580,8 +1608,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         
         console.log('✅ Chat creado en Firestore:', newChatId, 'para agente:', agentId);
         
-        // ✅ CRITICAL FIX: Update currentConversation IMMEDIATELY to prevent race condition
-        // This ensures any pending messages use the real ID, not optimistic ID
+        // ✅ FIX: Mark that we're transitioning from optimistic→real ID
+        // This prevents useEffect from reacting to the ID change
+        isTransitioningRef.current = true;
+        
+        // Update currentConversation to real ID
         setCurrentConversation(newChatId);
         
         // ✅ OPTIMIZED INHERITANCE: Just copy activeContextSourceIds from agent to chat
@@ -1689,6 +1720,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         }
         
         console.log('✅ Chat confirmado y actualizado con ID real:', newChatId);
+        
+        // ✅ FIX: Clear transition flag and creation flag
+        isTransitioningRef.current = false;
+        setIsCreatingConversation(false);
       } else {
         // Handle API error response
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -1700,6 +1735,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         
         // Remove optimistic chat since creation failed
         setConversations(prev => prev.filter(conv => conv.id !== optimisticId));
+        setIsCreatingConversation(false); // ✅ Clear creation flag on error
         
         // If authentication error, show user-friendly message
         if (response.status === 401) {
@@ -3587,12 +3623,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </span>
                 <Bot className="w-3.5 h-3.5" />
                 <span>Agentes</span>
-                <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-semibold">
-                  {conversations.filter(c => 
-                    (c.isAgent === true || (c.isAgent === undefined && !c.agentId)) && 
-                    c.status !== 'archived'
-                  ).length}
-                </span>
+                {isLoadingCounts ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
+                ) : (
+                  <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded-full text-xs font-semibold">
+                    {conversations.filter(c => 
+                      (c.isAgent === true || (c.isAgent === undefined && !c.agentId)) && 
+                      c.status !== 'archived'
+                    ).length}
+                  </span>
+                )}
               </div>
             </button>
             
@@ -3773,9 +3813,13 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </span>
                 <FileText className="w-3.5 h-3.5" />
                 <span>Proyectos</span>
-                <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
-                  {folders.length}
-                </span>
+                {isLoadingCounts ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-green-600 dark:text-green-400" />
+                ) : (
+                  <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-semibold">
+                    {folders.length}
+                  </span>
+                )}
               </button>
               <button
                 onClick={(e) => {
@@ -4010,12 +4054,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
                 </span>
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span>Chats</span>
-                <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
-                  {selectedAgent 
-                    ? conversations.filter(c => c.agentId === selectedAgent && c.status !== 'archived').length
-                    : conversations.filter(c => c.status !== 'archived' && c.isAgent === false).length
-                  }
-                </span>
+                {isLoadingCounts ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600 dark:text-purple-400" />
+                ) : (
+                  <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded-full text-xs font-semibold">
+                    {selectedAgent 
+                      ? conversations.filter(c => c.agentId === selectedAgent && c.status !== 'archived').length
+                      : conversations.filter(c => c.status !== 'archived' && c.isAgent === false).length
+                    }
+                  </span>
+                )}
                 {selectedAgent && (
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     (filtrado)
@@ -5882,8 +5930,9 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
               const agentCode = getAgentCode(agentToUse?.title);
               const sampleQuestions = getSampleQuestions(agentCode);
               
-              // Only show if agent has sample questions and messages is empty or minimal
-              if (sampleQuestions.length === 0 || messages.length > 2) return null;
+              // ✅ FIX: Keep visible during creation and loading to prevent flash
+              if (sampleQuestions.length === 0) return null;
+              if (!isLoadingMessages && !isCreatingConversation && messages.length > 2) return null;
               
               // Calculate visible questions (3 at a time)
               const visibleStart = sampleQuestionIndex;
