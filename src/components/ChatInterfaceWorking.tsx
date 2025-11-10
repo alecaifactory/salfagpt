@@ -44,6 +44,7 @@ import SupervisorExpertPanel from './expert-review/SupervisorExpertPanel';
 import SpecialistExpertPanel from './expert-review/SpecialistExpertPanel';
 import DomainQualityDashboard from './expert-review/DomainQualityDashboard';
 import AdminApprovalPanel from './expert-review/AdminApprovalPanel';
+import DomainConfigPanel from './expert-review/DomainConfigPanel';
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -355,6 +356,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showSpecialistPanel, setShowSpecialistPanel] = useState(false);
   const [showAdminApproval, setShowAdminApproval] = useState(false);
   const [showQualityDashboard, setShowQualityDashboard] = useState(false);
+  const [showDomainConfig, setShowDomainConfig] = useState(false);
   const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null); // ✅ Kept as string for backward compat
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
   
@@ -562,10 +564,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   useEffect(() => {
     console.log('🔍 DIAGNOSTIC: useEffect for loadConversations() TRIGGERED');
     console.log('   userId:', userId);
+    console.log('   userId type:', typeof userId);
+    console.log('   userId truthy:', !!userId);
     console.log('   Calling loadConversations()...');
     
-    loadConversations();
-    loadFolders(); // Also load folders on mount
+    if (userId) {
+      loadConversations();
+      loadFolders(); // Also load folders on mount
+    } else {
+      console.warn('⚠️ userId is not set, skipping data load');
+    }
   }, [userId]);
 
   // Load messages when conversation changes
@@ -663,7 +671,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       console.log('   userId:', userId);
       console.log('   userEmail:', userEmail);
       
-      const response = await fetch(`/api/conversations?userId=${userId}`);
+      const apiUrl = `/api/conversations?userId=${userId}`;
+      console.log('   API URL:', apiUrl);
+      console.log('   Making fetch request...');
+      
+      const response = await fetch(apiUrl);
+      console.log('   Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -4643,8 +4660,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('⚙️ Opening Domain Review Config...');
-                            // TODO: setShowDomainReviewConfig(true); (Step 4)
-                            alert('Configuración de Evaluación - Disponible en Step 4');
+                            setShowDomainConfig(true);
                             setShowUserMenu(false);
                           }}
                         >
@@ -6997,6 +7013,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         userEmail={userEmail}
         isOpen={showQualityDashboard}
         onClose={() => setShowQualityDashboard(false)}
+      />
+      
+      <DomainConfigPanel
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+        isOpen={showDomainConfig}
+        onClose={() => setShowDomainConfig(false)}
       />
     </div>
   );
