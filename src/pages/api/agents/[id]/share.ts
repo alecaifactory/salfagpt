@@ -68,6 +68,14 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    console.log('🔗 Sharing agent:', {
+      agentId: id,
+      ownerId,
+      sharedWith,
+      accessLevel: accessLevel || 'view',
+      timestamp: new Date().toISOString()
+    });
+    
     const share = await shareAgent(
       id,
       ownerId,
@@ -75,6 +83,12 @@ export const POST: APIRoute = async ({ params, request }) => {
       accessLevel || 'view',
       expiresAt ? new Date(expiresAt) : undefined
     );
+
+    console.log('✅ Share created in Firestore:', {
+      shareId: share.id,
+      agentId: id,
+      sharedWithCount: sharedWith.length
+    });
 
     return new Response(JSON.stringify({ share }), {
       status: 201,
