@@ -58,9 +58,86 @@ export function AgentSharingModal({
   // Handle sharing options
   const proceedWithoutApproval = async () => {
     console.log('🛡️ SuperAdmin force share - bypassing evaluation check');
+    console.log('   Selected targets:', selectedTargets);
+    console.log('   Access level:', accessLevel);
+    
     setShowApprovalOptions(false);
-    // Continue with sharing (SuperAdmin bypass)
-    await executeShare();
+    
+    if (selectedTargets.length === 0) {
+      setError('Selecciona al menos un usuario o grupo primero');
+      return;
+    }
+    
+    try {
+      console.log('🚀 Executing force share NOW...');
+      
+      // Direct POST to sharing API
+      const response = await fetch(`/api/agents/${agent.id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerId: currentUser.id,
+          sharedWith: selectedTargets,
+          accessLevel,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+          forcedByAdmin: true, // Flag para indicar bypass
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Force share failed:', errorData);
+        setError(`Error al compartir: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+      
+      const { share } = await response.json();
+      console.log('✅ Force share successful!', share);
+      
+      // Verify in Firestore that it was saved
+      const verifyResponse = await fetch(`/api/agents/${agent.id}/share`);
+      if (verifyResponse.ok) {
+        const { shares } = await verifyResponse.json();
+        console.log('🔍 Verification - Total shares now:', shares.length);
+        
+        const latestShare = shares.find((s: any) => s.id === share.id);
+        if (latestShare) {
+          console.log('✅ VERIFIED: Share exists in Firestore');
+          console.log('   Share ID:', latestShare.id);
+          console.log('   Shared with:', latestShare.sharedWith.length, 'users/groups');
+          
+          // Build list of shared emails for success message
+          const sharedUserEmails = latestShare.sharedWith
+            .filter((t: any) => t.type === 'user')
+            .map((t: any) => t.email || t.id)
+            .filter(Boolean);
+          
+          setSuccess(
+            `✅ Agente compartido exitosamente (forzado por SuperAdmin)!\n\n` +
+            `Usuarios con acceso (${latestShare.sharedWith.length} total):\n` +
+            `${sharedUserEmails.slice(0, 5).join(', ')}${sharedUserEmails.length > 5 ? ` y ${sharedUserEmails.length - 5} más` : ''}\n\n` +
+            `Los usuarios deben refrescar (Cmd+R) para ver el agente.`
+          );
+          
+          setExistingShares(shares);
+          setSelectedTargets([]);
+          
+          if (onShareUpdated) {
+            onShareUpdated();
+          }
+          
+          setTimeout(() => setSuccess(null), 10000); // 10 seconds
+          
+        } else {
+          console.warn('⚠️ Share returned but not found in verification');
+          setSuccess('Agente compartido, pero verificación pendiente. Recarga la página.');
+        }
+      }
+      
+    } catch (err) {
+      console.error('❌ Force share error:', err);
+      setError(err instanceof Error ? err.message : 'Error al forzar compartir');
+    }
   };
   
   const requestApproval = () => {
