@@ -110,13 +110,26 @@ export function AgentSharingModal({
       
       setExistingShares([...existingShares, share]);
       setSelectedTargets([]);
-      setSuccess('¡Agente compartido exitosamente!');
+      
+      // Show success with instructions for shared users
+      const sharedEmails = selectedTargets
+        .filter(t => t.type === 'user')
+        .map(t => {
+          const user = allUsers.find(u => u.id === t.id);
+          return user?.email;
+        })
+        .filter(Boolean)
+        .join(', ');
+      
+      setSuccess(
+        `¡Agente compartido exitosamente! Los usuarios compartidos (${sharedEmails}) deben refrescar su página (Cmd+R) para ver el agente en su lista.`
+      );
       
       if (onShareUpdated) {
         onShareUpdated();
       }
       
-      setTimeout(() => setSuccess(null), 3000);
+      setTimeout(() => setSuccess(null), 8000);
     } catch (err) {
       console.error('Share error:', err);
       setError(err instanceof Error ? err.message : 'Failed to share agent');
