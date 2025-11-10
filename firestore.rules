@@ -1,12 +1,706 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow all reads and writes in emulator mode
-    // Secure these rules for production!
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2099, 12, 31);
+    
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+    
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    /**
+     * Check if user owns resource
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    /**
+     * Check if user is SuperAdmin (can manage all organizations)
+     * IMPORTANT: Uses request.auth.token.role set during JWT creation
+     */
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'superadmin';
+    }
+    
+    /**
+     * Check if user is admin (can manage their organization)
+     */
+    function isAdmin() {
+      return isAuthenticated() && 
+             (request.auth.token.role == 'admin' || request.auth.token.role == 'superadmin');
+    }
+    
+    /**
+     * Check if user is admin of specific organization
+     * MULTI-ORG: Checks if user's org matches target org
+     */
+    function isOrgAdmin(orgId) {
+      return isAuthenticated() && (
+        // SuperAdmin can manage all orgs
+        isSuperAdmin() ||
+        
+        // User's primary org matches
+        (isAdmin() && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId) ||
+        
+        // Org is in user's assigned organizations
+        (isAdmin() &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.assignedOrganizations.hasAny([orgId]))
+      );
+    }
+    
+    /**
+     * Check if user belongs to organization (as member, not necessarily admin)
+     */
+    function belongsToOrg(orgId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.organizationId == orgId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.assignedOrganizations.hasAny([orgId])
+      );
+    }
+    
+    /**
+     * Check if user can access resource in organization
+     * Handles BACKWARD COMPATIBILITY: resources without organizationId are accessible by owner
+     */
+    function canAccessOrgResource(resource) {
+      return isAuthenticated() && (
+        // BACKWARD COMPATIBLE: If no organizationId, use user-level access
+        (!exists(resource.organizationId) && resource.userId == request.auth.uid) ||
+        
+        // MULTI-ORG: If organizationId exists, check org access
+        (exists(resource.organizationId) && (
+          // User owns resource AND belongs to org
+          (resource.userId == request.auth.uid && belongsToOrg(resource.organizationId)) ||
+          
+          // Org admin can access
+          isOrgAdmin(resource.organizationId)
+        ))
+      );
+    }
+    
+    // ========================================
+    // USERS COLLECTION
+    // ========================================
+    
+    match /users/{userId} {
+      // Read: User can read own profile, admins can read org users, superadmin can read all
+      allow read: if isAuthenticated() && (
+        isOwner(userId) ||
+        isSuperAdmin() ||
+        (isAdmin() && belongsToOrg(resource.data.organizationId))
+      );
+      
+      // Create: Only admins and superadmins can create users
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (isAdmin() && (
+          // Creating user in admin's org (if specified)
+          !exists(request.resource.data.organizationId) ||
+          isOrgAdmin(request.resource.data.organizationId)
+        ))
+      );
+      
+      // Update: Users can update own profile (limited fields), admins can update org users
+      allow update: if isAuthenticated() && (
+        // User updating own basic info (not role/permissions/org)
+        (isOwner(userId) && 
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'roles', 'permissions', 'organizationId', 'assignedOrganizations'])) ||
+        
+        // SuperAdmin can update anything
+        isSuperAdmin() ||
+        
+        // Org admin can update users in their org
+        (isAdmin() && isOrgAdmin(resource.data.organizationId))
+      );
+      
+      // Delete: Only superadmins can delete users
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // CONVERSATIONS (AGENTS) COLLECTION
+    // ========================================
+    
+    match /conversations/{conversationId} {
+      // Read: Owner, org admin (if org-scoped), or superadmin
+      allow read: if isAuthenticated() && (
+        // BACKWARD COMPATIBLE: User owns conversation
+        resource.data.userId == request.auth.uid ||
+        
+        // MULTI-ORG: Org admin can view
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        
+        // SuperAdmin can view all
+        isSuperAdmin()
+      );
+      
+      // Create: Authenticated users can create for themselves
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid &&
+        
+        // If organizationId specified, user must belong to org
+        (!exists(request.resource.data.organizationId) ||
+         belongsToOrg(request.resource.data.organizationId))
+      );
+      
+      // Update: Owner, org admin, or superadmin
+      allow update: if isAuthenticated() && (
+        // User owns conversation
+        resource.data.userId == request.auth.uid ||
+        
+        // Org admin can update org conversations
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        
+        // SuperAdmin can update all
+        isSuperAdmin()
+      );
+      
+      // Delete: Owner, org admin, or superadmin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // MESSAGES COLLECTION
+    // ========================================
+    
+    match /messages/{messageId} {
+      // Read: Owner or org admin (via conversation's org)
+      allow read: if isAuthenticated() && (
+        // BACKWARD COMPATIBLE: User owns message
+        resource.data.userId == request.auth.uid ||
+        
+        // MULTI-ORG: Org admin can view (needs conversation lookup)
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        
+        // SuperAdmin can view all
+        isSuperAdmin()
+      );
+      
+      // Create: User creating message for their conversation
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      // Update: Messages are immutable after creation
+      allow update: if false;
+      
+      // Delete: Owner or org admin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // CONTEXT SOURCES COLLECTION
+    // ========================================
+    
+    match /context_sources/{sourceId} {
+      // Read: Owner, org admin, or superadmin
+      allow read: if isAuthenticated() && (
+        // BACKWARD COMPATIBLE: User owns source
+        resource.data.userId == request.auth.uid ||
+        
+        // MULTI-ORG: Org admin can view
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        
+        // SuperAdmin can view all
+        isSuperAdmin()
+      );
+      
+      // Create: Authenticated users can create for themselves
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid &&
+        
+        // If organizationId specified, user must belong to org
+        (!exists(request.resource.data.organizationId) ||
+         belongsToOrg(request.resource.data.organizationId))
+      );
+      
+      // Update: Owner, org admin, or superadmin
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Delete: Owner, org admin, or superadmin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // ORGANIZATIONS COLLECTION (NEW)
+    // ========================================
+    
+    match /organizations/{orgId} {
+      // Read: Members of org or superadmin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        belongsToOrg(orgId)
+      );
+      
+      // Create: Only superadmins can create organizations
+      allow create: if isSuperAdmin();
+      
+      // Update: Org admin or superadmin
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(orgId)
+      );
+      
+      // Delete: Only superadmins (soft delete via update)
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // PROMOTION REQUESTS COLLECTION (NEW)
+    // ========================================
+    
+    match /promotion_requests/{requestId} {
+      // Read: Org admin or superadmin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      
+      // Create: Org admin can create promotion requests
+      allow create: if isAuthenticated() && (
+        isOrgAdmin(request.resource.data.organizationId)
+      );
+      
+      // Update: Can update own requests (before approval), admins can approve/reject
+      allow update: if isAuthenticated() && (
+        // Requester can update before approval
+        (resource.data.requestedBy == request.auth.uid && resource.data.status == 'pending') ||
+        
+        // Org admin can approve/reject
+        isOrgAdmin(resource.data.organizationId) ||
+        
+        // SuperAdmin can approve/reject/execute
+        isSuperAdmin()
+      );
+      
+      // Delete: Only requester (before approval) or superadmin
+      allow delete: if isAuthenticated() && (
+        (resource.data.requestedBy == request.auth.uid && resource.data.status == 'pending') ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // PROMOTION SNAPSHOTS COLLECTION (NEW)
+    // ========================================
+    
+    match /promotion_snapshots/{snapshotId} {
+      // Read: Org admin or superadmin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      
+      // Create: System only (during promotion execution)
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(request.resource.data.organizationId)
+      );
+      
+      // Update: Immutable (snapshots cannot be modified)
+      allow update: if false;
+      
+      // Delete: Only superadmin (cleanup old snapshots)
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // DATA LINEAGE COLLECTION (NEW)
+    // ========================================
+    
+    match /data_lineage/{eventId} {
+      // Read: Org admin or superadmin (for their org)
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId))
+      );
+      
+      // Create: System tracking (any authenticated user can log)
+      allow create: if isAuthenticated();
+      
+      // Update: Immutable (audit trail cannot be modified)
+      allow update: if false;
+      
+      // Delete: Only superadmin (cleanup)
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ========================================
+    // ORG MEMBERSHIPS COLLECTION (NEW)
+    // ========================================
+    
+    match /org_memberships/{membershipId} {
+      // Read: Member themselves, org admin, or superadmin
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin() ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      
+      // Create: Org admin or superadmin
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(request.resource.data.organizationId)
+      );
+      
+      // Update: Org admin or superadmin
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+      
+      // Delete: Org admin or superadmin
+      allow delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        isOrgAdmin(resource.data.organizationId)
+      );
+    }
+    
+    // ========================================
+    // FOLDERS COLLECTION
+    // ========================================
+    
+    match /folders/{folderId} {
+      // BACKWARD COMPATIBLE: User-level isolation
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // USER SETTINGS COLLECTION
+    // ========================================
+    
+    match /user_settings/{userId} {
+      // BACKWARD COMPATIBLE: Users can only access their own settings
+      allow read, write: if isAuthenticated() && isOwner(userId);
+    }
+    
+    // ========================================
+    // AGENT CONFIGS COLLECTION
+    // ========================================
+    
+    match /agent_configs/{conversationId} {
+      // BACKWARD COMPATIBLE: Owner or org admin
+      allow read, write: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // CONVERSATION CONTEXT COLLECTION
+    // ========================================
+    
+    match /conversation_context/{conversationId} {
+      // BACKWARD COMPATIBLE: Owner or org admin
+      allow read, write: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // USAGE LOGS COLLECTION
+    // ========================================
+    
+    match /usage_logs/{logId} {
+      // Read: User's own logs, admins can read org logs, superadmin all
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Create: Any authenticated user can log
+      allow create: if isAuthenticated();
+      
+      // Update/Delete: Immutable logs
+      allow update, delete: if false;
+    }
+    
+    // ========================================
+    // AGENT SHARES COLLECTION
+    // ========================================
+    
+    match /agent_shares/{shareId} {
+      // Read: Owner of share, shared-with user, or org admin
+      allow read: if isAuthenticated() && (
+        resource.data.ownerUserId == request.auth.uid ||
+        resource.data.sharedWith.hasAny([request.auth.uid]) ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Create: Owner creating share
+      allow create: if isAuthenticated() && (
+        request.resource.data.ownerUserId == request.auth.uid
+      );
+      
+      // Update: Owner or org admin
+      allow update: if isAuthenticated() && (
+        resource.data.ownerUserId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Delete: Owner or org admin
+      allow delete: if isAuthenticated() && (
+        resource.data.ownerUserId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // DOMAIN REVIEW CONFIGS (Evaluation System)
+    // ========================================
+    
+    match /domain_review_configs/{configId} {
+      // Read: Org admin or superadmin
+      allow read: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        // BACKWARD COMPATIBLE: If no org, check if user is admin
+        (!exists(resource.data.organizationId) && isAdmin())
+      );
+      
+      // Create/Update/Delete: Org admin or superadmin
+      allow create, update, delete: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(request.resource.data.organizationId) && isOrgAdmin(request.resource.data.organizationId)) ||
+        (!exists(request.resource.data.organizationId) && isAdmin())
+      );
+    }
+    
+    // ========================================
+    // EXPERT INTERACTIONS (Evaluation System)
+    // ========================================
+    
+    match /expert_interactions/{interactionId} {
+      // Read: Assigned user, supervisors, org admin, superadmin
+      allow read: if isAuthenticated() && (
+        resource.data.assignedTo == request.auth.uid ||
+        resource.data.assignedBy == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin() ||
+        // Supervisor role check (via user document)
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor'
+      );
+      
+      // Create: Supervisors, org admin, or superadmin
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() ||
+        (exists(request.resource.data.organizationId) && isOrgAdmin(request.resource.data.organizationId)) ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor'
+      );
+      
+      // Update: Assigned user, supervisor, org admin, or superadmin
+      allow update: if isAuthenticated() && (
+        resource.data.assignedTo == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin() ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supervisor'
+      );
+      
+      // Delete: Org admin or superadmin
+      allow delete: if isAuthenticated() && (
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // MESSAGE FEEDBACK COLLECTION
+    // ========================================
+    
+    match /message_feedback/{feedbackId} {
+      // Read: User who gave feedback, org admin, or superadmin
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin() ||
+        isAdmin()  // All admins can see feedback
+      );
+      
+      // Create: Any authenticated user
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      // Update: Owner or admin
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+      
+      // Delete: Owner or admin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+    }
+    
+    // ========================================
+    // FEEDBACK TICKETS COLLECTION
+    // ========================================
+    
+    match /feedback_tickets/{ticketId} {
+      // Read: Admins and superadmins (backlog management)
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        isSuperAdmin()
+      );
+      
+      // Create: Admins can create tickets
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        isSuperAdmin()
+      );
+      
+      // Update: Admins can update status, priority, etc.
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        isSuperAdmin()
+      );
+      
+      // Delete: Admins can delete
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // MESSAGE QUEUE COLLECTION
+    // ========================================
+    
+    match /message_queue/{queueItemId} {
+      // Read: Owner or org admin
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Create: User creating for themselves
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      // Update: Owner or org admin
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Delete: Owner or org admin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // RAG CHUNKS COLLECTION
+    // ========================================
+    
+    match /rag_chunks/{chunkId} {
+      // Read: Owner or org admin
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Create: User creating for themselves
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      // Update: Owner or org admin
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+      
+      // Delete: Owner or org admin
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
+    }
+    
+    // ========================================
+    // CATCH-ALL FOR OTHER COLLECTIONS
+    // ========================================
+    
+    // Default rule for collections not explicitly defined
+    // BACKWARD COMPATIBLE: User-level access
+    match /{collection}/{document} {
+      allow read: if isAuthenticated() && (
+        // User owns resource
+        resource.data.userId == request.auth.uid ||
+        
+        // Org admin can access org resources
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        
+        // SuperAdmin can access all
+        isSuperAdmin()
+      );
+      
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid
+      );
+      
+      allow update, delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid ||
+        (exists(resource.data.organizationId) && isOrgAdmin(resource.data.organizationId)) ||
+        isSuperAdmin()
+      );
     }
   }
 }
-
-
