@@ -56,7 +56,13 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ expert_performance_metrics # Expert personal metrics (2025-11-09)│
 │  ├─ specialist_performance_metrics # Specialist metrics (2025-11-09)│
 │  ├─ admin_domain_metrics    # Admin domain metrics (2025-11-09)│
-│  └─ impact_notifications_shown # Impact notification tracking (2025-11-09)│
+│  ├─ impact_notifications_shown # Impact notification tracking (2025-11-09)│
+│  ├─ organizations          # Multi-org configurations (2025-11-10)│
+│  ├─ promotion_requests     # Staging-production workflow (2025-11-10)│
+│  ├─ promotion_snapshots    # Rollback snapshots (2025-11-10)│
+│  ├─ data_lineage          # Audit trail (2025-11-10)│
+│  ├─ conflict_resolutions  # Conflict handling (2025-11-10)│
+│  └─ org_memberships       # User-org relationships (2025-11-10)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
