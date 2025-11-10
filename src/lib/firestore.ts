@@ -1,7 +1,9 @@
 import { Firestore } from '@google-cloud/firestore';
+import type { DataSource } from '../types/organizations.js';
 
 // BACKWARD COMPATIBLE: Environment-aware Firestore initialization
 // Supports multi-tenant deployments with separate GCP projects per environment
+// UPDATED: 2025-11-10 - Added staging environment support
 
 // Try to load environment config (if available)
 let ENV_CONFIG: any = null;
@@ -53,13 +55,26 @@ export const CURRENT_ENVIRONMENT = ENVIRONMENT_NAME;
 export const CURRENT_PROJECT_ID = PROJECT_ID;
 
 // Helper function to determine source environment
-export function getEnvironmentSource(): 'localhost' | 'production' {
-  // Check if running on localhost
+// UPDATED: 2025-11-10 - Added staging environment detection
+export function getEnvironmentSource(): DataSource {
+  // Check explicit environment variable first
+  const envName = process.env.ENVIRONMENT_NAME;
+  if (envName === 'staging') return 'staging';
+  if (envName === 'production') return 'production';
+  if (envName === 'local' || envName === 'localhost') return 'localhost';
+  
+  // Check Cloud Run service name (K_SERVICE env var)
+  const serviceName = process.env.K_SERVICE;
+  if (serviceName) {
+    if (serviceName.includes('staging')) return 'staging';
+    if (serviceName.includes('production') || serviceName.includes('prod')) return 'production';
+  }
+  
+  // Check if running on localhost (browser context)
   if (typeof window !== 'undefined') {
-    // Browser context
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
       ? 'localhost' 
-      : 'production';
+      : 'production';  // Assume production if not localhost
   }
   
   // Server context - check NODE_ENV and other indicators
@@ -69,6 +84,7 @@ export function getEnvironmentSource(): 'localhost' | 'production' {
     return 'localhost';
   }
   
+  // Default to production (conservative)
   return 'production';
 }
 
@@ -88,8 +104,15 @@ export const COLLECTIONS = {
   CONVERSATION_CONTEXT: 'conversation_context', // NEW: Context state per conversation
   USAGE_LOGS: 'usage_logs',                    // NEW: Usage tracking
   AGENT_SHARES: 'agent_shares',                // NEW: Agent sharing permissions
-  MESSAGE_RATINGS: 'message_ratings',          // ✅ NEW: Message ratings and effectiveness tracking
-  ORGANIZATIONS: 'organizations',               // ✅ NEW: Organization/domain settings
+  MESSAGE_RATINGS: 'message_ratings',          // NEW: Message ratings and effectiveness tracking
+  ORGANIZATIONS: 'organizations',               // NEW: Organization/domain settings
+  
+  // MULTI-ORG COLLECTIONS (2025-11-10)
+  PROMOTION_REQUESTS: 'promotion_requests',     // Staging → production workflow
+  PROMOTION_SNAPSHOTS: 'promotion_snapshots',   // Rollback snapshots
+  DATA_LINEAGE: 'data_lineage',                // Audit trail
+  CONFLICT_RESOLUTIONS: 'conflict_resolutions', // Conflict handling
+  ORG_MEMBERSHIPS: 'org_memberships',          // User-org relationships
 } as const;
 
 // Types
@@ -100,7 +123,7 @@ export interface Conversation {
   folderId?: string;
   createdAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production'; // For analytics tracking
+  source?: DataSource; // For analytics tracking (localhost | staging | production)
   lastMessageAt: Date;
   messageCount: number;
   contextWindowUsage: number; // Percentage 0-100
@@ -112,6 +135,19 @@ export interface Conversation {
   hasBeenRenamed?: boolean; // Track if user has manually renamed
   isShared?: boolean; // NEW: True if this agent was shared with the current user
   sharedAccessLevel?: 'view' | 'edit' | 'admin'; // NEW: Access level if shared
+  
+  // ========================================
+  // MULTI-ORG FIELDS (2025-11-10) - ALL OPTIONAL
+  // ========================================
+  organizationId?: string;              // Organization this conversation belongs to
+  version?: number;                     // Version for conflict detection
+  lastModifiedIn?: DataSource;          // Where last modified (staging/production)
+  stagingVersion?: number;              // Version in staging environment
+  productionVersion?: number;           // Version in production environment
+  hasConflict?: boolean;                // Conflict flag
+  promotedFromStaging?: boolean;        // Was promoted from staging
+  promotedAt?: Date;                    // When promoted
+  stagingId?: string;                   // Original staging document ID
 }
 
 export interface Message {
@@ -140,7 +176,7 @@ export interface Message {
       endPage?: number;
     };
   }>; // RAG chunk references for traceability
-  source?: 'localhost' | 'production'; // For analytics tracking
+  source?: DataSource; // For analytics tracking (localhost | staging | production)
   // ✅ NEW: Shared access traceability (when user accesses shared agent's context)
   sharedAccessMetadata?: {
     accessType: 'shared' | 'own'; // How context was accessed
@@ -234,7 +270,7 @@ export interface Group {
   // Groups do NOT have roles - members keep their individual roles
   // Groups are ONLY for organizing shared access to agents
   maxAccessLevel: 'view' | 'use'; // Maximum access level this group can have (never 'admin')
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Agent Sharing - Share conversations/agents with users or groups
@@ -262,7 +298,7 @@ export interface AgentShare {
   createdAt: Date;
   updatedAt: Date;
   expiresAt?: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Organization - Domain-level settings shared across organization
@@ -272,7 +308,7 @@ export interface Organization {
   domainPrompt?: string;                       // Optional domain-level prompt inherited by all agents
   createdAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: User Settings - Global preferences for each user
@@ -285,7 +321,7 @@ export interface UserSettings {
   theme?: 'light' | 'dark';                    // Theme preference (default: 'light')
   createdAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Agent Config - Configuration for each conversation/agent
@@ -300,7 +336,7 @@ export interface AgentConfig {
   maxOutputTokens?: number;
   createdAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Workflow Config - Configuration for workflows
@@ -317,7 +353,7 @@ export interface WorkflowConfig {
   };
   createdAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Conversation Context - Active context sources per conversation
@@ -329,7 +365,7 @@ export interface ConversationContext {
   contextWindowUsage?: number;                 // Percentage 0-100 (optional)
   lastUsedAt: Date;
   updatedAt: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // NEW: Usage Log - Track usage of features
@@ -346,7 +382,7 @@ export interface UsageLog {
     [key: string]: any;
   };
   timestamp: Date;
-  source?: 'localhost' | 'production';
+  source?: DataSource;
 }
 
 // Conversation Operations
@@ -1797,7 +1833,17 @@ export interface ContextSource {
     percentage: number;
     message: string;
   };
-  source?: 'localhost' | 'production';
+  source?: DataSource;
+  
+  // ========================================
+  // MULTI-ORG FIELDS (2025-11-10) - ALL OPTIONAL
+  // ========================================
+  organizationId?: string;              // Organization this source belongs to
+  version?: number;                     // Version for conflict detection
+  lastModifiedIn?: DataSource;          // Where last modified
+  stagingVersion?: number;              // Version in staging
+  productionVersion?: number;           // Version in production
+  hasConflict?: boolean;                // Conflict detected
 }
 
 /**
