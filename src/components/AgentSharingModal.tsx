@@ -721,7 +721,10 @@ export function AgentSharingModal({
               {/* Option 3: Force Share (SuperAdmin Only) */}
               {isSuperAdmin && (
                 <button
-                  onClick={proceedWithoutApproval}
+                  onClick={() => {
+                    console.log('🖱️ CLICK DETECTED on Force Share button');
+                    proceedWithoutApproval();
+                  }}
                   className="w-full p-5 border-2 border-purple-300 dark:border-purple-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all text-left group"
                 >
                   <div className="flex items-start gap-4">
