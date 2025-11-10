@@ -49,3 +49,4 @@ export default function ResponsiveChatWrapper(props: ResponsiveChatWrapperProps)
   return <ChatInterfaceWorking {...props} />;
 }
 
+

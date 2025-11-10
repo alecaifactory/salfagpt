@@ -38,10 +38,12 @@ import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW:
 import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
 import FeedbackNotificationBell from './FeedbackNotificationBell'; // ✅ NEW: Feedback notifications
 import StellaConfigurationPanel from './StellaConfigurationPanel'; // ✅ NEW: Stella SuperAdmin config
-import SupervisorExpertPanel from './expert-review/SupervisorExpertPanel'; // ✅ NEW: Expert Review System
-import SpecialistExpertPanel from './expert-review/SpecialistExpertPanel'; // ✅ NEW: Expert Review System
-import DomainQualityDashboard from './expert-review/DomainQualityDashboard'; // ✅ NEW: Expert Review System
-import AdminApprovalPanel from './expert-review/AdminApprovalPanel'; // ✅ NEW: Expert Review System
+// ✅ FIXED: Expert review panels now use client-safe API wrappers
+// Components import from expert-review-client.ts (API calls) not server services (Firestore)
+import SupervisorExpertPanel from './expert-review/SupervisorExpertPanel';
+import SpecialistExpertPanel from './expert-review/SpecialistExpertPanel';
+import DomainQualityDashboard from './expert-review/DomainQualityDashboard';
+import AdminApprovalPanel from './expert-review/AdminApprovalPanel';
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -300,6 +302,15 @@ interface ChatInterfaceWorkingProps {
 }
 
 export default function ChatInterfaceWorking({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
+  // 🔍 DIAGNOSTIC: Log component mount
+  console.log('🎯 ChatInterfaceWorking MOUNTING:', {
+    userId,
+    userEmail,
+    userName,
+    userRole,
+    timestamp: new Date().toISOString()
+  });
+  
   // Core state
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
@@ -543,6 +554,10 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   // Load conversations on mount
   useEffect(() => {
+    console.log('🔍 DIAGNOSTIC: useEffect for loadConversations() TRIGGERED');
+    console.log('   userId:', userId);
+    console.log('   Calling loadConversations()...');
+    
     loadConversations();
     loadFolders(); // Also load folders on mount
   }, [userId]);
@@ -635,7 +650,11 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
 
   const loadConversations = async () => {
     try {
+      console.log('🔍 DIAGNOSTIC: loadConversations() CALLED');
       console.log('📥 Cargando conversaciones desde Firestore...');
+      console.log('   userId:', userId);
+      console.log('   userEmail:', userEmail);
+      
       const response = await fetch(`/api/conversations?userId=${userId}`);
       
       if (response.ok) {
@@ -6896,7 +6915,7 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
         onClose={() => setShowStellaConfig(false)}
       />
       
-      {/* ✨ NEW: Expert Review System Panels */}
+      {/* ✨ NEW: Expert Review System Panels - Now using client-safe API wrappers */}
       <SupervisorExpertPanel
         userId={userId}
         userEmail={userEmail}

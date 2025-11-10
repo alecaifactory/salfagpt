@@ -96,20 +96,23 @@ try {
     <title>Chat - Flow</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     
-    <!-- CRITICAL FIX: Suppress whatwg-url hydration error -->
+    <!-- DIAGNOSTIC: Log ALL errors to find root cause -->
     <script is:inline>
-      // Suppress the specific whatwg-url error that blocks rendering
+      // Enhanced error logging for debugging
       const originalError = console.error;
+      const originalWarn = console.warn;
+      
       console.error = function(...args) {
-        const errorString = args[0]?.toString() || '';
-        // Suppress whatwg-url and astro-island hydration errors
-        if (errorString.includes('whatwg-url') || 
-            errorString.includes('astro-island') ||
-            errorString.includes('does not provide an export')) {
-          return; // Suppress this specific error
-        }
+        console.log('🔍 CONSOLE.ERROR CAPTURED:', args);
         originalError.apply(console, args);
       };
+      
+      console.warn = function(...args) {
+        console.log('⚠️ CONSOLE.WARN CAPTURED:', args);
+        originalWarn.apply(console, args);
+      };
+      
+      console.log('✅ Enhanced error logging active');
     </script>
     
     <!-- Theme initialization script - runs BEFORE page renders to prevent FOUC -->

@@ -508,3 +508,4 @@ export default function ResponsiveChatWrapper(props) {
 
 **Remember:** Mobile is about **focus and speed**. One task, big buttons, instant feedback. Desktop is for **power and configuration**.
 
+

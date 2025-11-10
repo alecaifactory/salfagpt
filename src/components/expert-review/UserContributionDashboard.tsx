@@ -21,8 +21,8 @@ import type {
   Badge,
   ConversionRates
 } from '../../types/analytics';
-import { getUserBadges, getNextBadgeProgress } from '../../lib/expert-review/gamification-service';
-import { calculateConversionRates } from '../../lib/expert-review/funnel-tracking-service';
+// ✅ CLIENT-SAFE: Import from client wrapper instead of server services
+import { getUserBadges, getNextBadgeProgress, calculateConversionRates } from '../../lib/expert-review-client';
 
 interface UserContributionDashboardProps {
   userId: string;

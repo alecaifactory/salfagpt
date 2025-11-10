@@ -342,3 +342,4 @@ All specs stored:
 **Test:** Click "Generate Spec" on any Production card  
 **Impact:** 99% time savings + perfect context transfer
 
+

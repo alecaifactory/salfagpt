@@ -1,21 +1,36 @@
 ---
-import ChatInterfaceMinimal from '../components/ChatInterfaceMinimal';
+// Ultra minimal test page - just verify React can mount
 import '../styles/global.css';
-
-const userId = 'test-user-123';
 ---
 
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Test - Flow</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Chat Test - Minimal</title>
   </head>
-  <body class="h-full m-0 p-0">
-    <ChatInterfaceMinimal client:only="react" userId={userId} />
+  <body>
+    <div id="test-mount">
+      <h1 style="color: blue; padding: 20px;">Testing React Mount</h1>
+      <p>If you see this, HTML is loading.</p>
+      <button onclick="alert('Button works!')" style="padding: 10px; background: green; color: white; border: none; cursor: pointer;">
+        Click Me (HTML Button)
+      </button>
+    </div>
+    
+    <script>
+      console.log('✅ Script executing');
+      console.log('✅ User can see this in console');
+      
+      // Test if React would work
+      setTimeout(() => {
+        const testDiv = document.getElementById('test-mount');
+        if (testDiv) {
+          console.log('✅ DOM manipulation works');
+          testDiv.innerHTML += '<p style="color: green;">JavaScript is working!</p>';
+        }
+      }, 1000);
+    </script>
   </body>
 </html>
-
-

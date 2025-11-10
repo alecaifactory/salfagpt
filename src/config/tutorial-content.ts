@@ -255,3 +255,4 @@ export function getIndustryShowcase(industry: string): string {
   return showcases[industry] || '';
 }
 
+
