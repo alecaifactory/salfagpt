@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, User as UserIcon, Lock, Eye, Edit, Shield, Calendar, Search } from 'lucide-react';
+import { X, Users, User as UserIcon, Lock, Eye, Edit, Shield, Calendar, Search, AlertCircle, CheckCircle, Send } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import AgentSharingApprovalModal from './AgentSharingApprovalModal';
 import type { Group, AgentShare, Conversation } from '../lib/firestore';
 import type { User } from '../types/users';
 
@@ -30,9 +31,15 @@ export function AgentSharingModal({
   const [accessLevel, setAccessLevel] = useState<'view' | 'use' | 'admin'>('use');
   const [expiresAt, setExpiresAt] = useState<string>('');
   
+  // NEW: Approval flow state
+  const [showApprovalOptions, setShowApprovalOptions] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  
   // Determine if admin level is allowed (only for individual users, not groups)
   const isAdminAllowed = shareType === 'user';
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const isSuperAdmin = currentUser.role === 'superadmin' || currentUser.email === 'alec@getaifactory.com';
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(true, onClose, true, true, true);
@@ -48,6 +55,74 @@ export function AgentSharingModal({
     }
   }, [shareType]);
 
+  // Handle sharing options
+  const proceedWithoutApproval = async () => {
+    setShowApprovalOptions(false);
+    // Continue with sharing (SuperAdmin bypass)
+    await executeShare();
+  };
+  
+  const requestApproval = () => {
+    setShowApprovalOptions(false);
+    setShowApprovalModal(true);
+  };
+  
+  const cancelShare = () => {
+    setShowApprovalOptions(false);
+    // Don't proceed with sharing
+  };
+  
+  // Execute the actual sharing (no evaluation check)
+  const executeShare = async () => {
+    if (selectedTargets.length === 0) {
+      setError('Selecciona al menos un usuario o grupo');
+      return;
+    }
+    
+    try {
+      console.log('🔗 Sharing agent:', {
+        agentId: agent.id,
+        agentTitle: agent.title,
+        ownerId: currentUser.id,
+        selectedTargets,
+        accessLevel,
+      });
+      
+      const response = await fetch(`/api/agents/${agent.id}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerId: currentUser.id,
+          sharedWith: selectedTargets,
+          accessLevel,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Share failed:', errorData);
+        throw new Error(errorData.error || 'Failed to share agent');
+      }
+
+      const { share } = await response.json();
+      console.log('✅ Agent shared successfully:', share);
+      
+      setExistingShares([...existingShares, share]);
+      setSelectedTargets([]);
+      setSuccess('¡Agente compartido exitosamente!');
+      
+      if (onShareUpdated) {
+        onShareUpdated();
+      }
+      
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      console.error('Share error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to share agent');
+    }
+  };
+  
   async function loadData() {
     setLoading(true);
     setError(null);
@@ -106,22 +181,9 @@ export function AgentSharingModal({
         const { hasApprovedEvaluation, evaluationId } = await evalResponse.json();
         
         if (!hasApprovedEvaluation) {
-          // Show warning and option to request approval
-          const needsApproval = confirm(
-            `⚠️ Este agente no tiene una evaluación aprobada.\n\n` +
-            `Para compartirlo con usuarios, necesitas:\n` +
-            `1. Crear una evaluación completa, O\n` +
-            `2. Solicitar aprobación con 3 ejemplos de preguntas\n\n` +
-            `¿Deseas solicitar aprobación ahora?`
-          );
-          
-          if (needsApproval) {
-            // TODO: Show AgentSharingApprovalModal
-            setError('Función de solicitud de aprobación próximamente. Por favor crea una evaluación primero.');
-            return;
-          } else {
-            return; // Cancel sharing
-          }
+          // Show approval options modal (not alert)
+          setShowApprovalOptions(true);
+          return; // Wait for user choice
         }
         
         console.log('✅ Agent has approved evaluation:', evaluationId);
@@ -131,48 +193,8 @@ export function AgentSharingModal({
       // Continue with sharing even if check fails (graceful degradation)
     }
 
-    try {
-      console.log('🔗 Sharing agent:', {
-        agentId: agent.id,
-        agentTitle: agent.title,
-        ownerId: currentUser.id,
-        selectedTargets,
-        accessLevel,
-      });
-      
-      const response = await fetch(`/api/agents/${agent.id}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ownerId: currentUser.id,
-          sharedWith: selectedTargets,
-          accessLevel,
-          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Share failed:', errorData);
-        throw new Error(errorData.error || 'Failed to share agent');
-      }
-
-      const { share } = await response.json();
-      console.log('✅ Agent shared successfully:', share);
-      
-      setExistingShares([...existingShares, share]);
-      setSelectedTargets([]);
-      setSuccess('¡Agente compartido exitosamente!');
-      
-      if (onShareUpdated) {
-        onShareUpdated();
-      }
-      
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      console.error('Share error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to share agent');
-    }
+    // If we get here, evaluation is approved - proceed with sharing
+    await executeShare();
   }
 
   async function handleRevokeShare(shareId: string) {
@@ -602,6 +624,150 @@ export function AgentSharingModal({
           </button>
         </div>
       </div>
+      
+      {/* Approval Options Modal */}
+      {showApprovalOptions && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70]">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl mx-4">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-t-2xl">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <AlertCircle className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    Agente Sin Evaluación Aprobada
+                  </h3>
+                  <p className="text-amber-100 text-sm mt-1">
+                    {agent.title}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                <p className="text-sm text-amber-900 dark:text-amber-300">
+                  <strong>⚠️ Importante:</strong> Este agente no ha completado el proceso de evaluación y aprobación.
+                  Para compartirlo con usuarios de forma segura, elige una de las siguientes opciones:
+                </p>
+              </div>
+              
+              {/* Option 1: Create Full Evaluation */}
+              <button
+                onClick={() => {
+                  setShowApprovalOptions(false);
+                  window.location.href = `/evaluations?agentId=${agent.id}`;
+                }}
+                className="w-full p-5 border-2 border-blue-300 dark:border-blue-700 rounded-xl hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all text-left group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <CheckCircle className="w-7 h-7 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                      1️⃣ Crear Evaluación Completa
+                    </h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                      Proceso completo con 10+ tests, análisis de calidad y aprobación por experto
+                    </p>
+                    <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs font-semibold rounded-full">
+                      Recomendado para producción
+                    </span>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Option 2: Request Quick Approval */}
+              <button
+                onClick={requestApproval}
+                className="w-full p-5 border-2 border-green-300 dark:border-green-700 rounded-xl hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/30 transition-all text-left group"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <Send className="w-7 h-7 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                      2️⃣ Solicitar Aprobación Rápida
+                    </h4>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                      Proporciona 3 ejemplos de preguntas (mala, razonable, sobresaliente)
+                    </p>
+                    <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-semibold rounded-full">
+                      Aprobación en 24-48 horas
+                    </span>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Option 3: Force Share (SuperAdmin Only) */}
+              {isSuperAdmin && (
+                <button
+                  onClick={proceedWithoutApproval}
+                  className="w-full p-5 border-2 border-purple-300 dark:border-purple-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all text-left group"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                      <Shield className="w-7 h-7 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">
+                        3️⃣ Forzar Compartir (SuperAdmin)
+                      </h4>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                        Compartir sin evaluación aprobada - Solo para pruebas y desarrollo
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
+                          Solo SuperAdmin
+                        </span>
+                        <span className="inline-block px-3 py-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs font-semibold rounded-full">
+                          ⚠️ Testing only
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  ¿Qué opción prefieres para compartir este agente?
+                </p>
+                <button
+                  onClick={cancelShare}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Agent Sharing Approval Modal */}
+      {showApprovalModal && (
+        <AgentSharingApprovalModal
+          isOpen={showApprovalModal}
+          onClose={() => setShowApprovalModal(false)}
+          agentId={agent.id}
+          agentName={agent.title}
+          currentUserId={currentUser.id}
+          currentUserEmail={currentUser.email}
+          onSubmitted={() => {
+            setShowApprovalModal(false);
+            setSuccess('Solicitud de aprobación enviada. Se te notificará cuando sea revisada.');
+          }}
+        />
+      )}
     </div>
   );
 }
