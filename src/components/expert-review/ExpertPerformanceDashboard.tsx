@@ -14,7 +14,8 @@ import {
   Bot
 } from 'lucide-react';
 import type { ExpertPerformanceMetrics, Badge } from '../../types/analytics';
-import { getUserBadges } from '../../lib/expert-review/gamification-service';
+// ✅ CLIENT-SAFE: Import from client wrapper instead of server service
+import { getUserBadges } from '../../lib/expert-review-client';
 
 interface ExpertPerformanceDashboardProps {
   userId: string;

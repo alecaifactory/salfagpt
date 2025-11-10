@@ -12,7 +12,8 @@ import {
   Star
 } from 'lucide-react';
 import type { SpecialistPerformanceMetrics, Badge } from '../../types/analytics';
-import { getUserBadges } from '../../lib/expert-review/gamification-service';
+// ✅ CLIENT-SAFE: Import from client wrapper instead of server service
+import { getUserBadges } from '../../lib/expert-review-client';
 
 interface SpecialistDashboardProps {
   userId: string;

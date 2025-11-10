@@ -1,0 +1,70 @@
+
+> salfagpt@0.3.0 dev
+> npm run load-env && astro dev
+
+
+> salfagpt@0.3.0 load-env
+> node scripts/load-env.js
+
+✅ Environment loaded successfully
+📂 Project: SALFACORP
+📄 Source: .env.salfacorp
+📝 Created: .env
+
+🔧 Configuration:
+   GCP Project: salfagpt
+   Port: 3000
+   Base URL: https://salfagpt.salfagestion.cl
+🔧 Config loaded:
+   Project: salfagpt
+   Port: 3000
+   Base URL: https://salfagpt.salfagestion.cl
+23:07:46 [@astrojs/node] Enabling sessions with filesystem storage
+23:07:46 [WARN] [router] The route "/api/groups" is defined in both "src/pages/api/groups/index.ts" and "src/pages/api/groups.ts". A static route cannot be defined more than once.
+23:07:46 [WARN] [router] A collision will result in an hard error in following versions of Astro.
+23:07:46 [types] Generated 0ms
+23:07:46 [content] Syncing content
+23:07:46 [content] Synced content
+
+ astro  v5.14.7 ready in 400 ms
+
+┃ Local    http://localhost:3000/
+┃ Network  http://192.168.100.20:3000/
+
+23:07:46 watching for file changes...
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔐 OAuth Configuration:
+  Environment: local
+  Is Localhost: YES ✅
+  Project: salfagpt
+  Client ID: ***ontent.com
+  Base URL: http://localhost:3000
+  Redirect URI: http://localhost:3000/auth/callback
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+🔐 Authentication check: {
+  hasToken: true,
+  timestamp: '2025-11-10T02:07:50.504Z',
+  path: '/chat'
+}
+🔍 DEBUG userId selection: {
+  googleUserId: '114671162830729001607',
+  decodedId: 'usr_uhwqffaqag1wrryd82tw',
+  selected: '114671162830729001607',
+  email: 'alec@getaifactory.com'
+}
+✅ User authenticated: {
+  userId: '11467116...',
+  email: 'alec@getaifactory.com',
+  role: 'admin',
+  timestamp: '2025-11-10T02:07:50.505Z'
+}
+✅ Domain access verified for active session: { email: 'alec@getaifactory.com', domain: 'getaifactory.com' }
+23:07:56 [200] /chat 7161ms
+sh: line 1: 16272 Killed: 9               astro dev

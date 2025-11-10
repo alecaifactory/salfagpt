@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // MINIMAL CONFIG - No optimizations that can break
   resolve: {
     dedupe: ['react', 'react-dom'],
   },
@@ -9,6 +8,29 @@ export default defineConfig({
     fs: {
       strict: false,
     },
+  },
+  ssr: {
+    // Keep server-only modules external
+    external: [
+      '@google-cloud/firestore',
+      '@google-cloud/storage',
+      'whatwg-url',
+      'tr46',
+      'webidl-conversions',
+    ],
+    noExternal: [],
+  },
+  optimizeDeps: {
+    // Exclude server-only modules from client bundle optimization
+    exclude: [
+      '@google-cloud/firestore',
+      '@google-cloud/storage', 
+      'whatwg-url',
+      'tr46',
+      'webidl-conversions',
+      'node-fetch',
+      'google-gax',
+    ],
   },
 });
 

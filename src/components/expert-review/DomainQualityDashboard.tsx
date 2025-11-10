@@ -3,7 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Star, TrendingUp, Award, X, Loader2, BarChart3 } from 'lucide-react';
-import { calculateDomainQuality } from '../../lib/expert-review/metrics-service';
+// ✅ CLIENT-SAFE: Import from client wrapper instead of server service
+import { calculateDomainQuality } from '../../lib/expert-review-client';
 
 interface DomainQualityDashboardProps {
   userId: string;

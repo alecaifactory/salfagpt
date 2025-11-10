@@ -268,3 +268,4 @@ Scaling: Min 1, Max 10 (sin cambios)
 
 
 
+
