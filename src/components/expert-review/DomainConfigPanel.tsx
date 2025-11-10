@@ -113,18 +113,44 @@ export default function DomainConfigPanel({
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<DomainReviewConfig | null>(null);
   const [activeTab, setActiveTab] = useState<'experts' | 'thresholds' | 'automation' | 'goals'>('experts');
-  const [showAddExpert, setShowAddExpert] = useState(false);
+  const [showAddSupervisor, setShowAddSupervisor] = useState(false);
+  const [showAddSpecialist, setShowAddSpecialist] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<Array<{
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  }>>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [specialistSpecialty, setSpecialistSpecialty] = useState<string>('');
+  const [specialistDomains, setSpecialistDomains] = useState<string[]>([]);
   
   // Derive domain from email
   const userDomain = userEmail.split('@')[1];
   const isSuperAdmin = userRole === 'superadmin';
   
-  // Load config on mount
+  // Load config and users on mount
   useEffect(() => {
     if (isOpen) {
       loadConfig();
+      loadDomainUsers();
     }
   }, [isOpen, userDomain]);
+  
+  const loadDomainUsers = async () => {
+    try {
+      // Get all users in the domain
+      const response = await fetch(`/api/users/domain?domain=${userDomain}`);
+      
+      if (response.ok) {
+        const users = await response.json();
+        setAvailableUsers(users);
+        console.log('✅ Loaded domain users:', users.length);
+      }
+    } catch (error) {
+      console.error('❌ Error loading domain users:', error);
+    }
+  };
   
   const loadConfig = async () => {
     try {
@@ -203,8 +229,11 @@ export default function DomainConfigPanel({
     }
   };
   
-  const addSupervisor = async (expertEmail: string, expertName: string) => {
-    if (!config) return;
+  const addSupervisor = async () => {
+    if (!config || !selectedUserId) return;
+    
+    const selectedUser = availableUsers.find(u => u.id === selectedUserId);
+    if (!selectedUser) return;
     
     try {
       const response = await fetch('/api/expert-review/add-supervisor', {
@@ -212,20 +241,56 @@ export default function DomainConfigPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           domainId: userDomain,
-          userId: expertEmail.replace('@', '_').replace(/\./g, '_'),
-          userEmail: expertEmail,
-          userName: expertName
+          userId: selectedUser.id,
+          userEmail: selectedUser.email,
+          userName: selectedUser.name
         })
       });
       
       if (response.ok) {
         await loadConfig(); // Reload
-        setShowAddExpert(false);
+        setShowAddSupervisor(false);
+        setSelectedUserId('');
         console.log('✅ Supervisor added');
       }
     } catch (error) {
       console.error('❌ Error adding supervisor:', error);
       alert('Error al agregar supervisor');
+    }
+  };
+  
+  const addSpecialist = async () => {
+    if (!config || !selectedUserId || !specialistSpecialty) return;
+    
+    const selectedUser = availableUsers.find(u => u.id === selectedUserId);
+    if (!selectedUser) return;
+    
+    try {
+      const response = await fetch('/api/expert-review/add-specialist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domainId: userDomain,
+          userId: selectedUser.id,
+          userEmail: selectedUser.email,
+          userName: selectedUser.name,
+          specialty: specialistSpecialty,
+          domains: specialistDomains.length > 0 ? specialistDomains : [userDomain],
+          maxConcurrentAssignments: 10
+        })
+      });
+      
+      if (response.ok) {
+        await loadConfig(); // Reload
+        setShowAddSpecialist(false);
+        setSelectedUserId('');
+        setSpecialistSpecialty('');
+        setSpecialistDomains([]);
+        console.log('✅ Specialist added');
+      }
+    } catch (error) {
+      console.error('❌ Error adding specialist:', error);
+      alert('Error al agregar especialista');
     }
   };
   
@@ -343,13 +408,77 @@ export default function DomainConfigPanel({
                         Supervisores ({config.supervisors.length})
                       </h3>
                       <button
-                        onClick={() => setShowAddExpert(true)}
+                        onClick={() => setShowAddSupervisor(true)}
                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
                       >
                         <UserPlus className="w-4 h-4" />
                         Agregar Supervisor
                       </button>
                     </div>
+                    
+                    {/* Add Supervisor Modal */}
+                    {showAddSupervisor && (
+                      <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">Seleccionar Supervisor</h4>
+                          <button
+                            onClick={() => {
+                              setShowAddSupervisor(false);
+                              setSelectedUserId('');
+                            }}
+                            className="text-slate-500 hover:text-slate-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              Usuario del Dominio
+                            </label>
+                            <select
+                              value={selectedUserId}
+                              onChange={(e) => setSelectedUserId(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                            >
+                              <option value="">Selecciona un usuario...</option>
+                              {availableUsers
+                                .filter(u => ['admin', 'supervisor'].includes(u.role))
+                                .filter(u => !config.supervisors.some(s => s.userId === u.id))
+                                .map(user => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.name} ({user.email}) - {user.role}
+                                  </option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                              Solo usuarios con rol Admin o Supervisor
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowAddSupervisor(false);
+                                setSelectedUserId('');
+                              }}
+                              className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={addSupervisor}
+                              disabled={!selectedUserId}
+                              className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              <UserPlus className="w-4 h-4" />
+                              Agregar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {config.supervisors.length === 0 ? (
                       <div className="text-center py-8 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600">
@@ -404,13 +533,112 @@ export default function DomainConfigPanel({
                         Especialistas ({config.specialists.length})
                       </h3>
                       <button
-                        onClick={() => alert('Feature: Agregar Especialista - Coming soon')}
+                        onClick={() => setShowAddSpecialist(true)}
                         className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
                       >
                         <UserPlus className="w-4 h-4" />
                         Agregar Especialista
                       </button>
                     </div>
+                    
+                    {/* Add Specialist Modal */}
+                    {showAddSpecialist && (
+                      <div className="mb-4 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold text-slate-900 dark:text-white">Seleccionar Especialista</h4>
+                          <button
+                            onClick={() => {
+                              setShowAddSpecialist(false);
+                              setSelectedUserId('');
+                              setSpecialistSpecialty('');
+                              setSpecialistDomains([]);
+                            }}
+                            className="text-slate-500 hover:text-slate-700"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              Usuario Experto
+                            </label>
+                            <select
+                              value={selectedUserId}
+                              onChange={(e) => setSelectedUserId(e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                            >
+                              <option value="">Selecciona un experto...</option>
+                              {availableUsers
+                                .filter(u => u.role === 'especialista')
+                                .filter(u => !config.specialists.some(s => s.userId === u.id))
+                                .map(user => (
+                                  <option key={user.id} value={user.id}>
+                                    {user.name} ({user.email})
+                                  </option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                              Solo usuarios con rol Especialista
+                            </p>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              Especialidad
+                            </label>
+                            <input
+                              type="text"
+                              value={specialistSpecialty}
+                              onChange={(e) => setSpecialistSpecialty(e.target.value)}
+                              placeholder="ej: Productos, Soporte Técnico, Ventas"
+                              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                              Dominios de Conocimiento (separados por coma)
+                            </label>
+                            <input
+                              type="text"
+                              value={specialistDomains.join(', ')}
+                              onChange={(e) => setSpecialistDomains(
+                                e.target.value.split(',').map(d => d.trim()).filter(d => d)
+                              )}
+                              placeholder="ej: equipos, herramientas, procesos"
+                              className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                            />
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                              Áreas de expertise para auto-asignación
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowAddSpecialist(false);
+                                setSelectedUserId('');
+                                setSpecialistSpecialty('');
+                                setSpecialistDomains([]);
+                              }}
+                              className="flex-1 px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={addSpecialist}
+                              disabled={!selectedUserId || !specialistSpecialty}
+                              className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              <UserPlus className="w-4 h-4" />
+                              Agregar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {config.specialists.length === 0 ? (
                       <div className="text-center py-8 bg-slate-50 dark:bg-slate-900/50 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600">
