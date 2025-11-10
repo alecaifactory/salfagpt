@@ -1,0 +1,322 @@
+---
+alwaysApply: true
+---
+
+# Multi-Organization System - Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the multi-organization system enabling enterprise multi-tenancy with complete data isolation, per-org branding, staging-production workflow, and organization-scoped evaluation.
+
+**Created:** 2025-11-10  
+**Status:** ✅ Implemented (Steps 1-9)  
+**Backward Compatible:** ✅ YES - All existing functionality preserved
+
+---
+
+## 🏗️ **Architecture Overview**
+
+### **Organization Hierarchy**
+
+```
+SuperAdmin (alec@getaifactory.com)
+  │
+  ├─ Organization: Salfa Corp
+  │   ├─ Domains: [salfagestion.cl, salfa.cl, ...]
+  │   ├─ Admins: [sorellanac@salfagestion.cl, ...]
+  │   ├─ Users: 150+ (filtered by email domain)
+  │   ├─ Agents: 200+ (org-scoped)
+  │   ├─ Branding: Salfa-specific
+  │   ├─ Encryption: KMS key per org
+  │   └─ Evaluation: Per-domain configs
+  │
+  ├─ Organization: Future Client A
+  │   ├─ Domains: [clienta.com]
+  │   ├─ Complete data isolation
+  │   └─ Custom branding
+  │
+  └─ Organization: Future Client B
+      └─ Self-hosted or SaaS shared
+```
+
+---
+
+## 🔐 **Security & Isolation**
+
+### **Three-Layer Access Control**
+
+**Layer 1: User Isolation** (existing - preserved)
+```typescript
+// Users see only their own data
+.where('userId', '==', userId)
+```
+
+**Layer 2: Organization Isolation** (NEW)
+```typescript
+// Org admins see only their org data
+.where('organizationId', '==', orgId)
+
+// Admin in Org A CANNOT see Org B data
+```
+
+**Layer 3: SuperAdmin Access** (NEW)
+```typescript
+// SuperAdmin can see ALL organizations
+// Can manage all orgs, create orgs, execute promotions
+```
+
+### **Database-Level Enforcement**
+
+See `firestore.rules` for complete security implementation.
+
+**Key Functions:**
+- `isSuperAdmin()` - System-wide access
+- `isOrgAdmin(orgId)` - Organization-scoped admin
+- `belongsToOrg(orgId)` - Organization membership
+- `canAccessOrgResource(resource)` - Backward compatible access
+
+---
+
+## 📊 **Data Model**
+
+### **Organization Schema**
+
+See `src/types/organizations.ts` for complete interface.
+
+**Key Fields:**
+```typescript
+{
+  id: string;                     // Org ID (e.g., 'salfa-corp')
+  name: string;                   // Display name
+  domains: string[];              // Multi-domain support
+  primaryDomain: string;          // Main domain
+  admins: string[];               // User IDs who can manage org
+  
+  tenant: {
+    type: 'dedicated' | 'saas' | 'self-hosted';
+    gcpProjectId?: string;
+  };
+  
+  branding: {
+    logo?: string;
+    primaryColor: string;
+    brandName: string;
+  };
+  
+  evaluationConfig: {
+    enabled: boolean;
+    domainConfigs: Record<string, DomainEvalConfig>;
+  };
+  
+  privacy: {
+    encryptionEnabled: boolean;
+    encryptionKeyId?: string;
+  };
+  
+  version: number;                // Conflict detection
+  organizationId?: string;        // On all org-scoped docs
+}
+```
+
+### **Collections**
+
+**Existing Collections Enhanced:**
+- `users` - Added `organizationId?`, `assignedOrganizations?`, `domainId?`
+- `conversations` - Added `organizationId?`, `version?`, promotion fields
+- `context_sources` - Added `organizationId?`, `version?`
+
+**New Collections:**
+- `organizations` - Organization configurations
+- `promotion_requests` - Staging → production workflow
+- `promotion_snapshots` - Rollback capability
+- `data_lineage` - Complete audit trail
+- `conflict_resolutions` - Conflict handling
+- `org_memberships` - User-org relationships
+
+---
+
+## 🔄 **Staging-Production Workflow**
+
+### **Promotion Flow**
+
+```
+1. Modify in Staging
+   ↓
+2. Create Promotion Request
+   ↓
+3. Org Admin Approves
+   ↓
+4. SuperAdmin Approves
+   ↓
+5. Conflict Check
+   ↓
+6. Snapshot Created (rollback)
+   ↓
+7. Execute to Production
+   ↓
+8. Verify & Monitor
+```
+
+### **Best Practices Implemented**
+
+1. ✅ **Document versioning** - Conflict detection
+2. ✅ **Bidirectional sync** - Prod ↔ staging refresh
+3. ✅ **Multi-tenant RLS** - Organization-level security
+4. ✅ **Read-only prod access** - Staging reads production safely
+5. ✅ **Cascading source tags** - Parent → child tracking
+6. ✅ **Hierarchy validation** - User → org → domain checks
+7. ✅ **Promotion approval** - Dual approval workflow
+8. ✅ **KMS encryption** - Per-org encryption keys
+9. ✅ **Data lineage** - Complete audit trail
+10. ✅ **Promotion rollback** - 90-day snapshots
+
+---
+
+## 🔧 **Usage**
+
+### **Create Organization (SuperAdmin)**
+
+```typescript
+POST /api/organizations
+{
+  "name": "Salfa Corp",
+  "domains": ["salfagestion.cl", "salfa.cl"],
+  "primaryDomain": "salfagestion.cl"
+}
+```
+
+### **Migrate Existing Data**
+
+```bash
+# Preview (safe)
+npm run migrate:multi-org:dry-run -- --org=salfa-corp --domains=salfagestion.cl,salfa.cl
+
+# Execute in staging
+npm run migrate:multi-org -- --org=salfa-corp --domains=salfagestion.cl,salfa.cl --env=staging
+
+# Execute in production (after UAT)
+npm run migrate:multi-org -- --org=salfa-corp --domains=salfagestion.cl,salfa.cl --env=production
+```
+
+### **Setup Staging Environment**
+
+```bash
+npm run staging:setup
+# Creates salfagpt-staging project
+# ~30-45 minutes
+```
+
+### **Setup Encryption**
+
+```bash
+./scripts/setup-org-encryption.sh --org=salfa-corp --project=salfagpt
+```
+
+---
+
+## 📚 **Key Files**
+
+### **Types**
+- `src/types/organizations.ts` - Organization, Promotion, Lineage types
+
+### **Libraries**
+- `src/lib/organizations.ts` - Org management (25+ functions)
+- `src/lib/promotion.ts` - Promotion workflow (15+ functions)
+- `src/lib/staging-sync.ts` - Staging sync (8+ functions)
+- `src/lib/encryption.ts` - KMS encryption (10+ functions)
+
+### **APIs**
+- `src/pages/api/organizations/` - 8 endpoints
+- `src/pages/api/promotions/` - 5 endpoints
+- `src/pages/api/lineage/` - 1 endpoint
+
+### **Scripts**
+- `scripts/create-staging-mirror.sh` - Staging setup
+- `scripts/migrate-to-multi-org.ts` - Data migration
+- `scripts/setup-org-encryption.sh` - KMS setup
+
+### **Components**
+- `src/components/OrganizationManagementDashboard.tsx`
+- `src/components/OrganizationConfigModal.tsx`
+- `src/components/PromotionApprovalDashboard.tsx`
+
+---
+
+## ✅ **Backward Compatibility**
+
+### **CRITICAL: All Changes Are Additive**
+
+**Safe Changes:**
+- ✅ All new fields optional (`field?: type`)
+- ✅ All existing fields preserved
+- ✅ All existing queries work unchanged
+- ✅ All existing APIs unchanged
+
+**No Breaking Changes:**
+- ❌ No fields removed
+- ❌ No field types changed
+- ❌ No required fields added
+- ❌ No existing behavior modified
+
+**Migration is Optional:**
+- System works with mixed data (some with orgId, some without)
+- Un-migrated users/data continue functioning normally
+- Migration can be done progressively
+
+---
+
+## 🎯 **Integration with Existing Systems**
+
+### **Evaluation System**
+
+The existing evaluation system (supervisor/especialista) is **enhanced, not replaced**:
+
+```typescript
+// Organization contains evaluation config
+evaluationConfig: {
+  enabled: boolean;
+  domainConfigs: {
+    'salfagestion.cl': {
+      supervisors: [...],
+      especialistas: [...],
+      settings: {...}
+    }
+  }
+}
+
+// Existing domain_review_configs collection still used
+// Organization provides grouping and defaults
+```
+
+---
+
+## 📋 **Deployment Checklist**
+
+### **Before Production:**
+
+- [ ] Deploy indexes: `firebase deploy --only firestore:indexes`
+- [ ] Test rules in emulator
+- [ ] Deploy rules: `firebase deploy --only firestore:rules`
+- [ ] Setup staging: `npm run staging:setup`
+- [ ] Test migration (dry-run)
+- [ ] Run migration in staging
+- [ ] UAT with admin (sorellanac@)
+- [ ] Admin approval obtained
+- [ ] Run migration in production
+- [ ] Monitor 48 hours
+
+---
+
+## 🔗 **Related Rules**
+
+- `.cursor/rules/alignment.mdc` - Core principles (data persistence, security)
+- `.cursor/rules/data.mdc` - Complete data schema
+- `.cursor/rules/privacy.mdc` - User data isolation
+- `.cursor/rules/firestore.mdc` - Database operations
+
+---
+
+**Last Updated:** 2025-11-10  
+**Version:** 1.0.0  
+**Status:** ✅ Backend Complete, Frontend Partial  
+**Backward Compatible:** ✅ Guaranteed
