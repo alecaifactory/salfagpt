@@ -1,6 +1,7 @@
 // User roles and permissions system
 
 export type UserRole = 
+  | 'superadmin'    // NEW: Can manage all organizations (above admin)
   | 'admin'
   | 'expert'
   | 'supervisor' // NEW: Can oversee expert reviews
@@ -59,6 +60,14 @@ export interface User {
   lastLoginAt?: Date | string | null; // Accept both for API compatibility, can be null for "never logged in"
   isActive: boolean;
   avatarUrl?: string;
+  
+  // ========================================
+  // MULTI-ORG FIELDS (2025-11-10) - ALL OPTIONAL
+  // ========================================
+  organizationId?: string;              // Primary organization (optional for backward compat)
+  assignedOrganizations?: string[];     // Multiple org access (for multi-org admins)
+  domainId?: string;                    // Specific domain within org (for domain-scoped roles)
+  
   // Metadata for tracking
   agentAccessCount?: number; // Cached count of agents user has access to
   contextAccessCount?: number; // Cached count of context sources user has access to
@@ -70,7 +79,27 @@ export interface User {
 
 // Role-based permission presets
 export const ROLE_PERMISSIONS: Record<UserRole, Partial<UserPermissions>> = {
+  superadmin: {
+    // SuperAdmin: Can manage ALL organizations and system
+    canManageUsers: true,
+    canManageSystem: true,
+    canCreateContext: true,
+    canEditContext: true,
+    canDeleteContext: true,
+    canReviewContext: true,
+    canSignOffContext: true,
+    canShareContext: true,
+    canCreateAgent: true,
+    canEditAgent: true,
+    canDeleteAgent: true,
+    canReviewAgent: true,
+    canSignOffAgent: true,
+    canShareAgent: true,
+    canCollaborate: true,
+    canViewAnalytics: true,
+  },
   admin: {
+    // Admin: Can manage their organization (org-scoped)
     canManageUsers: true,
     canManageSystem: true,
     canCreateContext: true,
@@ -402,6 +431,7 @@ export const getMergedPermissions = (roles: UserRole[]): UserPermissions => {
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
+  superadmin: 'Super Administrador',
   admin: 'Administrador',
   expert: 'Experto',
   supervisor: 'Supervisor',
@@ -418,4 +448,77 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   context_owner: 'Propietario de Contexto',
   agent_owner: 'Propietario de Agente',
 };
+
+/**
+ * MULTI-ORG HELPERS (2025-11-10)
+ * Backward compatible organization access helpers
+ */
+
+/**
+ * Check if user is SuperAdmin (can manage all organizations)
+ */
+export function isSuperAdmin(user: User | null): boolean {
+  return user?.role === 'superadmin' || user?.roles?.includes('superadmin') || false;
+}
+
+/**
+ * Check if user is admin of a specific organization
+ */
+export function isOrganizationAdmin(user: User | null, organizationId: string): boolean {
+  if (!user || !organizationId) return false;
+  
+  // SuperAdmin can manage all orgs
+  if (isSuperAdmin(user)) return true;
+  
+  // Check if user's primary org matches
+  if (user.organizationId === organizationId && user.role === 'admin') return true;
+  
+  // Check if org is in assigned organizations
+  if (user.assignedOrganizations?.includes(organizationId) && 
+      (user.role === 'admin' || user.roles?.includes('admin'))) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if user can access organization data (admin or member)
+ */
+export function canAccessOrganization(user: User | null, organizationId: string): boolean {
+  if (!user || !organizationId) return false;
+  
+  // SuperAdmin can access all orgs
+  if (isSuperAdmin(user)) return true;
+  
+  // Check if user belongs to org
+  if (user.organizationId === organizationId) return true;
+  
+  // Check assigned organizations
+  if (user.assignedOrganizations?.includes(organizationId)) return true;
+  
+  return false;
+}
+
+/**
+ * Get all organization IDs user can access
+ */
+export function getUserOrganizations(user: User | null): string[] {
+  if (!user) return [];
+  
+  const orgs: string[] = [];
+  
+  // Add primary org
+  if (user.organizationId) {
+    orgs.push(user.organizationId);
+  }
+  
+  // Add assigned orgs
+  if (user.assignedOrganizations) {
+    orgs.push(...user.assignedOrganizations);
+  }
+  
+  // Remove duplicates
+  return Array.from(new Set(orgs));
+}
 
