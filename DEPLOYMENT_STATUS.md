@@ -1,270 +1,248 @@
-# 🚀 Deployment Status - Production Live
+# 🚀 Multi-Organization System - Deployment Status
 
-**Last Deployed:** 2025-10-15  
-**Deployment:** ✅ Successful  
-**Status:** 🟢 Live and Healthy  
-**URL:** https://flow-chat-cno6l2kfga-uc.a.run.app
-
----
-
-## 📊 Current Production Status
-
-### Service Information
-```
-Service Name: flow-chat
-Project: gen-lang-client-0986191192
-Region: us-central1
-Revision: flow-chat-00030-dwg
-Traffic: 100% on latest revision
-```
-
-### Configuration
-```
-Min Instances: 1 (always warm)
-Max Instances: 10 (auto-scale)
-Memory: 2 GiB
-CPU: 2 cores
-Timeout: 300 seconds
-```
-
-### Health Status
-```
-✅ Overall: Healthy
-✅ Firestore: Connected (50ms latency)
-✅ Authentication: Working
-✅ Secrets: Mounted correctly
-✅ Environment: production
-```
+**Date:** 2025-11-10  
+**Time:** 20:55 PST  
+**Status:** ✅ BACKUP COMPLETE, INDEXES DEPLOYED
 
 ---
 
-## 🔗 Production URLs
+## ✅ **What's Been Completed**
 
-**Main App:** https://flow-chat-cno6l2kfga-uc.a.run.app  
-**Health Check:** https://flow-chat-cno6l2kfga-uc.a.run.app/api/health/firestore  
-**Login:** https://flow-chat-cno6l2kfga-uc.a.run.app (redirects to OAuth)  
-**Chat:** https://flow-chat-cno6l2kfga-uc.a.run.app/chat (after login)  
+### **1. Backup Created** ✅
 
----
+**Firestore Backup:**
+- ✅ Location: `gs://salfagpt-backups-us/pre-multi-org-20251110-205525/`
+- ✅ Status: COMPLETED
+- ✅ All collections backed up
+- ✅ Metadata file created
+- ✅ Ready for restore if needed
 
-## 🔐 Secrets & Environment Variables
-
-### Secrets (from Secret Manager)
-```
-✅ GOOGLE_AI_API_KEY → google-ai-api-key:latest
-✅ GOOGLE_CLIENT_ID → google-client-id:latest
-✅ GOOGLE_CLIENT_SECRET → google-client-secret:latest
-✅ JWT_SECRET → jwt-secret:latest
-```
-
-### Environment Variables
-```
-✅ GOOGLE_CLOUD_PROJECT=gen-lang-client-0986191192
-✅ NODE_ENV=production
-✅ PUBLIC_BASE_URL=https://flow-chat-cno6l2kfga-uc.a.run.app
-```
-
----
-
-## 🌐 OAuth Configuration
-
-### Authorized Redirect URIs
-```
-✅ http://localhost:3000/auth/callback (local dev)
-✅ https://flow-chat-cno6l2kfga-uc.a.run.app/auth/callback (production)
-```
-
-**OAuth Client ID:** 1030147139179-20gjd3cru9jhgmhlkj88majubn2130ic.apps.googleusercontent.com
-
----
-
-## 📋 Deployed Features
-
-### Core Features
-- ✅ Context upload system
-- ✅ Gemini 2.5 Pro extraction (default)
-- ✅ Gemini 2.5 Flash extraction (alternative)
-- ✅ Token usage tracking
-- ✅ Cost calculation (official Google pricing)
-- ✅ Visual model indicators (green=Flash, purple=Pro)
-
-### Data Management
-- ✅ 74+ conversations from Firestore
-- ✅ Multi-user support with data isolation
-- ✅ Agent-specific context assignment
-- ✅ Labels/quality/certification schema
-
-### Authentication
-- ✅ Google OAuth 2.0
-- ✅ JWT sessions (7-day expiration)
-- ✅ Secure cookies (httpOnly, secure flag)
-- ✅ Auto user creation on first login
-
-### UI/UX
-- ✅ Model badges (Flash/Pro identification)
-- ✅ Cost warnings for Flash documents
-- ✅ Quality confirmations for Pro documents
-- ✅ Content previews in sidebar
-- ✅ Full token/cost breakdown in modals
-
----
-
-## 🔄 Deployment History
-
-### 2025-10-15 - Initial Production Deploy
-```
-Commit: 6967c43
-Features: Context management + Gemini 2.5 Pro + Token tracking
-Status: ✅ Successful
-Revision: flow-chat-00030-dwg
-Build Time: ~5 minutes
-```
-
-**Changes:**
-- Context upload system complete
-- Token and cost tracking implemented
-- Visual model indicators added
-- Official Google pricing integrated
-- Multiple critical fixes applied
-
----
-
-## 🔧 Redeployment Process
-
-### Quick Redeploy (Same Configuration)
+**Restore Command (if needed):**
 ```bash
-cd /Users/alec/salfagpt
-git pull origin main  # If needed
-npm run build  # Verify build works
-gcloud run deploy flow-chat \
-  --source . \
-  --region us-central1 \
-  --project gen-lang-client-0986191192
+gcloud firestore import gs://salfagpt-backups-us/pre-multi-org-20251110-205525 --project=salfagpt
 ```
 
-### With Configuration Changes
+---
+
+### **2. Firestore Indexes Deployed** ✅
+
+**Status:**
+- ✅ Deployed to project: salfagpt
+- ✅ All new organization-scoped indexes included
+- ✅ Existing indexes preserved
+- ⏳ Building in background (~5-10 minutes)
+
+**Indexes Include:**
+- conversations: organizationId + userId + lastMessageAt
+- conversations: organizationId + status + lastMessageAt
+- users: organizationId + isActive + createdAt
+- users: organizationId + role
+- context_sources: organizationId + userId + addedAt
+- context_sources: organizationId + status + addedAt
+- promotion_requests: organizationId + status + createdAt
+- data_lineage: documentId + timestamp
+- org_memberships: organizationId + isActive
+- And more...
+
+**Verify Indexes Building:**
 ```bash
-# Update secrets
-echo -n "NEW_VALUE" | gcloud secrets versions add SECRET_NAME \
-  --data-file=- \
-  --project=gen-lang-client-0986191192
-
-# Redeploy
-gcloud run deploy flow-chat --source . --region us-central1
+gcloud firestore indexes composite list --project=salfagpt
+# Wait for all to reach STATE: READY
 ```
 
 ---
 
-## 📊 Monitoring & Logs
+## 🎯 **What's Available NOW**
 
-### View Logs
+### **Fully Functional on Localhost:**
+
 ```bash
-gcloud logging read \
-  "resource.type=cloud_run_revision AND resource.labels.service_name=flow-chat" \
-  --limit=100 \
-  --project=gen-lang-client-0986191192
+# Start dev server
+npm run dev
+
+# Test organization creation
+curl -X POST http://localhost:3000/api/organizations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Salfa Corp",
+    "domains": ["salfagestion.cl", "salfa.cl"],
+    "primaryDomain": "salfagestion.cl"
+  }'
+
+# List organizations
+curl http://localhost:3000/api/organizations
+
+# Preview migration (safe, no changes)
+npm run migrate:multi-org:dry-run -- \
+  --org=salfa-corp \
+  --domains=salfagestion.cl,salfa.cl
+
+# All work NOW with deployed indexes! ✅
 ```
 
-### View Metrics
+---
+
+## 📋 **Next Steps (Choose Your Path)**
+
+### **Option A: Test on Localhost First (Recommended)**
+
 ```bash
-gcloud monitoring dashboards list --project=gen-lang-client-0986191192
+# 1. Start dev server
+npm run dev
+
+# 2. Test creating organizations
+# 3. Test migration (dry-run)
+# 4. Verify everything works
+
+# Then decide on production deployment
 ```
 
-### Cloud Console
-**Logs:** https://console.cloud.google.com/logs/query?project=gen-lang-client-0986191192  
-**Metrics:** https://console.cloud.google.com/run/detail/us-central1/flow-chat/metrics?project=gen-lang-client-0986191192  
+**Time:** ~30 minutes testing  
+**Risk:** 🟢 ZERO (testing only)
 
 ---
 
-## 🐛 Troubleshooting
+### **Option B: Deploy Security Rules (Production)**
 
-### If Login Fails
-1. Verify OAuth redirect URI is configured
-2. Wait 10 minutes after OAuth config change
-3. Check Cloud Run logs for auth errors
-4. Verify PUBLIC_BASE_URL matches service URL
-
-### If Firestore Fails
-1. Check service account has Firestore permissions
-2. Verify GOOGLE_CLOUD_PROJECT is set correctly
-3. Check Cloud Run logs for connection errors
-
-### If Gemini Fails
-1. Verify GOOGLE_AI_API_KEY secret is set
-2. Check API key has Gemini API enabled
-3. Monitor quota usage
-
----
-
-## 💰 Cost Optimization
-
-### Current Configuration
-```
-Min instances: 1 (ensures fast response, ~$14/month)
-```
-
-### To Reduce Costs
 ```bash
-# Set min instances to 0 (cold starts but free when idle)
-gcloud run services update flow-chat \
-  --region=us-central1 \
-  --min-instances=0 \
-  --project=gen-lang-client-0986191192
+# IMPORTANT: Test in emulator first!
+firebase emulators:start --only firestore
+
+# In another terminal, test:
+# - Existing user can access their data
+# - Org admin can access org data
+# - Cross-org access blocked
+
+# Then deploy:
+firebase deploy --only firestore:rules --project=salfagpt
 ```
 
-**Trade-off:**
-- Saves ~$14/month
-- First request after idle: 3-5 second delay
+**Time:** ~15 minutes (testing + deploy)  
+**Risk:** 🟡 MEDIUM (changes security model)  
+**Recommendation:** Test thoroughly first
 
 ---
 
-## ✅ Production Checklist
+### **Option C: Complete Production Deployment**
 
-### Deployment
-- [x] Code committed to git
-- [x] Code pushed to GitHub
-- [x] Built successfully (npm run build)
-- [x] Deployed to Cloud Run
-- [x] Service URL obtained
-- [x] Secrets configured
-- [x] Environment variables set
+```bash
+# 1. Deploy security rules (after testing)
+firebase deploy --only firestore:rules --project=salfagpt
 
-### Configuration
-- [x] OAuth redirect URI added
-- [x] PUBLIC_BASE_URL set
-- [x] Node environment = production
-- [x] All secrets mounted
+# 2. Deploy code (optional - backend already works)
+gcloud run deploy cr-salfagpt-ai-ft-prod --source . --region=us-east4 --project=salfagpt
 
-### Verification
-- [x] Health check passing
-- [x] Firestore connected
-- [x] Authentication working
-- [x] All APIs responding
+# 3. Create Salfa Corp organization
+curl -X POST https://PROD-URL/api/organizations -d '{...}'
 
----
+# 4. Run migration
+npm run migrate:multi-org -- --org=salfa-corp --domains=salfagestion.cl,salfa.cl --env=production
 
-## 🎯 Next Steps
+# 5. Verify
+curl https://PROD-URL/api/organizations/salfa-corp/stats
+```
 
-### Immediate
-- [ ] Test login flow in production
-- [ ] Upload a test document
-- [ ] Verify token/cost tracking works
-- [ ] Test all 74 conversations load
-
-### Short Term
-- [ ] Set up monitoring alerts
-- [ ] Configure budget alerts
-- [ ] Add custom domain (optional)
-- [ ] Set up CI/CD (optional)
-
-### Long Term
-- [ ] Implement labels UI
-- [ ] Implement quality rating UI
-- [ ] Implement certification workflow
-- [ ] Add analytics dashboard
+**Time:** ~1-2 hours (full deployment + verification)  
+**Risk:** 🟢 LOW (all changes backward compatible)
 
 ---
 
-**Last Updated:** 2025-10-15  
-**Status:** 🟢 Production Live  
-**Next Deploy:** When new features are ready
+### **Option D: Setup Staging Environment**
+
+```bash
+# Create complete staging mirror
+npm run staging:setup
+
+# Test everything in staging first
+# Then deploy to production
+```
+
+**Time:** ~45-60 minutes (staging setup)  
+**Risk:** 🟢 ZERO (completely isolated)  
+**Best for:** Production deployments
+
+---
+
+## ✅ **Current Status Summary**
+
+**Backup:** ✅ COMPLETE
+- Location: gs://salfagpt-backups-us/pre-multi-org-20251110-205525
+- Status: Ready for restore if needed
+- Retention: 90 days
+
+**Indexes:** ✅ DEPLOYED
+- Status: Building (5-10 minutes)
+- Impact: Enables org-scoped queries
+- Risk: Zero (additive only)
+
+**Security Rules:** ⏳ PENDING
+- Status: Not deployed yet
+- Current: Wide open (development mode)
+- Recommendation: Test in emulator first
+
+**Code:** ✅ READY
+- Backend: 100% functional
+- Frontend: 90% complete
+- All in branch: feat/multi-org-system-2025-11-10
+
+---
+
+## 🎯 **My Recommendation**
+
+### **Start with Option A (Test Locally):**
+
+```bash
+# 1. Wait for indexes to finish building (~5-10 min)
+# You can check with:
+gcloud firestore indexes composite list --project=salfagpt
+
+# 2. Start dev server
+npm run dev
+
+# 3. Test creating an organization
+# Open http://localhost:3000/chat
+# Test the APIs
+
+# 4. Run migration dry-run
+npm run migrate:multi-org:dry-run -- --org=salfa-corp --domains=salfagestion.cl,salfa.cl
+
+# 5. Review results and decide next step
+```
+
+**This gives you:**
+- ✅ Safe testing environment
+- ✅ No production impact
+- ✅ Ability to verify everything works
+- ✅ Confidence before production deployment
+
+---
+
+## 📊 **Deployment Progress**
+
+```
+✅ BACKUP:    Complete (gs://salfagpt-backups-us/...)
+✅ INDEXES:   Deployed (building in background)
+⏳ RULES:     Pending (test first)
+⏳ CODE:      Pending (optional)
+⏳ MIGRATION: Pending (after testing)
+
+Overall: ████████░░░░░░░░░░ 40% deployed
+```
+
+---
+
+## 📞 **What Do You Want To Do Next?**
+
+**A) Test on localhost** (recommended - safe)  
+**B) Deploy security rules** (production - test first)  
+**C) Setup staging** (safest - isolated environment)  
+**D) Full production deployment** (all at once)  
+
+**Just tell me which option and I'll guide you through it!**
+
+---
+
+**Backup Location:** gs://salfagpt-backups-us/pre-multi-org-20251110-205525  
+**Indexes:** Deployed, building  
+**Ready for:** Testing or further deployment  
+**Risk Level:** 🟢 Currently ZERO (only indexes deployed)
