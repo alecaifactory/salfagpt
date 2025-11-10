@@ -45,6 +45,7 @@ import SpecialistExpertPanel from './expert-review/SpecialistExpertPanel';
 import DomainQualityDashboard from './expert-review/DomainQualityDashboard';
 import AdminApprovalPanel from './expert-review/AdminApprovalPanel';
 import DomainConfigPanel from './expert-review/DomainConfigPanel';
+import SuperAdminDomainAssignment from './expert-review/SuperAdminDomainAssignment';
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -357,6 +358,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showAdminApproval, setShowAdminApproval] = useState(false);
   const [showQualityDashboard, setShowQualityDashboard] = useState(false);
   const [showDomainConfig, setShowDomainConfig] = useState(false);
+  const [showSuperAdminDomains, setShowSuperAdminDomains] = useState(false);
   const [agentForContextConfig, setAgentForContextConfig] = useState<string | null>(null); // ✅ Kept as string for backward compat
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set()); // Track which folders are expanded
   
@@ -4654,6 +4656,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         </button>
                       )}
                       
+                      {/* Asignación de Dominios - SuperAdmin Only */}
+                      {(userRole === 'superadmin' || userEmail === 'alec@getaifactory.com') && (
+                        <button
+                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          onClick={() => {
+                            console.log('🛡️ Opening SuperAdmin Domain Assignment...');
+                            setShowSuperAdminDomains(true);
+                            setShowUserMenu(false);
+                          }}
+                        >
+                          <Shield className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                          <span className="font-medium whitespace-nowrap">Asignar Dominios</span>
+                        </button>
+                      )}
+                      
                       {/* Configuración de Dominio - For Admins */}
                       {(['admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                         <button
@@ -7022,6 +7039,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         userRole={userRole}
         isOpen={showDomainConfig}
         onClose={() => setShowDomainConfig(false)}
+      />
+      
+      <SuperAdminDomainAssignment
+        userId={userId}
+        isOpen={showSuperAdminDomains}
+        onClose={() => setShowSuperAdminDomains(false)}
       />
     </div>
   );

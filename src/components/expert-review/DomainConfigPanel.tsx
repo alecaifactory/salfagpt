@@ -160,18 +160,19 @@ export default function DomainConfigPanel({
   
   const loadAvailableDomains = async () => {
     try {
-      // Get all active domains from agents
-      const response = await fetch('/api/domains?activeOnly=true');
+      // SuperAdmin: Get domains assigned to this superadmin OR all if truly superadmin
+      // For now, load all active domains for superadmin
+      const response = await fetch(`/api/expert-review/admin-domains?userId=${userId}`);
       
       if (response.ok) {
         const data = await response.json();
         const domains = data.domains || [];
-        setAvailableDomains(domains.map((d: any) => d.id || d.name));
-        console.log('✅ Loaded domains:', domains.length);
+        setAvailableDomains(domains);
+        console.log('✅ Loaded assignable domains for user:', domains.length);
         
         // Auto-select first domain if available
         if (domains.length > 0 && !selectedDomain) {
-          setSelectedDomain(domains[0].id || domains[0].name);
+          setSelectedDomain(domains[0]);
         }
       }
     } catch (error) {
