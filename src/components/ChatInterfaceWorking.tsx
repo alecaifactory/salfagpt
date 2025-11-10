@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
@@ -301,8 +301,8 @@ interface ChatInterfaceWorkingProps {
   userRole?: string; // ✅ NEW: User role from JWT session
 }
 
-export default function ChatInterfaceWorking({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
-  // 🔍 DIAGNOSTIC: Log component mount
+function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
+  // 🔍 DIAGNOSTIC: Log component mount (should only happen ONCE)
   console.log('🎯 ChatInterfaceWorking MOUNTING:', {
     userId,
     userEmail,
@@ -465,8 +465,8 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   const [expandedArchivedAgents, setExpandedArchivedAgents] = useState(false); // Agents folder collapsed by default
   const [expandedArchivedChats, setExpandedArchivedChats] = useState(false); // Chats folder collapsed by default
   
-  // Timer state
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  // Timer state - REMOVED: Was causing unnecessary re-renders every second
+  // const [currentTime, setCurrentTime] = useState(Date.now());
   
   // User settings state
   const [globalUserSettings, setGlobalUserSettings] = useState<UserSettings>({
@@ -585,13 +585,15 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   }, [messages]);
 
   // Update timer every second for active processing agents
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, []);
+  // ✅ REMOVED: This was causing the component to remount every second
+  // causing the flash of sample questions and agent header
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setCurrentTime(Date.now());
+  //   }, 1000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, []);
 
   // Handle panel resizing
   useEffect(() => {
@@ -1337,21 +1339,22 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
   };
 
   // Helper: Format elapsed time
-  const formatElapsedTime = (startTime: number): string => {
-    const elapsed = Math.floor((currentTime - startTime) / 1000);
-    
-    if (elapsed < 60) {
-      return `${elapsed}s`;
-    } else if (elapsed < 3600) {
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      return `${minutes}m ${seconds}s`;
-    } else {
-      const hours = Math.floor(elapsed / 3600);
-      const minutes = Math.floor((elapsed % 3600) / 60);
-      return `${hours}h ${minutes}m`;
-    }
-  };
+  // ✅ REMOVED: currentTime no longer updates, so this is unused
+  // const formatElapsedTime = (startTime: number): string => {
+  //   const elapsed = Math.floor((currentTime - startTime) / 1000);
+  //   
+  //   if (elapsed < 60) {
+  //     return `${elapsed}s`;
+  //   } else if (elapsed < 3600) {
+  //     const minutes = Math.floor(elapsed / 60);
+  //     const seconds = elapsed % 60;
+  //     return `${minutes}m ${seconds}s`;
+  //   } else {
+  //     const hours = Math.floor(elapsed / 3600);
+  //     const minutes = Math.floor((elapsed % 3600) / 60);
+  //     return `${hours}h ${minutes}m`;
+  //   }
+  // };
 
   // Helper: Format response time from milliseconds
   const formatResponseTime = (ms: number): string => {
@@ -6998,4 +7001,16 @@ export default function ChatInterfaceWorking({ userId, userEmail, userName, user
     </div>
   );
 }
+
+// ✅ FIX: Memoize component to prevent unnecessary remounts
+// This prevents the flash when props haven't actually changed
+export default React.memo(ChatInterfaceWorkingComponent, (prevProps, nextProps) => {
+  // Only re-render if props actually changed
+  return (
+    prevProps.userId === nextProps.userId &&
+    prevProps.userEmail === nextProps.userEmail &&
+    prevProps.userName === nextProps.userName &&
+    prevProps.userRole === nextProps.userRole
+  );
+});
 
