@@ -769,14 +769,13 @@ export async function calculateOrganizationStats(
     const totalContextSources = allSources.length;
     const validatedSources = allSources.filter(s => s.metadata?.validated || s.certified).length;
     
-    // Get messages (for token usage) - limit to recent for performance
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+    // Get messages (for token usage)
+    // NOTE: Removed timestamp filter to avoid needing composite index
+    // This queries ALL messages for the organization
     const messages = await firestore
       .collection(COLLECTIONS.MESSAGES)
       .where('organizationId', '==', orgId)
-      .where('timestamp', '>=', thirtyDaysAgo)
+      .limit(1000) // Limit for performance
       .get();
     
     const totalMessages = messages.size;
@@ -786,6 +785,7 @@ export async function calculateOrganizationStats(
     }, 0);
     
     // Estimate cost (Gemini pricing: ~$0.000002 per token average)
+    // Based on last 1000 messages sampled
     const estimatedMonthlyCost = totalTokensUsed * 0.000002;
     
     const stats: OrganizationStats = {
