@@ -443,6 +443,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
   const [showOrganizations, setShowOrganizations] = useState(false); // NEW: Organizations settings panel (2025-11-10)
   
+  // Business Management modals (SuperAdmin only - 2025-11-10)
+  const [showBranding, setShowBranding] = useState(false);
+  const [showInvoicing, setShowInvoicing] = useState(false);
+  const [showMonetization, setShowMonetization] = useState(false);
+  const [showCostTracking, setShowCostTracking] = useState(false);
+  const [showCollections, setShowCollections] = useState(false);
+  const [showConciliation, setShowConciliation] = useState(false);
+  const [showPayments, setShowPayments] = useState(false);
+  const [showTaxes, setShowTaxes] = useState(false);
+  
   // Stella screenshot tool state (managed at top level to capture full UI including Stella)
   const [showStellaScreenshotTool, setShowStellaScreenshotTool] = useState(false);
   const [stellaPendingAttachments, setStellaPendingAttachments] = useState<StellaAttachment[]>([]);
@@ -4791,12 +4801,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     )}
                   </div>
                   
-                  {/* COLUMN 6: Organizations (SuperAdmin/Admin Only) */}
-                  {(userRole === 'superadmin' || userRole === 'admin') && (
+                  {/* COLUMN 6: Business Management (SuperAdmin ONLY) */}
+                  {userEmail === 'alec@getaifactory.com' && (
                     <div className="space-y-2">
                       <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/30 rounded">
                         <p className="text-xs font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
-                          Organizations
+                          Business Management
                         </p>
                       </div>
                       
@@ -4809,6 +4819,94 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       >
                         <Building2 className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">Organizations</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowBranding(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Palette className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Branding</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowInvoicing(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <FileText className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Invoicing</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowMonetization(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <TrendingUp className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Monetization</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowCostTracking(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <DollarSign className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Cost Tracking</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowCollections(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Archive className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Collections</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowConciliation(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <CheckCircle className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Conciliation</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowPayments(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <DollarSign className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Payments</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowTaxes(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <FileText className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Taxes</span>
                       </button>
                     </div>
                   )}
@@ -6726,6 +6824,168 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 currentUserRole={userRole || 'user'}
                 currentUserOrgId={currentUser?.organizationId}
               />
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Business Management Modals - SuperAdmin Only */}
+      
+      {/* Branding Management */}
+      {showBranding && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Palette className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Branding Management</h2>
+              </div>
+              <button onClick={() => setShowBranding(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Platform-wide branding configuration (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Invoicing */}
+      {showInvoicing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Invoicing System</h2>
+              </div>
+              <button onClick={() => setShowInvoicing(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Invoice generation and management (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Monetization */}
+      {showMonetization && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Monetization Strategy</h2>
+              </div>
+              <button onClick={() => setShowMonetization(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Pricing, packages, subscription management (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Cost Tracking */}
+      {showCostTracking && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Cost Tracking & Analysis</h2>
+              </div>
+              <button onClick={() => setShowCostTracking(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Cost analysis, budget tracking, forecasting (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Collections */}
+      {showCollections && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Archive className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Collections Management</h2>
+              </div>
+              <button onClick={() => setShowCollections(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Payment collections, receivables management (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Conciliation */}
+      {showConciliation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Account Conciliation</h2>
+              </div>
+              <button onClick={() => setShowConciliation(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Bank reconciliation, account matching (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Payments */}
+      {showPayments && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <DollarSign className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Payment Processing</h2>
+              </div>
+              <button onClick={() => setShowPayments(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Payment gateways, transaction processing (Implementation pending)</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Taxes */}
+      {showTaxes && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <FileText className="w-6 h-6 text-orange-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Tax Management</h2>
+              </div>
+              <button onClick={() => setShowTaxes(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-6">
+              <p className="text-slate-600">Tax calculation, reporting, compliance (Implementation pending)</p>
             </div>
           </div>
         </div>
