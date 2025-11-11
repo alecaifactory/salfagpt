@@ -40,7 +40,9 @@ export default function OrganizationConfigModal({ organization, isOpen, onClose,
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [saving, setSaving] = useState(false);
   const [scrapingUrl, setScrapingUrl] = useState(false);
+  const [scrapingProgress, setScrapingProgress] = useState('');
   const [generatingContent, setGeneratingContent] = useState(false);
+  const [scrapeSuccess, setScrapeSuccess] = useState(false);
   const [formData, setFormData] = useState<UpdateOrganizationInput>({
     name: organization.name,
     primaryDomain: organization.primaryDomain,
@@ -139,18 +141,28 @@ export default function OrganizationConfigModal({ organization, isOpen, onClose,
                     type="button"
                     onClick={async () => {
                       if (!formData.profile?.url) {
-                        alert('Please enter a URL first');
+                        setScrapingProgress('⚠️ Please enter a URL first');
+                        setTimeout(() => setScrapingProgress(''), 3000);
                         return;
                       }
                       setScrapingUrl(true);
+                      setScrapeSuccess(false);
+                      setScrapingProgress('🌐 Connecting to website...');
+                      
                       try {
                         const response = await fetch('/api/scrape-company-data', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ url: formData.profile.url })
                         });
+                        
+                        setScrapingProgress('🤖 Processing with AI...');
+                        
                         const data = await response.json();
+                        
                         if (data.companyData) {
+                          setScrapingProgress('✅ Extracting information...');
+                          
                           setFormData({
                             ...formData,
                             profile: {
@@ -161,11 +173,23 @@ export default function OrganizationConfigModal({ organization, isOpen, onClose,
                               purpose: data.companyData.purpose || formData.profile?.purpose,
                             }
                           });
-                          alert('✅ Company data scraped successfully!');
+                          
+                          setScrapingProgress('✅ Company data scraped successfully!');
+                          setScrapeSuccess(true);
+                          
+                          // Clear success message after 5 seconds
+                          setTimeout(() => {
+                            setScrapingProgress('');
+                            setScrapeSuccess(false);
+                          }, 5000);
+                        } else {
+                          setScrapingProgress('⚠️ No data found on website');
+                          setTimeout(() => setScrapingProgress(''), 5000);
                         }
                       } catch (error) {
                         console.error('Error scraping URL:', error);
-                        alert('Failed to scrape URL');
+                        setScrapingProgress('❌ Failed to scrape URL - please try again');
+                        setTimeout(() => setScrapingProgress(''), 5000);
                       } finally {
                         setScrapingUrl(false);
                       }
@@ -189,6 +213,34 @@ export default function OrganizationConfigModal({ organization, isOpen, onClose,
                 <p className="text-xs text-slate-500 mt-1">
                   Enter the company website to automatically extract mission, vision, and other data
                 </p>
+                
+                {/* Scraping Progress Indicator */}
+                {scrapingProgress && (
+                  <div className={`mt-2 p-3 rounded-lg border ${
+                    scrapeSuccess 
+                      ? 'bg-green-50 border-green-200' 
+                      : scrapingUrl 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {scrapingUrl && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                      <p className={`text-sm font-medium ${
+                        scrapeSuccess 
+                          ? 'text-green-700' 
+                          : scrapingUrl 
+                            ? 'text-blue-700' 
+                            : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
+                              ? 'text-amber-700'
+                              : 'text-slate-700'
+                      }`}>
+                        {scrapingProgress}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Company Name */}
