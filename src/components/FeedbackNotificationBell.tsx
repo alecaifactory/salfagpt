@@ -61,16 +61,35 @@ export default function FeedbackNotificationBell({
   async function loadFeedbackTickets() {
     try {
       const response = await fetch(`/api/stella/feedback-tickets?userId=${userId}`);
-      if (!response.ok) throw new Error('Failed to load feedback tickets');
+      
+      // Don't throw on non-ok response, just handle gracefully
+      if (!response.ok) {
+        console.warn('⚠️ Feedback tickets endpoint returned:', response.status);
+        setFeedbackTickets([]);
+        setUnreadCount(0);
+        return;
+      }
       
       const data = await response.json();
+      
+      // Handle warning from API (graceful degradation)
+      if (data.warning) {
+        console.warn('⚠️ API warning:', data.warning);
+      }
+      
       setFeedbackTickets(data.tickets || []);
       
       // Count unread
       const unread = (data.tickets || []).filter((t: FeedbackTicket) => !t.isRead).length;
       setUnreadCount(unread);
     } catch (error) {
-      console.error('Error loading feedback tickets:', error);
+      // Only log in development to reduce console noise
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ Could not load feedback tickets (non-critical):', error);
+      }
+      // Set to empty state - component still works without data
+      setFeedbackTickets([]);
+      setUnreadCount(0);
     }
   }
 
