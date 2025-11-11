@@ -766,7 +766,12 @@ export default function DomainManagementModal({
       {showCreateForm && (
         <div 
           className="fixed inset-0 z-[70] bg-black bg-opacity-50 flex items-center justify-center p-4"
-          onClick={() => setShowCreateForm(false)}
+          onClick={(e) => {
+            // Only close if clicking on backdrop, not on select dropdown or its options
+            if (e.target === e.currentTarget) {
+              setShowCreateForm(false);
+            }
+          }}
         >
           <div 
             className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
@@ -797,13 +802,18 @@ export default function DomainManagementModal({
             <div className="p-6 space-y-6">
               {/* Organization Selection (SuperAdmin only) */}
               {isSuperAdmin && (
-                <div>
+                <div onClick={(e) => e.stopPropagation()}>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Organization <span className="text-red-600">*</span>
                   </label>
                   <select
                     value={selectedOrgId}
-                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setSelectedOrgId(e.target.value);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     required
                   >
