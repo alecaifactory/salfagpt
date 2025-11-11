@@ -362,13 +362,13 @@ export default function OrganizationManagementDashboard({
             <div>
               <p className="text-xs text-blue-700 mb-1">Total Domains</p>
               <p className="text-2xl font-bold text-blue-900">
-                {organizations.reduce((sum, o) => sum + o.domains.length, 0)}
+                {organizations.reduce((sum, o) => sum + (o.domains?.length || 0), 0)}
               </p>
             </div>
             <div>
               <p className="text-xs text-blue-700 mb-1">Encrypted Orgs</p>
               <p className="text-2xl font-bold text-blue-900">
-                {organizations.filter(o => o.privacy.encryptionEnabled).length}
+                {organizations.filter(o => o.privacy?.encryptionEnabled).length}
               </p>
             </div>
           </div>
