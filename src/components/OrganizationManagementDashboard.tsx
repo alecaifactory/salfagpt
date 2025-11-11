@@ -28,9 +28,11 @@ import {
   Search,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
-import type { Organization, OrganizationStats } from '../types/organizations';
+import type { Organization, OrganizationStats, UpdateOrganizationInput } from '../types/organizations';
+import OrganizationConfigModal from './OrganizationConfigModal';
 
 interface Props {
   currentUserId: string;
@@ -45,8 +47,8 @@ export default function OrganizationManagementDashboard({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [orgStats, setOrgStats] = useState<Record<string, OrganizationStats>>({});
   
   // Load organizations
@@ -86,10 +88,9 @@ export default function OrganizationManagementDashboard({
       
       setOrganizations(data.organizations || []);
       
-      // Load stats for each org
-      for (const org of data.organizations || []) {
-        loadOrgStats(org.id);
-      }
+      // ✅ OPTIMIZATION: Don't load stats on initial render
+      // Stats will load on-demand when user hovers over org card
+      console.log('✅ Organizations loaded. Stats will load on-demand.');
       
     } catch (error) {
       console.error('❌ Error loading organizations:', error);
@@ -101,22 +102,118 @@ export default function OrganizationManagementDashboard({
   
   async function loadOrgStats(orgId: string) {
     try {
+      console.log(`📊 Loading stats for ${orgId}...`);
+      const startTime = Date.now();
+      
+      // ✅ OPTIMIZATION: Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch(`/api/organizations/${orgId}/stats`, {
-        credentials: 'include' // ✅ Include cookies for authentication
+        credentials: 'include',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
       
       if (response.ok) {
         const data = await response.json();
+        console.log(`✅ Stats loaded for ${orgId} in ${duration}ms`);
         setOrgStats(prev => ({ ...prev, [orgId]: data.stats }));
       } else {
-        console.warn(`⚠️ Stats not available for org ${orgId} (${response.status})`);
-        // Set empty stats so UI doesn't wait indefinitely
+        console.warn(`⚠️ Stats not available for org ${orgId} (${response.status}) after ${duration}ms`);
         setOrgStats(prev => ({ ...prev, [orgId]: null }));
       }
     } catch (error) {
-      console.error('❌ Error loading org stats:', error);
-      // Set empty stats on error
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error(`❌ Stats request timeout for org ${orgId} (>10s)`);
+      } else {
+        console.error(`❌ Error loading org stats for ${orgId}:`, error);
+      }
       setOrgStats(prev => ({ ...prev, [orgId]: null }));
+    }
+  }
+  
+  // Helper to create new empty organization object
+  function createEmptyOrg(): Organization {
+    return {
+      id: `org-${Date.now()}`,
+      name: 'New Organization',
+      domains: [],
+      primaryDomain: '',
+      admins: [currentUserId],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      createdBy: currentUserId,
+      tenant: {
+        type: 'saas',
+      },
+      branding: {
+        brandName: 'New Organization',
+        primaryColor: '#0066CC',
+      },
+      evaluationConfig: {
+        enabled: false,
+        domainConfigs: {},
+      },
+      privacy: {
+        encryptionEnabled: false,
+      },
+      limits: {
+        maxUsers: 1000,
+        maxAgents: 100,
+        maxStorageGB: 100,
+      },
+      profile: {},
+      version: 1,
+    };
+  }
+  
+  async function handleSaveOrganization(updates: UpdateOrganizationInput) {
+    if (!selectedOrg) return;
+    
+    try {
+      console.log('💾 Saving organization:', selectedOrg.id, updates);
+      
+      // Detect if this is a new organization (starts with org-)
+      const isNew = selectedOrg.id.startsWith('org-');
+      
+      const response = await fetch(
+        isNew ? '/api/organizations' : `/api/organizations/${selectedOrg.id}`,
+        {
+          method: isNew ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(updates)
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save organization');
+      }
+      
+      const data = await response.json();
+      
+      console.log('✅ Organization saved:', data);
+      
+      // Update local state
+      if (isNew) {
+        setOrganizations(prev => [data.organization, ...prev]);
+      } else {
+        setOrganizations(prev => 
+          prev.map(org => org.id === selectedOrg.id ? data.organization : org)
+        );
+      }
+      
+      // Reload stats
+      await loadOrgStats(data.organization.id);
+      
+    } catch (error) {
+      console.error('❌ Error saving organization:', error);
+      throw error; // Re-throw to let modal handle it
     }
   }
   
@@ -127,7 +224,7 @@ export default function OrganizationManagementDashboard({
     const query = searchQuery.toLowerCase();
     return (
       org.name.toLowerCase().includes(query) ||
-      org.domains.some(d => d.toLowerCase().includes(query)) ||
+      org.domains?.some(d => d.toLowerCase().includes(query)) ||
       org.id.toLowerCase().includes(query)
     );
   });
@@ -157,9 +254,12 @@ export default function OrganizationManagementDashboard({
           </div>
         </div>
         
-        {(currentUserRole === 'superadmin' || currentUserRole === 'admin') && (
+        {currentUserRole === 'superadmin' && (
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              setSelectedOrg(createEmptyOrg());
+              setShowConfigModal(true);
+            }}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -194,7 +294,10 @@ export default function OrganizationManagementDashboard({
           </p>
           {currentUserRole === 'superadmin' && !searchQuery && (
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setSelectedOrg(createEmptyOrg());
+                setShowConfigModal(true);
+              }}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Create Organization
@@ -259,58 +362,10 @@ export default function OrganizationManagementDashboard({
                   </div>
                 </div>
                 
-                {/* Org Stats */}
-                {stats ? (
-                  <div className="p-3 grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mb-0.5">
-                        <Users className="w-3 h-3" />
-                        Users
-                      </div>
-                      <p className="text-base font-bold text-slate-800">
-                        {stats.totalUsers || 0}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mb-0.5">
-                        <BarChart3 className="w-3 h-3" />
-                        Agents
-                      </div>
-                      <p className="text-base font-bold text-slate-800">
-                        {stats.totalAgents || 0}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-600 mb-0.5">
-                        <Globe className="w-3 h-3" />
-                        Sources
-                      </div>
-                      <p className="text-base font-bold text-slate-800">
-                        {stats.totalContextSources || 0}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <div className="text-[10px] text-slate-600 mb-0.5">
-                        Est. Cost
-                      </div>
-                      <p className="text-base font-bold text-slate-800">
-                        ${stats.estimatedMonthlyCost?.toFixed(2) || '0.00'}
-                      </p>
-                    </div>
-                  </div>
-                ) : stats === null ? (
-                  <div className="p-4 text-center text-xs text-slate-400">
-                    Stats unavailable
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-sm text-slate-500">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-400 mx-auto mb-1"></div>
-                    Loading...
-                  </div>
-                )}
+                {/* ✅ OPTIMIZATION: Skip stats for now - too slow */}
+                <div className="p-3 text-center text-xs text-slate-500 border-t border-slate-200">
+                  <span className="text-slate-400">Click "View" for detailed analytics</span>
+                </div>
                 
                 {/* Actions */}
                 <div className="p-2 bg-slate-50 border-t border-slate-200 flex gap-2">
@@ -328,7 +383,11 @@ export default function OrganizationManagementDashboard({
                   <button
                     onClick={() => {
                       setSelectedOrg(org);
-                      // Would open stats modal
+                      setShowStatsModal(true);
+                      // Load stats when opening modal
+                      if (!orgStats[org.id]) {
+                        loadOrgStats(org.id);
+                      }
                     }}
                     className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-white border border-slate-300 rounded hover:bg-slate-50 text-xs"
                   >
@@ -375,42 +434,172 @@ export default function OrganizationManagementDashboard({
         </div>
       )}
       
-      {/* Modals would go here */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">Create Organization</h3>
-            <p className="text-slate-600 mb-4">
-              This will be the OrganizationConfigModal component
-            </p>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300"
-            >
-              Close
-            </button>
-          </div>
-        </div>
+      {/* Organization Config Modal */}
+      {showConfigModal && selectedOrg && (
+        <OrganizationConfigModal
+          organization={selectedOrg}
+          isOpen={showConfigModal}
+          onClose={() => {
+            setShowConfigModal(false);
+            setSelectedOrg(null);
+          }}
+          onSave={handleSaveOrganization}
+        />
       )}
       
-      {showConfigModal && selectedOrg && (
+      {/* Organization Stats Modal */}
+      {showStatsModal && selectedOrg && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6">
-            <h3 className="text-xl font-bold text-slate-800 mb-4">
-              Configure: {selectedOrg.name}
-            </h3>
-            <p className="text-slate-600 mb-4">
-              This will be the 7-tab OrganizationConfigModal
-            </p>
-            <button
-              onClick={() => {
-                setShowConfigModal(false);
-                setSelectedOrg(null);
-              }}
-              className="px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300"
-            >
-              Close
-            </button>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800">Organization Analytics</h2>
+                  <p className="text-sm text-slate-600">{selectedOrg.name}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowStatsModal(false);
+                  setSelectedOrg(null);
+                }}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            
+            {/* Stats Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {orgStats[selectedOrg.id] ? (
+                <div className="space-y-6">
+                  {/* Key Metrics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-900">Users</span>
+                      </div>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {orgStats[selectedOrg.id].totalUsers}
+                      </p>
+                      <p className="text-xs text-blue-700 mt-1">
+                        {orgStats[selectedOrg.id].activeUsers} active
+                      </p>
+                    </div>
+                    
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BarChart3 className="w-5 h-5 text-green-600" />
+                        <span className="text-sm font-medium text-green-900">Agents</span>
+                      </div>
+                      <p className="text-3xl font-bold text-green-600">
+                        {orgStats[selectedOrg.id].totalAgents}
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        {orgStats[selectedOrg.id].activeAgents} active
+                      </p>
+                    </div>
+                    
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className="w-5 h-5 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-900">Sources</span>
+                      </div>
+                      <p className="text-3xl font-bold text-purple-600">
+                        {orgStats[selectedOrg.id].totalContextSources}
+                      </p>
+                      <p className="text-xs text-purple-700 mt-1">
+                        {orgStats[selectedOrg.id].validatedSources} validated
+                      </p>
+                    </div>
+                    
+                    <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">💰</span>
+                        <span className="text-sm font-medium text-amber-900">Est. Cost</span>
+                      </div>
+                      <p className="text-3xl font-bold text-amber-600">
+                        ${orgStats[selectedOrg.id].estimatedMonthlyCost?.toFixed(2) || '0.00'}
+                      </p>
+                      <p className="text-xs text-amber-700 mt-1">per month</p>
+                    </div>
+                  </div>
+                  
+                  {/* Organization Details */}
+                  <div className="border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-3">Organization Details</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-slate-600 mb-1">Organization ID</p>
+                        <p className="font-mono text-xs text-slate-800">{selectedOrg.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-600 mb-1">Primary Domain</p>
+                        <p className="font-medium text-slate-800">{selectedOrg.primaryDomain}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-600 mb-1">Total Domains</p>
+                        <p className="font-medium text-slate-800">{selectedOrg.domains?.length || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-600 mb-1">Tenant Type</p>
+                        <p className="font-medium text-slate-800">{selectedOrg.tenant?.type || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Domains List */}
+                  <div className="border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-800 mb-3">Domains ({selectedOrg.domains?.length || 0})</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedOrg.domains || []).map(domain => (
+                        <span
+                          key={domain}
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            domain === selectedOrg.primaryDomain
+                              ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          {domain}
+                          {domain === selectedOrg.primaryDomain && ' ⭐'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-slate-500 italic">
+                    Stats updated: {orgStats[selectedOrg.id]?.computedAt 
+                      ? new Date(orgStats[selectedOrg.id].computedAt).toLocaleString() 
+                      : 'Just now'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">Loading organization statistics...</p>
+                    <p className="text-xs text-slate-500 mt-2">This may take a few seconds</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Footer */}
+            <div className="p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => {
+                  setShowStatsModal(false);
+                  setSelectedOrg(null);
+                }}
+                className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
