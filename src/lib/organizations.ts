@@ -187,10 +187,17 @@ export async function getOrganizationByDomain(domain: string): Promise<Organizat
  */
 export async function listOrganizations(): Promise<Organization[]> {
   try {
+    console.log('📊 Querying organizations collection...');
+    
     const snapshot = await firestore
       .collection(COLLECTIONS.ORGANIZATIONS)
       .orderBy('createdAt', 'desc')
       .get();
+    
+    console.log('✅ Organizations query result:', {
+      count: snapshot.size,
+      docs: snapshot.docs.map(d => ({ id: d.id, name: d.data().name }))
+    });
     
     return snapshot.docs.map(doc => {
       const data = doc.data();
@@ -739,60 +746,46 @@ export async function calculateOrganizationStats(
     const totalUsers = users.length;
     const adminCount = users.filter((u: any) => u.role === 'admin' || u.roles?.includes('admin')).length;
     
-    // Get conversations (agents)
-    const conversations = await firestore
-      .collection(COLLECTIONS.CONVERSATIONS)
-      .where('organizationId', '==', orgId)
-      .where('status', '!=', 'archived')
-      .get();
+    // NOTE: For now, stats are limited to users only
+    // Conversations, context_sources, and messages don't have organizationId yet
+    // TODO: After migration, uncomment these queries
     
-    const totalAgents = conversations.size;
-    const sharedAgents = conversations.docs.filter(doc => doc.data().isShared).length;
-    
-    // Get context sources
-    const contextSources = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('organizationId', '==', orgId)
-      .where('status', '==', 'active')
-      .get();
-    
-    const totalContextSources = contextSources.size;
-    const validatedSources = contextSources.docs.filter(doc => doc.data().certified).length;
-    
-    // Get messages (for token usage)
-    const messages = await firestore
-      .collection(COLLECTIONS.MESSAGES)
-      .where('organizationId', '==', orgId)
-      .get();
-    
-    const totalMessages = messages.size;
-    const totalTokensUsed = messages.docs.reduce((sum, doc) => 
-      sum + (doc.data().tokenCount || 0), 0
-    );
-    
-    // Estimate cost (rough calculation)
-    const estimatedMonthlyCost = totalTokensUsed * 0.000002; // Rough estimate
-    
+    // TEMPORARY: Return basic stats with zero counts for unmigrated data
     const stats: OrganizationStats = {
       organizationId: orgId,
       totalUsers,
-      activeUsers: totalUsers, // Could be refined with lastLoginAt check
+      activeUsers: totalUsers,
       adminCount,
-      totalAgents,
-      activeAgents: totalAgents,
-      sharedAgents,
-      totalContextSources,
-      validatedSources,
-      totalMessages,
-      totalTokensUsed,
-      estimatedMonthlyCost,
+      totalAgents: 0, // TODO: Enable after conversations migration
+      activeAgents: 0,
+      sharedAgents: 0,
+      totalContextSources: 0, // TODO: Enable after context_sources migration
+      validatedSources: 0,
+      totalMessages: 0, // TODO: Enable after messages migration
+      totalTokensUsed: 0,
+      estimatedMonthlyCost: 0,
       computedAt: new Date(),
     };
     
     return stats;
   } catch (error) {
     console.error('❌ Error calculating organization stats:', error);
-    throw error;
+    // Return empty stats instead of throwing
+    return {
+      organizationId: orgId,
+      totalUsers: 0,
+      activeUsers: 0,
+      adminCount: 0,
+      totalAgents: 0,
+      activeAgents: 0,
+      sharedAgents: 0,
+      totalContextSources: 0,
+      validatedSources: 0,
+      totalMessages: 0,
+      totalTokensUsed: 0,
+      estimatedMonthlyCost: 0,
+      computedAt: new Date(),
+    };
   }
 }
 

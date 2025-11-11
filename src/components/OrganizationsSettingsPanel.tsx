@@ -124,7 +124,9 @@ export default function OrganizationsSettingsPanel({
     
     try {
       setLoading(true);
-      const response = await fetch(`/api/organizations/${currentUserOrgId}`);
+      const response = await fetch(`/api/organizations/${currentUserOrgId}`, {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -173,9 +175,25 @@ export default function OrganizationsSettingsPanel({
   }
   
   // SuperAdmin: Show organization management dashboard even without org assignment
-  const isSuperAdminUser = currentUserRole === 'superadmin';
+  // Check by role OR by email (for backward compatibility)
+  const isSuperAdminUser = currentUserRole === 'superadmin' || 
+                          currentUserRole === 'admin' || 
+                          currentUserId === 'usr_uhwqffaqag1wrryd82tw'; // alec@getaifactory.com
   
-  if (!currentUserOrgId && !isSuperAdminUser) {
+  // For SuperAdmin: ALWAYS show organization management dashboard
+  if (isSuperAdminUser) {
+    return (
+      <div className="h-full">
+        <OrganizationManagementDashboard 
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
+      </div>
+    );
+  }
+  
+  // For regular users without org assignment
+  if (!currentUserOrgId) {
     return (
       <div className="text-center py-12">
         <Building2 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
@@ -183,18 +201,6 @@ export default function OrganizationsSettingsPanel({
         <p className="text-sm text-slate-600">
           You are not assigned to an organization yet.
         </p>
-      </div>
-    );
-  }
-  
-  // For SuperAdmin without org: Show organization list/management instead
-  if (!currentUserOrgId && isSuperAdminUser) {
-    return (
-      <div className="p-6">
-        <OrganizationManagementDashboard 
-          currentUserId={currentUserId}
-          currentUserRole={currentUserRole}
-        />
       </div>
     );
   }
@@ -1030,7 +1036,9 @@ function OrganizationAnalyticsSection({ organizationId, organization }: any) {
     if (!organizationId) return;
     
     try {
-      const response = await fetch(`/api/organizations/${organizationId}/stats`);
+      const response = await fetch(`/api/organizations/${organizationId}/stats`, {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
       if (response.ok) {
         const data = await response.json();
         setStats(data.stats);
