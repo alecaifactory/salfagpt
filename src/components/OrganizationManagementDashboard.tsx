@@ -58,13 +58,32 @@ export default function OrganizationManagementDashboard({
     try {
       setLoading(true);
       
-      const response = await fetch('/api/organizations');
+      console.log('📊 OrganizationManagementDashboard - Loading organizations...');
+      
+      const response = await fetch('/api/organizations', {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
+      
+      console.log('📊 API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
       
       if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ API Error:', errorData);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
+      
+      console.log('✅ Organizations loaded:', {
+        count: data.count,
+        userRole: data.userRole,
+        organizations: data.organizations?.map((o: any) => ({ id: o.id, name: o.name }))
+      });
+      
       setOrganizations(data.organizations || []);
       
       // Load stats for each org
@@ -74,7 +93,7 @@ export default function OrganizationManagementDashboard({
       
     } catch (error) {
       console.error('❌ Error loading organizations:', error);
-      alert('Failed to load organizations');
+      alert(`Failed to load organizations: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -82,14 +101,22 @@ export default function OrganizationManagementDashboard({
   
   async function loadOrgStats(orgId: string) {
     try {
-      const response = await fetch(`/api/organizations/${orgId}/stats`);
+      const response = await fetch(`/api/organizations/${orgId}/stats`, {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
       
       if (response.ok) {
         const data = await response.json();
         setOrgStats(prev => ({ ...prev, [orgId]: data.stats }));
+      } else {
+        console.warn(`⚠️ Stats not available for org ${orgId} (${response.status})`);
+        // Set empty stats so UI doesn't wait indefinitely
+        setOrgStats(prev => ({ ...prev, [orgId]: null }));
       }
     } catch (error) {
       console.error('❌ Error loading org stats:', error);
+      // Set empty stats on error
+      setOrgStats(prev => ({ ...prev, [orgId]: null }));
     }
   }
   
@@ -130,7 +157,7 @@ export default function OrganizationManagementDashboard({
           </div>
         </div>
         
-        {currentUserRole === 'superadmin' && (
+        {(currentUserRole === 'superadmin' || currentUserRole === 'admin') && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -188,7 +215,7 @@ export default function OrganizationManagementDashboard({
                 <div 
                   className="p-4 border-b border-slate-200"
                   style={{ 
-                    background: `linear-gradient(135deg, ${org.branding.primaryColor}15, ${org.branding.primaryColor}05)` 
+                    background: `linear-gradient(135deg, ${org.branding?.primaryColor || '#0066CC'}15, ${org.branding?.primaryColor || '#0066CC'}05)` 
                   }}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -208,7 +235,7 @@ export default function OrganizationManagementDashboard({
                         <XCircle className="w-5 h-5 text-red-600" title="Inactive" />
                       )}
                       
-                      {org.privacy.encryptionEnabled && (
+                      {org.privacy?.encryptionEnabled && (
                         <Shield className="w-5 h-5 text-blue-600" title="Encryption Enabled" />
                       )}
                     </div>
@@ -241,7 +268,7 @@ export default function OrganizationManagementDashboard({
                         Users
                       </div>
                       <p className="text-lg font-bold text-slate-800">
-                        {stats.totalUsers}
+                        {stats.totalUsers || 0}
                       </p>
                     </div>
                     
@@ -251,7 +278,7 @@ export default function OrganizationManagementDashboard({
                         Agents
                       </div>
                       <p className="text-lg font-bold text-slate-800">
-                        {stats.totalAgents}
+                        {stats.totalAgents || 0}
                       </p>
                     </div>
                     
@@ -261,7 +288,7 @@ export default function OrganizationManagementDashboard({
                         Sources
                       </div>
                       <p className="text-lg font-bold text-slate-800">
-                        {stats.totalContextSources}
+                        {stats.totalContextSources || 0}
                       </p>
                     </div>
                     
@@ -274,9 +301,14 @@ export default function OrganizationManagementDashboard({
                       </p>
                     </div>
                   </div>
+                ) : stats === null ? (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    Stats unavailable
+                  </div>
                 ) : (
                   <div className="p-4 text-center text-sm text-slate-500">
-                    Loading stats...
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-400 mx-auto mb-1"></div>
+                    Loading...
                   </div>
                 )}
                 

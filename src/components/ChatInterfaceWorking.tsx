@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -19,6 +19,16 @@ import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
 import RAGConfigPanel from './RAGConfigPanel';
 import OrganizationsSettingsPanel from './OrganizationsSettingsPanel';
+import BrandingManagementPanel from './BrandingManagementPanel';
+import InvoicingManagementPanel from './InvoicingManagementPanel';
+import MonetizationManagementPanel from './MonetizationManagementPanel';
+import CostTrackingPanel from './CostTrackingPanel';
+import CollectionsManagementPanel from './CollectionsManagementPanel';
+import ConciliationManagementPanel from './ConciliationManagementPanel';
+import PaymentsManagementPanel from './PaymentsManagementPanel';
+import TaxesManagementPanel from './TaxesManagementPanel';
+import WhatsAppChannelPanel from './channels/WhatsAppChannelPanel';
+import GenericChannelPanel from './channels/GenericChannelPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
@@ -452,6 +462,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showConciliation, setShowConciliation] = useState(false);
   const [showPayments, setShowPayments] = useState(false);
   const [showTaxes, setShowTaxes] = useState(false);
+  
+  // Channels integrations (SuperAdmin only - 2025-11-11)
+  const [showWhatsAppChannel, setShowWhatsAppChannel] = useState(false);
+  const [showGoogleChatChannel, setShowGoogleChatChannel] = useState(false);
+  const [showSlackChannel, setShowSlackChannel] = useState(false);
+  const [showGmailChannel, setShowGmailChannel] = useState(false);
+  const [showOutlookChannel, setShowOutlookChannel] = useState(false);
   
   // Stella screenshot tool state (managed at top level to capture full UI including Stella)
   const [showStellaScreenshotTool, setShowStellaScreenshotTool] = useState(false);
@@ -2858,6 +2875,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       
       await fetch(`/api/organizations/${organizationId}`, {
         method: 'PUT',
+        credentials: 'include', // ✅ Include cookies for authentication
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Mi Organización', // TODO: Get from org settings
@@ -3034,7 +3052,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       
       // Load organization domain prompt
       // For now using default-org, in future would be from user.organizationId
-      const orgResponse = await fetch('/api/organizations/default-org');
+      const orgResponse = await fetch('/api/organizations/default-org', {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
       if (orgResponse.ok) {
         const org = await orgResponse.json();
         setCurrentDomainPrompt(org.domainPrompt || '');
@@ -4453,13 +4473,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-6 gap-4 p-4">
+                <div className="grid grid-cols-7 gap-6 p-6"
+                  style={{ gridTemplateColumns: 'repeat(7, minmax(140px, 1fr))' }}
+                >
                   
                   {/* COLUMN 1: Gestión de Dominios */}
                   {userEmail === 'alec@getaifactory.com' && (
                     <div className="space-y-2">
-                      <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded">
-                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                           Gestión de Dominios
                         </p>
                       </div>
@@ -4502,8 +4524,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {/* COLUMN 2: Gestión de Agentes */}
                   {userEmail === 'alec@getaifactory.com' && (
                     <div className="space-y-2">
-                      <div className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded">
-                        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                           Gestión de Agentes
                         </p>
                       </div>
@@ -4584,8 +4606,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {/* COLUMN 3: Analíticas */}
                   {userEmail === 'alec@getaifactory.com' && (
                     <div className="space-y-2">
-                      <div className="px-3 py-2 bg-green-50 dark:bg-green-900/30 rounded">
-                        <p className="text-xs font-bold text-green-700 dark:text-green-300 uppercase tracking-wide">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                           Analíticas
                         </p>
                       </div>
@@ -4617,8 +4639,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {/* COLUMN 4: Evaluaciones */}
                   {(['admin', 'expert', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                     <div className="space-y-2">
-                      <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded">
-                        <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                           Evaluaciones
                         </p>
                       </div>
@@ -4715,8 +4737,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   
                   {/* COLUMN 5: Producto */}
                   <div className="space-y-1.5">
-                    <div className="px-2 py-1 bg-purple-50 dark:bg-purple-900/30 rounded">
-                      <p className="text-[10px] font-bold text-purple-700 dark:text-purple-300 uppercase tracking-wide">
+                    <div className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded">
+                      <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                         Producto
                       </p>
                     </div>
@@ -4801,11 +4823,77 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     )}
                   </div>
                   
-                  {/* COLUMN 6: Business Management (SuperAdmin ONLY) */}
+                  {/* COLUMN 6: Channels (SuperAdmin ONLY) */}
                   {userEmail === 'alec@getaifactory.com' && (
                     <div className="space-y-2">
-                      <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/30 rounded">
-                        <p className="text-xs font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
+                          Channels
+                        </p>
+                      </div>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowWhatsAppChannel(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <MessageCircle className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">WhatsApp</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowGoogleChatChannel(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Google Chat</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowSlackChannel(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Radio className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Slack</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowGmailChannel(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Mail className="w-3.5 h-3.5 text-red-600 dark:text-red-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Gmail</span>
+                      </button>
+                      
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowOutlookChannel(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Mail className="w-3.5 h-3.5 text-blue-500 dark:text-blue-300 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Outlook</span>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* COLUMN 7: Business Management (SuperAdmin ONLY) */}
+                  {userEmail === 'alec@getaifactory.com' && (
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
                           Business Management
                         </p>
                       </div>
@@ -6834,7 +6922,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       {/* Branding Management */}
       {showBranding && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <Palette className="w-6 h-6 text-orange-600" />
@@ -6844,48 +6932,48 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Platform-wide branding configuration (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <BrandingManagementPanel currentUserId={userId} currentUserRole={userRole || 'user'} />
             </div>
           </div>
         </div>
       )}
       
-      {/* Invoicing */}
+      {/* Invoicing Management */}
       {showInvoicing && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <FileText className="w-6 h-6 text-orange-600" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Invoicing System</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Invoicing Management</h2>
               </div>
               <button onClick={() => setShowInvoicing(false)} className="text-slate-400 hover:text-slate-600">
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Invoice generation and management (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <InvoicingManagementPanel currentUserId={userId} currentUserRole={userRole || 'user'} />
             </div>
           </div>
         </div>
       )}
       
-      {/* Monetization */}
+      {/* Monetization Management */}
       {showMonetization && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-6 h-6 text-orange-600" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Monetization Strategy</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Monetization Management</h2>
               </div>
               <button onClick={() => setShowMonetization(false)} className="text-slate-400 hover:text-slate-600">
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Pricing, packages, subscription management (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <MonetizationManagementPanel currentUserId={userId} currentUserRole={userRole || 'user'} />
             </div>
           </div>
         </div>
@@ -6894,27 +6982,27 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       {/* Cost Tracking */}
       {showCostTracking && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <DollarSign className="w-6 h-6 text-orange-600" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Cost Tracking & Analysis</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Cost Tracking</h2>
               </div>
               <button onClick={() => setShowCostTracking(false)} className="text-slate-400 hover:text-slate-600">
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Cost analysis, budget tracking, forecasting (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <CostTrackingPanel currentUserId={userId} currentUserRole={userRole || 'user'} />
             </div>
           </div>
         </div>
       )}
       
-      {/* Collections */}
+      {/* Collections Management */}
       {showCollections && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <Archive className="w-6 h-6 text-orange-600" />
@@ -6924,57 +7012,57 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Payment collections, receivables management (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <CollectionsManagementPanel />
             </div>
           </div>
         </div>
       )}
       
-      {/* Conciliation */}
+      {/* Conciliation Management */}
       {showConciliation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-6 h-6 text-orange-600" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Account Conciliation</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Conciliation Management</h2>
               </div>
               <button onClick={() => setShowConciliation(false)} className="text-slate-400 hover:text-slate-600">
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Bank reconciliation, account matching (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <ConciliationManagementPanel />
             </div>
           </div>
         </div>
       )}
       
-      {/* Payments */}
+      {/* Payments Management */}
       {showPayments && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <DollarSign className="w-6 h-6 text-orange-600" />
-                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Payment Processing</h2>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Payments Management</h2>
               </div>
               <button onClick={() => setShowPayments(false)} className="text-slate-400 hover:text-slate-600">
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Payment gateways, transaction processing (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <PaymentsManagementPanel />
             </div>
           </div>
         </div>
       )}
       
-      {/* Taxes */}
+      {/* Taxes Management */}
       {showTaxes && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <FileText className="w-6 h-6 text-orange-600" />
@@ -6984,8 +7072,158 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
-              <p className="text-slate-600">Tax calculation, reporting, compliance (Implementation pending)</p>
+            <div className="flex-1 overflow-auto">
+              <TaxesManagementPanel />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Channel Integrations - SuperAdmin Only */}
+      
+      {/* WhatsApp Channel */}
+      {showWhatsAppChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <MessageCircle className="w-6 h-6 text-green-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">WhatsApp Integration</h2>
+              </div>
+              <button onClick={() => setShowWhatsAppChannel(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <WhatsAppChannelPanel />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Google Chat Channel */}
+      {showGoogleChatChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Google Chat Integration</h2>
+              </div>
+              <button onClick={() => setShowGoogleChatChannel(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <GenericChannelPanel config={{
+                name: 'Google Chat',
+                icon: MessageSquare,
+                color: 'text-blue-600',
+                description: 'Connect SalfaGPT to Google Chat for seamless team communication',
+                setupInstructions: [
+                  'Go to Google Cloud Console and create a Chat app',
+                  'Configure OAuth 2.0 credentials',
+                  'Add bot to your Google Workspace',
+                  'Configure webhooks for message handling',
+                  'Test integration with sample messages'
+                ]
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Slack Channel */}
+      {showSlackChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Radio className="w-6 h-6 text-purple-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Slack Integration</h2>
+              </div>
+              <button onClick={() => setShowSlackChannel(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <GenericChannelPanel config={{
+                name: 'Slack',
+                icon: Radio,
+                color: 'text-purple-600',
+                description: 'Integrate SalfaGPT with Slack for AI assistance in your workspace',
+                setupInstructions: [
+                  'Create a Slack app at api.slack.com/apps',
+                  'Add OAuth scopes (chat:write, channels:read)',
+                  'Install app to your workspace',
+                  'Configure slash commands and event subscriptions',
+                  'Test with /salfagpt command'
+                ]
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gmail Channel */}
+      {showGmailChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Mail className="w-6 h-6 text-red-600" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Gmail Integration</h2>
+              </div>
+              <button onClick={() => setShowGmailChannel(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <GenericChannelPanel config={{
+                name: 'Gmail',
+                icon: Mail,
+                color: 'text-red-600',
+                description: 'Connect SalfaGPT to Gmail for AI-powered email assistance',
+                setupInstructions: [
+                  'Enable Gmail API in Google Cloud Console',
+                  'Create OAuth 2.0 credentials',
+                  'Configure authorized redirect URIs',
+                  'Implement Gmail API integration',
+                  'Test with sample emails'
+                ]
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outlook Channel */}
+      {showOutlookChannel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <Mail className="w-6 h-6 text-blue-500" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Outlook Integration</h2>
+              </div>
+              <button onClick={() => setShowOutlookChannel(false)} className="text-slate-400 hover:text-slate-600">
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              <GenericChannelPanel config={{
+                name: 'Outlook',
+                icon: Mail,
+                color: 'text-blue-500',
+                description: 'Integrate SalfaGPT with Microsoft Outlook for enterprise email',
+                setupInstructions: [
+                  'Register app in Microsoft Azure Portal',
+                  'Configure Microsoft Graph API permissions',
+                  'Add mail.read and mail.send scopes',
+                  'Implement OAuth flow with Microsoft',
+                  'Test integration with sample emails'
+                ]
+              }} />
             </div>
           </div>
         </div>

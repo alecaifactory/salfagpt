@@ -34,8 +34,23 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       });
     }
     
+    // Get fresh user data from database if needed (same as index.ts)
+    let user = { role: session.role, id: session.id, roles: session.roles } as any;
+    
+    if (session.email === 'alec@getaifactory.com' || session.id === 'usr_uhwqffaqag1wrryd82tw') {
+      try {
+        const { getUserById } = await import('../../../../lib/firestore.js');
+        const dbUser = await getUserById(session.id);
+        if (dbUser) {
+          user.role = dbUser.role;
+          user.roles = dbUser.roles;
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not refresh user role from database:', error);
+      }
+    }
+    
     // Check permission
-    const user = { role: session.role, id: session.id } as any;
     const canAccess = isSuperAdmin(user) || isOrganizationAdmin(user, id);
     
     if (!canAccess) {

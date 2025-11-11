@@ -67,6 +67,48 @@ export interface Organization {
     serviceAccountEmail?: string;       // Service account for this org
   };
   
+  // Company Profile (extended business information)
+  profile?: {
+    url?: string;                       // Company website URL
+    companyName?: string;               // Full legal company name
+    mission?: string;                   // Mission statement
+    vision?: string;                    // Vision statement
+    purpose?: string;                   // Company purpose/why we exist
+    northStarMetric?: {                 // Single most important metric
+      name: string;                     // e.g., "Daily Active Users"
+      current: number;                  // Current value
+      target: number;                   // Target value
+      unit: string;                     // Unit of measurement
+      description?: string;             // Why this metric matters
+    };
+    values?: string[];                  // Core values
+    okrs?: Array<{                      // Objectives & Key Results
+      objective: string;
+      keyResults: string[];
+      quarter?: string;                 // e.g., 'Q1 2025'
+      owner?: string;
+    }>;
+    kpis?: Array<{                      // Key Performance Indicators
+      name: string;
+      target: number;
+      current: number;
+      unit: string;
+      category?: string;                // e.g., 'growth', 'efficiency'
+    }>;
+    leadership?: Array<{                // Leadership team
+      name: string;
+      title: string;
+      email: string;
+      department?: string;
+    }>;
+    marketAnalysis?: {
+      targetMarket?: string;
+      marketSize?: string;
+      competitors?: Array<{ name: string; marketShare: string }>;
+      differentiators?: string[];
+    };
+  };
+  
   // Branding & Customization
   branding: {
     logo?: string;                      // Logo URL or base64
@@ -369,6 +411,7 @@ export interface CreateOrganizationInput {
 export interface UpdateOrganizationInput {
   name?: string;
   primaryDomain?: string;
+  profile?: Partial<Organization['profile']>;
   branding?: Partial<Organization['branding']>;
   evaluationConfig?: Partial<Organization['evaluationConfig']>;
   privacy?: Partial<Organization['privacy']>;

@@ -26,15 +26,50 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   try {
     // Authenticate
     const session = getSession({ cookies } as any);
+    
+    console.log('🔍 Organizations API - Session check:', {
+      hasSession: !!session,
+      sessionData: session ? { id: session.id, email: session.email, role: session.role } : null,
+      cookies: cookies.get('flow_session') ? 'present' : 'missing'
+    });
+    
     if (!session) {
+      console.error('❌ Organizations API - No session found');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
     }
     
-    // Get user to check role
-    const user = { role: session.role, id: session.id } as any;
+    // IMPORTANT: Get fresh user data from Firestore to check actual role
+    // JWT might have old role cached
+    let user = { role: session.role, id: session.id, roles: session.roles } as any;
+    
+    // For alec@getaifactory.com specifically, force superadmin check from database
+    if (session.email === 'alec@getaifactory.com' || session.id === 'usr_uhwqffaqag1wrryd82tw') {
+      try {
+        const { getUserById } = await import('../../../lib/firestore.js');
+        const dbUser = await getUserById(session.id);
+        if (dbUser) {
+          user.role = dbUser.role;
+          user.roles = dbUser.roles;
+          console.log('🔄 Updated user role from database:', {
+            oldRole: session.role,
+            newRole: dbUser.role,
+            roles: dbUser.roles
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not refresh user role from database:', error);
+      }
+    }
+    
+    console.log('✅ Organizations API - User authenticated:', {
+      userId: user.id,
+      userRole: user.role,
+      userRoles: user.roles,
+      isSuperAdmin: isSuperAdmin(user)
+    });
     
     // SuperAdmin: See all organizations
     if (isSuperAdmin(user)) {
