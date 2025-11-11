@@ -91,7 +91,9 @@ export default function DomainManagementModal({
   const [editingDomainPrompt, setEditingDomainPrompt] = useState<DomainRow | null>(null);
 
   // 🔑 Hook para cerrar con ESC y click fuera
-  const modalRef = useModalClose(isOpen, onClose, true, true, true);
+  // Disable when showCreateForm is open to prevent closing parent modal
+  const shouldEnableModalClose = isOpen && !showCreateForm && !selectedDomain && !editingDomainPrompt;
+  const modalRef = useModalClose(shouldEnableModalClose, onClose, true, true, true);
 
   // Load domains and organizations
   useEffect(() => {
@@ -764,231 +766,287 @@ export default function DomainManagementModal({
 
       {/* Create Domain Form Modal */}
       {showCreateForm && (
-        <div 
-          className="fixed inset-0 z-[70] bg-black bg-opacity-50 flex items-center justify-center p-4"
-          onClick={(e) => {
-            // Only close if clicking on backdrop, not on select dropdown or its options
-            if (e.target === e.currentTarget) {
-              setShowCreateForm(false);
-            }
+        <CreateDomainFormModal
+          isSuperAdmin={isSuperAdmin}
+          organizations={organizations}
+          onClose={() => {
+            setShowCreateForm(false);
+            setError(null);
+            setScrapingProgress('');
+            setNewDomainId('');
+            setCompanyName('');
+            setCompanyWebsiteUrl('');
+            setSelectedOrgId('');
           }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
+          onSubmit={handleCreateDomain}
+          formState={{
+            newDomainId,
+            setNewDomainId,
+            companyName,
+            setCompanyName,
+            companyWebsiteUrl,
+            setCompanyWebsiteUrl,
+            selectedOrgId,
+            setSelectedOrgId,
+            scrapingUrl,
+            setScrapingUrl,
+            scrapingProgress,
+            setScrapingProgress,
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Create Domain Form Modal Component
+ * Separated to have its own event handling and prevent parent modal interference
+ */
+function CreateDomainFormModal({
+  isSuperAdmin,
+  organizations,
+  onClose,
+  onSubmit,
+  formState,
+}: {
+  isSuperAdmin: boolean;
+  organizations: Array<{id: string; name: string}>;
+  onClose: () => void;
+  onSubmit: () => Promise<void>;
+  formState: {
+    newDomainId: string;
+    setNewDomainId: (v: string) => void;
+    companyName: string;
+    setCompanyName: (v: string) => void;
+    companyWebsiteUrl: string;
+    setCompanyWebsiteUrl: (v: string) => void;
+    selectedOrgId: string;
+    setSelectedOrgId: (v: string) => void;
+    scrapingUrl: boolean;
+    setScrapingUrl: (v: boolean) => void;
+    scrapingProgress: string;
+    setScrapingProgress: (v: string) => void;
+  };
+}) {
+  // Use modal close hook for this form only
+  const formRef = useModalClose(true, onClose, true, false, true); // ESC closes, but NOT click outside
+
+  return (
+    <div 
+      className="fixed inset-0 z-[70] bg-black bg-opacity-50 flex items-center justify-center p-4"
+    >
+      <div 
+        ref={formRef}
+        className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+              <Plus className="w-6 h-6 text-blue-600" />
+              Add New Domain
+            </h2>
+            <p className="text-sm text-slate-600 mt-1">
+              {isSuperAdmin 
+                ? 'Add a domain to an organization' 
+                : 'Add a domain to your organization'}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white rounded-lg transition-colors"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <Plus className="w-6 h-6 text-blue-600" />
-                  Add New Domain
-                </h2>
-                <p className="text-sm text-slate-600 mt-1">
-                  {isSuperAdmin 
-                    ? 'Add a domain to an organization' 
-                    : 'Add a domain to your organization'}
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCreateForm(false)}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Form Content */}
+        <div className="p-6 space-y-6">
+          {/* Organization Selection (SuperAdmin only) */}
+          {isSuperAdmin && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Organization <span className="text-red-600">*</span>
+              </label>
+              <select
+                value={formState.selectedOrgId}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  formState.setSelectedOrgId(e.target.value);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onFocus={(e) => e.stopPropagation()}
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <option value="">Select organization...</option>
+                {organizations.map(org => (
+                  <option key={org.id} value={org.id}>{org.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                Which organization should this domain belong to?
+              </p>
+            </div>
+          )}
+
+          {/* Company Website URL with Scrape Button */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Company Website URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={formState.companyWebsiteUrl}
+                onChange={(e) => formState.setCompanyWebsiteUrl(e.target.value)}
+                className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="https://company.com"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!formState.companyWebsiteUrl) {
+                    formState.setScrapingProgress('⚠️ Please enter a URL first');
+                    setTimeout(() => formState.setScrapingProgress(''), 3000);
+                    return;
+                  }
+                  formState.setScrapingUrl(true);
+                  formState.setScrapingProgress('🌐 Connecting to website...');
+                  
+                  try {
+                    const response = await fetch('/api/scrape-company-data', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ url: formState.companyWebsiteUrl })
+                    });
+                    
+                    formState.setScrapingProgress('🤖 Processing with AI...');
+                    
+                    const data = await response.json();
+                    
+                    if (data.companyData) {
+                      formState.setScrapingProgress('✅ Extracting information...');
+                      
+                      // Auto-fill company name from scraped data
+                      formState.setCompanyName(data.companyData.companyName || formState.companyName);
+                      
+                      formState.setScrapingProgress('✅ Company data scraped successfully!');
+                      
+                      // Clear success message after 3 seconds
+                      setTimeout(() => formState.setScrapingProgress(''), 3000);
+                    } else {
+                      formState.setScrapingProgress('⚠️ No data found on website');
+                      setTimeout(() => formState.setScrapingProgress(''), 5000);
+                    }
+                  } catch (error) {
+                    console.error('Error scraping URL:', error);
+                    formState.setScrapingProgress('❌ Failed to scrape URL - please try again');
+                    setTimeout(() => formState.setScrapingProgress(''), 5000);
+                  } finally {
+                    formState.setScrapingUrl(false);
+                  }
+                }}
+                disabled={formState.scrapingUrl || !formState.companyWebsiteUrl}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {formState.scrapingUrl ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Scraping...
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-4 h-4" />
+                    Scrape Data
+                  </>
+                )}
               </button>
             </div>
-
-            {/* Form Content */}
-            <div className="p-6 space-y-6">
-              {/* Organization Selection (SuperAdmin only) */}
-              {isSuperAdmin && (
-                <div onClick={(e) => e.stopPropagation()}>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Organization <span className="text-red-600">*</span>
-                  </label>
-                  <select
-                    value={selectedOrgId}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      setSelectedOrgId(e.target.value);
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    onFocus={(e) => e.stopPropagation()}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Select organization...</option>
-                    {organizations.map(org => (
-                      <option key={org.id} value={org.id}>{org.name}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Which organization should this domain belong to?
+            <p className="text-xs text-slate-500 mt-1">
+              Enter the company website to automatically extract mission, vision, and other data
+            </p>
+            
+            {/* Scraping Progress Indicator */}
+            {formState.scrapingProgress && (
+              <div className={`mt-2 p-3 rounded-lg border ${
+                formState.scrapingProgress.includes('✅') 
+                  ? 'bg-green-50 border-green-200' 
+                  : formState.scrapingUrl 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : formState.scrapingProgress.includes('⚠️') || formState.scrapingProgress.includes('❌')
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {formState.scrapingUrl && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                  <p className={`text-sm font-medium ${
+                    formState.scrapingProgress.includes('✅') 
+                      ? 'text-green-700' 
+                      : formState.scrapingUrl 
+                        ? 'text-blue-700' 
+                        : formState.scrapingProgress.includes('⚠️') || formState.scrapingProgress.includes('❌')
+                          ? 'text-amber-700'
+                          : 'text-slate-700'
+                  }`}>
+                    {formState.scrapingProgress}
                   </p>
                 </div>
-              )}
-
-              {/* Company Website URL with Scrape Button */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Company Website URL
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    value={companyWebsiteUrl}
-                    onChange={(e) => setCompanyWebsiteUrl(e.target.value)}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://company.com"
-                  />
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!companyWebsiteUrl) {
-                        setScrapingProgress('⚠️ Please enter a URL first');
-                        setTimeout(() => setScrapingProgress(''), 3000);
-                        return;
-                      }
-                      setScrapingUrl(true);
-                      setScrapingProgress('🌐 Connecting to website...');
-                      
-                      try {
-                        const response = await fetch('/api/scrape-company-data', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ url: companyWebsiteUrl })
-                        });
-                        
-                        setScrapingProgress('🤖 Processing with AI...');
-                        
-                        const data = await response.json();
-                        
-                        if (data.companyData) {
-                          setScrapingProgress('✅ Extracting information...');
-                          
-                          // Auto-fill company name from scraped data
-                          setCompanyName(data.companyData.companyName || companyName);
-                          
-                          setScrapingProgress('✅ Company data scraped successfully!');
-                          
-                          // Clear success message after 3 seconds
-                          setTimeout(() => setScrapingProgress(''), 3000);
-                        } else {
-                          setScrapingProgress('⚠️ No data found on website');
-                          setTimeout(() => setScrapingProgress(''), 5000);
-                        }
-                      } catch (error) {
-                        console.error('Error scraping URL:', error);
-                        setScrapingProgress('❌ Failed to scrape URL - please try again');
-                        setTimeout(() => setScrapingProgress(''), 5000);
-                      } finally {
-                        setScrapingUrl(false);
-                      }
-                    }}
-                    disabled={scrapingUrl || !companyWebsiteUrl}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {scrapingUrl ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Scraping...
-                      </>
-                    ) : (
-                      <>
-                        <Globe className="w-4 h-4" />
-                        Scrape Data
-                      </>
-                    )}
-                  </button>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Enter the company website to automatically extract mission, vision, and other data
-                </p>
-                
-                {/* Scraping Progress Indicator */}
-                {scrapingProgress && (
-                  <div className={`mt-2 p-3 rounded-lg border ${
-                    scrapingProgress.includes('✅') 
-                      ? 'bg-green-50 border-green-200' 
-                      : scrapingUrl 
-                        ? 'bg-blue-50 border-blue-200' 
-                        : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
-                          ? 'bg-amber-50 border-amber-200'
-                          : 'bg-slate-50 border-slate-200'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      {scrapingUrl && <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
-                      <p className={`text-sm font-medium ${
-                        scrapingProgress.includes('✅') 
-                          ? 'text-green-700' 
-                          : scrapingUrl 
-                            ? 'text-blue-700' 
-                            : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
-                              ? 'text-amber-700'
-                              : 'text-slate-700'
-                      }`}>
-                        {scrapingProgress}
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
+            )}
+          </div>
 
-              {/* Domain URL */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Domain URL <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={newDomainId}
-                  onChange={(e) => setNewDomainId(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="example.com"
-                />
-                <p className="text-xs text-slate-500 mt-1">
-                  The domain name (e.g., company.com, subdomain.company.com)
-                </p>
-              </div>
+          {/* Domain URL */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Domain URL <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="text"
+              value={formState.newDomainId}
+              onChange={(e) => formState.setNewDomainId(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="example.com"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              The domain name (e.g., company.com, subdomain.company.com)
+            </p>
+          </div>
 
-              {/* Company Name */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Company Name <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Salfa Corporación S.A."
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
-              <button
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setError(null);
-                  setScrapingProgress('');
-                }}
-                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateDomain}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Add Domain
-              </button>
-            </div>
+          {/* Company Name */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Company Name <span className="text-red-600">*</span>
+            </label>
+            <input
+              type="text"
+              value={formState.companyName}
+              onChange={(e) => formState.setCompanyName(e.target.value)}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Salfa Corporación S.A."
+            />
           </div>
         </div>
-      )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Domain
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
