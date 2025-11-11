@@ -4443,19 +4443,19 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-6 gap-1.5 p-1.5">
+                <div className="grid grid-cols-6 gap-4 p-4">
                   
                   {/* COLUMN 1: Gestión de Dominios */}
                   {userEmail === 'alec@getaifactory.com' && (
-                    <div className="space-y-1.5">
-                      <div className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 rounded">
-                        <p className="text-[10px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/30 rounded">
+                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
                           Gestión de Dominios
                         </p>
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowDomainManagement(true);
                           setShowUserMenu(false);
@@ -4466,7 +4466,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowUserManagement(true);
                           setShowUserMenu(false);
@@ -4477,7 +4477,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowDomainPromptModal(true);
                           setShowUserMenu(false);
@@ -4491,15 +4491,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   
                   {/* COLUMN 2: Gestión de Agentes */}
                   {userEmail === 'alec@getaifactory.com' && (
-                    <div className="space-y-1.5">
-                      <div className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded">
-                        <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 rounded">
+                        <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
                           Gestión de Agentes
                         </p>
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowAgentManagement(true);
                           setShowUserMenu(false);
@@ -4510,7 +4510,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowContextManagement(true);
                           setShowUserMenu(false);
@@ -4521,7 +4521,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowProviderManagement(true);
                           setShowUserMenu(false);
@@ -4532,7 +4532,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowRAGConfig(true);
                           setShowUserMenu(false);
@@ -4546,7 +4546,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {(userEmail.includes('expert') || userEmail.includes('agent_')) && (
                         <>
                           <button
-                            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                             onClick={() => {
                               setShowAgentEvaluation(true);
                               setShowUserMenu(false);
@@ -4557,7 +4557,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </button>
                           
                           <button
-                            className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                             onClick={() => {
                               setShowEvaluationSystem(true);
                               setShowUserMenu(false);
@@ -4573,15 +4573,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   
                   {/* COLUMN 3: Analíticas */}
                   {userEmail === 'alec@getaifactory.com' && (
-                    <div className="space-y-1.5">
-                      <div className="px-2 py-1 bg-green-50 dark:bg-green-900/30 rounded">
-                        <p className="text-[10px] font-bold text-green-700 dark:text-green-300 uppercase tracking-wide">
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-green-50 dark:bg-green-900/30 rounded">
+                        <p className="text-xs font-bold text-green-700 dark:text-green-300 uppercase tracking-wide">
                           Analíticas
                         </p>
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowSalfaAnalytics(true);
                           setShowUserMenu(false);
@@ -4592,7 +4592,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowAnalytics(true);
                           setShowUserMenu(false);
@@ -4606,9 +4606,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   
                   {/* COLUMN 4: Evaluaciones */}
                   {(['admin', 'expert', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
-                    <div className="space-y-1.5">
-                      <div className="px-2 py-1 bg-amber-50 dark:bg-amber-900/30 rounded">
-                        <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded">
+                        <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
                           Evaluaciones
                         </p>
                       </div>
@@ -4616,7 +4616,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {/* Panel Experto Supervisor - For Experts and Admins */}
                       {(['expert', 'admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                         <button
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🎯 Opening Supervisor Expert Panel...');
                             setShowSupervisorPanel(true);
@@ -4631,7 +4631,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {/* Panel Especialista - For Specialists */}
                       {(userRole === 'specialist' || userEmail.includes('specialist') || userEmail === 'alec@getaifactory.com') && (
                         <button
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🎯 Opening Specialist Panel...');
                             setShowSpecialistPanel(true);
@@ -4646,7 +4646,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {/* Aprobación de Correcciones - For Admins */}
                       {(['admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                         <button
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🔐 Opening Admin Approval Panel...');
                             setShowAdminApproval(true);
@@ -4661,7 +4661,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {/* Asignación de Dominios - SuperAdmin Only */}
                       {(userRole === 'superadmin' || userEmail === 'alec@getaifactory.com') && (
                         <button
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('🛡️ Opening SuperAdmin Domain Assignment...');
                             setShowSuperAdminDomains(true);
@@ -4676,7 +4676,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       {/* Configuración de Dominio - For Admins */}
                       {(['admin', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                         <button
-                          className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
                             console.log('⚙️ Opening Domain Review Config...');
                             setShowDomainConfig(true);
@@ -4690,7 +4690,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       
                       {/* Dashboard de Calidad - For All with access */}
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           console.log('📊 Opening Quality Dashboard...');
                           setShowQualityDashboard(true);
@@ -4779,7 +4779,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     {/* Configuración - HIDDEN FOR USER ROLE */}
                     {userRole !== 'user' && (
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowUserSettings(true);
                           setShowUserMenu(false);
@@ -4793,15 +4793,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   
                   {/* COLUMN 6: Organizations (SuperAdmin/Admin Only) */}
                   {(userRole === 'superadmin' || userRole === 'admin') && (
-                    <div className="space-y-1.5">
-                      <div className="px-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded">
-                        <p className="text-[10px] font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/30 rounded">
+                        <p className="text-xs font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
                           Organizations
                         </p>
                       </div>
                       
                       <button
-                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
                           setShowOrganizations(true);
                           setShowUserMenu(false);
