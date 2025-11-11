@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, X, Pencil, Check, Trash2, UserCog, Upload, Download, AlertCircle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Users, Plus, X, Pencil, Check, Trash2, UserCog, Upload, Download, AlertCircle, CheckCircle, XCircle, RefreshCw, Shield } from 'lucide-react';
 import type { User, UserRole } from '../types/users';
 import { ROLE_LABELS } from '../types/users';
 import { useModalClose } from '../hooks/useModalClose';
@@ -911,34 +911,73 @@ function CreateUserModal({
   const [company, setCompany] = useState('');
   const [department, setDepartment] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>(['user']);
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // 🆕 Load active domains for dropdown
   const [activeDomains, setActiveDomains] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingDomains, setLoadingDomains] = useState(true);
+  
+  // 🆕 Load organizations for SuperAdmin dropdown
+  const [organizations, setOrganizations] = useState<Array<{ id: string; name: string }>>([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [creatorOrgId, setCreatorOrgId] = useState('');
 
   // 🔑 Hook para cerrar con ESC
   useModalClose(true, onClose);
   
-  // 🆕 Load active domains on mount
+  // 🆕 Load active domains and detect creator role on mount
   useEffect(() => {
-    async function loadActiveDomains() {
+    async function loadData() {
       try {
-        const response = await fetch('/api/domains?activeOnly=true');
-        if (response.ok) {
-          const data = await response.json();
-          setActiveDomains(data.domains || []);
+        // Load domains
+        const domainsResponse = await fetch('/api/domains?activeOnly=true');
+        if (domainsResponse.ok) {
+          const domainsData = await domainsResponse.json();
+          setActiveDomains(domainsData.domains || []);
+        }
+        
+        // Detect if creator is SuperAdmin
+        const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'admin@getaifactory.com'];
+        const isSuperAdminUser = SUPERADMIN_EMAILS.includes(createdBy.toLowerCase());
+        setIsSuperAdmin(isSuperAdminUser);
+        
+        // Load organizations (for SuperAdmin or to auto-detect for Admin)
+        const orgsResponse = await fetch('/api/organizations');
+        if (orgsResponse.ok) {
+          const orgsData = await orgsResponse.json();
+          setOrganizations((orgsData.organizations || []).map((org: any) => ({
+            id: org.id,
+            name: org.name
+          })));
+          
+          // For Admin (non-SuperAdmin), auto-detect their organization
+          if (!isSuperAdminUser && orgsData.organizations) {
+            // Find the organization that contains the creator's email domain
+            const creatorDomain = createdBy.split('@')[1]?.toLowerCase();
+            const creatorOrg = orgsData.organizations.find((org: any) => 
+              org.domains?.some((d: string) => d.toLowerCase() === creatorDomain)
+            );
+            
+            if (creatorOrg) {
+              setCreatorOrgId(creatorOrg.id);
+              setSelectedOrganizationId(creatorOrg.id); // Auto-select for Admin
+              console.log('✅ Auto-detected Admin organization:', creatorOrg.id);
+            }
+          }
         }
       } catch (err) {
-        console.error('Error loading domains:', err);
+        console.error('Error loading data:', err);
       } finally {
         setLoadingDomains(false);
+        setLoadingOrgs(false);
       }
     }
     
-    loadActiveDomains();
-  }, []);
+    loadData();
+  }, [createdBy]);
 
   const allRoles: UserRole[] = [
     'admin',
@@ -961,6 +1000,12 @@ function CreateUserModal({
   async function handleCreate() {
     if (!email || !name || !company) {
       setError('Email, nombre y empresa son requeridos');
+      return;
+    }
+    
+    // 🆕 Validate organization selection
+    if (!selectedOrganizationId) {
+      setError('Debe seleccionar una organización');
       return;
     }
 
@@ -990,6 +1035,7 @@ function CreateUserModal({
           roles: selectedRoles,
           company,
           department: department || undefined,
+          organizationId: selectedOrganizationId, // ✅ Include organization
           createdBy,
         }),
       });
@@ -1067,6 +1113,49 @@ function CreateUserModal({
               placeholder="Nombre completo"
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+          </div>
+
+          {/* Organization Selection - 🆕 SuperAdmin can select, Admin auto-assigned */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Organización <span className="text-red-600">*</span>
+            </label>
+            {loadingOrgs ? (
+              <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-500 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                Cargando organizaciones...
+              </div>
+            ) : isSuperAdmin ? (
+              // SuperAdmin: Can select any organization
+              <>
+                <select
+                  value={selectedOrganizationId}
+                  onChange={(e) => setSelectedOrganizationId(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Selecciona una organización...</option>
+                  {organizations.map(org => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  Como SuperAdmin, puedes asignar el usuario a cualquier organización
+                </p>
+              </>
+            ) : (
+              // Admin: Auto-assigned to their organization
+              <>
+                <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-600" />
+                  {organizations.find(org => org.id === creatorOrgId)?.name || 'Tu organización'}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Como Admin, solo puedes crear usuarios en tu organización
+                </p>
+              </>
+            )}
           </div>
 
           {/* Company - 🆕 Domain Dropdown */}

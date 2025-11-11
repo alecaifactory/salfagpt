@@ -119,7 +119,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     const body = await request.json();
-    const { email, name, roles, company, department, createdBy, initFirstAdmin } = body;
+    const { email, name, roles, company, department, createdBy, organizationId, initFirstAdmin } = body;
 
     if (!email || !name || !roles || !company) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -131,7 +131,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     // Special case: Allow creating first admin without auth if initFirstAdmin flag is set
     if (initFirstAdmin === true) {
       console.log('🔧 Init first admin user:', email);
-      const user = await createUser(email, name, roles, company, 'system-init', department);
+      const user = await createUser(email, name, roles, company, 'system-init', department, organizationId);
       
       return new Response(JSON.stringify({ user, message: 'First admin created successfully' }), {
         status: 201,
@@ -158,7 +158,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     // Create user
-    const newUser = await createUser(email, name, roles, company, createdBy, department);
+    const newUser = await createUser(email, name, roles, company, createdBy, department, organizationId);
 
     return new Response(JSON.stringify({ user: newUser }), {
       status: 201,
