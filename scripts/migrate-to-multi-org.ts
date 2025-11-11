@@ -700,6 +700,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
 
-// Export for testing
-export { migrateToMultiOrg, rollbackMigration };
+// Export for testing (rollbackMigration already exported above)
+export { migrateToMultiOrg };
 
