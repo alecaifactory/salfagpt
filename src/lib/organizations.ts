@@ -272,6 +272,9 @@ export async function updateOrganization(
     if (updates.primaryDomain !== undefined) {
       updateData.primaryDomain = updates.primaryDomain.toLowerCase();
     }
+    if (updates.profile !== undefined) {
+      updateData.profile = { ...currentOrg.profile, ...updates.profile };
+    }
     if (updates.branding !== undefined) {
       updateData.branding = { ...currentOrg.branding, ...updates.branding };
     }
