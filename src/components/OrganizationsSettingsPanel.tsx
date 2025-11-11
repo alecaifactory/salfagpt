@@ -36,6 +36,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { Organization } from '../types/organizations';
+import OrganizationManagementDashboard from './OrganizationManagementDashboard';
 
 interface Props {
   currentUserId: string;
@@ -171,7 +172,10 @@ export default function OrganizationsSettingsPanel({
     );
   }
   
-  if (!currentUserOrgId) {
+  // SuperAdmin: Show organization management dashboard even without org assignment
+  const isSuperAdminUser = currentUserRole === 'superadmin';
+  
+  if (!currentUserOrgId && !isSuperAdminUser) {
     return (
       <div className="text-center py-12">
         <Building2 className="w-16 h-16 text-slate-400 mx-auto mb-4" />
@@ -179,6 +183,18 @@ export default function OrganizationsSettingsPanel({
         <p className="text-sm text-slate-600">
           You are not assigned to an organization yet.
         </p>
+      </div>
+    );
+  }
+  
+  // For SuperAdmin without org: Show organization list/management instead
+  if (!currentUserOrgId && isSuperAdminUser) {
+    return (
+      <div className="p-6">
+        <OrganizationManagementDashboard 
+          currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
+        />
       </div>
     );
   }
