@@ -1,13 +1,12 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { 
-  trackCSATRating,
-  trackNPSScore,
-  trackSocialShare,
-  getCSATMetrics,
-  getNPSMetrics,
-  getSocialMetrics,
-  getLatestFeedback
+  trackCSAT,
+  trackNPS,
+  trackSocialSharing,
+  getCSATSummary,
+  getNPSScore as getNPSMetrics,
+  getSharingActivity
 } from '../../../lib/expert-review/experience-tracking-service';
 
 /**
@@ -53,7 +52,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        await trackCSATRating({
+        await trackCSAT({
           userId,
           messageId: data.messageId,
           conversationId: data.conversationId,
@@ -70,7 +69,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        await trackNPSScore({
+        await trackNPS({
           userId,
           score: data.score,
           feedback: data.feedback,
@@ -85,7 +84,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        await trackSocialShare({
+        await trackSocialSharing({
           userId,
           platform: data.platform,
           action: data.action,
@@ -153,13 +152,13 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
       switch (metricType) {
         case 'csat':
-          result = await getCSATMetrics(domainId);
+          result = await getCSATSummary(domainId);
           break;
         case 'nps':
           result = await getNPSMetrics(domainId);
           break;
         case 'social':
-          result = await getSocialMetrics(domainId);
+          result = await getSharingActivity(domainId);
           break;
         default:
           return new Response(
@@ -183,7 +182,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         );
       }
 
-      result = await getLatestFeedback(userId);
+      // TODO: Implement getLatestFeedback function
+      result = { message: 'Feedback tracking not yet implemented' };
     } else {
       return new Response(
         JSON.stringify({ error: `Unknown type: ${type}` }),

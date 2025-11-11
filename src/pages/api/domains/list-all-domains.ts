@@ -108,8 +108,14 @@ export const GET: APIRoute = async ({ cookies }) => {
         }
       }
 
-      // Get stats for this organization
-      const stats = await getOrgStats(orgId);
+      // ✅ FAST PATH: Return basic data without stats for now
+      // Stats can be loaded on-demand when user clicks on a domain
+      const stats = {
+        userCount: 0,
+        createdAgentCount: 0,
+        sharedAgentCount: 0,
+        contextCount: 0,
+      };
 
       // Create a row for each domain in the organization
       for (const domainId of orgDomains) {
@@ -118,13 +124,25 @@ export const GET: APIRoute = async ({ cookies }) => {
           continue;
         }
 
+        // ✅ Load domain-specific settings (including domain-specific prompt)
+        let domainSpecificPrompt = '';
+        try {
+          const domainDoc = await firestore.collection('domains').doc(domainId).get();
+          if (domainDoc.exists) {
+            const domainData = domainDoc.data();
+            domainSpecificPrompt = domainData?.domainPrompt || '';
+          }
+        } catch (error) {
+          console.warn(`⚠️ Could not load domain doc for ${domainId}:`, error);
+        }
+
         domainRows.push({
           domainId,
           domainName: orgData.name, // Use org name as domain display name for now
           organizationId: orgId,
           organizationName: orgData.name || orgId,
           isPrimaryDomain: domainId === primaryDomain,
-          domainPrompt: orgData.domainPrompt, // ✅ Include domain prompt from organization
+          domainPrompt: domainSpecificPrompt, // ✅ Use domain-specific prompt (not org prompt)
           enabled: orgData.isActive !== false, // Default to enabled
           isActive: orgData.isActive !== false,
           userCount: stats.userCount,
@@ -177,6 +195,7 @@ export const GET: APIRoute = async ({ cookies }) => {
 
 /**
  * Get statistics for an organization
+ * OPTIMIZED: Uses organizationId field directly instead of scanning all users
  */
 async function getOrgStats(orgId: string) {
   try {
@@ -191,40 +210,33 @@ async function getOrgStats(orgId: string) {
     }
 
     const orgData = orgDoc.data() as any;
-    const orgDomains = orgData.domains || [];
 
-    // Count users in these domains
+    // ✅ OPTIMIZED: Query users by organizationId field directly
     const usersSnapshot = await firestore
       .collection(COLLECTIONS.USERS)
+      .where('organizationId', '==', orgId)
       .get();
 
-    const orgUsers = usersSnapshot.docs.filter(doc => {
-      const userData = doc.data();
-      const userEmail = userData.email || '';
-      const emailDomain = userEmail.split('@')[1]?.toLowerCase();
-      return emailDomain && orgDomains.includes(emailDomain);
-    });
+    const userCount = usersSnapshot.size;
+    const oauthIds = usersSnapshot.docs
+      .map(doc => doc.data().userId)
+      .filter(Boolean);
 
-    const userCount = orgUsers.length;
-    const userIds = orgUsers.map(doc => doc.id);
-    const oauthIds = orgUsers.map(doc => doc.data().userId).filter(Boolean);
-
-    // Count created agents (owned by org users)
+    // ✅ OPTIMIZED: Query agents by organizationId field directly
     const createdAgentsSnapshot = await firestore
       .collection(COLLECTIONS.CONVERSATIONS)
-      .where('userId', 'in', oauthIds.length > 0 ? oauthIds.slice(0, 10) : ['__none__'])
+      .where('organizationId', '==', orgId)
       .get();
     
     const createdAgentCount = createdAgentsSnapshot.size;
 
-    // Count shared agents (would need agent_shares collection query)
-    // Simplified for now
+    // Shared agents - simplified for now
     const sharedAgentCount = 0;
 
-    // Count context sources (created by org users)
+    // ✅ OPTIMIZED: Query context sources by organizationId field directly  
     const contextSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('userId', 'in', oauthIds.length > 0 ? oauthIds.slice(0, 10) : ['__none__'])
+      .where('organizationId', '==', orgId)
       .get();
     
     const contextCount = contextSnapshot.size;

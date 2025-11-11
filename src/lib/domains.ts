@@ -22,6 +22,9 @@ export interface Domain {
   allowedAgents: string[];          // Agent IDs accessible to this domain
   allowedContextSources: string[];  // Context source IDs accessible to this domain
   
+  // AI Configuration
+  domainPrompt?: string;            // Domain-specific AI prompt (overrides organization prompt)
+  
   // Metadata
   userCount?: number;               // Number of users in this domain
   description?: string;             // Optional description
@@ -124,6 +127,7 @@ export async function getDomains(): Promise<Domain[]> {
         updatedAt: data.updatedAt?.toDate?.() || new Date(),
         allowedAgents: data.allowedAgents || [],
         allowedContextSources: data.allowedContextSources || [],
+        domainPrompt: data.domainPrompt || '',
         userCount: data.userCount || 0,
         description: data.description,
         settings: data.settings,
@@ -156,6 +160,7 @@ export async function getDomain(domainId: string): Promise<Domain | null> {
       updatedAt: data.updatedAt?.toDate?.() || new Date(),
       allowedAgents: data.allowedAgents || [],
       allowedContextSources: data.allowedContextSources || [],
+      domainPrompt: data.domainPrompt || '',
       userCount: data.userCount || 0,
       description: data.description,
       settings: data.settings,

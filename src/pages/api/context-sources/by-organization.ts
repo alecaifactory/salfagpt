@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { firestore, COLLECTIONS } from '../../../lib/firestore';
 import { getSession } from '../../../lib/auth';
-import { getAllOrganizations, getUserOrganizationsByEmail } from '../../../lib/organizations';
+import { listOrganizations, getUserOrganizationFromEmail, listUserOrganizations } from '../../../lib/organizations';
 
 /**
  * GET /api/context-sources/by-organization
@@ -88,12 +88,12 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     if (isSuperAdmin) {
       // SuperAdmin: See ALL organizations
       console.log('   🔓 SuperAdmin: Loading ALL organizations');
-      const allOrgs = await getAllOrganizations();
+      const allOrgs = await listOrganizations();
       accessibleOrgs = allOrgs;
     } else {
       // Admin: See only their organization(s)
       console.log('   🔒 Admin: Loading user\'s organizations');
-      const userOrgs = await getUserOrganizationsByEmail(userEmail);
+      const userOrgs = await listUserOrganizations(session.id);
       accessibleOrgs = userOrgs;
     }
 

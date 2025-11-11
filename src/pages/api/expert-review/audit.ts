@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { 
-  logAuditEvent,
-  getAuditLog
+  logAuditEntry,
+  getAuditTrail
 } from '../../../lib/expert-review/audit-service';
 
 /**
@@ -31,7 +31,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     // Log audit event
-    await logAuditEvent({
+    await logAuditEntry({
       userId,
       action: action as any,
       targetType: targetType as any,
@@ -79,7 +79,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     }
 
     // Get audit log
-    const auditLog = await getAuditLog(userId, limit);
+    const auditLog = await getAuditTrail(userId, limit);
 
     return new Response(
       JSON.stringify(auditLog),

@@ -3,7 +3,7 @@ import { getSession } from '../../../lib/auth';
 import { 
   getUserBadges,
   checkAndAwardBadges,
-  getRecentAchievements
+  getUnshownAchievements
 } from '../../../lib/expert-review/gamification-service';
 
 /**
@@ -44,7 +44,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     let result;
 
     if (type === 'recent') {
-      result = await getRecentAchievements(userId);
+      result = await getUnshownAchievements(userId);
     } else {
       result = await getUserBadges(userId);
     }

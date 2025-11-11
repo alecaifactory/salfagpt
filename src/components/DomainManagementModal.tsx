@@ -16,6 +16,7 @@ import {
   Sparkles,
   Save,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 
@@ -60,41 +61,69 @@ export default function DomainManagementModal({
   onClose,
   currentUserEmail,
 }: DomainManagementModalProps) {
-  const [domains, setDomains] = useState<Domain[]>([]);
+  const [domains, setDomains] = useState<DomainRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showBatchForm, setShowBatchForm] = useState(false);
+  const [organizations, setOrganizations] = useState<Array<{id: string; name: string}>>([]);
   
   // Create form state
   const [newDomainId, setNewDomainId] = useState('');
   const [newDomainName, setNewDomainName] = useState('');
   const [newDomainEnabled, setNewDomainEnabled] = useState(true);
   const [newDomainDescription, setNewDomainDescription] = useState('');
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  
+  // Company profile state (similar to Organization setup)
+  const [companyWebsiteUrl, setCompanyWebsiteUrl] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [scrapingUrl, setScrapingUrl] = useState(false);
+  const [scrapingProgress, setScrapingProgress] = useState('');
   
   // Batch form state
   const [batchDomainList, setBatchDomainList] = useState('');
   const [batchEnabled, setBatchEnabled] = useState(true);
   
   // Selected domain for details
-  const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<DomainRow | null>(null);
+  const [editingDomainPrompt, setEditingDomainPrompt] = useState<DomainRow | null>(null);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
 
-  // Load domains
+  // Load domains and organizations
   useEffect(() => {
     if (isOpen) {
       loadDomains();
+      loadOrganizations();
     }
   }, [isOpen]);
+
+  const loadOrganizations = async () => {
+    try {
+      const response = await fetch('/api/organizations');
+      if (response.ok) {
+        const data = await response.json();
+        setOrganizations((data.organizations || []).map((org: any) => ({
+          id: org.id,
+          name: org.name
+        })));
+      }
+    } catch (err) {
+      console.error('Error loading organizations:', err);
+    }
+  };
 
   const loadDomains = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetch('/api/domains');
+      // 🚀 Use new flattened domains endpoint
+      console.log('📊 Loading domains (flattened view)...');
+      const response = await fetch('/api/domains/list-all-domains');
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -102,9 +131,11 @@ export default function DomainManagementModal({
       }
       
       const data = await response.json();
+      console.log('✅ Domains loaded:', data.domains?.length, 'SuperAdmin:', data.isSuperAdmin);
       setDomains(data.domains || []);
+      setIsSuperAdmin(data.isSuperAdmin || false);
     } catch (err) {
-      console.error('Error loading domains:', err);
+      console.error('❌ Error loading domains:', err);
       setError(err instanceof Error ? err.message : 'Failed to load domains');
     } finally {
       setLoading(false);
@@ -113,19 +144,44 @@ export default function DomainManagementModal({
 
   const handleCreateDomain = async () => {
     if (!newDomainId.trim()) {
-      setError('Domain ID is required');
+      setError('Domain URL is required');
+      return;
+    }
+    
+    if (!companyName.trim()) {
+      setError('Company Name is required');
       return;
     }
     
     try {
-      const response = await fetch('/api/domains', {
+      let targetOrgId = selectedOrgId;
+      
+      // For Admin (non-SuperAdmin): auto-detect their organization
+      if (!isSuperAdmin) {
+        // Get the user's organization from domains
+        // Admins should have at least one domain/org they manage
+        if (domains.length > 0) {
+          targetOrgId = domains[0].organizationId;
+        } else {
+          setError('No organization found for your account. Please contact SuperAdmin.');
+          return;
+        }
+      }
+      
+      // For SuperAdmin: organization selection is required
+      if (isSuperAdmin && !targetOrgId) {
+        setError('Please select an organization');
+        return;
+      }
+      
+      // Add domain to organization
+      const response = await fetch(`/api/organizations/${targetOrgId}/domains`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          domainId: newDomainId.toLowerCase().trim(),
-          name: newDomainName.trim() || newDomainId.trim(),
-          enabled: newDomainEnabled,
-          description: newDomainDescription.trim(),
+          domain: newDomainId.toLowerCase().trim(),
+          companyName: companyName.trim(),
+          companyWebsiteUrl: companyWebsiteUrl.trim(),
         }),
       });
       
@@ -139,6 +195,10 @@ export default function DomainManagementModal({
       setNewDomainName('');
       setNewDomainEnabled(true);
       setNewDomainDescription('');
+      setCompanyWebsiteUrl('');
+      setCompanyName('');
+      setSelectedOrgId('');
+      setScrapingProgress('');
       setShowCreateForm(false);
       
       // Reload domains
@@ -257,12 +317,21 @@ export default function DomainManagementModal({
             <Globe className="w-6 h-6 text-blue-600" />
             <h2 className="text-2xl font-bold text-slate-800">Domain Management</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium"
+            >
+              <Plus className="w-4 h-4" />
+              Add Domain
+            </button>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Error display */}
@@ -279,21 +348,23 @@ export default function DomainManagementModal({
         )}
 
         {/* Info banner */}
-        <div className="p-4 bg-blue-50 border-b border-blue-200">
-          <p className="text-sm text-slate-700">
-            {isSuperAdmin ? (
-              <>
-                <span className="font-semibold">SuperAdmin view:</span> Showing all domains from all organizations. 
-                Manage domains through Organization settings.
-              </>
-            ) : (
-              <>
-                <span className="font-semibold">Admin view:</span> Showing domains from your organization(s). 
-                Contact SuperAdmin to add new domains.
-              </>
-            )}
-          </p>
-        </div>
+        {!loading && (
+          <div className="p-4 bg-blue-50 border-b border-blue-200">
+            <p className="text-sm text-slate-700">
+              {isSuperAdmin ? (
+                <>
+                  <span className="font-semibold">SuperAdmin view:</span> Showing all domains from all organizations. 
+                  Manage domains through Organization settings.
+                </>
+              ) : (
+                <>
+                  <span className="font-semibold">Admin view:</span> Showing domains from your organization(s). 
+                  Contact SuperAdmin to add new domains.
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         {/* Domains table */}
         <div className="flex-1 overflow-y-auto p-6">
@@ -666,7 +737,8 @@ export default function DomainManagementModal({
           onClose={() => setEditingDomainPrompt(null)}
           onSave={async (newPrompt) => {
             try {
-              const response = await fetch(`/api/organizations/${editingDomainPrompt.organizationId}`, {
+              // Save to domain-specific endpoint (not organization)
+              const response = await fetch(`/api/domains/${editingDomainPrompt.domainId}/prompt`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ domainPrompt: newPrompt }),
@@ -677,6 +749,8 @@ export default function DomainManagementModal({
                 throw new Error(errorData.error || 'Failed to save domain prompt');
               }
               
+              console.log('✅ Domain prompt saved successfully for:', editingDomainPrompt.domainId);
+              
               // Reload domains to show updated prompt
               await loadDomains();
               setEditingDomainPrompt(null);
@@ -686,6 +760,224 @@ export default function DomainManagementModal({
             }
           }}
         />
+      )}
+
+      {/* Create Domain Form Modal */}
+      {showCreateForm && (
+        <div 
+          className="fixed inset-0 z-[70] bg-black bg-opacity-50 flex items-center justify-center p-4"
+          onClick={() => setShowCreateForm(false)}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  <Plus className="w-6 h-6 text-blue-600" />
+                  Add New Domain
+                </h2>
+                <p className="text-sm text-slate-600 mt-1">
+                  {isSuperAdmin 
+                    ? 'Add a domain to an organization' 
+                    : 'Add a domain to your organization'}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <div className="p-6 space-y-6">
+              {/* Organization Selection (SuperAdmin only) */}
+              {isSuperAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Organization <span className="text-red-600">*</span>
+                  </label>
+                  <select
+                    value={selectedOrgId}
+                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Select organization...</option>
+                    {organizations.map(org => (
+                      <option key={org.id} value={org.id}>{org.name}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Which organization should this domain belong to?
+                  </p>
+                </div>
+              )}
+
+              {/* Company Website URL with Scrape Button */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Company Website URL
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={companyWebsiteUrl}
+                    onChange={(e) => setCompanyWebsiteUrl(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://company.com"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!companyWebsiteUrl) {
+                        setScrapingProgress('⚠️ Please enter a URL first');
+                        setTimeout(() => setScrapingProgress(''), 3000);
+                        return;
+                      }
+                      setScrapingUrl(true);
+                      setScrapingProgress('🌐 Connecting to website...');
+                      
+                      try {
+                        const response = await fetch('/api/scrape-company-data', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ url: companyWebsiteUrl })
+                        });
+                        
+                        setScrapingProgress('🤖 Processing with AI...');
+                        
+                        const data = await response.json();
+                        
+                        if (data.companyData) {
+                          setScrapingProgress('✅ Extracting information...');
+                          
+                          // Auto-fill company name from scraped data
+                          setCompanyName(data.companyData.companyName || companyName);
+                          
+                          setScrapingProgress('✅ Company data scraped successfully!');
+                          
+                          // Clear success message after 3 seconds
+                          setTimeout(() => setScrapingProgress(''), 3000);
+                        } else {
+                          setScrapingProgress('⚠️ No data found on website');
+                          setTimeout(() => setScrapingProgress(''), 5000);
+                        }
+                      } catch (error) {
+                        console.error('Error scraping URL:', error);
+                        setScrapingProgress('❌ Failed to scrape URL - please try again');
+                        setTimeout(() => setScrapingProgress(''), 5000);
+                      } finally {
+                        setScrapingUrl(false);
+                      }
+                    }}
+                    disabled={scrapingUrl || !companyWebsiteUrl}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {scrapingUrl ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Scraping...
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-4 h-4" />
+                        Scrape Data
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter the company website to automatically extract mission, vision, and other data
+                </p>
+                
+                {/* Scraping Progress Indicator */}
+                {scrapingProgress && (
+                  <div className={`mt-2 p-3 rounded-lg border ${
+                    scrapingProgress.includes('✅') 
+                      ? 'bg-green-50 border-green-200' 
+                      : scrapingUrl 
+                        ? 'bg-blue-50 border-blue-200' 
+                        : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {scrapingUrl && <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
+                      <p className={`text-sm font-medium ${
+                        scrapingProgress.includes('✅') 
+                          ? 'text-green-700' 
+                          : scrapingUrl 
+                            ? 'text-blue-700' 
+                            : scrapingProgress.includes('⚠️') || scrapingProgress.includes('❌')
+                              ? 'text-amber-700'
+                              : 'text-slate-700'
+                      }`}>
+                        {scrapingProgress}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Domain URL */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Domain URL <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newDomainId}
+                  onChange={(e) => setNewDomainId(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="example.com"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  The domain name (e.g., company.com, subdomain.company.com)
+                </p>
+              </div>
+
+              {/* Company Name */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Company Name <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Salfa Corporación S.A."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={() => {
+                  setShowCreateForm(false);
+                  setError(null);
+                  setScrapingProgress('');
+                }}
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateDomain}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Add Domain
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -733,13 +1025,13 @@ function DomainPromptEditorModal({
           <div>
             <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-blue-600" />
-              Configuración de Dominio
+              Prompt de Dominio
             </h2>
             <p className="text-sm text-slate-600 mt-1">
-              {domain.organizationName}
+              <span className="font-semibold">{domain.domainId}</span> • {domain.organizationName}
             </p>
             <p className="text-xs text-slate-500">
-              ID: {domain.organizationId}
+              Este prompt se aplicará a todos los agentes del dominio {domain.domainId}
             </p>
           </div>
           <button
@@ -761,8 +1053,9 @@ function DomainPromptEditorModal({
                   ¿Qué es el Prompt de Dominio?
                 </p>
                 <p className="text-sm text-blue-700">
-                  El prompt de dominio define el contexto, políticas y comportamiento compartido por{' '}
-                  <strong>todos los agentes de tu organización</strong>. Se combina automáticamente con 
+                  El prompt de dominio define el contexto, políticas y comportamiento específico del dominio{' '}
+                  <strong className="font-semibold">{domain.domainId}</strong>. Se aplicará a{' '}
+                  <strong>todos los agentes de usuarios en este dominio</strong> y se combina automáticamente con 
                   los prompts específicos de cada agente.
                 </p>
               </div>
@@ -800,16 +1093,16 @@ function DomainPromptEditorModal({
           {/* Domain Prompt Editor */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Prompt de Dominio
+              Prompt de Dominio: {domain.domainId}
             </label>
             <textarea
               value={domainPrompt}
               onChange={(e) => setDomainPrompt(e.target.value)}
-              placeholder="Ejemplo:&#10;&#10;Somos [Nombre de Organización], una empresa de [sector].&#10;&#10;Valores corporativos:&#10;- Excelencia en el servicio&#10;- Transparencia&#10;- Innovación&#10;&#10;Políticas importantes:&#10;- Siempre confirmar disponibilidad antes de comprometer fechas&#10;- Escalar a supervisor si el monto > $10,000&#10;- Usar lenguaje profesional pero cercano"
+              placeholder="Ejemplo para el dominio:&#10;&#10;Contexto específico de [Nombre del Dominio]:&#10;&#10;Productos/servicios del dominio:&#10;- [Producto 1]&#10;- [Producto 2]&#10;&#10;Políticas específicas de este dominio:&#10;- [Política 1]&#10;- [Política 2]&#10;&#10;Información de contacto:&#10;- Soporte: support@example.com&#10;- Horario: Lun-Vie 9am-6pm"
               className="w-full h-80 px-4 py-3 border border-slate-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
             />
             <p className="text-xs text-slate-500 mt-2">
-              {domainPrompt.length} caracteres • Este prompt se aplicará a todos los agentes de la organización
+              {domainPrompt.length} caracteres • Este prompt se aplicará a todos los agentes del dominio {domain.domainId}
             </p>
           </div>
 
