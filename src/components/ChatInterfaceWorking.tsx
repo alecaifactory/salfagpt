@@ -4457,7 +4457,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 
                 {/* Menu Modal */}
                 <div 
-                  className="absolute bottom-full left-0 mb-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 z-50 min-w-[800px] max-w-[90vw]"
+                  className="absolute bottom-full left-0 mb-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border-2 border-slate-300 dark:border-slate-600 z-50 min-w-[1200px] max-w-[95vw]"
                   onClick={(e) => e.stopPropagation()}
                 >
                 

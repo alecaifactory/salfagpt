@@ -243,7 +243,7 @@ export default function OrganizationManagementDashboard({
                   
                   {/* Domains */}
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {org.domains.map(domain => (
+                    {(org.domains || []).map(domain => (
                       <span
                         key={domain}
                         className={`px-2 py-0.5 rounded-full text-xs font-medium ${
