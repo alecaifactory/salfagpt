@@ -990,7 +990,8 @@ export async function createUser(
   roles: UserRole[], // Support multiple roles
   company: string,
   createdBy?: string, // Email of creator
-  department?: string
+  department?: string,
+  organizationId?: string // 🆕 Organization assignment
 ): Promise<User> {
   const now = new Date();
   
@@ -1020,6 +1021,9 @@ export async function createUser(
     if (department) {
       updateData.department = department;
     }
+    if (organizationId) {
+      updateData.organizationId = organizationId; // 🆕 Assign to organization
+    }
     
     await firestore.collection(COLLECTIONS.USERS).doc(existingUser.id).update(updateData);
     
@@ -1027,6 +1031,7 @@ export async function createUser(
     console.log(`   Original creation: ${existingUser.createdBy || 'oauth-system'}`);
     console.log(`   Admin update: ${createdBy || 'unknown'}`);
     console.log(`   New roles: ${roles.join(', ')}`);
+    console.log(`   Organization: ${organizationId || 'none'}`);
     
     return {
       ...existingUser,
@@ -1036,6 +1041,7 @@ export async function createUser(
       permissions: getMergedPermissions(roles),
       company,
       department,
+      organizationId,
       updatedAt: now,
     };
   }
@@ -1052,6 +1058,7 @@ export async function createUser(
     company,
     createdBy, // NEW: Track who created this user
     department,
+    organizationId, // 🆕 Organization assignment
     createdAt: now,
     updatedAt: now,
     isActive: true,
@@ -1081,10 +1088,13 @@ export async function createUser(
   if (department) {
     firestoreData.department = department;
   }
+  if (organizationId) {
+    firestoreData.organizationId = organizationId; // 🆕 Include in Firestore
+  }
 
   await firestore.collection(COLLECTIONS.USERS).doc(userId).set(firestoreData);
   
-  console.log(`✅ User created with ID: ${userId} (email: ${email})`);
+  console.log(`✅ User created with ID: ${userId} (email: ${email}, org: ${organizationId || 'none'})`);
 
   return {
     id: userId,
