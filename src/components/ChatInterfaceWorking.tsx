@@ -6703,18 +6703,24 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       
       {/* Organizations Settings Panel - SuperAdmin/Admin Only */}
       {showOrganizations && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Organizations</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <Building2 className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Organization Management</h2>
+              </div>
               <button
                 onClick={() => setShowOrganizations(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
               >
                 <XIcon className="w-6 h-6" />
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
+            
+            {/* Content - Full height with proper overflow */}
+            <div className="flex-1 overflow-auto">
               <OrganizationsSettingsPanel
                 currentUserId={userId}
                 currentUserRole={userRole || 'user'}
