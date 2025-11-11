@@ -75,12 +75,23 @@ export default function OrganizationsSettingsPanel({
     purpose: '',
     values: [] as string[],
     okrs: [] as { objective: string; keyResults: string[] }[],
-    kpis: [] as { name: string; target: number; current: number }[],
-    orgStructure: '',
-    leadership: [] as { name: string; title: string; email: string }[],
-    boardOfDirectors: [] as { name: string; title: string }[],
-    investors: [] as { name: string; type: string }[],
-    marketAnalysis: '',
+    kpis: [] as { name: string; target: number; current: number; unit: string }[],
+    orgStructure: {
+      type: 'hierarchical' as 'hierarchical' | 'flat' | 'matrix',
+      departments: [] as { name: string; head: string; employeeCount: number }[],
+      levels: [] as string[],
+    },
+    leadership: [] as { name: string; title: string; email: string; department?: string }[],
+    boardOfDirectors: [] as { name: string; title: string; since?: string }[],
+    investors: [] as { name: string; type: string; amount?: number; date?: string }[],
+    marketAnalysis: {
+      targetMarket: '',
+      marketSize: '',
+      competitors: [] as { name: string; marketShare: string }[],
+      differentiators: [] as string[],
+      opportunities: [] as string[],
+      threats: [] as string[],
+    },
   });
   
   // Branding fields
