@@ -18,6 +18,7 @@ import AgentContextModal from './AgentContextModal';
 import DomainManagementModal from './DomainManagementModal';
 import ProviderManagementDashboard from './ProviderManagementDashboard';
 import RAGConfigPanel from './RAGConfigPanel';
+import OrganizationsSettingsPanel from './OrganizationsSettingsPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
@@ -440,6 +441,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
   const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
+  const [showOrganizations, setShowOrganizations] = useState(false); // NEW: Organizations settings panel (2025-11-10)
   
   // Stella screenshot tool state (managed at top level to capture full UI including Stella)
   const [showStellaScreenshotTool, setShowStellaScreenshotTool] = useState(false);
@@ -4441,7 +4443,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-5 gap-1.5 p-1.5">
+                <div className="grid grid-cols-6 gap-1.5 p-1.5">
                   
                   {/* COLUMN 1: Gestión de Dominios */}
                   {userEmail === 'alec@getaifactory.com' && (
@@ -4788,6 +4790,28 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                     )}
                   </div>
+                  
+                  {/* COLUMN 6: Organizations (SuperAdmin/Admin Only) */}
+                  {(userRole === 'superadmin' || userRole === 'admin') && (
+                    <div className="space-y-1.5">
+                      <div className="px-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded">
+                        <p className="text-[10px] font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wide">
+                          Organizations
+                        </p>
+                      </div>
+                      
+                      <button
+                        className="w-full flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowOrganizations(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Building2 className="w-3.5 h-3.5 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Organizations</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Footer with Logout */}
@@ -6675,6 +6699,30 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           onClose={() => setShowDomainManagement(false)}
           currentUserEmail={userEmail}
         />
+      )}
+      
+      {/* Organizations Settings Panel - SuperAdmin/Admin Only */}
+      {showOrganizations && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-7xl h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">Organizations</h2>
+              <button
+                onClick={() => setShowOrganizations(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <XIcon className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <OrganizationsSettingsPanel
+                currentUserId={userId}
+                currentUserRole={userRole || 'user'}
+                currentUserOrgId={currentUser?.organizationId}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Provider Management Dashboard - SuperAdmin Only */}
