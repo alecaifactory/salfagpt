@@ -6828,6 +6828,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         onClose={() => setShowContextManagement(false)}
         userId={userId}
         userEmail={userEmail}
+        userRole={userRole}
         conversations={conversations}
         onSourcesUpdated={() => {
           // ✅ PERFORMANCE: Lightweight metadata-only refresh (no RAG verification)

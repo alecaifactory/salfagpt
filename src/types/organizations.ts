@@ -109,6 +109,9 @@ export interface Organization {
     };
   };
   
+  // Domain Prompt (organization-level AI instructions)
+  domainPrompt?: string;                // Optional prompt inherited by all agents in this org
+  
   // Branding & Customization
   branding: {
     logo?: string;                      // Logo URL or base64
@@ -411,6 +414,7 @@ export interface CreateOrganizationInput {
 export interface UpdateOrganizationInput {
   name?: string;
   primaryDomain?: string;
+  domainPrompt?: string;                // Update organization-level prompt
   profile?: Partial<Organization['profile']>;
   branding?: Partial<Organization['branding']>;
   evaluationConfig?: Partial<Organization['evaluationConfig']>;

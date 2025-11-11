@@ -123,6 +123,7 @@ export const PUT: APIRoute = async ({ params, request, cookies }) => {
     const updates: UpdateOrganizationInput = {
       name: body.name,
       primaryDomain: body.primaryDomain,
+      domainPrompt: body.domainPrompt,  // ✅ Support domain prompt updates
       profile: body.profile,
       branding: body.branding,
       evaluationConfig: body.evaluationConfig,

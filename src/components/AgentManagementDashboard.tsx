@@ -98,6 +98,12 @@ interface AgentMetrics {
   usersWithAccess: string[];
   createdAt: Date;
   lastActivityAt: Date;
+  // NEW: Organization metadata (2025-11-11)
+  ownerUserId?: string;
+  ownerEmail?: string;
+  ownerName?: string;
+  organizationId?: string;
+  organizationName?: string;
   setupDoc?: AgentSetupDoc;
   qualityMetrics?: AgentQualityMetrics;
   usageHistory: Array<{
@@ -404,6 +410,13 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
                             </h3>
                             {getModelBadge(agent.model)}
                             
+                            {/* NEW: Organization Badge (2025-11-11) */}
+                            {agent.organizationName && (
+                              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                                {agent.organizationName}
+                              </span>
+                            )}
+                            
                             {/* Quality Badge */}
                             {agent.qualityMetrics && (
                               <div className="flex items-center gap-1">
@@ -427,6 +440,13 @@ export default function AgentManagementDashboard({ userId, onClose }: Props) {
                               </span>
                             )}
                           </div>
+                          
+                          {/* NEW: Owner info for SuperAdmin/Admin (2025-11-11) */}
+                          {agent.ownerEmail && (
+                            <div className="ml-8 mb-2 text-xs text-slate-500">
+                              Propietario: <span className="font-medium text-slate-700">{agent.ownerName || agent.ownerEmail}</span>
+                            </div>
+                          )}
                           
                           <div className="grid grid-cols-4 gap-4 ml-8">
                             <div className="flex items-center gap-2 text-sm">

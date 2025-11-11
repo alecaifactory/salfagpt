@@ -272,6 +272,7 @@ export async function updateOrganization(
     if (updates.primaryDomain !== undefined) {
       updateData.primaryDomain = updates.primaryDomain.toLowerCase();
     }
+    if (updates.domainPrompt !== undefined) updateData.domainPrompt = updates.domainPrompt; // ✅ Support domain prompt updates
     if (updates.profile !== undefined) {
       updateData.profile = { ...currentOrg.profile, ...updates.profile };
     }
@@ -559,6 +560,51 @@ export async function getUsersInOrganization(
     }));
   } catch (error) {
     console.error('❌ Error getting users in organization:', error);
+    return [];
+  }
+}
+
+/**
+ * Get users in multiple organizations
+ * Useful for admins with access to multiple orgs
+ * NEW: 2025-11-11
+ */
+export async function getUsersInOrganizations(
+  orgIds: string[],
+  options?: {
+    includeInactive?: boolean;
+    role?: string;
+  }
+): Promise<any[]> {
+  try {
+    if (orgIds.length === 0) {
+      return [];
+    }
+    
+    // Remove duplicates
+    const uniqueOrgIds = Array.from(new Set(orgIds));
+    
+    console.log(`📊 Getting users from ${uniqueOrgIds.length} organizations:`, uniqueOrgIds);
+    
+    // Fetch users from each org and combine
+    const allUsers = await Promise.all(
+      uniqueOrgIds.map(orgId => getUsersInOrganization(orgId, options))
+    );
+    
+    // Flatten and deduplicate by user ID
+    const userMap = new Map<string, any>();
+    allUsers.flat().forEach(user => {
+      if (!userMap.has(user.id)) {
+        userMap.set(user.id, user);
+      }
+    });
+    
+    const users = Array.from(userMap.values());
+    console.log(`✅ Found ${users.length} unique users across ${uniqueOrgIds.length} organizations`);
+    
+    return users;
+  } catch (error) {
+    console.error('❌ Error getting users in organizations:', error);
     return [];
   }
 }
