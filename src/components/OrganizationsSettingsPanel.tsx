@@ -43,7 +43,7 @@ interface Props {
   currentUserOrgId?: string;
 }
 
-type Section = 'profile' | 'branding' | 'domains' | 'agents' | 'analytics';
+type Section = 'profile' | 'branding' | 'domains' | 'agents' | 'analytics' | 'whatsapp';
 
 export default function OrganizationsSettingsPanel({
   currentUserId,
@@ -54,6 +54,18 @@ export default function OrganizationsSettingsPanel({
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // WhatsApp service configuration
+  const [whatsappConfig, setWhatsappConfig] = useState({
+    enabled: false,
+    numbersAvailable: 0,
+    numbersAssigned: 0,
+    monthlySubscriptionFee: 10.00, // USD
+    numberPurchaseCost: 5.00, // USD per number
+    creditThreshold: 0.00, // When to notify user
+    autoRenewal: true,
+    billingCycle: 'monthly' as 'monthly' | 'annual',
+  });
   
   // Company Profile fields
   const [profile, setProfile] = useState({
@@ -137,6 +149,7 @@ export default function OrganizationsSettingsPanel({
     { id: 'domains', label: 'Domains & Features', icon: Globe, description: 'Domain management, Feature flags, A/B testing' },
     { id: 'agents', label: 'Organization Agents', icon: Sparkles, description: 'Agents by domain, Analytics (DAU/WAU/MAU)' },
     { id: 'analytics', label: 'Organization Analytics', icon: BarChart3, description: 'Engagement metrics, Cost analysis' },
+    { id: 'whatsapp', label: 'WhatsApp Service', icon: MessageSquare, description: 'Managed WhatsApp numbers, Subscriptions' },
   ] as const;
   
   if (loading) {
@@ -205,6 +218,7 @@ export default function OrganizationsSettingsPanel({
         {activeSection === 'domains' && <DomainsSection organization={organization} />}
         {activeSection === 'agents' && <OrganizationAgentsSection organizationId={currentUserOrgId} organization={organization} />}
         {activeSection === 'analytics' && <OrganizationAnalyticsSection organizationId={currentUserOrgId} organization={organization} />}
+        {activeSection === 'whatsapp' && <WhatsAppServiceSection whatsappConfig={whatsappConfig} setWhatsappConfig={setWhatsappConfig} organizationId={currentUserOrgId} />}
       </div>
     </div>
   );
@@ -1098,6 +1112,497 @@ function OrganizationAnalyticsSection({ organizationId, organization }: any) {
             <p className="text-xs">(DAU/WAU/MAU trends, Messages per day, etc.)</p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ========================================
+ * SECTION 6: WHATSAPP SERVICE
+ * ========================================
+ */
+function WhatsAppServiceSection({ whatsappConfig, setWhatsappConfig, organizationId }: any) {
+  const [assignedNumbers, setAssignedNumbers] = useState<any[]>([]);
+  const [availableNumbers, setAvailableNumbers] = useState<any[]>([]);
+  
+  // Mock data - will be replaced with API calls
+  useEffect(() => {
+    // Load assigned numbers
+    setAssignedNumbers([
+      { id: '1', userId: 'user-1', userName: 'Juan Pérez', email: 'jperez@maqsa.cl', number: '+56912345678', status: 'active', credit: 15.50, subscriptionActive: true },
+      { id: '2', userId: 'user-2', userName: 'María García', email: 'mgarcia@iaconcagua.com', number: '+56987654321', status: 'active', credit: 8.20, subscriptionActive: true },
+      { id: '3', userId: 'user-3', userName: 'Carlos López', email: 'clopez@salfagestion.cl', number: '+56911223344', status: 'low-credit', credit: 2.10, subscriptionActive: false },
+    ]);
+    
+    setAvailableNumbers([
+      { id: 'pool-1', number: '+56911111111', purchasedAt: new Date(), cost: 5.00, status: 'available' },
+      { id: 'pool-2', number: '+56922222222', purchasedAt: new Date(), cost: 5.00, status: 'available' },
+    ]);
+  }, [organizationId]);
+  
+  return (
+    <div className="max-w-6xl space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-xl font-bold text-slate-800">WhatsApp Service Management</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            Manage WhatsApp numbers, subscriptions, and integrations for your organization
+          </p>
+        </div>
+        <label className="flex items-center gap-3">
+          <span className="text-sm font-medium text-slate-700">Service Enabled</span>
+          <input
+            type="checkbox"
+            checked={whatsappConfig.enabled}
+            onChange={e => setWhatsappConfig({ ...whatsappConfig, enabled: e.target.checked })}
+            className="w-5 h-5 rounded border-slate-300"
+          />
+        </label>
+      </div>
+      
+      {/* Service Overview */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <div className="text-xs text-slate-600 mb-1">Numbers Available</div>
+          <div className="text-3xl font-bold text-green-600">{availableNumbers.length}</div>
+          <div className="text-xs text-slate-500 mt-1">In pool, ready to assign</div>
+        </div>
+        
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <div className="text-xs text-slate-600 mb-1">Numbers Assigned</div>
+          <div className="text-3xl font-bold text-blue-600">{assignedNumbers.length}</div>
+          <div className="text-xs text-slate-500 mt-1">Active subscriptions</div>
+        </div>
+        
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <div className="text-xs text-slate-600 mb-1">Monthly Revenue</div>
+          <div className="text-3xl font-bold text-purple-600">
+            ${(assignedNumbers.length * whatsappConfig.monthlySubscriptionFee).toFixed(2)}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">From subscriptions</div>
+        </div>
+        
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <div className="text-xs text-slate-600 mb-1">Low Credit Alerts</div>
+          <div className="text-3xl font-bold text-yellow-600">
+            {assignedNumbers.filter(n => n.status === 'low-credit').length}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">Need attention</div>
+        </div>
+      </div>
+      
+      {/* Service Configuration */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-blue-900 mb-4">Service Configuration</h4>
+        
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">
+              Monthly Subscription Fee (USD)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-blue-700">$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={whatsappConfig.monthlySubscriptionFee}
+                onChange={e => setWhatsappConfig({
+                  ...whatsappConfig,
+                  monthlySubscriptionFee: parseFloat(e.target.value)
+                })}
+                className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <span className="text-sm text-blue-700">/ month</span>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              User pays this monthly to keep their WhatsApp number active
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">
+              Number Purchase Cost (USD)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-blue-700">$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={whatsappConfig.numberPurchaseCost}
+                onChange={e => setWhatsappConfig({
+                  ...whatsappConfig,
+                  numberPurchaseCost: parseFloat(e.target.value)
+                })}
+                className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+              <span className="text-sm text-blue-700">/ number</span>
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              Cost to purchase a new WhatsApp-enabled SIM card
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">
+              Low Credit Threshold (USD)
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-blue-700">$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={whatsappConfig.creditThreshold}
+                onChange={e => setWhatsappConfig({
+                  ...whatsappConfig,
+                  creditThreshold: parseFloat(e.target.value)
+                })}
+                className="flex-1 px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              />
+            </div>
+            <p className="text-xs text-blue-700 mt-1">
+              Notify user when credit falls below this amount
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-blue-900 mb-2">
+              Billing Cycle
+            </label>
+            <select
+              value={whatsappConfig.billingCycle}
+              onChange={e => setWhatsappConfig({
+                ...whatsappConfig,
+                billingCycle: e.target.value as 'monthly' | 'annual'
+              })}
+              className="w-full px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual (discount)</option>
+            </select>
+            <p className="text-xs text-blue-700 mt-1">
+              Subscription renewal frequency
+            </p>
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <label className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={whatsappConfig.autoRenewal}
+              onChange={e => setWhatsappConfig({
+                ...whatsappConfig,
+                autoRenewal: e.target.checked
+              })}
+              className="w-4 h-4 rounded border-blue-300"
+            />
+            <span className="text-sm text-blue-900">
+              Enable automatic subscription renewal (charges user automatically)
+            </span>
+          </label>
+        </div>
+      </div>
+      
+      {/* Assigned Numbers */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-slate-800">Assigned Numbers</h4>
+          <button className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+            <Plus className="w-4 h-4" />
+            Assign Number to User
+          </button>
+        </div>
+        
+        <div className="space-y-3">
+          {assignedNumbers.map(assigned => (
+            <div key={assigned.id} className="bg-white border border-slate-200 rounded-lg p-4 hover:border-blue-300 transition-colors">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center text-white font-bold">
+                      {assigned.userName.split(' ').map((n: string) => n[0]).join('')}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-slate-800">{assigned.userName}</div>
+                      <div className="text-sm text-slate-600">{assigned.email}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-4 mt-3">
+                    <div>
+                      <div className="text-xs text-slate-600">WhatsApp Number</div>
+                      <div className="font-mono font-semibold text-slate-800">{assigned.number}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-600">Credit Balance</div>
+                      <div className={`font-semibold ${
+                        assigned.credit > 5 ? 'text-green-600' : 'text-yellow-600'
+                      }`}>
+                        ${assigned.credit.toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-600">Subscription</div>
+                      <div className="flex items-center gap-1">
+                        {assigned.subscriptionActive ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                            <span className="text-sm text-green-600">Active</span>
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 text-red-600" />
+                            <span className="text-sm text-red-600">Inactive</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-600">Status</div>
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        assigned.status === 'active' ? 'bg-green-100 text-green-700' :
+                        assigned.status === 'low-credit' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {assigned.status === 'active' ? 'Active' :
+                         assigned.status === 'low-credit' ? 'Low Credit' :
+                         'Suspended'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <button
+                    className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    title="Add credit"
+                  >
+                    Add Credit
+                  </button>
+                  <button
+                    className="px-3 py-1.5 text-sm border border-slate-300 rounded hover:bg-slate-50"
+                    title="Manage"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Low Credit Warning */}
+              {assigned.status === 'low-credit' && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-yellow-800">Low Credit Alert</p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      User's credit is below ${whatsappConfig.creditThreshold.toFixed(2)}. 
+                      {assigned.subscriptionActive ? 
+                        ' Subscription will auto-renew on next billing cycle.' :
+                        ' Subscription inactive - number may be suspended soon.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Available Numbers Pool */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-lg font-semibold text-slate-800">Available Numbers Pool</h4>
+          <button className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm">
+            <Plus className="w-4 h-4" />
+            Purchase New Number
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {availableNumbers.map(num => (
+            <div key={num.id} className="bg-white border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="w-5 h-5 text-green-600" />
+                <span className="font-mono font-semibold text-slate-800">{num.number}</span>
+              </div>
+              <div className="text-xs text-slate-600 mb-3">
+                Purchased: {new Date(num.purchasedAt).toLocaleDateString()}
+              </div>
+              <div className="flex gap-2">
+                <button className="flex-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                  Assign
+                </button>
+                <button className="px-3 py-1.5 text-sm border border-slate-300 rounded hover:bg-slate-50">
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* How It Works */}
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-purple-900 mb-4">How WhatsApp Service Works</h4>
+        
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+              1
+            </div>
+            <div>
+              <h5 className="font-semibold text-purple-900 mb-1">User Requests WhatsApp Number</h5>
+              <p className="text-sm text-purple-800">
+                User opts into WhatsApp service and subscribes (${whatsappConfig.monthlySubscriptionFee}/month)
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+              2
+            </div>
+            <div>
+              <h5 className="font-semibold text-purple-900 mb-1">We Purchase & Configure Number</h5>
+              <p className="text-sm text-purple-800">
+                We buy a SIM card/number (~${whatsappConfig.numberPurchaseCost}) and configure it with WhatsApp Business API
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+              3
+            </div>
+            <div>
+              <h5 className="font-semibold text-purple-900 mb-1">Number Assigned to User</h5>
+              <p className="text-sm text-purple-800">
+                User gets their dedicated WhatsApp number managed by us in their account
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+              4
+            </div>
+            <div>
+              <h5 className="font-semibold text-purple-900 mb-1">We Manage Integration</h5>
+              <p className="text-sm text-purple-800">
+                We handle WhatsApp API integration, message routing, and service management on user's behalf
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+              5
+            </div>
+            <div>
+              <h5 className="font-semibold text-purple-900 mb-1">User Maintains Credit</h5>
+              <p className="text-sm text-purple-800">
+                User's subscription keeps number active. If credit runs out and they don't renew, number returns to pool
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Revenue Summary */}
+      <div className="bg-white border border-slate-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-slate-800 mb-4">Revenue Summary</h4>
+        
+        <div className="grid grid-cols-3 gap-6">
+          <div>
+            <div className="text-sm text-slate-600 mb-1">Monthly Recurring Revenue (MRR)</div>
+            <div className="text-3xl font-bold text-green-600">
+              ${(assignedNumbers.filter(n => n.subscriptionActive).length * whatsappConfig.monthlySubscriptionFee).toFixed(2)}
+            </div>
+            <div className="text-xs text-slate-600 mt-1">
+              From {assignedNumbers.filter(n => n.subscriptionActive).length} active subscriptions
+            </div>
+          </div>
+          
+          <div>
+            <div className="text-sm text-slate-600 mb-1">Number Inventory Cost</div>
+            <div className="text-3xl font-bold text-slate-800">
+              ${((assignedNumbers.length + availableNumbers.length) * whatsappConfig.numberPurchaseCost).toFixed(2)}
+            </div>
+            <div className="text-xs text-slate-600 mt-1">
+              Investment in {assignedNumbers.length + availableNumbers.length} numbers
+            </div>
+          </div>
+          
+          <div>
+            <div className="text-sm text-slate-600 mb-1">Net Monthly Profit</div>
+            <div className="text-3xl font-bold text-purple-600">
+              ${(
+                (assignedNumbers.filter(n => n.subscriptionActive).length * whatsappConfig.monthlySubscriptionFee) -
+                ((assignedNumbers.length + availableNumbers.length) * whatsappConfig.numberPurchaseCost / 12)
+              ).toFixed(2)}
+            </div>
+            <div className="text-xs text-slate-600 mt-1">
+              MRR minus amortized number costs
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* API Integration Status */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
+        <h4 className="text-lg font-semibold text-slate-800 mb-4">WhatsApp API Integration</h4>
+        
+        <div className="space-y-3">
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-yellow-600"></div>
+              <span className="text-sm font-medium text-slate-700">WhatsApp Business API</span>
+            </div>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">
+              Integration Pending
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-yellow-600"></div>
+              <span className="text-sm font-medium text-slate-700">Message Routing Service</span>
+            </div>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">
+              Integration Pending
+            </span>
+          </div>
+          
+          <div className="flex items-center justify-between p-3 bg-white rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-yellow-600"></div>
+              <span className="text-sm font-medium text-slate-700">Billing & Subscription Management</span>
+            </div>
+            <span className="px-3 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full">
+              Integration Pending
+            </span>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-900">
+            <strong>Note:</strong> WhatsApp API integration will be implemented in a future phase. 
+            This interface prepares the configuration and number management system.
+          </p>
+        </div>
+      </div>
+      
+      {/* Save Button */}
+      <div className="flex justify-end pt-4 border-t border-slate-200">
+        <button
+          onClick={() => {/* Save WhatsApp config */}}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <Save className="w-4 h-4" />
+          Save WhatsApp Configuration
+        </button>
       </div>
     </div>
   );
