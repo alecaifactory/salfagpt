@@ -294,7 +294,16 @@ evaluationConfig: {
 
 ### **Before Production:**
 
-- [ ] Deploy indexes: `firebase deploy --only firestore:indexes`
+- [x] **Create backup** ✅ (2025-11-10)
+  ```bash
+  # Backup created at:
+  gs://salfagpt-backups-us/pre-multi-org-20251110-205525
+  
+  # Restore command (if needed):
+  gcloud firestore import gs://salfagpt-backups-us/pre-multi-org-20251110-205525 --project=salfagpt
+  ```
+
+- [x] Deploy indexes: `firebase deploy --only firestore:indexes` ✅ (2025-11-10)
 - [ ] Test rules in emulator
 - [ ] Deploy rules: `firebase deploy --only firestore:rules`
 - [ ] Setup staging: `npm run staging:setup`
@@ -307,6 +316,80 @@ evaluationConfig: {
 
 ---
 
+## 💾 **Backup & Restore Specifications**
+
+### **Backup Requirements:**
+
+**Before ANY deployment:**
+1. ✅ Create Firestore backup
+2. ✅ Verify backup completed successfully
+3. ✅ Document backup location
+4. ✅ Save restore command locally
+
+**Backup Locations:**
+- Primary: `gs://salfagpt-backups-us/`
+- Format: `pre-multi-org-YYYYMMDD-HHMMSS/`
+- Retention: 90 days (auto-delete)
+
+**Current Backup:**
+```
+Location: gs://salfagpt-backups-us/pre-multi-org-20251110-205525
+Created: 2025-11-10 20:55:25 PST
+Contains: All Firestore collections
+Status: COMPLETE ✅
+```
+
+### **Restore Procedures:**
+
+**Complete Firestore Restore:**
+```bash
+# 1. Stop services
+gcloud run services update cr-salfagpt-ai-ft-prod --max-instances=0 --region=us-east4 --project=salfagpt
+
+# 2. Restore from backup
+gcloud firestore import gs://salfagpt-backups-us/pre-multi-org-20251110-205525 --project=salfagpt
+
+# 3. Wait for completion (~30 minutes)
+gcloud firestore operations list --project=salfagpt
+
+# 4. Restart services
+gcloud run services update cr-salfagpt-ai-ft-prod --max-instances=50 --region=us-east4 --project=salfagpt
+```
+
+**Partial Restore (Specific Collections):**
+```bash
+gcloud firestore import gs://salfagpt-backups-us/pre-multi-org-20251110-205525 \
+  --collection-ids=conversations,messages,users \
+  --project=salfagpt
+```
+
+**See Also:** `docs/RESTORE_GUIDE.md` for complete procedures
+
+### **Backup Automation:**
+
+**Create Backup:**
+```bash
+./scripts/create-complete-backup.sh --project=salfagpt
+```
+
+**Automated Components:**
+- Firestore: Complete database export
+- BigQuery: All datasets and tables (if available)
+- Cloud Storage: All buckets (optional)
+- Manifest: JSON metadata with restore commands
+- Verification: Automatic size and content checks
+
+**Backup Best Practices:**
+1. ✅ Backup before every major deployment
+2. ✅ Verify backup completed successfully
+3. ✅ Test restore procedure periodically (quarterly)
+4. ✅ Keep backup info files locally
+5. ✅ Document backup locations
+6. ✅ Set appropriate retention policies
+7. ✅ Monitor backup costs
+
+---
+
 ## 🔗 **Related Rules**
 
 - `.cursor/rules/alignment.mdc` - Core principles (data persistence, security)
@@ -316,7 +399,19 @@ evaluationConfig: {
 
 ---
 
+## 📚 **Documentation References**
+
+- `docs/RESTORE_GUIDE.md` - Complete restore procedures ⭐
+- `docs/BACKUP_BEFORE_DEPLOYMENT.md` - Backup creation guide
+- `docs/DEPLOYMENT_CHECKLIST_MULTI_ORG.md` - Deployment safety
+- `docs/MIGRATION_RUNBOOK.md` - Migration procedures
+- `scripts/create-complete-backup.sh` - Backup automation script
+
+---
+
 **Last Updated:** 2025-11-10  
-**Version:** 1.0.0  
-**Status:** ✅ Backend Complete, Frontend Partial  
-**Backward Compatible:** ✅ Guaranteed
+**Version:** 1.0.1  
+**Status:** ✅ Backend Complete, Indexes Deployed, Backup Created  
+**Backward Compatible:** ✅ Guaranteed  
+**Backup Location:** gs://salfagpt-backups-us/pre-multi-org-20251110-205525  
+**Restore Tested:** Ready for emergency use
