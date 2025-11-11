@@ -746,24 +746,61 @@ export async function calculateOrganizationStats(
     const totalUsers = users.length;
     const adminCount = users.filter((u: any) => u.role === 'admin' || u.roles?.includes('admin')).length;
     
-    // NOTE: For now, stats are limited to users only
-    // Conversations, context_sources, and messages don't have organizationId yet
-    // TODO: After migration, uncomment these queries
+    // ✅ MIGRATION COMPLETE - Now querying real data
     
-    // TEMPORARY: Return basic stats with zero counts for unmigrated data
+    // Get conversations (agents)
+    const conversations = await firestore
+      .collection(COLLECTIONS.CONVERSATIONS)
+      .where('organizationId', '==', orgId)
+      .get();
+    
+    const allConvs = conversations.docs.map(d => d.data());
+    const totalAgents = allConvs.length;
+    const activeAgents = allConvs.filter(c => c.status !== 'archived').length;
+    const sharedAgents = allConvs.filter(c => c.isShared).length;
+    
+    // Get context sources
+    const contextSources = await firestore
+      .collection(COLLECTIONS.CONTEXT_SOURCES)
+      .where('organizationId', '==', orgId)
+      .get();
+    
+    const allSources = contextSources.docs.map(d => d.data());
+    const totalContextSources = allSources.length;
+    const validatedSources = allSources.filter(s => s.metadata?.validated || s.certified).length;
+    
+    // Get messages (for token usage) - limit to recent for performance
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const messages = await firestore
+      .collection(COLLECTIONS.MESSAGES)
+      .where('organizationId', '==', orgId)
+      .where('timestamp', '>=', thirtyDaysAgo)
+      .get();
+    
+    const totalMessages = messages.size;
+    const totalTokensUsed = messages.docs.reduce((sum, doc) => {
+      const data = doc.data();
+      return sum + (data.tokenCount || 0);
+    }, 0);
+    
+    // Estimate cost (Gemini pricing: ~$0.000002 per token average)
+    const estimatedMonthlyCost = totalTokensUsed * 0.000002;
+    
     const stats: OrganizationStats = {
       organizationId: orgId,
       totalUsers,
       activeUsers: totalUsers,
       adminCount,
-      totalAgents: 0, // TODO: Enable after conversations migration
-      activeAgents: 0,
-      sharedAgents: 0,
-      totalContextSources: 0, // TODO: Enable after context_sources migration
-      validatedSources: 0,
-      totalMessages: 0, // TODO: Enable after messages migration
-      totalTokensUsed: 0,
-      estimatedMonthlyCost: 0,
+      totalAgents,
+      activeAgents,
+      sharedAgents,
+      totalContextSources,
+      validatedSources,
+      totalMessages,
+      totalTokensUsed,
+      estimatedMonthlyCost,
       computedAt: new Date(),
     };
     
