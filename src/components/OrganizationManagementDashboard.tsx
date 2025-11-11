@@ -208,6 +208,9 @@ export default function OrganizationManagementDashboard({
         );
       }
       
+      // ✅ Update selectedOrg so modal shows fresh data on reopen
+      setSelectedOrg(data.organization);
+      
       // Reload stats
       await loadOrgStats(data.organization.id);
       

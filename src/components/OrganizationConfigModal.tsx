@@ -23,7 +23,7 @@
  * Part of: feat/multi-org-system-2025-11-10
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Building2, Users, Palette, ClipboardCheck, Shield, Gauge, Settings, FileText, Globe, Sparkles, Loader2 } from 'lucide-react';
 import type { Organization, UpdateOrganizationInput } from '../types/organizations';
 
@@ -52,6 +52,21 @@ export default function OrganizationConfigModal({ organization, isOpen, onClose,
     privacy: organization.privacy,
     limits: organization.limits,
   });
+  
+  // ✅ Sync formData when organization prop changes (after save)
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: organization.name,
+        primaryDomain: organization.primaryDomain,
+        profile: organization.profile || {},
+        branding: organization.branding,
+        evaluationConfig: organization.evaluationConfig,
+        privacy: organization.privacy,
+        limits: organization.limits,
+      });
+    }
+  }, [organization, isOpen]);
   
   if (!isOpen) return null;
   
