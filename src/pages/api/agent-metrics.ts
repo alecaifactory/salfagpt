@@ -103,26 +103,121 @@ export const GET: APIRoute = async (context) => {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     }
 
-    console.log('📊 Loading agent metrics for user:', userId);
+    console.log('📊 Loading agent metrics for user:', userId, 'role:', session.role);
 
-    // Load all conversations for this user, then filter for agents in memory
-    // NOTE: Once Firestore index is ready, we can use a compound query
-    // For now, filter client-side to avoid index requirement
-    const conversationsSnapshot = await firestore
-      .collection('conversations')
-      .where('userId', '==', userId)
-      .orderBy('lastMessageAt', 'desc')
-      .get();
+    // ========================================
+    // MULTI-ORG FILTERING (2025-11-11)
+    // ========================================
+    // SuperAdmin: Load ALL agents from ALL users
+    // Admin: Load agents from users in their organization(s)
+    // Other roles: Load only own agents
     
-    // Filter to ONLY agents (isAgent: true) in memory
-    const agentDocs = conversationsSnapshot.docs.filter(doc => {
-      const data = doc.data();
-      // Include if explicitly marked as agent, or if not marked (legacy behavior)
-      // Exclude if explicitly marked as conversation (isAgent: false)
-      return data.isAgent !== false;
-    });
-
-    console.log(`📊 Found ${conversationsSnapshot.docs.length} total, ${agentDocs.length} agents (isAgent !== false)`);
+    let agentDocs: any[] = [];
+    
+    if (session.role === 'superadmin') {
+      // SuperAdmin: Get ALL agents from ALL users
+      console.log('🔓 SuperAdmin access: Loading ALL agents from ALL users');
+      
+      const allConversationsSnapshot = await firestore
+        .collection('conversations')
+        .orderBy('lastMessageAt', 'desc')
+        .get();
+      
+      agentDocs = allConversationsSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.isAgent !== false;
+      });
+      
+      console.log(`📊 SuperAdmin: Found ${allConversationsSnapshot.docs.length} total conversations, ${agentDocs.length} agents`);
+      
+    } else if (session.role === 'admin') {
+      // Admin: Get agents from users in their organization(s)
+      console.log('🔐 Admin access: Loading agents for organization');
+      
+      // Get user's organization(s)
+      const { getUserById } = await import('../../lib/firestore.js');
+      const currentUser = await getUserById(userId);
+      
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+      
+      // Collect organization IDs
+      const orgIds: string[] = [];
+      if (currentUser.organizationId) {
+        orgIds.push(currentUser.organizationId);
+      }
+      if (currentUser.assignedOrganizations) {
+        orgIds.push(...currentUser.assignedOrganizations);
+      }
+      
+      console.log('  User organizations:', orgIds);
+      
+      if (orgIds.length === 0) {
+        // No org assigned - show only own agents
+        console.log('  No org assigned - showing only own agents');
+        const ownConversationsSnapshot = await firestore
+          .collection('conversations')
+          .where('userId', '==', userId)
+          .orderBy('lastMessageAt', 'desc')
+          .get();
+        
+        agentDocs = ownConversationsSnapshot.docs.filter(doc => {
+          const data = doc.data();
+          return data.isAgent !== false;
+        });
+      } else {
+        // Get all users in these organizations
+        const { getUsersInOrganizations } = await import('../../lib/organizations.js');
+        const orgUsers = await getUsersInOrganizations(orgIds);
+        const userIds = orgUsers.map(u => u.id);
+        
+        console.log(`  Found ${userIds.length} users in organizations:`, orgIds);
+        
+        // Firestore 'in' query limited to 10 items - chunk if needed
+        const allAgentDocs: any[] = [];
+        const chunkSize = 10;
+        
+        for (let i = 0; i < userIds.length; i += chunkSize) {
+          const chunk = userIds.slice(i, i + chunkSize);
+          
+          const chunkSnapshot = await firestore
+            .collection('conversations')
+            .where('userId', 'in', chunk)
+            .orderBy('lastMessageAt', 'desc')
+            .get();
+          
+          const chunkAgents = chunkSnapshot.docs.filter(doc => {
+            const data = doc.data();
+            return data.isAgent !== false;
+          });
+          
+          allAgentDocs.push(...chunkAgents);
+        }
+        
+        agentDocs = allAgentDocs;
+        console.log(`  Loaded ${agentDocs.length} agents from ${userIds.length} org users`);
+      }
+      
+    } else {
+      // Regular user: Load only own agents
+      console.log('🔒 User access: Loading only own agents');
+      
+      const conversationsSnapshot = await firestore
+        .collection('conversations')
+        .where('userId', '==', userId)
+        .orderBy('lastMessageAt', 'desc')
+        .get();
+      
+      agentDocs = conversationsSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        return data.isAgent !== false;
+      });
+      
+      console.log(`📊 Found ${conversationsSnapshot.docs.length} total, ${agentDocs.length} agents`);
+    }
+    
+    console.log(`📊 Total agents to process: ${agentDocs.length}`);
 
     const agentMetrics = await Promise.all(
       agentDocs.map(async (convDoc) => {
@@ -262,6 +357,22 @@ export const GET: APIRoute = async (context) => {
           ...data,
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+        // ========================================
+        // MULTI-ORG METADATA (2025-11-11)
+        // ========================================
+        // Load user info to get organization
+        const { getUserById } = await import('../../lib/firestore.js');
+        const agentOwner = await getUserById(conv.userId);
+        const organizationId = agentOwner?.organizationId;
+        
+        // Get organization name if available
+        let organizationName: string | undefined;
+        if (organizationId) {
+          const { getOrganization } = await import('../../lib/organizations.js');
+          const org = await getOrganization(organizationId);
+          organizationName = org?.name;
+        }
+
         return {
           agentId,
           agentTitle: conv.title,
@@ -276,6 +387,12 @@ export const GET: APIRoute = async (context) => {
           usersWithAccess: [userId], // TODO: Load from sharing rules
           createdAt: conv.createdAt?.toDate() || new Date(),
           lastActivityAt: conv.lastMessageAt?.toDate() || conv.createdAt?.toDate() || new Date(),
+          // NEW: Organization metadata
+          ownerUserId: conv.userId,
+          ownerEmail: agentOwner?.email,
+          ownerName: agentOwner?.name,
+          organizationId,
+          organizationName,
           setupDoc: setupDoc ? {
             fileName: setupDoc.fileName,
             uploadedAt: setupDoc.uploadedAt?.toDate() || new Date(),

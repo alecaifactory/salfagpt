@@ -57,9 +57,39 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         .get(),
       firestore.collection('agent_shares').get(), // Load agent shares
     ]);
+    
+    // 4b. ROLE-BASED FILTERING:
+    // - SuperAdmin: See ALL users with their organizations
+    // - Admin: See ONLY users in their organization(s)
+    const isSuperAdmin = requester.roles?.includes('superadmin') || requester.role === 'superadmin';
+    
+    let filteredUsersSnapshot = usersSnapshot.docs;
+    
+    if (!isSuperAdmin) {
+      // Admin: Filter to only users in same organization(s)
+      const requesterOrgs = [
+        requester.organizationId,
+        ...(requester.assignedOrganizations || [])
+      ].filter(Boolean);
+      
+      filteredUsersSnapshot = usersSnapshot.docs.filter(doc => {
+        const userData = doc.data();
+        const userOrgs = [
+          userData.organizationId,
+          ...(userData.assignedOrganizations || [])
+        ].filter(Boolean);
+        
+        // User visible if they share ANY organization with requester
+        return userOrgs.some(org => requesterOrgs.includes(org));
+      });
+      
+      console.log(`🔒 Admin ${requesterEmail} filtered to ${filteredUsersSnapshot.length} users in org(s): ${requesterOrgs.join(', ')}`);
+    } else {
+      console.log(`👑 SuperAdmin ${requesterEmail} viewing all ${filteredUsersSnapshot.length} users`);
+    }
 
-    console.log(`✅ Loaded ${usersSnapshot.size} users, ${conversationsSnapshot.size} active conversations, and ${agentSharesSnapshot.size} shares in ${Date.now() - startTime}ms`);
-    console.log(`   Building ID mappings for ${usersSnapshot.size} users...`);
+    console.log(`✅ Loaded ${filteredUsersSnapshot.length} users (filtered), ${conversationsSnapshot.size} active conversations, and ${agentSharesSnapshot.size} shares in ${Date.now() - startTime}ms`);
+    console.log(`   Building ID mappings for ${filteredUsersSnapshot.length} users...`);
 
     // 5. Build user ID mappings (email-based ID ↔️ OAuth numeric ID)
     const userIdToOAuthId = new Map<string, string>(); // email-based → OAuth
@@ -172,8 +202,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       });
     });
 
-    // 6. Map users with counts
-    const users = usersSnapshot.docs.map(doc => {
+    // 6. Map users with counts and enrich with organization data
+    const users = await Promise.all(filteredUsersSnapshot.map(async (doc) => {
       const data = doc.data();
       const userId = doc.id;
 
@@ -202,6 +232,22 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       if (ownedCount > 0 || sharedWithCount > 0 || sharedByCount > 0) {
         console.log(`  User ${data.email}: owned=${ownedCount}, receivedShares=${sharedWithCount}, sentShares=${sharedByCount}`);
       }
+      
+      // Enrich with organization info
+      let organizationName = '-';
+      if (data.organizationId) {
+        try {
+          const orgDoc = await firestore.collection('organizations').doc(data.organizationId).get();
+          if (orgDoc.exists) {
+            organizationName = orgDoc.data()?.name || data.organizationId;
+          }
+        } catch (err) {
+          console.error('Error fetching org:', err);
+        }
+      }
+      
+      // Get domain from email
+      const domainName = data.email ? data.email.split('@')[1] : '-';
 
       return {
         id: doc.id,
@@ -218,6 +264,10 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         lastLoginAt: toISOString(data.lastLoginAt), // ✅ Properly converted
         isActive: data.isActive ?? true,
         avatarUrl: data.avatarUrl,
+        // Multi-org fields
+        organizationId: data.organizationId,
+        organizationName,
+        domainName,
         // Computed counts
         ownedAgentsCount: ownedCount, // ACTIVE agents owned by user
         sharedWithUserCount: sharedWithCount, // Unique agents shared WITH user (received)
@@ -227,7 +277,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         agentAccessCount: ownedCount + sharedWithCount,
         contextAccessCount: data.contextAccessCount || 0,
       };
-    });
+    }));
 
     const totalOwned = Array.from(conversationsByUser.values()).reduce((a, b) => a + b, 0);
     const totalSharedWith = Array.from(sharedWithUser.values()).reduce((a, b) => a + b.size, 0);

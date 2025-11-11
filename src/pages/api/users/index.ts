@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getAllUsers, createUser } from '../../../lib/firestore';
-import { getUserByEmail } from '../../../lib/firestore';
+import { getAllUsers, createUser, getUserByEmail, firestore } from '../../../lib/firestore';
 
 // GET /api/users - List all users (SuperAdmin only)
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -36,9 +35,68 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     }
 
     // Load all users (admin-only access)
-    const users = await getAllUsers();
+    let allUsers = await getAllUsers();
+    
+    // ROLE-BASED FILTERING:
+    // - SuperAdmin: See ALL users with their organizations
+    // - Admin: See ONLY users in their organization(s)
+    const isSuperAdmin = requester.roles?.includes('superadmin') || requester.role === 'superadmin';
+    
+    if (!isSuperAdmin) {
+      // Admin: Filter to only users in same organization(s)
+      const requesterOrgs = [
+        requester.organizationId,
+        ...(requester.assignedOrganizations || [])
+      ].filter(Boolean);
+      
+      allUsers = allUsers.filter(user => {
+        const userOrgs = [
+          user.organizationId,
+          ...(user.assignedOrganizations || [])
+        ].filter(Boolean);
+        
+        // User visible if they share ANY organization with requester
+        return userOrgs.some(org => requesterOrgs.includes(org));
+      });
+      
+      console.log(`🔒 Admin ${requesterEmail} filtered to ${allUsers.length} users in org(s): ${requesterOrgs.join(', ')}`);
+    } else {
+      console.log(`👑 SuperAdmin ${requesterEmail} viewing all ${allUsers.length} users`);
+    }
+    
+    // Enrich users with organization info
+    const enrichedUsers = await Promise.all(allUsers.map(async (user) => {
+      let organizationName = '-';
+      let domainName = '-';
+      
+      // Get organization name
+      if (user.organizationId) {
+        try {
+          const orgDoc = await firestore.collection('organizations').doc(user.organizationId).get();
+          if (orgDoc.exists) {
+            organizationName = orgDoc.data()?.name || user.organizationId;
+          }
+        } catch (err) {
+          console.error('Error fetching org:', err);
+        }
+      }
+      
+      // Get domain from email
+      if (user.email) {
+        const emailDomain = user.email.split('@')[1];
+        if (emailDomain) {
+          domainName = emailDomain;
+        }
+      }
+      
+      return {
+        ...user,
+        organizationName,
+        domainName
+      };
+    }));
 
-    return new Response(JSON.stringify({ users }), {
+    return new Response(JSON.stringify({ users: enrichedUsers }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

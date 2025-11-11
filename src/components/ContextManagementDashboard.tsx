@@ -34,6 +34,7 @@ interface ContextManagementDashboardProps {
   onClose: () => void;
   userId: string;
   userEmail?: string;
+  userRole?: string; // NEW: To determine access level
   conversations: Array<{ 
     id: string; 
     title: string;
@@ -96,6 +97,7 @@ export default function ContextManagementDashboard({
   onClose,
   userId,
   userEmail,
+  userRole,
   conversations,
   onSourcesUpdated
 }: ContextManagementDashboardProps) {
@@ -103,9 +105,20 @@ export default function ContextManagementDashboard({
   // 🔑 Hook para cerrar con ESC (dashboard de pantalla completa)
   const modalRef = useModalClose(isOpen, onClose, false, true, false); // No close on outside click for dashboards
   
+  // Determine access level
+  const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'aleclara@gmail.com'];
+  const isSuperAdmin = SUPERADMIN_EMAILS.includes(userEmail?.toLowerCase() || '') || userRole === 'superadmin';
+  const isAdmin = userRole === 'admin';
+  const isOrgScoped = isSuperAdmin || isAdmin;
+  
   const [sources, setSources] = useState<EnrichedContextSource[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  
+  // Organization-scoped data (for admins and superadmins)
+  const [organizationsData, setOrganizationsData] = useState<any[]>([]);
+  const [expandedOrgs, setExpandedOrgs] = useState<Set<string>>(new Set());
+  const [expandedDomains, setExpandedDomains] = useState<Set<string>>(new Set());
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(0);
@@ -204,43 +217,71 @@ export default function ContextManagementDashboard({
   const loadFirstPage = async () => {
     setLoading(true);
     setSources([]);
+    setOrganizationsData([]);
     setCurrentPage(0);
     
     try {
-      // Load folder structure
-      const structureResponse = await fetch('/api/context-sources/folder-structure', {
-        credentials: 'include', // ✅ FIX: Include cookies for authentication
-      });
-      if (structureResponse.ok) {
-        const data = await structureResponse.json();
-        setFolderStructure(data.folders || []);
-        setTotalCount(data.totalCount || 0);
-        
-        // Extract all unique tags from folder structure
-        const tagsSet = new Set<string>();
-        data.folders?.forEach((folder: any) => {
-          if (folder.name) tagsSet.add(folder.name);
+      // Check if we should load organization-scoped data
+      if (isOrgScoped) {
+        console.log('🏢 Loading organization-scoped context sources...');
+        const response = await fetch('/api/context-sources/by-organization', {
+          credentials: 'include',
         });
-        setAllTags(Array.from(tagsSet).sort());
-      } else {
-        console.error('❌ Failed to load folder structure:', structureResponse.status);
-      }
-      
-      // Load first 10 documents
-      const response = await fetch('/api/context-sources/paginated?page=0&limit=10', {
-        credentials: 'include', // ✅ FIX: Include cookies for authentication
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setSources(data.sources || []);
-        setHasMore(data.hasMore);
-        setCurrentPage(0);
         
-        console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
-        console.log('📊 Total count:', data.totalCount || 0);
-        console.log('📁 Folders:', data.folders?.length || 0);
+        if (response.ok) {
+          const data = await response.json();
+          setOrganizationsData(data.organizations || []);
+          setTotalCount(data.metadata?.totalSources || 0);
+          
+          console.log('✅ Loaded context for', data.organizations?.length || 0, 'organizations');
+          console.log('📊 Total sources:', data.metadata?.totalSources || 0);
+          
+          // Auto-expand first organization for better UX
+          if (data.organizations && data.organizations.length > 0) {
+            setExpandedOrgs(new Set([data.organizations[0].id]));
+          }
+        } else {
+          console.error('❌ Failed to load organization context:', response.status);
+        }
       } else {
-        console.error('❌ Failed to load sources:', response.status);
+        // Regular user: Load their own context sources
+        console.log('👤 Loading user context sources...');
+        
+        // Load folder structure
+        const structureResponse = await fetch('/api/context-sources/folder-structure', {
+          credentials: 'include',
+        });
+        if (structureResponse.ok) {
+          const data = await structureResponse.json();
+          setFolderStructure(data.folders || []);
+          setTotalCount(data.totalCount || 0);
+          
+          // Extract all unique tags from folder structure
+          const tagsSet = new Set<string>();
+          data.folders?.forEach((folder: any) => {
+            if (folder.name) tagsSet.add(folder.name);
+          });
+          setAllTags(Array.from(tagsSet).sort());
+        } else {
+          console.error('❌ Failed to load folder structure:', structureResponse.status);
+        }
+        
+        // Load first 10 documents
+        const response = await fetch('/api/context-sources/paginated?page=0&limit=10', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setSources(data.sources || []);
+          setHasMore(data.hasMore);
+          setCurrentPage(0);
+          
+          console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
+          console.log('📊 Total count:', data.totalCount || 0);
+          console.log('📁 Folders:', data.folders?.length || 0);
+        } else {
+          console.error('❌ Failed to load sources:', response.status);
+        }
       }
     } catch (error) {
       console.error('Error loading context sources:', error);
@@ -2608,7 +2649,173 @@ export default function ContextManagementDashboard({
                 </div>
               )}
 
-              {!loading && sources.length > 0 && (
+              {/* Organization-Scoped View (SuperAdmins & Admins) */}
+              {!loading && isOrgScoped && organizationsData.length > 0 && (
+                <div className="space-y-4">
+                  <div className="px-1 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800 font-medium">
+                      🏢 {isSuperAdmin ? 'SuperAdmin' : 'Admin'} View - Showing context for {organizationsData.length} organization(s)
+                    </p>
+                  </div>
+
+                  {organizationsData.map(org => {
+                    const isOrgExpanded = expandedOrgs.has(org.id);
+                    
+                    return (
+                      <div key={org.id} className="border-2 border-blue-300 rounded-lg overflow-hidden">
+                        {/* Organization Header */}
+                        <div
+                          onClick={() => {
+                            const newExpanded = new Set(expandedOrgs);
+                            if (isOrgExpanded) {
+                              newExpanded.delete(org.id);
+                            } else {
+                              newExpanded.add(org.id);
+                            }
+                            setExpandedOrgs(newExpanded);
+                          }}
+                          className="bg-blue-50 hover:bg-blue-100 px-4 py-3 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <ChevronRight 
+                                className={`w-5 h-5 text-blue-700 transition-transform ${isOrgExpanded ? 'rotate-90' : ''}`}
+                              />
+                              <Globe className="w-5 h-5 text-blue-700" />
+                              <div>
+                                <span className="text-base font-bold text-blue-900">{org.name}</span>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-xs text-blue-700">
+                                    {org.domainCount} domain{org.domainCount !== 1 ? 's' : ''} • {org.totalSources} source{org.totalSources !== 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Organization Content (Domains) */}
+                        {isOrgExpanded && (
+                          <div className="bg-white">
+                            {org.domains.map((domain: any) => {
+                              const domainKey = `${org.id}-${domain.domainId}`;
+                              const isDomainExpanded = expandedDomains.has(domainKey);
+                              
+                              return (
+                                <div key={domainKey} className="border-t border-blue-200">
+                                  {/* Domain Header */}
+                                  <div
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedDomains);
+                                      if (isDomainExpanded) {
+                                        newExpanded.delete(domainKey);
+                                      } else {
+                                        newExpanded.add(domainKey);
+                                      }
+                                      setExpandedDomains(newExpanded);
+                                    }}
+                                    className="bg-gray-50 hover:bg-gray-100 px-6 py-2 cursor-pointer transition-colors"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <ChevronRight 
+                                          className={`w-4 h-4 text-gray-600 transition-transform ${isDomainExpanded ? 'rotate-90' : ''}`}
+                                        />
+                                        <Folder className="w-4 h-4 text-gray-700" />
+                                        <span className="text-sm font-semibold text-gray-900">{domain.domainName}</span>
+                                        <span className="text-xs text-gray-600">
+                                          {domain.sourceCount} source{domain.sourceCount !== 1 ? 's' : ''}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Domain Content (Sources) */}
+                                  {isDomainExpanded && (
+                                    <div className="p-3 space-y-2 bg-white">
+                                      {domain.sources.map((source: any) => {
+                                        const isSelected = selectedSourceIds.includes(source.id);
+                                        
+                                        return (
+                                          <div
+                                            key={source.id}
+                                            onClick={() => toggleSourceSelection(source.id)}
+                                            className={`w-full text-left border rounded-lg p-3 transition-all cursor-pointer ${
+                                              isSelected
+                                                ? 'border-gray-900 bg-gray-50 shadow-sm'
+                                                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            <div className="flex items-start justify-between mb-2">
+                                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={isSelected}
+                                                  onChange={() => toggleSourceSelection(source.id)}
+                                                  onClick={(e) => e.stopPropagation()}
+                                                  className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 flex-shrink-0"
+                                                />
+                                                <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
+                                                <span className="text-sm font-semibold text-gray-900 truncate">
+                                                  {source.name}
+                                                </span>
+                                                {source.metadata?.validated && (
+                                                  <span className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded-full flex-shrink-0">
+                                                    ✓ Validado
+                                                  </span>
+                                                )}
+                                              </div>
+                                              {source.status === 'active' && <CheckCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />}
+                                              {source.status === 'error' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
+                                              {source.status === 'processing' && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
+                                            </div>
+
+                                            {/* Compact metadata */}
+                                            <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
+                                              {source.metadata?.pageCount && (
+                                                <span className="flex items-center gap-1">
+                                                  <FileText className="w-3 h-3" />
+                                                  {source.metadata.pageCount}p
+                                                </span>
+                                              )}
+                                              {source.metadata?.uploaderEmail && (
+                                                <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                                                  {source.metadata.uploaderEmail}
+                                                </span>
+                                              )}
+                                            </div>
+
+                                            {/* Tags */}
+                                            {source.labels && source.labels.length > 0 && (
+                                              <div className="mt-2 flex flex-wrap gap-1">
+                                                {source.labels.map((tag: string) => (
+                                                  <span
+                                                    key={tag}
+                                                    className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
+                                                  >
+                                                    {tag}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Tag-Based View (Regular Users) */}
+              {!loading && !isOrgScoped && sources.length > 0 && (
                 <div className="space-y-4">
                   {/* Expand/Collapse All Controls */}
                   {sourcesByTag.size > 1 && (

@@ -268,8 +268,9 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
               <tr>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Roles</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-700">Empresa</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Organización</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-700">Dominio</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-700">Empresa</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">Mis Agentes</th>
                 <th className="px-4 py-3 text-center font-semibold text-slate-700">
                   <div className="flex flex-col items-center">
@@ -330,24 +331,24 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                       </div>
                     </td>
 
-                    {/* Company */}
+                    {/* Organización */}
                     <td className="px-4 py-3">
-                      <div>
-                        <p className="text-slate-700 font-medium">{user.company}</p>
-                        {user.department && (
-                          <p className="text-xs text-slate-500">{user.department}</p>
-                        )}
-                      </div>
+                      {(user as any).organizationName && (user as any).organizationName !== '-' ? (
+                        <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs font-medium">
+                          {(user as any).organizationName}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 text-xs">-</span>
+                      )}
                     </td>
 
                     {/* Dominio */}
                     <td className="px-4 py-3">
                       {(() => {
                         const emailDomain = user.email.split('@')[1]?.toLowerCase() || '';
-                        const domain = activeDomains.find(d => d.id.toLowerCase() === emailDomain);
                         
-                        return domain ? (
-                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                        return emailDomain ? (
+                          <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium font-mono">
                             {emailDomain}
                           </span>
                         ) : (
@@ -356,6 +357,16 @@ export default function UserManagementPanel({ currentUserEmail, onClose, onImper
                           </span>
                         );
                       })()}
+                    </td>
+
+                    {/* Company */}
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="text-slate-700 font-medium">{user.company}</p>
+                        {user.department && (
+                          <p className="text-xs text-slate-500">{user.department}</p>
+                        )}
+                      </div>
                     </td>
 
                     {/* Mis Agentes (owned by user) */}

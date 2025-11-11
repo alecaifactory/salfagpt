@@ -165,8 +165,9 @@ export default function UserManagementSection({
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Rol</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Organización</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Dominio</th>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Empresa</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Departamento</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Estado</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Último Login</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Acciones</th>
@@ -205,6 +206,7 @@ export default function UserManagementSection({
                             className="px-2 py-1 border border-slate-300 rounded text-xs disabled:bg-slate-100 disabled:cursor-not-allowed"
                             title={roleInfo.description}
                           >
+                            <option value="superadmin">👑 SuperAdmin</option>
                             <option value="admin">👑 Admin</option>
                             <option value="supervisor">👨‍💼 Supervisor</option>
                             <option value="especialista">🎓 Especialista</option>
@@ -220,8 +222,17 @@ export default function UserManagementSection({
                             <option value="agent_feedback">🤖💬 Agent Feedback</option>
                           </select>
                         </td>
+                        <td className="px-4 py-3">
+                          <span className="text-slate-700 font-medium text-xs">
+                            {(user as any).organizationName || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className="text-slate-600 text-xs font-mono">
+                            {(user as any).domainName || '-'}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-slate-700">{user.company}</td>
-                        <td className="px-4 py-3 text-slate-600 text-xs">{user.department || '-'}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${
                             user.isActive 
