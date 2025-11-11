@@ -390,11 +390,13 @@ export default function DomainManagementModal({
                 <thead className="bg-slate-100 border-b border-slate-200">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold text-slate-700">Domain</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Created By</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Organization</th>
+                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Domain Prompt</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Type</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Status</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Users</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Agents</th>
-                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Context</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Created Agents</th>
+                    <th className="px-4 py-3 text-center font-semibold text-slate-700">Shared Agents</th>
                     <th className="px-4 py-3 text-center font-semibold text-slate-700">Created</th>
                     <th className="px-4 py-3 text-right font-semibold text-slate-700">Actions</th>
                   </tr>

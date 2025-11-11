@@ -5,6 +5,7 @@ import {
   batchCreateDomains,
 } from '../../../lib/domains';
 import { getSession, verifyJWT } from '../../../lib/auth';
+import { firestore, COLLECTIONS } from '../../../lib/firestore';
 
 // SuperAdmin emails (hardcoded list)
 const SUPERADMIN_EMAILS = ['alec@getaifactory.com', 'admin@getaifactory.com'];
@@ -33,15 +34,44 @@ export const GET: APIRoute = async ({ request, cookies }) => {
       );
     }
 
-    const domains = await getDomains();
+    console.log('📊 Loading domains from organizations...');
     
-    // 🆕 Filter to only active domains if requested
-    const filteredDomains = activeOnly 
-      ? domains.filter(d => d.enabled === true)
-      : domains;
+    // 🔄 NEW: Load domains from organizations collection (multi-org compatible)
+    const orgsSnapshot = await firestore
+      .collection(COLLECTIONS.ORGANIZATIONS)
+      .get();
+
+    const domains: Array<{ id: string; name: string; enabled: boolean }> = [];
+
+    for (const orgDoc of orgsSnapshot.docs) {
+      const orgData = orgDoc.data();
+      const orgDomains = orgData.domains || [];
+      const isActive = orgData.isActive !== false;
+      const companyInfo = orgData.companyInfo || {};
+
+      // Extract each domain from the organization
+      for (const domainId of orgDomains) {
+        // 🆕 Filter to only active domains if requested
+        if (activeOnly && !isActive) {
+          continue; // Skip inactive organizations
+        }
+
+        // Use domain-specific company info if available, fallback to org name
+        const domainCompanyInfo = companyInfo[domainId];
+        const displayName = domainCompanyInfo?.companyName || orgData.name || domainId;
+
+        domains.push({
+          id: domainId,
+          name: displayName,
+          enabled: isActive,
+        });
+      }
+    }
+
+    console.log(`   ✅ Loaded ${domains.length} domains from ${orgsSnapshot.size} organizations`);
 
     return new Response(
-      JSON.stringify({ domains: filteredDomains }),
+      JSON.stringify({ domains }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
