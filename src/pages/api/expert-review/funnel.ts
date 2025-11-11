@@ -1,10 +1,10 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { 
-  trackFunnelEvent, 
-  getConversionRates, 
-  getBottlenecks,
-  getMilestoneTimes 
+  trackFunnelStage, 
+  calculateConversionRates, 
+  identifyFunnelBottlenecks,
+  getAverageMilestoneTimes
 } from '../../../lib/expert-review/funnel-tracking-service';
 
 /**
@@ -36,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     // Track funnel event
-    await trackFunnelEvent({
+    await trackFunnelStage({
       action: action as any,
       userId,
       messageId,
@@ -93,7 +93,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        result = await getConversionRates(domainId);
+        result = await calculateConversionRates(domainId);
         break;
 
       case 'bottlenecks':
@@ -103,7 +103,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        result = await getBottlenecks(domainId);
+        result = await identifyFunnelBottlenecks(domainId);
         break;
 
       case 'milestones':
@@ -113,7 +113,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
             { status: 400 }
           );
         }
-        result = await getMilestoneTimes(userId);
+        result = await getAverageMilestoneTimes(userId);
         break;
 
       default:

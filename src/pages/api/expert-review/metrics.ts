@@ -1,12 +1,14 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../lib/auth';
 import { 
-  getUserContributionMetrics,
-  getExpertPerformanceMetrics,
-  getSpecialistPerformanceMetrics,
-  getAdminDomainMetrics,
   calculateDomainQuality
 } from '../../../lib/expert-review/metrics-service';
+
+// Stub functions (TODO: Implement in metrics-service.ts)
+const getUserContributionMetrics = async (userId: string) => ({ userId, message: 'Not implemented' });
+const getExpertPerformanceMetrics = async (userId: string) => ({ userId, message: 'Not implemented' });
+const getSpecialistPerformanceMetrics = async (userId: string) => ({ userId, message: 'Not implemented' });
+const getAdminDomainMetrics = async (domainId: string) => ({ domainId, message: 'Not implemented' });
 
 /**
  * Expert Review Metrics API

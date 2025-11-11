@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getAllUsers, createUser, getUserByEmail, firestore } from '../../../lib/firestore';
+import { getAllUsers, createUser, getUserByEmail, firestore, COLLECTIONS } from '../../../lib/firestore';
 
 // GET /api/users - List all users (SuperAdmin only)
 export const GET: APIRoute = async ({ request, cookies }) => {

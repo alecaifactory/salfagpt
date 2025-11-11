@@ -219,6 +219,68 @@ export const GET: APIRoute = async (context) => {
     
     console.log(`📊 Total agents to process: ${agentDocs.length}`);
 
+    // ========================================
+    // PERFORMANCE OPTIMIZATION (2025-11-11)
+    // ========================================
+    // Batch load all user and organization data upfront
+    // This prevents N+1 query problem (was ~94 queries for 47 agents!)
+    
+    const startTime = Date.now();
+    
+    // Get unique user IDs
+    const uniqueUserIds = Array.from(new Set(agentDocs.map(doc => doc.data().userId)));
+    console.log(`📊 Pre-loading data for ${uniqueUserIds.length} unique users...`);
+    
+    // Batch load users (chunk by 10 due to Firestore 'in' limit)
+    const usersMap = new Map<string, any>();
+    const userChunkSize = 10;
+    for (let i = 0; i < uniqueUserIds.length; i += userChunkSize) {
+      const chunk = uniqueUserIds.slice(i, i + userChunkSize);
+      const usersSnapshot = await firestore
+        .collection('users')
+        .where('__name__', 'in', chunk)
+        .get();
+      
+      usersSnapshot.docs.forEach(doc => {
+        usersMap.set(doc.id, {
+          ...doc.data(),
+          id: doc.id,
+        });
+      });
+    }
+    console.log(`✅ Loaded ${usersMap.size} users`);
+    
+    // Get unique organization IDs
+    const uniqueOrgIds = Array.from(new Set(
+      Array.from(usersMap.values())
+        .map((u: any) => u.organizationId)
+        .filter(Boolean)
+    ));
+    
+    // Batch load organizations
+    const orgsMap = new Map<string, any>();
+    if (uniqueOrgIds.length > 0) {
+      const orgChunkSize = 10;
+      for (let i = 0; i < uniqueOrgIds.length; i += orgChunkSize) {
+        const chunk = uniqueOrgIds.slice(i, i + orgChunkSize);
+        const orgsSnapshot = await firestore
+          .collection('organizations')
+          .where('__name__', 'in', chunk)
+          .get();
+        
+        orgsSnapshot.docs.forEach(doc => {
+          orgsMap.set(doc.id, {
+            ...doc.data(),
+            id: doc.id,
+          });
+        });
+      }
+      console.log(`✅ Loaded ${orgsMap.size} organizations`);
+    }
+    
+    const preloadTime = Date.now() - startTime;
+    console.log(`⚡ Pre-loading completed in ${preloadTime}ms`);
+
     const agentMetrics = await Promise.all(
       agentDocs.map(async (convDoc) => {
         const conv = convDoc.data();
@@ -360,18 +422,10 @@ export const GET: APIRoute = async (context) => {
         // ========================================
         // MULTI-ORG METADATA (2025-11-11)
         // ========================================
-        // Load user info to get organization
-        const { getUserById } = await import('../../lib/firestore.js');
-        const agentOwner = await getUserById(conv.userId);
+        // Use pre-loaded data (no individual queries!)
+        const agentOwner = usersMap.get(conv.userId);
         const organizationId = agentOwner?.organizationId;
-        
-        // Get organization name if available
-        let organizationName: string | undefined;
-        if (organizationId) {
-          const { getOrganization } = await import('../../lib/organizations.js');
-          const org = await getOrganization(organizationId);
-          organizationName = org?.name;
-        }
+        const organizationName = organizationId ? orgsMap.get(organizationId)?.name : undefined;
 
         return {
           agentId,
