@@ -43,21 +43,43 @@ export async function createGroup(
  * Get all groups
  */
 export async function getAllGroups(): Promise<Group[]> {
-  const snapshot = await firestore
-    .collection(COLLECTIONS.GROUPS)
-    .where('isActive', '==', true)
-    .orderBy('name')
-    .get();
+  try {
+    const snapshot = await firestore
+      .collection(COLLECTIONS.GROUPS)
+      .where('isActive', '==', true)
+      .orderBy('name')
+      .get();
 
-  return snapshot.docs.map((doc) => {
-    const data = doc.data();
-    return {
-      ...data,
-      id: doc.id,
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
-    } as Group;
-  });
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt),
+      } as Group;
+    });
+  } catch (error) {
+    // ⚠️ FALLBACK: If index not ready, fetch all and filter in memory
+    console.warn('⚠️ Groups index not ready, using fallback query');
+    const snapshot = await firestore
+      .collection(COLLECTIONS.GROUPS)
+      .get();
+
+    return snapshot.docs
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          ...data,
+          id: doc.id,
+          createdAt: new Date(data.createdAt),
+          updatedAt: new Date(data.updatedAt),
+        } as Group;
+      })
+      .filter(g => g.isActive !== false)  // Filter in memory
+      .sort((a, b) => a.name.localeCompare(b.name));  // Sort in memory
+  }
+}
 }
 
 /**
