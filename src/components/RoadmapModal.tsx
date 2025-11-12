@@ -426,9 +426,23 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
     }
   }
   
-  // Get cards for lane
+  // Get cards for lane with optional recent filter
   function getCardsForLane(lane: Lane): FeedbackCard[] {
-    return cards.filter(c => c.lane === lane);
+    let filteredCards = cards.filter(c => c.lane === lane);
+    
+    // Apply recent filter if enabled (show last 7 days)
+    if (showRecentOnly) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      filteredCards = filteredCards.filter(c => new Date(c.createdAt) >= sevenDaysAgo);
+    }
+    
+    // Sort by most recent first when filter is active
+    if (showRecentOnly) {
+      filteredCards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+    
+    return filteredCards;
   }
   
   // Talk to Rudy
@@ -627,6 +641,22 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                 <span className="font-bold text-slate-600">{cards.filter(c => c.priority === 'low').length}</span>
               </div>
             </div>
+            
+            {/* Recent Filter Toggle */}
+            <button
+              onClick={() => setShowRecentOnly(!showRecentOnly)}
+              className={`flex items-center gap-1 px-3 py-1 rounded-lg transition-all ${
+                showRecentOnly
+                  ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white border-violet-600'
+                  : 'bg-white border border-slate-300 hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span className="text-xs font-medium">Recientes (7d)</span>
+              {showRecentOnly && (
+                <CheckCircle className="w-4 h-4" />
+              )}
+            </button>
             
             {/* Analytics Toggle */}
             <button

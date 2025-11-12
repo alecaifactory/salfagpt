@@ -445,6 +445,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showEvaluationSystem, setShowEvaluationSystem] = useState(false); // NEW: Full evaluation system
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showRoadmap, setShowRoadmap] = useState(false); // NEW: Roadmap modal
+  const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(undefined); // NEW: Selected ticket ID from notification
   const [showChangelog, setShowChangelog] = useState(false); // NEW: In-app changelog modal
   const [highlightFeatureId, setHighlightFeatureId] = useState<string | null>(null); // NEW: Auto-scroll to feature
   const [showDomainManagement, setShowDomainManagement] = useState(false);
@@ -5172,7 +5173,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               <FeedbackNotificationBell
                 userId={currentUser.id}
                 userRole={currentUser.role || userRole || 'user'}
-                onOpenRoadmap={() => setShowRoadmap(true)}
+                onOpenRoadmap={(ticketId) => {
+                  setSelectedTicketId(ticketId);
+                  setShowRoadmap(true);
+                }}
               />
             )}
             
@@ -7346,11 +7350,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       {showRoadmap && userEmail === 'alec@getaifactory.com' && (
         <RoadmapModal
           isOpen={showRoadmap}
-          onClose={() => setShowRoadmap(false)}
+          onClose={() => {
+            setShowRoadmap(false);
+            setSelectedTicketId(undefined); // Clear selection when closing
+          }}
           companyId="all"
           userEmail={userEmail}
           userId={userId}
           userRole={userRole || 'admin'}
+          selectedTicketId={selectedTicketId}
         />
       )}
 

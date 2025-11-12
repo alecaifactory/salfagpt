@@ -697,19 +697,56 @@ export function AgentSharingModal({
                       className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          {share.sharedWith.map((target, idx) => (
-                            <div key={idx} className="flex items-center gap-2 mb-2">
-                              {target.type === 'group' ? (
-                                <Users className="w-4 h-4 text-blue-600" />
-                              ) : (
-                                <UserIcon className="w-4 h-4 text-green-600" />
-                              )}
-                              <span className="text-sm font-medium text-slate-800">
-                                {getTargetName(target)}
-                              </span>
-                            </div>
-                          ))}
+                        <div className="flex-1 space-y-2">
+                          {share.sharedWith.map((target, idx) => {
+                            if (target.type === 'group') {
+                              return (
+                                <div key={idx} className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                                  <Users className="w-4 h-4 text-blue-600" />
+                                  <span className="text-sm font-medium text-slate-800">
+                                    {getTargetName(target)}
+                                  </span>
+                                </div>
+                              );
+                            }
+                            
+                            // User type - show detailed info
+                            const user = allUsers.find(u => u.email === target.email || u.id === target.id);
+                            const displayName = getTargetName(target);
+                            const email = target.email || user?.email || '';
+                            const domain = target.domain || email.split('@')[1] || '';
+                            const orgName = user?.organizationName || '-';
+                            
+                            return (
+                              <div key={idx} className="p-2 bg-green-50 border border-green-100 rounded hover:bg-green-100 transition-colors">
+                                <div className="flex items-start gap-2">
+                                  <UserIcon className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-slate-800 truncate">
+                                      {displayName}
+                                    </p>
+                                    {email && (
+                                      <p className="text-xs text-slate-600 truncate">
+                                        ✉️ {email}
+                                      </p>
+                                    )}
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                      {domain && (
+                                        <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">
+                                          🌐 {domain}
+                                        </span>
+                                      )}
+                                      {orgName !== '-' && (
+                                        <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-medium">
+                                          🏢 {orgName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                         <button
                           onClick={() => handleRevokeShare(share.id)}
