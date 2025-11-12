@@ -124,8 +124,15 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   
-  // Filter for recent tickets
+  // Filters
   const [showRecentOnly, setShowRecentOnly] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<string>('all');
+  const [selectedOrganization, setSelectedOrganization] = useState<string>('all');
+  const [selectedDomain, setSelectedDomain] = useState<string>('all');
+  
+  // Sort options
+  type SortOption = 'default' | 'stars' | 'stars-asc' | 'upvotes' | 'recent';
+  const [sortBy, setSortBy] = useState<SortOption>('default');
   
   // Rudy chatbot state
   const [showRudy, setShowRudy] = useState(false);
@@ -426,7 +433,26 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
     }
   }
   
-  // Get cards for lane with optional recent filter
+  // Get unique filter options
+  function getUniqueAgents(): string[] {
+    const agents = cards.map(c => c.agentName).filter(Boolean);
+    return ['all', ...Array.from(new Set(agents)).sort()];
+  }
+  
+  function getUniqueOrganizations(): string[] {
+    const orgs = cards.map(c => {
+      const domain = c.userDomain;
+      return domain.split('.')[0]; // Extract org name from domain (e.g., "salfagestion" from "salfagestion.cl")
+    }).filter(Boolean);
+    return ['all', ...Array.from(new Set(orgs)).sort()];
+  }
+  
+  function getUniqueDomains(): string[] {
+    const domains = cards.map(c => c.userDomain).filter(Boolean);
+    return ['all', ...Array.from(new Set(domains)).sort()];
+  }
+  
+  // Get cards for lane with optional filters and sorting
   function getCardsForLane(lane: Lane): FeedbackCard[] {
     let filteredCards = cards.filter(c => c.lane === lane);
     
@@ -437,9 +463,64 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
       filteredCards = filteredCards.filter(c => new Date(c.createdAt) >= sevenDaysAgo);
     }
     
-    // Sort by most recent first when filter is active
-    if (showRecentOnly) {
-      filteredCards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Apply agent filter
+    if (selectedAgent !== 'all') {
+      filteredCards = filteredCards.filter(c => c.agentName === selectedAgent);
+    }
+    
+    // Apply organization filter (using companyDomain as proxy)
+    if (selectedOrganization !== 'all') {
+      filteredCards = filteredCards.filter(c => {
+        const orgFromDomain = c.userDomain.split('.')[0];
+        return orgFromDomain === selectedOrganization || c.userDomain === selectedOrganization;
+      });
+    }
+    
+    // Apply domain filter
+    if (selectedDomain !== 'all') {
+      filteredCards = filteredCards.filter(c => c.userDomain === selectedDomain);
+    }
+    
+    // Apply sorting
+    switch (sortBy) {
+      case 'stars':
+        // Sort by rating (CSAT for experts, star rating for users) - highest first
+        filteredCards.sort((a, b) => {
+          const ratingA = a.kpiImpact.csat || 0;
+          const ratingB = b.kpiImpact.csat || 0;
+          return ratingB - ratingA;
+        });
+        break;
+      
+      case 'stars-asc':
+        // Sort by rating - lowest first (identify pain points)
+        filteredCards.sort((a, b) => {
+          const ratingA = a.kpiImpact.csat || 0;
+          const ratingB = b.kpiImpact.csat || 0;
+          return ratingA - ratingB;
+        });
+        break;
+      
+      case 'upvotes':
+        // Sort by upvotes - highest first
+        filteredCards.sort((a, b) => b.upvotes - a.upvotes);
+        break;
+      
+      case 'recent':
+        // Sort by creation date - newest first
+        filteredCards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+      
+      case 'default':
+      default:
+        // Default: Sort by priority (critical > high > medium > low), then by creation date
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        filteredCards.sort((a, b) => {
+          const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+          if (priorityDiff !== 0) return priorityDiff;
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+        break;
     }
     
     return filteredCards;
@@ -564,9 +645,36 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
             <Target className="w-6 h-6 text-blue-600" />
             <div>
               <h2 className="text-sm font-bold text-slate-800">Roadmap Flow</h2>
-              <p className="text-xs text-slate-600">
-                {cards.length} items • Backlog → Roadmap → Development → Review → Production
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-slate-600">
+                  {cards.length} items • Backlog → Roadmap → Development → Review → Production
+                </p>
+                {/* Active Filters Indicator */}
+                {(() => {
+                  const activeFilters = [
+                    showRecentOnly && 'Recientes',
+                    selectedAgent !== 'all' && `Agente: ${selectedAgent}`,
+                    selectedOrganization !== 'all' && `Org: ${selectedOrganization}`,
+                    selectedDomain !== 'all' && `Dominio: ${selectedDomain}`,
+                    sortBy !== 'default' && `Orden: ${
+                      sortBy === 'stars' ? 'Estrellas' :
+                      sortBy === 'upvotes' ? 'Upvotes' :
+                      'Recientes'
+                    }`,
+                  ].filter(Boolean);
+                  
+                  if (activeFilters.length === 0) return null;
+                  
+                  return (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-slate-400">•</span>
+                      <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-bold">
+                        {activeFilters.length} filtro{activeFilters.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           
@@ -601,6 +709,20 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
               <MessageSquare className="w-4 h-4 text-blue-600" />
               <span className="font-semibold text-slate-700">Total:</span>
               <span className="font-bold text-blue-600">{cards.length}</span>
+              {/* Show filtered count if filters active */}
+              {(() => {
+                const filteredCount = LANES.reduce((sum, lane) => sum + getCardsForLane(lane.id).length, 0);
+                const hasFilters = showRecentOnly || selectedAgent !== 'all' || selectedOrganization !== 'all' || selectedDomain !== 'all';
+                
+                if (hasFilters && filteredCount !== cards.length) {
+                  return (
+                    <span className="text-xs text-purple-700 font-semibold">
+                      (mostrando {filteredCount})
+                    </span>
+                  );
+                }
+                return null;
+              })()}
             </div>
             
             {/* By User Type */}
@@ -657,6 +779,97 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                 <CheckCircle className="w-4 h-4" />
               )}
             </button>
+            
+            {/* Agent Filter */}
+            <div className="relative">
+              <select
+                value={selectedAgent}
+                onChange={(e) => setSelectedAgent(e.target.value)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                  selectedAgent !== 'all'
+                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white border-blue-600'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <option value="all">Todos los Agentes</option>
+                {getUniqueAgents().filter(a => a !== 'all').map(agent => (
+                  <option key={agent} value={agent}>{agent}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Organization Filter */}
+            <div className="relative">
+              <select
+                value={selectedOrganization}
+                onChange={(e) => setSelectedOrganization(e.target.value)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                  selectedOrganization !== 'all'
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border-green-600'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <option value="all">Todas las Organizaciones</option>
+                {getUniqueOrganizations().filter(o => o !== 'all').map(org => (
+                  <option key={org} value={org}>{org}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Domain Filter */}
+            <div className="relative">
+              <select
+                value={selectedDomain}
+                onChange={(e) => setSelectedDomain(e.target.value)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                  selectedDomain !== 'all'
+                    ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white border-orange-600'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <option value="all">Todos los Dominios</option>
+                {getUniqueDomains().filter(d => d !== 'all').map(domain => (
+                  <option key={domain} value={domain}>{domain}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Sort By Selector */}
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className={`px-3 py-1 rounded-lg text-xs font-medium border transition-all ${
+                  sortBy !== 'default'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-600'
+                    : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <option value="default">🎯 Ordenar: Prioridad</option>
+                <option value="stars">⭐ Más Estrellas</option>
+                <option value="stars-asc">💔 Menos Estrellas (Dolores)</option>
+                <option value="upvotes">👍 Más Votos</option>
+                <option value="recent">🕐 Más Recientes</option>
+              </select>
+            </div>
+            
+            {/* Clear Filters Button */}
+            {(showRecentOnly || selectedAgent !== 'all' || selectedOrganization !== 'all' || selectedDomain !== 'all' || sortBy !== 'default') && (
+              <button
+                onClick={() => {
+                  setShowRecentOnly(false);
+                  setSelectedAgent('all');
+                  setSelectedOrganization('all');
+                  setSelectedDomain('all');
+                  setSortBy('default');
+                }}
+                className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 border border-red-300 rounded-lg hover:bg-red-200 transition-all text-xs font-medium"
+                title="Limpiar todos los filtros"
+              >
+                <X className="w-4 h-4" />
+                Limpiar filtros
+              </button>
+            )}
             
             {/* Analytics Toggle */}
             <button
@@ -956,10 +1169,17 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                                 {card.title}
                               </h4>
                               
-                              {/* Agent context */}
-                              <div className="flex items-center gap-1 mb-2 text-[10px] text-slate-600">
-                                <MessageSquare className="w-2.5 h-2.5" />
-                                <span className="truncate">Agente: {card.agentName}</span>
+                              {/* Agent & Conversation Context - More prominent */}
+                              <div className="mb-2 space-y-1">
+                                <div className="flex items-center gap-1.5 px-2 py-1 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded">
+                                  <MessageSquare className="w-3 h-3 text-blue-600 flex-shrink-0" />
+                                  <span className="text-[10px] font-semibold text-blue-800 truncate">
+                                    {card.agentName}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1 text-[9px] text-slate-500">
+                                  <span className="font-mono truncate">{card.conversationId.substring(0, 12)}...</span>
+                                </div>
                               </div>
                               
                               {/* Screenshot indicator */}
@@ -970,30 +1190,46 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                                 </div>
                               )}
                               
-                              {/* Feedback Rating Display */}
+                              {/* Feedback Rating Display - More Prominent */}
                               <div className="space-y-1.5 mb-2">
-                                {/* Original Feedback Rating */}
-                                <div className="flex items-center justify-between text-[10px]">
-                                  <span className="text-slate-600 font-medium">Calificación:</span>
-                                  {card.userRole === 'expert' ? (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
-                                      card.kpiImpact.csat >= 4 ? 'bg-green-100 text-green-700' :
-                                      card.kpiImpact.csat >= 2.5 ? 'bg-yellow-100 text-yellow-700' :
-                                      'bg-red-100 text-red-700'
-                                    }`}>
-                                      {card.kpiImpact.csat >= 4 ? '⭐ Sobresaliente' :
-                                       card.kpiImpact.csat >= 2.5 ? '✓ Aceptable' :
-                                       '✗ Inaceptable'}
-                                    </span>
-                                  ) : (
-                                    <div className="flex items-center gap-0.5">
-                                      {[1, 2, 3, 4, 5].map(star => (
-                                        <span key={star} className={`text-xs ${
-                                          star <= Math.round(card.kpiImpact.csat) ? 'text-yellow-500' : 'text-slate-300'
-                                        }`}>★</span>
-                                      ))}
-                                    </div>
-                                  )}
+                                {/* Stars/Rating - Prominent display */}
+                                <div className={`p-2 rounded-lg border ${
+                                  card.kpiImpact.csat >= 4 ? 'bg-green-50 border-green-300' :
+                                  card.kpiImpact.csat >= 2.5 ? 'bg-yellow-50 border-yellow-300' :
+                                  card.kpiImpact.csat > 0 ? 'bg-red-50 border-red-300' :
+                                  'bg-slate-50 border-slate-200'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-600 font-medium">Calificación:</span>
+                                    {card.userRole === 'expert' ? (
+                                      <div className="flex items-center gap-1">
+                                        <span className={`text-sm font-bold ${
+                                          card.kpiImpact.csat >= 4 ? 'text-green-700' :
+                                          card.kpiImpact.csat >= 2.5 ? 'text-yellow-700' :
+                                          'text-red-700'
+                                        }`}>
+                                          {card.kpiImpact.csat.toFixed(1)}/5
+                                        </span>
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                                          card.kpiImpact.csat >= 4 ? 'bg-green-600 text-white' :
+                                          card.kpiImpact.csat >= 2.5 ? 'bg-yellow-600 text-white' :
+                                          'bg-red-600 text-white'
+                                        }`}>
+                                          {card.kpiImpact.csat >= 4 ? '⭐' :
+                                           card.kpiImpact.csat >= 2.5 ? '✓' :
+                                           '✗'}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-0.5">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                          <span key={star} className={`text-sm ${
+                                            star <= Math.round(card.kpiImpact.csat) ? 'text-yellow-500' : 'text-slate-300'
+                                          }`}>★</span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                                 
                                 {/* KPI Impact */}
@@ -1170,7 +1406,7 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                     {selectedCard.title}
                   </h2>
                   
-                  <div className="flex items-center gap-4 text-sm text-slate-600">
+                  <div className="flex items-center gap-4 text-sm text-slate-600 flex-wrap">
                     <div className="flex items-center gap-1">
                       <UserIcon className="w-4 h-4" />
                       {selectedCard.createdBy}
@@ -1179,9 +1415,20 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
                       <Building2 className="w-4 h-4" />
                       {selectedCard.userDomain}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MessageSquare className="w-4 h-4" />
-                      {selectedCard.agentName}
+                  </div>
+                  
+                  {/* Agent & Conversation Info - Prominent Display */}
+                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-blue-800 mb-1">
+                          Agente: {selectedCard.agentName}
+                        </p>
+                        <p className="text-[10px] text-slate-600 font-mono">
+                          Conversación: {selectedCard.conversationId}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>

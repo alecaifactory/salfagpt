@@ -16,6 +16,12 @@ import { streamAIResponse } from '../../../../lib/gemini';
 import { searchRelevantChunksOptimized, buildRAGContext, getRAGStats } from 
   '../../../../lib/rag-search-optimized';
 import { searchByAgent } from '../../../../lib/bigquery-agent-search';
+import { 
+  getOrgAdminContactsForUser, 
+  generateNoRelevantDocsMessage, 
+  meetsQualityThreshold,
+  logNoRelevantDocuments 
+} from '../../../../lib/rag-helper-messages';
 
 export const POST: APIRoute = async ({ params, request }) => {
   try {
@@ -64,7 +70,7 @@ export const POST: APIRoute = async ({ params, request }) => {
 
     // RAG configuration (RAG is now the ONLY option) - optimized for technical documents like SSOMA
     const ragTopK = body.ragTopK || 10;
-    const ragMinSimilarity = body.ragMinSimilarity || 0.6;
+    const ragMinSimilarity = body.ragMinSimilarity || 0.7; // 70% minimum - only provide high-quality references
     const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
 
     // Get conversation history for temp conversations (can do this early)
@@ -111,6 +117,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragStats = null;
           let ragHadFallback = false;
           let ragResults: any[] = [];
+          let systemPromptToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.'; // Can be modified if no relevant docs found
 
           // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
           // Try agent-based search first if enabled (OPTIMAL - no source loading needed!)
@@ -173,14 +180,44 @@ export const POST: APIRoute = async ({ params, request }) => {
                 console.log(`  Search method: ${searchResult.searchMethod.toUpperCase()} (${searchResult.searchTime}ms)`);
               }
                 
-              if (ragResults.length > 0) {
-                // SUCCESS: Use RAG chunks
+              // ✅ NEW: Quality check - only use documents if they meet 70% threshold
+              const meetsQuality = ragResults.length > 0 && meetsQualityThreshold(ragResults, ragMinSimilarity);
+              
+              if (meetsQuality) {
+                // SUCCESS: Use RAG chunks (high quality matches found)
                 additionalContext = buildRAGContext(ragResults);
                 ragUsed = true;
                 ragStats = getRAGStats(ragResults);
                 console.log(`✅ RAG: Using ${ragResults.length} relevant chunks (${ragStats.totalTokens} tokens)`);
                 console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
                 console.log(`  Search method: ${searchMethod}`);
+              } else if (ragResults.length > 0) {
+                // Found chunks but below 70% threshold - inform user
+                const bestSimilarity = Math.max(...ragResults.map(r => r.similarity || 0));
+                console.warn(`⚠️ RAG: Found ${ragResults.length} chunks but best similarity ${(bestSimilarity * 100).toFixed(1)}% < threshold ${(ragMinSimilarity * 100).toFixed(0)}%`);
+                console.log('  → Informing user that no relevant documents are available');
+                
+                // Log for analytics
+                await logNoRelevantDocuments({
+                  userId,
+                  conversationId: agentId,
+                  query: message,
+                  bestSimilarity,
+                  threshold: ragMinSimilarity,
+                  totalChunksSearched: ragResults.length
+                });
+                
+                // Get admin contact information
+                const adminEmails = await getOrgAdminContactsForUser(body.userEmail || '');
+                const noDocsMessage = generateNoRelevantDocsMessage(adminEmails, message);
+                
+                // Override system instruction to inform user
+                systemPromptToUse = systemPromptToUse + '\n\n' + noDocsMessage;
+                additionalContext = ''; // Don't provide low-quality context
+                ragUsed = false;
+                ragHadFallback = true;
+                
+                console.log(`📧 Admin contacts provided: ${adminEmails.join(', ')}`);
               } else {
                   // NO chunks found - check if documents exist at all
                   console.warn('⚠️ RAG: No chunks found above similarity threshold');
@@ -230,49 +267,23 @@ export const POST: APIRoute = async ({ params, request }) => {
                       
                       console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
                     } else {
-                      // Chunks exist but similarity too low - lower threshold and retry
-                      console.log('  Chunks exist, retrying with lower similarity threshold (0.2)...');
-                      console.log(`  🔑 Retrying with effectiveUserId: ${effectiveUserId}`);
+                      // Chunks exist but similarity too low (below 70% threshold)
+                      // Instead of lowering threshold, inform user that no relevant docs available
+                      console.log('  Chunks exist but below 70% threshold');
+                      console.log('  → Will inform user that no high-quality documents are available for this query');
                       
-                      const retrySearchResult = await searchRelevantChunksOptimized(effectiveUserId, message, {
-                        topK: ragTopK * 2, // Double topK
-                        minSimilarity: 0.2, // Lower threshold (more permissive)
-                        activeSourceIds,
-                        preferBigQuery: true
-                      });
-                      const retryResults = retrySearchResult.results;
+                      ragHadFallback = true;
                       
-                      if (retryResults.length > 0) {
-                        // SUCCESS with lower threshold
-                        additionalContext = buildRAGContext(retryResults);
-                        ragUsed = true;
-                        ragResults = retryResults;
-                        ragStats = getRAGStats(retryResults);
-                        console.log(`✅ RAG (retry): Using ${retryResults.length} chunks with lower threshold`);
-                      } else {
-                        // GRACEFUL DEGRADATION: Still no results - load full documents from Firestore
-                        console.warn('⚠️ No relevant chunks even with lower threshold - loading full documents as EMERGENCY FALLBACK');
-                        ragHadFallback = true;
-                        
-                        // Load full extractedData from Firestore for active sources only
-                        const sourceIds = activeSourceIds.slice(0, 10); // Limit to 10 for safety
-                        const sourcesSnapshot = await firestore
-                          .collection('context_sources')
-                          .where('__name__', 'in', sourceIds)
-                          .get();
-                        
-                        const fullSources = sourcesSnapshot.docs.map(doc => ({
-                          name: doc.data().name,
-                          type: doc.data().type,
-                          content: doc.data().extractedData || ''
-                        }));
-                        
-                        additionalContext = fullSources
-                          .map(source => `\n\n=== ${source.name} (${source.type}) ===\n${source.content}`)
-                          .join('\n');
-                        
-                        console.log(`📚 Loaded ${fullSources.length} full documents from Firestore (${additionalContext.length} chars)`);
-                      }
+                      // Get admin contact information
+                      const adminEmails = await getOrgAdminContactsForUser(body.userEmail || '');
+                      const noDocsMessage = generateNoRelevantDocsMessage(adminEmails, message);
+                      
+                      // Override system instruction to inform user
+                      systemPromptToUse = systemPromptToUse + '\n\n' + noDocsMessage;
+                      additionalContext = ''; // Don't provide low-quality context
+                      
+                      console.log(`📧 Admin contacts provided: ${adminEmails.join(', ')}`);
+                      console.log('  AI will inform user and provide contact/feedback options');
                     }
                   }
                 }
@@ -409,7 +420,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           // Stream AI response
           const aiStream = streamAIResponse(message, {
             model: model || 'gemini-2.5-flash',
-            systemInstruction: systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.',
+            systemInstruction: systemPromptToUse, // Uses modified prompt if no relevant docs
             conversationHistory,
             userContext: additionalContext,
             temperature: 0.7,
