@@ -80,7 +80,6 @@ export async function getAllGroups(): Promise<Group[]> {
       .sort((a, b) => a.name.localeCompare(b.name));  // Sort in memory
   }
 }
-}
 
 /**
  * Get group by ID

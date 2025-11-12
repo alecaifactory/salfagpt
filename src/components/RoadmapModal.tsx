@@ -49,6 +49,7 @@ interface RoadmapModalProps {
   userEmail: string;
   userId: string;
   userRole: string;
+  selectedTicketId?: string; // Optional ticket ID to auto-select
 }
 
 type Lane = 'backlog' | 'roadmap' | 'in_development' | 'expert_review' | 'production';
@@ -112,7 +113,7 @@ const LANES: Array<{
   { id: 'production', title: 'Production', color: 'green', description: 'Desplegado', icon: BarChart3 },
 ];
 
-export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, userId, userRole }: RoadmapModalProps) {
+export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, userId, userRole, selectedTicketId }: RoadmapModalProps) {
   const [cards, setCards] = useState<FeedbackCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<FeedbackCard | null>(null);
@@ -122,6 +123,9 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
   const [limit] = useState(50);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  
+  // Filter for recent tickets
+  const [showRecentOnly, setShowRecentOnly] = useState(false);
   
   // Rudy chatbot state
   const [showRudy, setShowRudy] = useState(false);
@@ -164,6 +168,17 @@ export default function RoadmapModal({ isOpen, onClose, companyId, userEmail, us
       };
     }
   }, [isOpen, companyId, userId]);
+  
+  // Auto-select ticket when selectedTicketId is provided
+  useEffect(() => {
+    if (selectedTicketId && cards.length > 0) {
+      const ticket = cards.find(c => c.id === selectedTicketId);
+      if (ticket) {
+        console.log('🎯 [ROADMAP] Auto-selecting ticket:', selectedTicketId);
+        setSelectedCard(ticket);
+      }
+    }
+  }, [selectedTicketId, cards]);
   
   async function loadFeedbackCards(reset: boolean = false) {
     try {
