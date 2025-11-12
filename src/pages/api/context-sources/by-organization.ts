@@ -125,27 +125,24 @@ export const GET: APIRoute = async ({ request, cookies }) => {
           };
         }
 
-        // Query context sources for these users
-        // Firestore has a limit of 10 items for 'in' queries, so we batch
+        // Query context sources for this organization
+        // STRATEGY: Query by organizationId for better performance
+        // This avoids batching by userId and is more efficient
         const allOrgSources: any[] = [];
-        const batchSize = 10;
         
-        for (let i = 0; i < orgUserIds.length; i += batchSize) {
-          const batch = orgUserIds.slice(i, i + batchSize);
-          const sourcesSnapshot = await firestore
-            .collection(COLLECTIONS.CONTEXT_SOURCES)
-            .where('userId', 'in', batch)
-            .get();
-          
-          sourcesSnapshot.docs.forEach(doc => {
-            const data = doc.data();
-            allOrgSources.push({
-              id: doc.id,
-              ...data,
-              addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
-            });
+        const sourcesSnapshot = await firestore
+          .collection(COLLECTIONS.CONTEXT_SOURCES)
+          .where('organizationId', '==', org.id)
+          .get();
+        
+        sourcesSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          allOrgSources.push({
+            id: doc.id,
+            ...data,
+            addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
           });
-        }
+        });
 
         console.log(`      ✅ Found ${allOrgSources.length} sources for ${org.name}`);
 

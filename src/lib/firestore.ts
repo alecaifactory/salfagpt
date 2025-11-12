@@ -284,6 +284,11 @@ export interface Group {
 // - Assignments persist even if user is deleted/recreated
 // - Uses email as permanent identifier
 // - Hash ID as primary, email as fallback
+// 
+// ✅ GRANULAR ACCESS CONTROL (2025-11-12):
+// - Individual user access tracking per share
+// - Revocation history with audit trail
+// - Each user can be revoked independently
 export interface AgentShare {
   id: string;
   agentId: string; // Conversation ID
@@ -299,6 +304,23 @@ export interface AgentShare {
   updatedAt: Date;
   expiresAt?: Date;
   source?: DataSource;
+  // 🆕 Individual access records (2025-11-12)
+  individualAccess?: Array<{
+    userId: string;
+    userEmail: string;
+    userName?: string;
+    domain: string;
+    organizationId?: string;
+    organizationName?: string;
+    accessLevel: 'view' | 'use' | 'admin';
+    grantedBy: string; // userId of admin/superadmin who granted access
+    grantedByEmail: string;
+    grantedAt: Date;
+    revokedBy?: string; // userId of admin/superadmin who revoked
+    revokedByEmail?: string;
+    revokedAt?: Date;
+    isActive: boolean; // true if currently has access, false if revoked
+  }>;
 }
 
 // NEW: Organization - Domain-level settings shared across organization
@@ -2600,6 +2622,187 @@ export async function getAgentShares(agentId: string): Promise<AgentShare[]> {
   } catch (error) {
     console.error('❌ Error getting agent shares:', error);
     return [];
+  }
+}
+
+/**
+ * Get individual access records for an agent (for table display)
+ * Flattens all shares into individual user access records with full metadata
+ * 
+ * @param agentId - Agent conversation ID
+ * @returns Array of individual access records with user details, who granted, dates, etc.
+ */
+export async function getAgentIndividualAccess(agentId: string): Promise<Array<{
+  userId: string;
+  userEmail: string;
+  userName: string;
+  domain: string;
+  organizationId: string | null;
+  organizationName: string;
+  accessLevel: 'view' | 'use' | 'admin';
+  grantedBy: string;
+  grantedByEmail: string;
+  grantedAt: Date;
+  shareId: string;
+  revokedBy?: string;
+  revokedByEmail?: string;
+  revokedAt?: Date;
+  isActive: boolean;
+}>> {
+  try {
+    const shares = await getAgentShares(agentId);
+    const allAccess: any[] = [];
+    
+    // Flatten all shares into individual user records
+    for (const share of shares) {
+      // Get owner info for "granted by"
+      const owner = await getUserById(share.ownerId);
+      const grantedByEmail = owner?.email || 'unknown';
+      
+      for (const target of share.sharedWith) {
+        if (target.type === 'user') {
+          // Get full user info
+          const user = target.email 
+            ? await getUserByEmail(target.email)
+            : await getUserById(target.id);
+          
+          if (user) {
+            // Get organization name if available
+            let orgName = '-';
+            if (user.organizationId) {
+              try {
+                const orgDoc = await firestore.collection('organizations').doc(user.organizationId).get();
+                if (orgDoc.exists) {
+                  orgName = orgDoc.data()?.name || user.organizationId;
+                }
+              } catch {
+                orgName = user.organizationId;
+              }
+            }
+            
+            allAccess.push({
+              userId: user.id,
+              userEmail: user.email,
+              userName: user.name,
+              domain: target.domain || user.email.split('@')[1],
+              organizationId: user.organizationId || null,
+              organizationName: orgName,
+              accessLevel: share.accessLevel,
+              grantedBy: share.ownerId,
+              grantedByEmail,
+              grantedAt: share.createdAt,
+              shareId: share.id,
+              isActive: true, // Currently in sharedWith = active
+            });
+          }
+        }
+      }
+      
+      // Add revoked access from individualAccess history (if exists)
+      if (share.individualAccess) {
+        const revokedAccess = share.individualAccess.filter(a => !a.isActive);
+        allAccess.push(...revokedAccess.map(a => ({
+          ...a,
+          shareId: share.id,
+          grantedAt: a.grantedAt,
+          revokedAt: a.revokedAt,
+        })));
+      }
+    }
+    
+    // Sort: Active first (by granted date), then revoked (by revoked date)
+    return allAccess.sort((a, b) => {
+      if (a.isActive === b.isActive) {
+        const dateA = a.isActive ? a.grantedAt : (a.revokedAt || a.grantedAt);
+        const dateB = b.isActive ? b.grantedAt : (b.revokedAt || b.grantedAt);
+        return dateB.getTime() - dateA.getTime();
+      }
+      return a.isActive ? -1 : 1; // Active first
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting individual access:', error);
+    return [];
+  }
+}
+
+/**
+ * Revoke access for a specific user from an agent
+ * Removes user from sharedWith and adds to revocation history
+ * 
+ * @param shareId - Share document ID
+ * @param userEmail - Email of user to revoke
+ * @param revokedBy - UserId of admin revoking access
+ * @param revokedByEmail - Email of admin revoking access
+ */
+export async function revokeIndividualAccess(
+  shareId: string,
+  userEmail: string,
+  revokedBy: string,
+  revokedByEmail: string
+): Promise<void> {
+  try {
+    const shareRef = firestore.collection(COLLECTIONS.AGENT_SHARES).doc(shareId);
+    const shareDoc = await shareRef.get();
+    
+    if (!shareDoc.exists) {
+      throw new Error('Share not found');
+    }
+    
+    const share = shareDoc.data() as AgentShare;
+    
+    // Find the user in sharedWith
+    const userIndex = share.sharedWith.findIndex(t => 
+      t.type === 'user' && t.email === userEmail
+    );
+    
+    if (userIndex === -1) {
+      throw new Error('User not found in share');
+    }
+    
+    const revokedUser = share.sharedWith[userIndex];
+    
+    // Get full user info for history
+    const user = await getUserByEmail(userEmail);
+    
+    // Create revocation record
+    const revocationRecord = {
+      userId: revokedUser.id,
+      userEmail: revokedUser.email || userEmail,
+      userName: user?.name || revokedUser.email?.split('@')[0] || 'Unknown',
+      domain: revokedUser.domain || userEmail.split('@')[1],
+      organizationId: user?.organizationId,
+      organizationName: user?.organizationId ? 
+        (await firestore.collection('organizations').doc(user.organizationId).get()).data()?.name :
+        undefined,
+      accessLevel: share.accessLevel,
+      grantedBy: share.ownerId,
+      grantedByEmail: (await getUserById(share.ownerId))?.email || 'unknown',
+      grantedAt: share.createdAt,
+      revokedBy,
+      revokedByEmail,
+      revokedAt: new Date(),
+      isActive: false,
+    };
+    
+    // Remove from sharedWith
+    const updatedSharedWith = share.sharedWith.filter((_, idx) => idx !== userIndex);
+    
+    // Add to individualAccess history
+    const updatedHistory = [...(share.individualAccess || []), revocationRecord];
+    
+    // Update share
+    await shareRef.update({
+      sharedWith: updatedSharedWith,
+      individualAccess: updatedHistory,
+      updatedAt: new Date(),
+    });
+    
+    console.log(`✅ Access revoked for ${userEmail} by ${revokedByEmail}`);
+    
+  } catch (error) {
+    console.error('❌ Error revoking individual access:', error);
+    throw error;
   }
 }
 
