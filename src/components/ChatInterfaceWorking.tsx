@@ -4507,17 +4507,6 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <Users className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">Usuarios</span>
                       </button>
-                      
-                      <button
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
-                        onClick={() => {
-                          setShowDomainPromptModal(true);
-                          setShowUserMenu(false);
-                        }}
-                      >
-                        <FileText className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                        <span className="font-medium whitespace-nowrap">Prompt de Dominio</span>
-                      </button>
                     </div>
                   )}
                   
