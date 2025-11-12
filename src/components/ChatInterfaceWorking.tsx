@@ -482,7 +482,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // const [agentRAGMode, setAgentRAGMode] = useState<'full-text' | 'rag'>('rag'); // NEW: RAG mode per agent
   const agentRAGMode = 'rag'; // HARDCODED: Always use RAG mode
   const [ragTopK, setRagTopK] = useState(10); // Top 10 chunks (better coverage for technical docs)
-  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.6); // 60% similarity threshold (production setting)
+  const [ragMinSimilarity, setRagMinSimilarity] = useState(0.7); // 70% similarity threshold - only high-quality matches
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
