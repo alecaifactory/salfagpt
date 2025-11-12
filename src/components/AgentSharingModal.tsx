@@ -380,11 +380,18 @@ export function AgentSharingModal({
     }
   };
 
-  const getTargetName = (target: { type: 'user' | 'group'; id: string }) => {
+  const getTargetName = (target: { type: 'user' | 'group'; id: string; email?: string }) => {
     if (target.type === 'group') {
       const group = groups.find(g => g.id === target.id);
       return group?.name || 'Grupo desconocido';
     } else {
+      // ✅ PRIORITY 1: Use email from target if available (most reliable)
+      if (target.email) {
+        const user = allUsers.find(u => u.email === target.email);
+        return user?.name || target.email.split('@')[0]; // Fallback to email prefix
+      }
+      
+      // ✅ PRIORITY 2: Use ID to find user
       const user = allUsers.find(u => u.id === target.id);
       return user?.name || 'Usuario desconocido';
     }
@@ -473,7 +480,18 @@ export function AgentSharingModal({
               {/* List */}
               <div className="max-h-64 overflow-y-auto border border-slate-200 rounded-lg">
                 {loading ? (
-                  <div className="p-4 text-center text-slate-500">Cargando...</div>
+                  <div className="p-3 space-y-2">
+                    {/* Skeleton loader - 5 items */}
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-2 animate-pulse">
+                        <div className="w-4 h-4 bg-slate-200 rounded"></div>
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                          <div className="h-3 bg-slate-100 rounded w-1/2"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : filteredItems.length === 0 ? (
                   <div className="p-4 text-center text-slate-500">
                     No hay {shareType === 'group' ? 'grupos' : 'usuarios'} disponibles
@@ -649,9 +667,21 @@ export function AgentSharingModal({
           {/* Existing Shares (Right) */}
           <div className="w-1/2 flex flex-col">
             <div className="p-6">
-              <h3 className="font-semibold text-slate-800 mb-4">
-                Accesos Compartidos ({existingShares.length})
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800">
+                  Accesos Compartidos ({existingShares.length})
+                </h3>
+                <button
+                  onClick={loadData}
+                  disabled={loading}
+                  className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+                  title="Recargar shares"
+                >
+                  <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
 
               {existingShares.length === 0 ? (
                 <div className="text-center text-slate-500 py-8">
