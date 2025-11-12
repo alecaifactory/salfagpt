@@ -229,14 +229,14 @@ export function AgentSharingModal({
         .join(', ');
       
       setSuccess(
-        `¡Agente compartido exitosamente! Los usuarios compartidos (${sharedEmails}) deben refrescar su página (Cmd+R) para ver el agente en su lista.`
+        `✅ Agente compartido exitosamente!\n\nUsuarios: ${sharedEmails}\n\nLos usuarios deben refrescar (Cmd+R) para ver el agente.\n\nPuedes cerrar este modal ahora.`
       );
       
       if (onShareUpdated) {
         onShareUpdated();
       }
       
-      setTimeout(() => setSuccess(null), 8000);
+      // ✅ Success persists until modal closes - no auto-clear
     } catch (err) {
       console.error('Share error:', err);
       setError(err instanceof Error ? err.message : 'Failed to share agent');
@@ -330,13 +330,13 @@ export function AgentSharingModal({
       if (!response.ok) throw new Error('Failed to revoke share');
 
       setExistingShares(existingShares.filter(s => s.id !== shareId));
-      setSuccess('Acceso revocado');
+      setSuccess('✅ Acceso revocado exitosamente.\n\nEl usuario ya no puede acceder a este agente.');
       
       if (onShareUpdated) {
         onShareUpdated();
       }
       
-      setTimeout(() => setSuccess(null), 3000);
+      // ✅ Success persists until modal closes
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to revoke share');
     }
