@@ -65,7 +65,14 @@ export function AgentSharingModal({
     // We'll close it after showing the success message
     
     if (selectedTargets.length === 0) {
-      setError('Selecciona al menos un usuario o grupo primero');
+      setError('⚠️ ERROR: Debes seleccionar al menos un usuario o grupo primero.\n\n' +
+        'Pasos:\n' +
+        '1. Cierra este diálogo\n' +
+        '2. Busca y selecciona usuarios en "Compartir con"\n' +
+        '3. Vuelve a clickear "Compartir Agente"\n' +
+        '4. Luego clickea "Forzar Compartir"');
+      setLoading(false);
+      // Keep the approval modal open so user sees the error
       return;
     }
     
@@ -793,7 +800,7 @@ export function AgentSharingModal({
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-sm text-red-900 dark:text-red-300">
+                      <p className="text-sm text-red-900 dark:text-red-300 whitespace-pre-line">
                         {error}
                       </p>
                     </div>
