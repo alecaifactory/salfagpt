@@ -411,7 +411,7 @@ export function AgentSharingModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div ref={modalRef} className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-200">
           <div>
@@ -815,7 +815,7 @@ export function AgentSharingModal({
       {/* Approval Options Modal */}
       {showApprovalOptions && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[70]">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl mx-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-3xl mx-4">
             {/* Header */}
             <div className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-t-2xl">
               <div className="flex items-center gap-4">
