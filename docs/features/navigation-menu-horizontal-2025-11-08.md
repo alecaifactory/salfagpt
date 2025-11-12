@@ -24,7 +24,7 @@ Organized navigation into logical categories:
 | **Gestión de Dominios** (Blue) | **Gestión de Agentes** (Indigo) | **Analíticas** (Green) | **Producto** (Purple) |
 | • Dominios | • Agentes | • SalfaGPT | • Roadmap & Backlog |
 | • Usuarios | • Contexto | • Analíticas Avanzadas | • Mi Feedback |
-| • Prompt de Dominio | • Providers | | • Configuración |
+| | • Providers | | • Configuración |
 | | • RAG | | |
 | | • Eval. Rápida* | | |
 | | • Eval. Avanzada* | | |

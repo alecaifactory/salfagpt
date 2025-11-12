@@ -868,9 +868,19 @@ export function AgentSharingModal({
                 <button
                   onClick={() => {
                     console.log('🖱️ CLICK DETECTED on Force Share button');
+                    if (selectedTargets.length === 0) {
+                      setError('⚠️ Primero selecciona usuarios o grupos para compartir');
+                      setShowApprovalOptions(false);
+                      return;
+                    }
                     proceedWithoutApproval();
                   }}
-                  className="w-full p-5 border-2 border-purple-300 dark:border-purple-700 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all text-left group"
+                  disabled={selectedTargets.length === 0}
+                  className={`w-full p-5 border-2 rounded-xl transition-all text-left group ${
+                    selectedTargets.length === 0
+                      ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 opacity-50 cursor-not-allowed'
+                      : 'border-purple-300 dark:border-purple-700 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/30'
+                  }`}
                 >
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
@@ -881,8 +891,17 @@ export function AgentSharingModal({
                         3️⃣ Forzar Compartir (SuperAdmin)
                       </h4>
                       <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                        Compartir sin evaluación aprobada - Solo para pruebas y desarrollo
+                        Compartir sin evaluación aprobada con los usuarios/grupos seleccionados
                       </p>
+                      {selectedTargets.length === 0 ? (
+                        <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-100/50 dark:bg-amber-900/30 px-2 py-1 rounded mb-2">
+                          ⚠️ Primero selecciona usuarios arriba en "Compartir con"
+                        </p>
+                      ) : (
+                        <p className="text-xs text-blue-700 dark:text-blue-300 bg-blue-100/50 dark:bg-blue-900/30 px-2 py-1 rounded mb-2">
+                          ✅ {selectedTargets.length} usuario(s)/grupo(s) seleccionado(s)
+                        </p>
+                      )}
                       <div className="flex items-center gap-2">
                         <span className="inline-block px-3 py-1 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-xs font-semibold rounded-full">
                           Solo SuperAdmin
