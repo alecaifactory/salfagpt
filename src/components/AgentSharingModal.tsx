@@ -129,33 +129,33 @@ export function AgentSharingModal({
           
           // ✅ Show success in the approval modal
           setSuccess(
-            `✅ Agente compartido exitosamente (forzado por SuperAdmin)!\n\n` +
-            `Usuarios con acceso (${latestShare.sharedWith.length} total):\n` +
+            `✅ COMPARTIDO EXITOSAMENTE (forzado por SuperAdmin)\n\n` +
+            `Usuarios con acceso ahora (${latestShare.sharedWith.length} total):\n` +
             `${sharedUserEmails.slice(0, 5).join(', ')}${sharedUserEmails.length > 5 ? ` y ${sharedUserEmails.length - 5} más` : ''}\n\n` +
-            `Los usuarios deben refrescar (Cmd+R) para ver el agente.`
+            `📋 Los shares se han actualizado en la lista "Accesos Compartidos".\n` +
+            `📧 Los usuarios receptores deben refrescar su navegador para ver el agente.\n\n` +
+            `✅ Puedes cerrar este modal ahora.`
           );
           
           // ✅ Update existing shares list so user sees the change
           setExistingShares(shares);
           setSelectedTargets([]);
           
-          // ✅ Close approval modal after 3 seconds to let user read success
-          setTimeout(() => {
-            setShowApprovalOptions(false);
-            // Success message stays in main modal for 10 more seconds
-          }, 3000);
+          // ✅ CHANGED: DON'T auto-close modal - let user close manually
+          // User can review the success message and verify shares were added
+          // Modal will stay open until user clicks "Cerrar" or X
           
           if (onShareUpdated) {
             onShareUpdated();
           }
           
-          // Clear success message after 13 seconds total (3 + 10)
-          setTimeout(() => setSuccess(null), 13000);
+          // ✅ SUCCESS message stays visible until user closes modal
+          // No auto-clear - user can take their time to verify
           
         } else {
           console.warn('⚠️ Share returned but not found in verification');
-          setSuccess('Agente compartido, pero verificación pendiente. Recarga la página.');
-          setTimeout(() => setShowApprovalOptions(false), 3000);
+          setSuccess('⚠️ Agente compartido, pero verificación pendiente.\n\nClick en el botón 🔄 al lado de "Accesos Compartidos" para recargar la lista.');
+          // ✅ Don't auto-close - let user refresh and verify manually
         }
       } else {
         setLoading(false);
@@ -965,7 +965,7 @@ export function AgentSharingModal({
                 )}
                 {success && !loading && (
                   <p className="text-sm text-green-600 dark:text-green-400 font-medium">
-                    ✅ Este modal se cerrará automáticamente en 3 segundos...
+                    ✅ Compartición exitosa. Verifica la lista de "Accesos Compartidos" →
                   </p>
                 )}
                 <button
