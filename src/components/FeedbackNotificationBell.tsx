@@ -31,7 +31,7 @@ interface FeedbackTicket {
 interface FeedbackNotificationBellProps {
   userId: string;
   userRole: string;
-  onOpenRoadmap: () => void;
+  onOpenRoadmap: (ticketId?: string) => void;
 }
 
 export default function FeedbackNotificationBell({
@@ -208,7 +208,7 @@ export default function FeedbackNotificationBell({
                       }`}
                       onClick={() => {
                         markAsRead(ticket.id);
-                        onOpenRoadmap();
+                        onOpenRoadmap(ticket.id); // Pass ticket ID to open specific ticket
                         setShowDropdown(false);
                       }}
                     >
