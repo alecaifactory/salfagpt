@@ -619,14 +619,20 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // Save complete AI message to Firestore (for persistent conversations)
           if (!conversationId.startsWith('temp-')) {
             try {
-              // ✅ References already built BEFORE streaming (lines 419-488)
+              // ✅ References already built BEFORE streaming (lines 425-496)
               // No need to rebuild - just use them directly
               console.log('📚 Using pre-built references:', references.length);
+              console.log('📊 Pre-built refs preview:', references.slice(0, 2).map(r => ({ 
+                id: r.id, 
+                sourceName: r.sourceName,
+                similarity: r.similarity 
+              })));
               
-              // OLD CODE REMOVED: Was rebuilding references here (caused delay + potential flicker)
-              // Now references are built earlier and sent via 'references' event
+              // ❌ DELETED: All reference rebuilding logic removed
+              // References are ONLY built once at lines 425-496
+              // This section was overwriting with empty arrays - causing the bug!
               
-              if (false && ragUsed && ragResults.length > 0) {  // Disabled - keeping for reference
+              if (false) {  // Disabled - all rebuilding logic removed
                 // ✅ NEW: Group chunks by source document (consolidate references)
                 const sourceGroups = new Map<string, typeof ragResults>();
                 ragResults.forEach(result => {
@@ -688,63 +694,21 @@ Usa la información de los documentos encontrados para responder, pero aclara la
                     : '';
                   console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% avg${chunkInfo} - ${ref.metadata.tokenCount} tokens`);
                 });
-              } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback && !shouldShowNoDocsMessage) {
-                // Emergency fallback mode: Create references from full documents
-                // This only happens if RAG failed completely AND we're not already showing no-docs message
-                // (very rare - documents not indexed at all)
-                console.warn('⚠️ Creating references for emergency fallback mode (documents not indexed)');
-                console.log(`   Loading metadata for ${Math.min(activeSourceIds.length, 10)} sources...`);
-                
-                // ✅ FIX: Load source metadata to create references from full documents
-                // Note: Firestore 'in' query limited to 10 values
-                const sourceIdsToReference = activeSourceIds.slice(0, 10); 
-                const sourcesSnapshot = await firestore
-                  .collection('context_sources')
-                  .where('__name__', 'in', sourceIdsToReference)
-                  .get();
-                
-                references = sourcesSnapshot.docs.map((doc, index) => ({
-                  id: index + 1,
-                  sourceId: doc.id,
-                  sourceName: doc.data().name || 'Documento',
-                  chunkIndex: -1, // -1 indicates full document (not a chunk)
-                  similarity: 1.0, // ✅ 100% - using complete document (all content available)
-                  snippet: (doc.data().extractedData || '').substring(0, 300),
-                  fullText: doc.data().extractedData || '',
-                  metadata: {
-                    tokenCount: Math.ceil((doc.data().extractedData?.length || 0) / 4),
-                    isFullDocument: true,
-                  }
-                }));
-                
-                console.log(`📚 Created ${references.length} references from full documents (emergency fallback)`);
+              } // ❌ DELETED: All else blocks that were re-assigning references
+              
+              // ✅ FIX: The bug was here - these else blocks were overwriting the pre-built references!
+              // References are ONLY built once at lines 425-496, never rebuilt
+              
+              // Log the references we're going to save
+              if (references.length > 0) {
+                console.log('📋 Final references to save:');
                 references.forEach(ref => {
-                  console.log(`  [${ref.id}] ${ref.sourceName} - Full Document - ${ref.metadata.tokenCount} tokens`);
+                  const chunkInfo = ref.chunkIndex >= 0 ? `Chunk #${ref.chunkIndex + 1}` : 'Full Document';
+                  console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - ${chunkInfo}`);
                 });
               } else {
-                // OLD CODE PATH (legacy): Should not execute anymore
-                // Keeping for absolute backward compatibility
-                const legacyContextSources = body.contextSources || [];
-                references = legacyContextSources.map((source: any, index: number) => ({
-                  id: index + 1,
-                  sourceId: source.id,
-                  sourceName: source.name,
-                  chunkIndex: -1, // -1 indicates full document (not a chunk)
-                  similarity: 1.0, // Full document = 100% (all content available)
-                  snippet: (source.content || '').substring(0, 300),
-                  fullText: source.content || '',
-                  metadata: {
-                    tokenCount: Math.ceil((source.content?.length || 0) / 4),
-                    isFullDocument: true, // Flag to indicate this is not a RAG chunk
-                  }
-                }));
-                console.log('📚 Built references from full documents (fallback mode):', references.length);
+                console.log('📋 No references to save (none were built)');
               }
-
-              references.forEach(ref => {
-                const chunkInfo = ref.chunkIndex >= 0 ? `Chunk #${ref.chunkIndex + 1}` : 'Full Document';
-                console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% - ${chunkInfo}`);
-              });
               
               // 🔧 FIX FB-002: Clean phantom reference numbers
               // Remove citation numbers [N] that don't have corresponding badges
