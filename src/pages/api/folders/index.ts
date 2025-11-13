@@ -55,7 +55,7 @@ export const GET: APIRoute = async ({ request }) => {
 export const POST: APIRoute = async ({ request }) => {
   try {
     const body = await request.json();
-    const { userId, name } = body;
+    const { userId, name, parentFolderId, level } = body;
 
     if (!userId || !name) {
       return new Response(
@@ -64,8 +64,16 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
+    // ✅ VALIDATION: Enforce max 3 levels
+    if (level !== undefined && level >= 3) {
+      return new Response(
+        JSON.stringify({ error: 'Maximum 3 folder levels allowed' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     try {
-      const folder = await createFolder(userId, name);
+      const folder = await createFolder(userId, name, parentFolderId, level);
       return new Response(
         JSON.stringify({ folder }),
         { status: 201, headers: { 'Content-Type': 'application/json' } }
@@ -79,6 +87,8 @@ export const POST: APIRoute = async ({ request }) => {
         name,
         createdAt: new Date(),
         conversationCount: 0,
+        parentFolderId,
+        level: level || 0,
       };
 
       return new Response(

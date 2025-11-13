@@ -136,9 +136,10 @@ export const POST: APIRoute = async ({ params, request }) => {
               // ✅ OPTIMAL: Agent-based search (no source loading needed!)
               if (useAgentSearch) {
                 console.log('  🚀 Using agent-based BigQuery search (OPTIMAL)...');
+                // Search with LOW threshold to get all candidates, filter by 70% after
                 searchResults = await searchByAgent(userId, agentId, message, {
-                  topK: ragTopK,
-                  minSimilarity: ragMinSimilarity
+                  topK: ragTopK * 2, // Get more results
+                  minSimilarity: 0.3 // Low threshold - we'll filter by 70% after getting results
                 });
                 
                 if (searchResults.length > 0) {
@@ -168,9 +169,10 @@ export const POST: APIRoute = async ({ params, request }) => {
                 const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
                 console.log(`  🔑 Using effectiveUserId for chunk search: ${effectiveUserId}${effectiveUserId !== userId ? ' (owner)' : ' (self)'}`);
                 
+                // Search with LOW threshold to get all candidates, filter by 70% after
                 const searchResult = await searchRelevantChunksOptimized(effectiveUserId, message, {
-                  topK: ragTopK,
-                  minSimilarity: ragMinSimilarity,
+                  topK: ragTopK * 2, // Get more results
+                  minSimilarity: 0.3, // Low threshold - we'll filter by 70% after
                   activeSourceIds,
                   preferBigQuery: true
                 });
@@ -182,6 +184,7 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
               // ✅ NEW: Quality check - only use documents if they meet 70% threshold
               const meetsQuality = ragResults.length > 0 && meetsQualityThreshold(ragResults, ragMinSimilarity);
+              let shouldShowNoDocsMessage = false; // Flag to prevent fallback refs with 50%
               
               if (meetsQuality) {
                 // SUCCESS: Use RAG chunks (high quality matches found)
@@ -192,10 +195,11 @@ export const POST: APIRoute = async ({ params, request }) => {
                 console.log(`  Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
                 console.log(`  Search method: ${searchMethod}`);
               } else if (ragResults.length > 0) {
-                // Found chunks but below 70% threshold - inform user
+                // Found chunks but below 70% threshold
+                // NEW APPROACH: Show references with REAL similarity (not 50%) + warning message
                 const bestSimilarity = Math.max(...ragResults.map(r => r.similarity || 0));
                 console.warn(`⚠️ RAG: Found ${ragResults.length} chunks but best similarity ${(bestSimilarity * 100).toFixed(1)}% < threshold ${(ragMinSimilarity * 100).toFixed(0)}%`);
-                console.log('  → Informing user that no relevant documents are available');
+                console.log('  → Will show references with REAL similarities + warning about low relevance');
                 
                 // Log for analytics
                 await logNoRelevantDocuments({
@@ -209,15 +213,32 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
                 // Get admin contact information
                 const adminEmails = await getOrgAdminContactsForUser(body.userEmail || '');
-                const noDocsMessage = generateNoRelevantDocsMessage(adminEmails, message);
+                const lowQualityDocsMessage = `
+NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 70%).
+
+INSTRUCCIONES PARA TU RESPUESTA:
+1. Informa al usuario que encontraste información relacionada pero con relevancia moderada-baja
+2. Menciona que las similitudes están entre ${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 70%)
+3. Recomienda verificar esta información con el documento completo o contactar a un experto
+4. Proporciona contacto del administrador si necesita documentos más específicos:
+   ${adminEmails.length > 0 ? adminEmails.map(email => `• ${email}`).join('\n   ') : 'Contacta a tu administrador'}
+5. Invita a dejar feedback en el Roadmap si esta información no fue suficiente
+
+Usa la información de los documentos encontrados para responder, pero aclara las limitaciones.`;
                 
-                // Override system instruction to inform user
-                systemPromptToUse = systemPromptToUse + '\n\n' + noDocsMessage;
-                additionalContext = ''; // Don't provide low-quality context
-                ragUsed = false;
-                ragHadFallback = true;
+                // Override system instruction with warning about low quality
+                systemPromptToUse = systemPromptToUse + '\n\n' + lowQualityDocsMessage;
+                
+                // ✅ NEW: Use chunks but with their REAL similarity (not 50%)
+                additionalContext = buildRAGContext(ragResults);
+                ragUsed = true; // Use the chunks (they're better than nothing)
+                ragStats = getRAGStats(ragResults);
+                shouldShowNoDocsMessage = false; // Will show references (not empty)
+                ragHadFallback = false; // Not a fallback, using real RAG results
                 
                 console.log(`📧 Admin contacts provided: ${adminEmails.join(', ')}`);
+                console.log(`  ✅ Will show ${ragResults.length} references with REAL similarities (${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}%-${(bestSimilarity * 100).toFixed(1)}%)`);
+                console.log('  ⚠️ AI will warn user about moderate-low relevance');
               } else {
                   // NO chunks found - check if documents exist at all
                   console.warn('⚠️ RAG: No chunks found above similarity threshold');
@@ -393,6 +414,18 @@ export const POST: APIRoute = async ({ params, request }) => {
           // Step 4: Generando Respuesta... (streaming happens here)
           sendStatus('generating', 'active');
           
+          // ✅ Check if this is first message BEFORE saving user message
+          let isFirstMessage = false;
+          if (!conversationId.startsWith('temp-')) {
+            const messagesBefore = await getMessages(conversationId);
+            isFirstMessage = messagesBefore.length === 0; // No messages yet = first message
+            console.log('📊 Pre-save check:', {
+              conversationId,
+              messagesBefore: messagesBefore.length,
+              isFirstMessage
+            });
+          }
+          
           // Store user message first (for persistent conversations)
           let userMessageId = '';
           if (!conversationId.startsWith('temp-')) {
@@ -518,9 +551,10 @@ export const POST: APIRoute = async ({ params, request }) => {
                     : '';
                   console.log(`  [${ref.id}] ${ref.sourceName} - ${(ref.similarity * 100).toFixed(1)}% avg${chunkInfo} - ${ref.metadata.tokenCount} tokens`);
                 });
-              } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
+              } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback && !shouldShowNoDocsMessage) {
                 // Emergency fallback mode: Create references from full documents
-                // This only happens if RAG failed completely (very rare - documents not indexed)
+                // This only happens if RAG failed completely AND we're not already showing no-docs message
+                // (very rare - documents not indexed at all)
                 console.warn('⚠️ Creating references for emergency fallback mode (documents not indexed)');
                 console.log(`   Loading metadata for ${Math.min(activeSourceIds.length, 10)} sources...`);
                 
@@ -713,6 +747,47 @@ export const POST: APIRoute = async ({ params, request }) => {
                 },
               })}\n\n`;
               controller.enqueue(encoder.encode(data));
+
+              // ✅ NEW: Generate and stream title for first message (use variable from earlier)
+              if (isFirstMessage) {
+                console.log('🏷️ First message detected - generating title with streaming...');
+                console.log('📝 User message for title:', message.substring(0, 100));
+                
+                // Import streaming title generator
+                const { streamConversationTitle } = await import('../../../../lib/gemini');
+                
+                try {
+                  let fullTitle = '';
+                  
+                  // Stream title generation
+                  for await (const titleChunk of streamConversationTitle(message)) {
+                    fullTitle += titleChunk;
+                    
+                    console.log('📤 Sending title chunk:', titleChunk);
+                    
+                    const titleData = `data: ${JSON.stringify({
+                      type: 'title',
+                      chunk: titleChunk,
+                      conversationId,
+                    })}\n\n`;
+                    controller.enqueue(encoder.encode(titleData));
+                  }
+                  
+                  console.log('✅ All title chunks sent. Full title:', fullTitle);
+                  
+                  // Save final title to Firestore
+                  if (fullTitle.trim()) {
+                    await updateConversation(conversationId, { 
+                      title: fullTitle.trim() 
+                    });
+                    console.log(`✅ Title generated and saved: "${fullTitle.trim()}"`);
+                  }
+                  
+                } catch (error) {
+                  console.error('⚠️ Error generating title:', error);
+                  // Non-critical - don't block completion
+                }
+              }
             } catch (error) {
               console.error('Error saving AI message:', error);
               const data = `data: ${JSON.stringify({ 

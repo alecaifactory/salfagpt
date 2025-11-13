@@ -126,13 +126,28 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         }
 
         // Query context sources for this organization
-        // STRATEGY: Query by organizationId for better performance
-        // This avoids batching by userId and is more efficient
+        // PERFORMANCE OPTIMIZED: 
+        // - Uses index: organizationId + addedAt DESC (CICAgNi47oMK)
+        // - Excludes extractedData to avoid transferring 4.4MB+ of data
+        // - Only loads minimal metadata needed for listing
         const allOrgSources: any[] = [];
         
         const sourcesSnapshot = await firestore
           .collection(COLLECTIONS.CONTEXT_SOURCES)
           .where('organizationId', '==', org.id)
+          .orderBy('addedAt', 'desc')
+          .select(
+            'name',
+            'type', 
+            'status',
+            'labels',
+            'userId',
+            'addedAt',
+            'assignedToAgents',
+            'ragEnabled',
+            'metadata'
+            // ✅ Excludes: extractedData, ragMetadata.chunks (huge fields)
+          )
           .get();
         
         sourcesSnapshot.docs.forEach(doc => {
@@ -146,10 +161,14 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
         console.log(`      ✅ Found ${allOrgSources.length} sources for ${org.name}`);
 
-        // Group sources by domain (using user's domainId or email domain)
+        // Group sources by domain
+        // STRATEGY: For CLI-uploaded sources (no user in users collection)
+        //   1. Check source.domainId (if explicitly set)
+        //   2. If org has single domain, use that (e.g., GetAI Factory)
+        //   3. Otherwise use org.primaryDomain as fallback
         const domainGroups = new Map<string, any[]>();
         
-        // Get user emails for domain assignment
+        // Get user emails for domain assignment (for web-uploaded sources)
         const userEmailMap = new Map<string, string>();
         usersSnapshot.docs.forEach(doc => {
           const data = doc.data();
@@ -159,20 +178,43 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         });
 
         allOrgSources.forEach((source: any) => {
-          // Determine domain from user's email or domainId
-          const userEmail = userEmailMap.get(source.userId);
-          const emailDomain = userEmail?.split('@')[1]?.toLowerCase();
+          let assignedDomain: string | null = null;
           
-          // Find which org domain this matches
-          const matchedDomain = org.domains.find((d: string) => 
-            d.toLowerCase() === emailDomain
-          );
-          
-          if (matchedDomain) {
-            if (!domainGroups.has(matchedDomain)) {
-              domainGroups.set(matchedDomain, []);
+          // Priority 1: Explicit domainId on source (most reliable)
+          if (source.domainId) {
+            assignedDomain = source.domainId;
+          }
+          // Priority 2: User's email domain (for web uploads)
+          else {
+            const userEmail = userEmailMap.get(source.userId);
+            const emailDomain = userEmail?.split('@')[1]?.toLowerCase();
+            
+            if (emailDomain) {
+              const matchedDomain = org.domains.find((d: string) => 
+                d.toLowerCase() === emailDomain
+              );
+              if (matchedDomain) {
+                assignedDomain = matchedDomain;
+              }
             }
-            domainGroups.get(matchedDomain)!.push(source);
+          }
+          // Priority 3: Org has single domain (e.g., GetAI Factory)
+          if (!assignedDomain && org.domains.length === 1) {
+            assignedDomain = org.domains[0];
+          }
+          // Priority 4: Use primary domain as fallback
+          if (!assignedDomain && org.primaryDomain) {
+            assignedDomain = org.primaryDomain;
+          }
+          
+          // Add to domain group if we determined a domain
+          if (assignedDomain) {
+            if (!domainGroups.has(assignedDomain)) {
+              domainGroups.set(assignedDomain, []);
+            }
+            domainGroups.get(assignedDomain)!.push(source);
+          } else {
+            console.warn(`      ⚠️ Could not determine domain for source: ${source.name} (userId: ${source.userId})`);
           }
         });
 

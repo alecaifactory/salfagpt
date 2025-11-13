@@ -1,0 +1,75 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+🧪 END-TO-END SIMILARITY TESTING
+====================================================================================================
+
+📋 Test Suite: RAG Similarity & References
+   Agent: KfoKcDrb6pMnduAiLlrD
+   User: usr_uhwqffaqag1wrryd82tw
+   Timestamp: 2025-11-13T02:16:48.739Z
+
+====================================================================================================
+
+📌 TEST 1: Verify BigQuery Chunks Exist
+────────────────────────────────────────────────────────────────────────────────────────────────────
+   ✅ PASS: Found 9765 chunks in BigQuery
+
+📌 TEST 2: Verify User ID Migration
+────────────────────────────────────────────────────────────────────────────────────────────────────
+   ✅ PASS: Migration complete (old: 0, new: 9765)
+
+📌 TEST 3: Calculate Real Similarities (Direct BigQuery)
+────────────────────────────────────────────────────────────────────────────────────────────────────
+   Query: "¿Cuáles son los pasos para cambiar el filtro de aire de un motor Cummins?"
+🔑 [Embeddings] Loaded API key from .env file
+🧮 [Gemini AI] Generating semantic embedding (¿Cuáles son los pasos para cambiar el filtro de ai...)
+✅ [Gemini AI] Generated SEMANTIC embedding: 768 dimensions
+   ✅ Generated embedding: 768 dims
+   ✅ Retrieved 20 chunks with similarity ≥30%
+
+   Top 10 Similarities:
+
+       1.  70.9% 🟢 - Chunk #1
+       2.  70.8% 🟢 - Chunk #5
+       3.  70.7% 🟢 - Chunk #8
+       4.  70.6% 🟢 - Chunk #9
+       5.  70.4% 🟢 - Chunk #1
+       6.  70.2% 🟢 - Chunk #8
+       7.  70.2% 🟢 - Chunk #8
+       8.  69.9% 🟡 - Chunk #1
+       9.  69.8% 🟡 - Chunk #6
+      10.  69.6% 🟡 - Chunk #2
+
+   📊 Statistics:
+      Max: 70.9%
+      Avg: 69.8%
+      Min: 69.1%
+      Range: 1.8%
+      Chunks ≥70%: 7
+
+   ✅ PASS: Similarities vary (69.1% to 70.9%)
+
+📌 TEST 4: API Endpoint Returns Correct Data
+────────────────────────────────────────────────────────────────────────────────────────────────────
+   Sending request to /api/conversations/KfoKcDrb6pMnduAiLlrD/messages
+   Query: "¿Cuáles son los pasos para cambiar el filtro de aire de un motor Cummins?"
+
+   📊 API Response:
+      RAG Enabled: true
+      RAG Used: false
+      Had Fallback: false
+      References Count: 0
+
+   ℹ️  No references returned (similarity <70% threshold)
+      This is expected for this query based on Test 3 results
+
+❌ FATAL ERROR: ReferenceError: test5_codeReview is not defined
+    at runAllTests (/Users/alec/salfagpt/scripts/test-similarity-e2e.ts:72:5)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
