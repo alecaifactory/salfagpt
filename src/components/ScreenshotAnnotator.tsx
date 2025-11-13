@@ -66,14 +66,23 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
       // Capture the entire body (includes sidebar, chat, Stella, and all UI)
       const bodyElement = document.body;
       
-      // Hide ONLY the screenshot capture modal (the positioning dialog and toolbar)
-      // Keep Stella visible for capture
-      const screenshotModal = document.querySelector('.screenshot-capture-modal');
-      if (screenshotModal) {
-        (screenshotModal as HTMLElement).style.display = 'none';
-      }
+      // Hide ALL feedback-related UI temporarily before capture:
+      // 1. Screenshot capture modal itself (toolbar, help text)
+      // 2. Expert/User feedback panels (the popup that opened this)
+      const elementsToHide = [
+        ...Array.from(document.querySelectorAll('.screenshot-capture-modal')),
+        ...Array.from(document.querySelectorAll('.feedback-panel-expert')),
+        ...Array.from(document.querySelectorAll('.feedback-panel-user')),
+      ];
+      
+      elementsToHide.forEach(el => {
+        (el as HTMLElement).style.display = 'none';
+      });
 
-      console.log('📸 Capturing full UI including Stella...');
+      console.log('📸 Capturing full UI (feedback panels hidden temporarily)...');
+      
+      // Small delay to ensure DOM has updated
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Capture with html2canvas
       const canvas = await html2canvas(bodyElement, {
@@ -90,13 +99,13 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
         scrollX: -window.scrollX,
       });
 
-      // Restore screenshot modal
-      if (screenshotModal) {
-        (screenshotModal as HTMLElement).style.display = '';
-      }
+      // Restore all hidden elements
+      elementsToHide.forEach(el => {
+        (el as HTMLElement).style.display = '';
+      });
 
       const dataUrl = canvas.toDataURL('image/png', 0.9);
-      console.log('✅ Full UI captured (including Stella):', canvas.width, 'x', canvas.height);
+      console.log('✅ Full UI captured (feedback panels restored):', canvas.width, 'x', canvas.height);
       
       return dataUrl;
     } catch (error) {
