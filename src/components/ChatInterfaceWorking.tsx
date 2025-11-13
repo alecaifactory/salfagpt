@@ -2247,6 +2247,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       let accumulatedContent = '';
       let finalMessageId = '';
       let finalUserMessageId = '';
+      let receivedReferences: any[] = []; // ✅ Store references received before streaming
 
       if (reader) {
         // ✅ Thinking steps already initialized above (lines 1442-1478)
@@ -2307,20 +2308,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     console.log(`  [${m.refId}] → Fragmento ${m.chunkIndex} (${m.sourceName}) - ${(m.similarity * 100).toFixed(1)}%`);
                   });
                 } else if (data.type === 'references') {
-                  // ✅ NEW: Receive references BEFORE streaming starts
-                  // Store them but don't show yet (will attach after streaming completes)
+                  // ✅ Receive references early and store in ref (not state - prevents re-render)
                   console.log('📚 Received references BEFORE streaming:', data.references?.length || 0);
-                  
-                  // Update message to include references (but keep isStreaming=true so they stay hidden)
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === streamingId 
-                      ? { 
-                          ...msg, 
-                          references: data.references, // ✅ Attach references early
-                          isStreaming: true // Keep streaming flag (references hidden until complete)
-                        }
-                      : msg
-                  ));
+                  receivedReferences = data.references || []; // Store in local variable
+                  console.log('   Stored in variable, will attach on complete');
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
@@ -2376,20 +2367,20 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     }
                   }
                   
-                  // ✅ CRITICAL FIX: MINIMAL update - only flip isStreaming flag
-                  // DO NOT: Update content, references, or anything else
-                  // WHY: Any update causes React to re-render, which might trigger flash
-                  console.log('🔄 [STREAM COMPLETE] Flipping isStreaming flag ONLY');
+                  // ✅ FINAL FIX: Update to complete state with references attached
+                  console.log('🔄 [STREAM COMPLETE] Attaching references and marking complete');
                   console.log('   Streaming ID:', streamingId);
-                  console.log('   Content already set via chunks:', accumulatedContent.length, 'chars');
-                  console.log('   References already set via refs event');
+                  console.log('   Content length:', accumulatedContent.length, 'chars');
+                  console.log('   References to attach:', receivedReferences.length);
                   
+                  // ✅ ONE FINAL UPDATE: Complete state with everything
                   setMessages(prev => prev.map(msg => 
                     msg.id === streamingId 
                       ? {
                           ...msg,
-                          isStreaming: false, // ✅ ONLY THIS - reveals references, enables feedback buttons
-                          firestoreId: finalMessageId, // Track real ID (doesn't affect render)
+                          isStreaming: false, // Reveal references
+                          references: receivedReferences.length > 0 ? receivedReferences : undefined, // Attach refs
+                          firestoreId: finalMessageId,
                         }
                       : msg
                   ));
