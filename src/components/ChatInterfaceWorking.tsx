@@ -619,10 +619,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   }, [userId]);
 
   // Load messages when conversation changes
+  // ✅ FIX: Don't reload if currently streaming (prevents flicker)
   useEffect(() => {
     if (currentConversation) {
-      loadMessages(currentConversation);
-      loadContextForConversation(currentConversation);
+      // Check if there's an active streaming message
+      const hasStreamingMessage = messages.some(msg => msg.isStreaming);
+      
+      if (!hasStreamingMessage) {
+        loadMessages(currentConversation);
+        loadContextForConversation(currentConversation);
+      } else {
+        console.log('⏭️ Skipping reload during active streaming to prevent flicker');
+      }
     }
   }, [currentConversation]);
 

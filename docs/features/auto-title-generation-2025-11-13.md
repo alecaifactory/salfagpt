@@ -29,50 +29,46 @@ After the user sends their **first message**, the system:
 
 ## 🔧 Technical Implementation
 
-### Backend - Streaming Title Generation
+### Approach: Simplified Non-Blocking Title Generation
 
-**File:** `src/lib/gemini.ts`
+**Strategy:** Generate title in parallel while message is being processed, then frontend polls for the updated title.
 
-**NEW Function:** `streamConversationTitle()` (lines 527-558)
+**Benefits:**
+- ✅ Simpler implementation
+- ✅ More reliable (no complex streaming logic)
+- ✅ Uses proven patterns (generateConversationTitle already exists)
+- ✅ Non-blocking (doesn't slow down message response)
+
+### Backend - Parallel Title Generation
+
+**File:** `src/pages/api/conversations/[id]/messages-stream.ts` (lines 417-449)
+
+**When first message is detected:**
 
 ```typescript
-/**
- * ✅ NEW: Stream conversation title generation for real-time UI updates
- * Generates title token-by-token for smooth streaming effect
- */
-export async function* streamConversationTitle(firstMessage: string): AsyncGenerator<string> {
-  try {
-    // ✅ Use streaming API
-    const stream = await genAI.models.generateContentStream({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: firstMessage }] }],
-      config: {
-        systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else. No quotes, no punctuation at the end.',
-        temperature: 0.7,
-        maxOutputTokens: 20,
-      }
-    });
+// Check if first message
+const messagesBefore = await getMessages(conversationId);
+const isFirstMessage = messagesBefore.length === 0;
 
-    let fullTitle = '';
-    
-    // Stream each chunk
-    for await (const chunk of stream) {
-      if (chunk.text) {
-        fullTitle += chunk.text;
-        yield chunk.text; // Emit chunk to frontend
-      }
-    }
-
-    return fullTitle.trim().replace(/^["']|["']$/g, '');
-    
-  } catch (error) {
-    console.error('Error streaming title:', error);
-    yield 'New Conversation';
-  }
+if (isFirstMessage) {
+  console.log('🏷️ Starting title generation (non-blocking)...');
+  
+  // Generate title in parallel (don't wait)
+  const { generateConversationTitle } = await import('../../../../lib/gemini');
+  generateConversationTitle(message)
+    .then(title => {
+      console.log('✅ Title generated:', title);
+      
+      // Save to Firestore immediately
+      updateConversation(conversationId, { title })
+        .then(() => console.log('✅ Title saved to Firestore'))
+        .catch(err => console.error('❌ Failed to save title:', err));
+    })
+    .catch(err => console.error('❌ Title generation failed:', err));
 }
 ```
 
-**Existing Function:** `generateConversationTitle()` (lines 501-521) - Preserved for non-streaming fallback
+**Uses existing function:** `generateConversationTitle()` from `src/lib/gemini.ts` (lines 501-521)
 
 ### Backend - SSE Streaming Endpoint
 
@@ -165,22 +161,18 @@ const sendMessage = async () => {
 2. Sends first message: "¿Cuál es la política de vacaciones?"
 3. Title remains: "Nuevo Agente 2025-11-13 15:30:45" ❌
 
-### After (Streaming Effect ✨)
-1. User creates "Nuevo Agente 2025-11-13 15:30:45"
+### After (Simplified Approach ✅)
+1. User creates "Nueva Conversación"
 2. Sends first message: "¿Cuál es la política de vacaciones?"
 3. AI responds with message
-4. **Title starts streaming token-by-token:**
-   - "P..." (first chunk)
-   - "Polí..." (second chunk)
-   - "Política..." (third chunk)
-   - "Política de..." (fourth chunk)
-   - "Política de Vacaciones" (complete) ✅
-5. **No page refresh** - Only the title element updates
-6. Sidebar shows the typing effect in real-time
+4. **Title generates in parallel** (backend)
+5. **After 2 seconds:** Frontend reloads conversation
+6. **Title updates:** "Nueva Conversación" → "Política de Vacaciones" ✅
+7. **No page refresh** - Only the title element updates
 
 ### Visual Effect
 
-The title appears to **"write itself"** in the sidebar, creating a delightful visual feedback that the system is working on naming the conversation intelligently.
+The title updates smoothly after the AI response completes, providing clear feedback that the system has intelligently named the conversation based on the user's first question.
 
 ---
 

@@ -124,15 +124,28 @@ export async function searchByAgent(
     // Fallback to Firestore (always for dev, or if BigQuery failed)
     if (assignedSourceIds.length === 0) {
       console.log(`  🔍 Searching Firestore for sources assigned to agent ${agentId}...`);
-      console.log(`     Step 1: Trying with effectiveUserId: ${effectiveUserId}`);
+      console.log(`     Step 1: Querying by assignedToAgents, then filtering by userId`);
       
-      // ✅ FIX: Try with effectiveUserId first, then fallback to agent owner if no sources found
+      // ✅ WORKAROUND: Query by assignedToAgents only (avoids composite index requirement)
+      // Then filter by userId in memory (small result set, very fast)
       let sourcesSnapshot = await firestore
         .collection(COLLECTIONS.CONTEXT_SOURCES)
-        .where('userId', '==', effectiveUserId) // ✅ Use effective owner
-        .where('assignedToAgents', 'array-contains', agentId)
-        .select('__name__') // Only get IDs, not full documents
+        .where('assignedToAgents', 'array-contains', agentId) // Single-field index
+        .select('userId', '__name__') // Get userId for filtering + IDs
         .get();
+      
+      console.log(`     Query result: ${sourcesSnapshot.size} sources found (before userId filter)`);
+      
+      // Filter by userId in memory
+      const matchingDocs = sourcesSnapshot.docs.filter(doc => doc.data().userId === effectiveUserId);
+      console.log(`     After userId filter: ${matchingDocs.length} sources match effectiveUserId`);
+      
+      // Create a new snapshot-like object with filtered docs
+      sourcesSnapshot = { 
+        docs: matchingDocs, 
+        size: matchingDocs.length,
+        empty: matchingDocs.length === 0 
+      } as any;
       
       console.log(`     Step 1 result: ${sourcesSnapshot.size} sources found`);
       

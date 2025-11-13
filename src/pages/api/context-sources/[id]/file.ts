@@ -1,22 +1,21 @@
 import type { APIRoute } from 'astro';
-import { getContextSource } from '../../../../lib/firestore';
+import { getContextSource, getExtractedData } from '../../../../lib/firestore';
 import { getSession } from '../../../../lib/auth';
-import { getSignedUrl } from '../../../../lib/storage';
+import { downloadFile } from '../../../../lib/storage';
 
 /**
  * GET /api/context-sources/:id/file
  * 
- * Serves the original document file for viewing/downloading
- * Returns a redirect to a signed Cloud Storage URL
+ * Serves the original document file for viewing
+ * 
+ * Strategy:
+ * 1. If storagePath exists: Download from Cloud Storage and stream
+ * 2. If no storagePath (legacy): Generate HTML preview from extracted text
  * 
  * Security:
  * - Requires authentication
  * - Verifies user owns the document
- * - Generates time-limited signed URL (15 minutes)
- * 
- * Handles multiple storage path formats:
- * - metadata.storagePath (web uploads)
- * - metadata.gcsPath (CLI uploads)
+ * - Proxies file through authenticated endpoint
  */
 export const GET: APIRoute = async ({ params, cookies }) => {
   try {
@@ -24,16 +23,16 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     const session = getSession({ cookies } as any);
     if (!session) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - Please login' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
+        '<html><body><h1>401 No Autorizado</h1><p>Por favor inicia sesión</p></body></html>',
+        { status: 401, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
 
     const sourceId = params.id;
     if (!sourceId) {
       return new Response(
-        JSON.stringify({ error: 'Source ID required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        '<html><body><h1>400 Error</h1><p>ID de documento requerido</p></body></html>',
+        { status: 400, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
 
@@ -45,8 +44,8 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     if (!source) {
       console.error('❌ Source not found:', sourceId);
       return new Response(
-        JSON.stringify({ error: 'Document not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+        '<html><body><h1>404 No Encontrado</h1><p>Documento no existe</p></body></html>',
+        { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
 
@@ -54,84 +53,193 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     // 3. SECURITY: Verify ownership
     if (source.userId !== session.id && session.email !== 'alec@getaifactory.com') {
-      console.error('🚫 Access denied - userId mismatch:', {
-        sourceUserId: source.userId,
-        sessionUserId: session.id,
-        sessionEmail: session.email
-      });
+      console.error('🚫 Access denied - userId mismatch');
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Cannot access other user files' }),
-        { status: 403, headers: { 'Content-Type': 'application/json' } }
+        '<html><body><h1>403 Prohibido</h1><p>No puedes acceder a documentos de otros usuarios</p></body></html>',
+        { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
 
-    // 4. Get storage path (try multiple field names for backward compatibility)
+    // 4. Try to get storage path
     const metadata = source.metadata as any;
     const storagePath = metadata?.storagePath || metadata?.gcsPath;
     
-    console.log('🔍 Checking metadata for storage path:', {
-      hasMetadata: !!metadata,
-      storagePath: metadata?.storagePath,
-      gcsPath: metadata?.gcsPath,
-      result: storagePath
+    console.log('🔍 Storage path check:', {
+      hasStoragePath: !!storagePath,
+      storagePath: storagePath || 'NONE'
     });
-    
-    if (!storagePath) {
-      console.error('❌ No storage path found in metadata:', metadata);
-      return new Response(
-        JSON.stringify({ 
-          error: 'File not available',
-          details: 'No storage path found for this document. File may have been uploaded before Cloud Storage integration.',
-          metadata: {
-            hasOriginalFileName: !!metadata?.originalFileName,
-            hasPageCount: !!metadata?.pageCount,
-            uploadMethod: metadata?.uploadedVia || 'unknown'
+
+    // STRATEGY 1: Download from Cloud Storage (if available)
+    if (storagePath) {
+      try {
+        const cleanPath = storagePath.replace(/^gs:\/\/[^/]+\//, '');
+        console.log('📥 Downloading from Cloud Storage:', cleanPath);
+        
+        const fileBuffer = await downloadFile(cleanPath);
+        
+        const contentType = metadata?.contentType || 
+                           source.type === 'pdf' ? 'application/pdf' : 
+                           'application/octet-stream';
+
+        console.log('✅ Serving file from Cloud Storage:', {
+          size: `${(fileBuffer.length / 1024 / 1024).toFixed(2)} MB`,
+          type: contentType
+        });
+
+        return new Response(fileBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Disposition': `inline; filename="${source.name}"`,
+            'Cache-Control': 'private, max-age=3600',
           }
-        }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
+        });
+      } catch (error: any) {
+        console.error('❌ Cloud Storage download failed:', error.message);
+        // Fall through to Strategy 2
+      }
+    }
+
+    // STRATEGY 2: Generate HTML preview from extracted text (legacy/fallback)
+    console.log('📄 Generating HTML preview from extracted text...');
+    
+    const extractedText = await getExtractedData(source);
+    
+    if (!extractedText) {
+      return new Response(
+        '<html><body style="font-family: sans-serif; padding: 20px;"><h1>⚠️ Sin Contenido</h1><p>Este documento no tiene texto extraído disponible.</p><p>Intenta re-indexar el documento.</p></body></html>',
+        { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
 
-    // Remove 'gs://bucket-name/' prefix if present to get clean path
-    const cleanPath = storagePath.replace(/^gs:\/\/[^/]+\//, '');
+    // Generate simple HTML preview
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${source.name}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      color: #1e293b;
+      font-size: 20px;
+    }
+    .header .meta {
+      color: #64748b;
+      font-size: 14px;
+    }
+    .content {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      white-space: pre-wrap;
+      font-size: 14px;
+      color: #334155;
+    }
+    .notice {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📄 ${source.name}</h1>
+    <div class="meta">
+      Texto extraído • ${(extractedText.length / 1024).toFixed(1)} KB
+      ${metadata?.pageCount ? ` • ${metadata.pageCount} páginas` : ''}
+    </div>
+  </div>
+  
+  <div class="notice">
+    ⚠️ <strong>Vista de solo texto</strong> - El archivo original no está disponible. 
+    Mostrando el texto extraído del documento.
+  </div>
+  
+  <div class="content">${extractedText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+</body>
+</html>`;
 
-    console.log('📂 Storage paths:', {
-      original: storagePath,
-      cleaned: cleanPath
-    });
-
-    // 5. Generate signed URL (15 minutes expiry)
-    console.log('🔐 Generating signed URL for:', cleanPath);
-    const signedUrl = await getSignedUrl(cleanPath, 15);
-
-    console.log('✅ File access granted:', {
+    console.log('✅ Serving HTML preview:', {
       sourceId,
       name: source.name,
-      userId: source.userId,
-      path: cleanPath
+      textLength: extractedText.length
     });
 
-    // 6. Redirect to signed URL
-    return new Response(null, {
-      status: 302,
+    return new Response(htmlContent, {
+      status: 200,
       headers: {
-        'Location': signedUrl,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'private, max-age=3600',
       }
     });
 
   } catch (error: any) {
     console.error('❌ Error serving file:', error);
-    console.error('Error stack:', error.stack);
     
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to load file',
-        details: error.message || 'Unknown error',
-        type: error.name || 'Error'
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    const errorHtml = `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Error</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 40px;
+      text-align: center;
+      background: #fee;
+    }
+    h1 { color: #c00; }
+    .details {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      text-align: left;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>❌ Error al cargar archivo</h1>
+  <p>${error.message || 'Error desconocido'}</p>
+  <div class="details">
+    <strong>Detalles técnicos:</strong>
+    <pre>${error.stack || 'No disponible'}</pre>
+  </div>
+</body>
+</html>`;
+
+    return new Response(errorHtml, {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
   }
 };
 
