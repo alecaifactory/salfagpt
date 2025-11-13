@@ -2342,14 +2342,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   finalMessageId = data.messageId;
                   finalUserMessageId = data.userMessageId;
                   
-                  // Debug: Check if references were received
+                  // Debug: Completion received
                   console.log('✅ Message complete event received');
-                  console.log('🔍 [STREAM COMPLETE] Accumulated content length:', accumulatedContent.length);
-                  console.log('🔍 [STREAM COMPLETE] Content preview:', accumulatedContent.substring(0, 200));
-                  console.log('📚 References in completion:', data.references?.length || 0);
-                  if (data.references && data.references.length > 0) {
-                    console.log('📚 Reference details:', data.references);
-                  }
+                  console.log('🔍 [STREAM COMPLETE] Content length:', accumulatedContent.length);
+                  console.log('🔍 [STREAM COMPLETE] References already attached earlier');
+                  // ✅ No references in complete event (sent separately to prevent flicker)
                   
                   // NEW: Validate citations if we have fragment mapping
                   if (fragmentMappingRef.current && fragmentMappingRef.current.length > 0) {
@@ -2379,31 +2376,23 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     }
                   }
                   
-                  // ✅ FIX: ONLY mark as complete, DON'T update content or references
-                  // Content was accumulated during streaming, references sent separately
-                  console.log('🔄 [STREAM COMPLETE] Marking as complete (no content update - prevents flicker)');
-                  console.log('🔍 [STREAM COMPLETE] Streaming ID (kept):', streamingId);
-                  console.log('🔍 [STREAM COMPLETE] Final content length:', accumulatedContent.length);
+                  // ✅ CRITICAL FIX: MINIMAL update - only flip isStreaming flag
+                  // DO NOT: Update content, references, or anything else
+                  // WHY: Any update causes React to re-render, which might trigger flash
+                  console.log('🔄 [STREAM COMPLETE] Flipping isStreaming flag ONLY');
+                  console.log('   Streaming ID:', streamingId);
+                  console.log('   Content already set via chunks:', accumulatedContent.length, 'chars');
+                  console.log('   References already set via refs event');
                   
-                  setMessages(prev => {
-                    const updated = prev.map(msg => 
-                      msg.id === streamingId 
-                        ? { 
-                            ...msg, 
-                            // ✅ ONLY change isStreaming flag - everything else already set
-                            firestoreId: finalMessageId, // Save real ID for reference
-                            isStreaming: false, // ✅ This reveals the references (already attached)
-                            // DON'T update content (already has it from chunks)
-                            // DON'T update references (already has them from 'references' event)
-                            thinkingSteps: undefined
-                          }
-                        : msg
-                    );
-                    
-                    console.log('🔍 [STREAM COMPLETE] References already attached, just revealed them');
-                    
-                    return updated;
-                  });
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === streamingId 
+                      ? {
+                          ...msg,
+                          isStreaming: false, // ✅ ONLY THIS - reveals references, enables feedback buttons
+                          firestoreId: finalMessageId, // Track real ID (doesn't affect render)
+                        }
+                      : msg
+                  ));
 
                   // Calculate response time
                   const responseTime = Date.now() - requestStartTime;
