@@ -467,32 +467,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
             });
             
             console.log(`✅ Built ${references.length} RAG references ready for streaming`);
-          } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
-            // ✅ ALWAYS build references for full documents if we loaded them
-            console.log('📚 Building full document references BEFORE streaming...');
-            console.log('   Will use full documents since no high-quality RAG matches found');
-            
-            const sourceIdsToReference = activeSourceIds.slice(0, 10);
-            const sourcesSnapshot = await firestore
-              .collection('context_sources')
-              .where('__name__', 'in', sourceIdsToReference)
-              .get();
-            
-            references = sourcesSnapshot.docs.map((doc, index) => ({
-              id: index + 1,
-              sourceId: doc.id,
-              sourceName: doc.data().name || 'Documento',
-              chunkIndex: -1,
-              similarity: 1.0,
-              snippet: (doc.data().extractedData || '').substring(0, 300),
-              fullText: doc.data().extractedData || '',
-              metadata: {
-                tokenCount: Math.ceil((doc.data().extractedData?.length || 0) / 4),
-                isFullDocument: true,
-              }
-            }));
-            
-            console.log(`✅ Built ${references.length} full doc references ready for streaming`);
+          } else if (ragHadFallback) {
+            // 🚨 FIX: When ragHadFallback = true, NO references should be shown
+            // The AI will inform the user that no relevant docs were found
+            console.log('📚 No references built - ragHadFallback = true (no relevant docs found)');
+            console.log('   AI will inform user to use Calificar button to report missing docs');
           }
           
           // Send references to client IMMEDIATELY (before streaming starts)
