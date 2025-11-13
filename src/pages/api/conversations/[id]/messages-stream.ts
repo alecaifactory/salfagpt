@@ -813,12 +813,19 @@ Usa la información de los documentos encontrados para responder, pero aclara la
               
               // ✅ CRITICAL FIX: Truncate fullText in references to avoid exceeding Firestore 1MB limit
               // References with full document text can easily exceed 1MB
+              console.log('🐛 DEBUG: About to save message');
+              console.log('   references.length:', references.length);
+              console.log('   references[0]:', references[0]);
+              
               const truncatedReferences = references.map(ref => ({
                 ...ref,
                 fullText: ref.fullText 
                   ? ref.fullText.substring(0, 5000) + (ref.fullText.length > 5000 ? '...[truncated]' : '')
                   : undefined
               }));
+              
+              console.log('   truncatedReferences.length:', truncatedReferences.length);
+              console.log('   Will save references:', truncatedReferences.length > 0 ? 'YES' : 'NO (undefined)');
               
               // Save message with truncated references, responseTime, and traceability metadata
               const aiMsg = await addMessage(

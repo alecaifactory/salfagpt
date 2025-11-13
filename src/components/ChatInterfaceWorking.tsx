@@ -5465,6 +5465,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       ) : (
                         /* Show actual message content */
                         <div className="relative">
+                          {/* DEBUG: Log message state before render */}
+                          {msg.role === 'assistant' && console.log('🐛 DEBUG rendering assistant message:', {
+                            id: msg.id,
+                            hasReferences: !!msg.references,
+                            referencesCount: msg.references?.length || 0,
+                            isStreaming: msg.isStreaming,
+                            contentLength: msg.content?.length || 0
+                          })}
+                          
                           <MessageRenderer 
                             content={msg.content}
                             contextSources={contextSources
