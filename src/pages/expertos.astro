@@ -1,4 +1,5 @@
 ---
+import '../styles/global.css';
 import { getUserRole, UserRole, hasAnyRole } from '../lib/access-control';
 
 // Get session cookie
@@ -101,8 +102,4 @@ if (!allowedRoles.includes(userRole) && !IS_DEVELOPMENT) {
     </script>
   </body>
 </html>
-
-<style is:global>
-  @import '../styles/global.css';
-</style>
 
