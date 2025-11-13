@@ -48,6 +48,16 @@ export async function searchRelevantChunks(
     console.log(`  Query: "${query.substring(0, 100)}..."`);
     console.log(`  TopK: ${topK}, MinSimilarity: ${minSimilarity}`);
 
+    // 🔑 CRITICAL FIX: Resolve userId to Google format for chunk queries
+    // Chunks were indexed with Google user ID (numeric), not hashed ID (usr_xxx)
+    const { getUserByIdOrEmail } = await import('./firestore.js');
+    const userDoc = await getUserByIdOrEmail(userId);
+    const googleUserId = userDoc?.googleUserId || userId;
+    
+    if (googleUserId !== userId) {
+      console.log(`  🔑 Resolved userId: ${userId} → ${googleUserId} (Google format)`);
+    }
+
     // 1. Generate embedding for query
     console.log('  1/4 Generating query embedding...');
     const startEmbed = Date.now();
@@ -60,7 +70,7 @@ export async function searchRelevantChunks(
     
     let chunksQuery = firestore
       .collection('document_chunks')
-      .where('userId', '==', userId);
+      .where('userId', '==', googleUserId); // ✅ Use Google user ID for chunks
     
     // Optional: filter by active sources only
     if (activeSourceIds && activeSourceIds.length > 0) {
