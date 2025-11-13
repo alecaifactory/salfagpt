@@ -118,6 +118,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragHadFallback = false;
           let ragResults: any[] = [];
           let systemPromptToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.'; // Can be modified if no relevant docs found
+          let shouldShowNoDocsMessage = false; // ✅ FIX: Declare at function scope for global access
 
           // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
           // Try agent-based search first if enabled (OPTIMAL - no source loading needed!)
@@ -184,7 +185,6 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
               // ✅ NEW: Quality check - only use documents if they meet 70% threshold
               const meetsQuality = ragResults.length > 0 && meetsQualityThreshold(ragResults, ragMinSimilarity);
-              shouldShowNoDocsMessage = false; // ✅ FIX: Use variable declared at function scope
               
               if (meetsQuality) {
                 // SUCCESS: Use RAG chunks (high quality matches found)
@@ -471,7 +471,6 @@ Usa la información de los documentos encontrados para responder, pero aclara la
 
           // Accumulate full response for final save
           let fullResponse = '';
-          let shouldShowNoDocsMessage = false; // ✅ FIX: Declare variable at function scope
           
           // Stream AI response
           const aiStream = streamAIResponse(message, {

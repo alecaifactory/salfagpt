@@ -2356,9 +2356,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     }
                   }
                   
-                  // Mark message as no longer streaming and add references
-                  console.log('🔄 [STREAM COMPLETE] Updating message state with final content');
-                  console.log('🔍 [STREAM COMPLETE] Final message ID:', finalMessageId);
+                  // ✅ FIX: Mark message as complete WITHOUT changing ID (prevents flicker)
+                  // Keep streaming ID so React doesn't see it as a new message
+                  console.log('🔄 [STREAM COMPLETE] Updating message state with final content (keeping streaming ID)');
+                  console.log('🔍 [STREAM COMPLETE] Streaming ID (kept):', streamingId);
                   console.log('🔍 [STREAM COMPLETE] Final content length:', accumulatedContent.length);
                   console.log('🔍 [STREAM COMPLETE] Final content (first 300 chars):', accumulatedContent.substring(0, 300));
                   
@@ -2367,7 +2368,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       msg.id === streamingId 
                         ? { 
                             ...msg, 
-                            id: finalMessageId,
+                            // ✅ KEEP streaming ID to prevent React re-render flicker
+                            // Store real Firestore ID in metadata for backend sync if needed
+                            firestoreId: finalMessageId, // Save real ID for reference
                             isStreaming: false,
                             content: accumulatedContent,
                             references: data.references, // RAG chunk references with real similarity
@@ -2465,29 +2468,28 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     return updated;
                   });
 
-                } else if (data.type === 'title') {
-                  // ✅ NEW: Receive title chunks and update conversation title progressively
-                  const titleChunk = data.chunk;
-                  const convId = data.conversationId;
-                  
-                  console.log('🏷️ Received title chunk:', titleChunk, 'for conversation:', convId);
-                  
-                  // Update conversation title in state (streaming effect)
-                  setConversations(prev => prev.map(c => {
-                    if (c.id === convId) {
-                      const currentTitle = c.title || '';
-                      // Replace generic titles with first chunk, append subsequent chunks
-                      const isGenericTitle = currentTitle.startsWith('Nuevo Agente') || 
-                                            currentTitle.startsWith('Nueva Conversación');
-                      const newTitle = isGenericTitle
-                        ? titleChunk // Replace generic title with first chunk
-                        : currentTitle + titleChunk; // Append subsequent chunks
-                      
-                      console.log('  Current:', currentTitle, '→ New:', newTitle);
-                      return { ...c, title: newTitle };
-                    }
-                    return c;
-                  }));
+                  // ✅ SIMPLIFIED: If first message, reload conversation to get updated title
+                  if (isFirstMessage) {
+                    console.log('🏷️ First message completed - reloading conversation for title...');
+                    
+                    // Wait a bit for backend to save title
+                    setTimeout(async () => {
+                      try {
+                        const response = await fetch(`/api/conversations/${currentConversation}`);
+                        if (response.ok) {
+                          const updatedConv = await response.json();
+                          setConversations(prev => prev.map(c => 
+                            c.id === currentConversation 
+                              ? { ...c, title: updatedConv.title }
+                              : c
+                          ));
+                          console.log('✅ Title updated:', updatedConv.title);
+                        }
+                      } catch (error) {
+                        console.error('⚠️ Could not reload title:', error);
+                      }
+                    }, 2000); // Wait 2 seconds for title to generate
+                  }
                   
                 } else if (data.type === 'error') {
                   throw new Error(data.error);

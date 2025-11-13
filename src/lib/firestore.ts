@@ -1,4 +1,4 @@
-import { Firestore } from '@google-cloud/firestore';
+import { Firestore, FieldValue } from '@google-cloud/firestore';
 import type { DataSource } from '../types/organizations.js';
 
 // BACKWARD COMPATIBLE: Environment-aware Firestore initialization
@@ -1428,9 +1428,31 @@ export async function saveConversationContext(
   }
 
   try {
+    // 1. Update conversation with active source IDs
     await updateConversation(conversationId, {
       activeContextSourceIds,
     });
+    
+    // 2. ✅ CRITICAL FIX: Update assignedToAgents field on each source document
+    // This enables agent-based search to work correctly
+    if (activeContextSourceIds.length > 0) {
+      const batch = firestore.batch();
+      
+      // Add this conversation to each source's assignedToAgents array
+      for (const sourceId of activeContextSourceIds) {
+        const sourceRef = firestore.collection(COLLECTIONS.CONTEXT_SOURCES).doc(sourceId);
+        
+        // Use arrayUnion to add conversation ID without duplicates
+        batch.update(sourceRef, {
+          assignedToAgents: FieldValue.arrayUnion(conversationId),
+          updatedAt: new Date(),
+        });
+      }
+      
+      await batch.commit();
+      console.log(`✅ Updated assignedToAgents field on ${activeContextSourceIds.length} sources`);
+    }
+    
     console.log('💾 Saved context for conversation:', conversationId, activeContextSourceIds);
   } catch (error) {
     console.error('Error saving conversation context:', error);
