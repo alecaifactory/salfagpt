@@ -184,7 +184,7 @@ export const POST: APIRoute = async ({ params, request }) => {
                 
               // ✅ NEW: Quality check - only use documents if they meet 70% threshold
               const meetsQuality = ragResults.length > 0 && meetsQualityThreshold(ragResults, ragMinSimilarity);
-              let shouldShowNoDocsMessage = false; // Flag to prevent fallback refs with 50%
+              shouldShowNoDocsMessage = false; // ✅ FIX: Use variable declared at function scope
               
               if (meetsQuality) {
                 // SUCCESS: Use RAG chunks (high quality matches found)
@@ -414,16 +414,38 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // Step 4: Generando Respuesta... (streaming happens here)
           sendStatus('generating', 'active');
           
-          // ✅ Check if this is first message BEFORE saving user message
+          // ✅ NEW APPROACH: Check if this is first message BEFORE saving
           let isFirstMessage = false;
+          let generatedTitle = ''; // Will store title if generated
+          
           if (!conversationId.startsWith('temp-')) {
             const messagesBefore = await getMessages(conversationId);
-            isFirstMessage = messagesBefore.length === 0; // No messages yet = first message
-            console.log('📊 Pre-save check:', {
+            isFirstMessage = messagesBefore.length === 0;
+            
+            console.log('📊 Checking first message:', {
               conversationId,
               messagesBefore: messagesBefore.length,
               isFirstMessage
             });
+            
+            // Generate title in parallel with message if first message
+            if (isFirstMessage) {
+              console.log('🏷️ Starting title generation (non-blocking)...');
+              
+              // Start title generation in background (don't await - let it run in parallel)
+              const { generateConversationTitle } = await import('../../../../lib/gemini');
+              generateConversationTitle(message)
+                .then(title => {
+                  generatedTitle = title;
+                  console.log('✅ Title generated:', title);
+                  
+                  // Save to Firestore immediately
+                  updateConversation(conversationId, { title })
+                    .then(() => console.log('✅ Title saved to Firestore'))
+                    .catch(err => console.error('❌ Failed to save title:', err));
+                })
+                .catch(err => console.error('❌ Title generation failed:', err));
+            }
           }
           
           // Store user message first (for persistent conversations)
@@ -449,6 +471,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
 
           // Accumulate full response for final save
           let fullResponse = '';
+          let shouldShowNoDocsMessage = false; // ✅ FIX: Declare variable at function scope
           
           // Stream AI response
           const aiStream = streamAIResponse(message, {
@@ -748,46 +771,8 @@ Usa la información de los documentos encontrados para responder, pero aclara la
               })}\n\n`;
               controller.enqueue(encoder.encode(data));
 
-              // ✅ NEW: Generate and stream title for first message (use variable from earlier)
-              if (isFirstMessage) {
-                console.log('🏷️ First message detected - generating title with streaming...');
-                console.log('📝 User message for title:', message.substring(0, 100));
-                
-                // Import streaming title generator
-                const { streamConversationTitle } = await import('../../../../lib/gemini');
-                
-                try {
-                  let fullTitle = '';
-                  
-                  // Stream title generation
-                  for await (const titleChunk of streamConversationTitle(message)) {
-                    fullTitle += titleChunk;
-                    
-                    console.log('📤 Sending title chunk:', titleChunk);
-                    
-                    const titleData = `data: ${JSON.stringify({
-                      type: 'title',
-                      chunk: titleChunk,
-                      conversationId,
-                    })}\n\n`;
-                    controller.enqueue(encoder.encode(titleData));
-                  }
-                  
-                  console.log('✅ All title chunks sent. Full title:', fullTitle);
-                  
-                  // Save final title to Firestore
-                  if (fullTitle.trim()) {
-                    await updateConversation(conversationId, { 
-                      title: fullTitle.trim() 
-                    });
-                    console.log(`✅ Title generated and saved: "${fullTitle.trim()}"`);
-                  }
-                  
-                } catch (error) {
-                  console.error('⚠️ Error generating title:', error);
-                  // Non-critical - don't block completion
-                }
-              }
+              // ✅ SIMPLIFIED: Title is generated in parallel above and saved automatically
+              // No streaming needed - frontend will reload conversation to get updated title
             } catch (error) {
               console.error('Error saving AI message:', error);
               const data = `data: ${JSON.stringify({ 
