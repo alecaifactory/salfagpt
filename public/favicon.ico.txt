@@ -1,0 +1,1 @@
+<!-- Browsers that don't support SVG favicons will fallback to favicon.ico -->
