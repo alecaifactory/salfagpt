@@ -1,0 +1,1048 @@
+# Production Deployment Protocol - SalfaGPT/Flow Platform
+
+## 🎯 Purpose
+
+This rule documents the **complete and correct** production deployment process for the SalfaGPT/Flow platform, ensuring zero downtime, proper configuration, and working authentication. Follow this protocol for **EVERY production deployment**.
+
+**Created:** 2025-11-13  
+**Status:** ✅ Active (Always Apply)  
+**Severity:** CRITICAL  
+**Last Validated:** Deployment to cr-salfagpt-ai-ft-prod (revision 00056-gc6)
+
+---
+
+## 🚨 CRITICAL: Pre-Deployment Checklist
+
+### BEFORE deploying, verify ALL of these:
+
+- [ ] **Git commit completed** - All changes committed
+- [ ] **Build successful** - `npm run build` passes with 0 errors
+- [ ] **Type check passes** - `npm run type-check` shows 0 errors
+- [ ] **Environment variables prepared** - .env file up to date
+- [ ] **Project confirmed** - `salfagpt` for SalfaGPT
+- [ ] **Region confirmed** - `us-east4` for production
+- [ ] **User authenticated** - `alec@salfacloud.cl` logged into gcloud
+
+---
+
+## 📋 Complete Deployment Process
+
+### Step 1: Verify Local Build (MANDATORY)
+
+**Purpose:** Catch CSS, asset, and configuration issues BEFORE deploying
+
+```bash
+# 1.1 Clean build from scratch
+cd /Users/alec/salfagpt
+rm -rf dist .astro node_modules/.vite
+
+# 1.2 Build
+npm run build
+
+# 1.3 Verify outputs
+ls -lh dist/client/*.css  # Should show CSS files OR empty (depending on setup)
+find dist/client -name "*.js" | wc -l  # Should show ~20+ JS files
+
+# 1.4 Type check
+npm run type-check  # Must show 0 errors
+```
+
+**Expected Results:**
+- ✅ Build completes without errors
+- ✅ `dist/` directory created with client and server bundles
+- ✅ No TypeScript errors
+- ✅ Vite warnings about large chunks (expected for ChatInterfaceWorking)
+
+**If build fails:** Fix errors before proceeding. Do NOT deploy broken code.
+
+---
+
+### Step 2: Verify Environment Variables (CRITICAL)
+
+**Purpose:** Ensure all required env vars exist and will be pushed to Cloud Run
+
+```bash
+# 2.1 Check .env file exists and is correct
+cd /Users/alec/salfagpt
+cat .env | grep -E "^(GOOGLE_CLOUD_PROJECT|GOOGLE_CLIENT_ID|JWT_SECRET|PUBLIC_BASE_URL)="
+
+# 2.2 Verify all required variables
+cat .env | grep -E "^(GOOGLE_CLOUD_PROJECT|NODE_ENV|GOOGLE_AI_API_KEY|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|JWT_SECRET|PUBLIC_BASE_URL|SESSION_COOKIE_NAME|SESSION_MAX_AGE|CHUNK_SIZE|CHUNK_OVERLAP|EMBEDDING_BATCH_SIZE|TOP_K|EMBEDDING_MODEL)="
+```
+
+**Required Environment Variables (13 total):**
+
+| Variable | Example Value | Purpose |
+|----------|---------------|---------|
+| `GOOGLE_CLOUD_PROJECT` | `salfagpt` | GCP project ID |
+| `NODE_ENV` | `production` | Environment mode |
+| `GOOGLE_AI_API_KEY` | `AIzaSy...` | Gemini AI API key |
+| `GOOGLE_CLIENT_ID` | `...apps.googleusercontent.com` | OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | `GOCSPX-...` | OAuth client secret |
+| `JWT_SECRET` | `<64-char-hex>` | Session token secret |
+| `PUBLIC_BASE_URL` | `https://salfagpt.salfagestion.cl` | Production domain |
+| `SESSION_COOKIE_NAME` | `salfagpt_session` | Cookie name |
+| `SESSION_MAX_AGE` | `86400` | Session duration (seconds) |
+| `CHUNK_SIZE` | `8000` | RAG chunk size |
+| `CHUNK_OVERLAP` | `2000` | RAG overlap tokens |
+| `EMBEDDING_BATCH_SIZE` | `32` | Embedding batch size |
+| `EMBEDDING_MODEL` | `gemini-embedding-001` | Embedding model name |
+
+**If any variable is missing:** Add it to .env before deploying.
+
+---
+
+### Step 3: Git Commit (MANDATORY)
+
+**Purpose:** Track all changes and enable rollback if needed
+
+```bash
+# 3.1 Check status
+git status
+
+# 3.2 Add all changes
+git add -A
+
+# 3.3 Commit with descriptive message
+git commit -m "fix: [Brief description of what was fixed]
+
+- Detailed change 1
+- Detailed change 2
+- Detailed change 3
+
+Impact: [What this fixes/improves]
+Testing: [How it was tested]
+Backward Compatible: Yes/No"
+
+# 3.4 Verify commit
+git log --oneline -1
+```
+
+**Commit Message Format:**
+- **Type:** `fix:`, `feat:`, `refactor:`, `docs:`
+- **Summary:** One-line description
+- **Body:** Bullet points of changes
+- **Impact:** What users will notice
+- **Testing:** How it was verified
+
+---
+
+### Step 4: Verify GCP Configuration (MANDATORY)
+
+**Purpose:** Ensure correct project, region, and service
+
+```bash
+# 4.1 Verify gcloud account
+gcloud config get-value account
+# Expected: alec@salfacloud.cl
+
+# 4.2 Verify gcloud project
+gcloud config get-value project
+# Expected: salfagpt
+
+# 4.3 If wrong, set correct values
+gcloud config set account alec@salfacloud.cl
+gcloud config set project salfagpt
+```
+
+**Critical Values:**
+- **Account:** `alec@salfacloud.cl` (ONLY this account for SalfaGPT)
+- **Project:** `salfagpt` (NOT gen-lang-client-0986191192)
+- **Service:** `cr-salfagpt-ai-ft-prod`
+- **Region:** `us-east4`
+
+---
+
+### Step 5: Deploy to Cloud Run (MAIN DEPLOYMENT)
+
+**Purpose:** Deploy the application with proper configuration
+
+```bash
+# 5.1 Deploy with source build (RECOMMENDED)
+gcloud run deploy cr-salfagpt-ai-ft-prod \
+  --source . \
+  --region us-east4 \
+  --project salfagpt \
+  --platform managed \
+  --allow-unauthenticated \
+  --min-instances 1 \
+  --max-instances 50 \
+  --memory 4Gi \
+  --cpu 2 \
+  --timeout 300s \
+  --quiet
+
+# This will:
+# - Upload source code to Cloud Build
+# - Build Docker image using Dockerfile
+# - Push to Container Registry
+# - Deploy to Cloud Run
+# - Create new revision
+```
+
+**Deployment Configuration:**
+- **Memory:** 4Gi (needed for large context processing)
+- **CPU:** 2 cores (balance performance and cost)
+- **Timeout:** 300s (5 min for long AI requests)
+- **Min Instances:** 1 (always warm, no cold starts)
+- **Max Instances:** 50 (auto-scaling)
+- **Authentication:** Public (auth handled at app level)
+
+**Expected Output:**
+```
+Building and deploying...
+✓ Uploading sources
+✓ Building Container
+✓ Setting IAM Policy
+✓ Creating Revision
+✓ Routing traffic
+Done.
+Service [cr-salfagpt-ai-ft-prod] revision [cr-salfagpt-ai-ft-prod-00XXX-xxx] 
+has been deployed and is serving 100 percent of traffic.
+Service URL: https://cr-salfagpt-ai-ft-prod-3snj65wckq-uk.a.run.app
+```
+
+**Deployment Time:** ~8-12 minutes (depending on code changes)
+
+---
+
+### Step 6: Push Environment Variables (CRITICAL)
+
+**Purpose:** Configure OAuth, JWT, and all runtime settings
+
+**⚠️ CRITICAL:** Environment variables **MUST** be set **AFTER** deployment or as part of update-traffic.
+
+```bash
+# 6.1 Read variables from .env
+cd /Users/alec/salfagpt
+source .env
+
+# 6.2 Push ALL environment variables to Cloud Run
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --update-env-vars="GOOGLE_CLOUD_PROJECT=salfagpt,NODE_ENV=production,GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID},GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET},JWT_SECRET=${JWT_SECRET},PUBLIC_BASE_URL=${PUBLIC_BASE_URL},SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME},SESSION_MAX_AGE=${SESSION_MAX_AGE},CHUNK_SIZE=${CHUNK_SIZE},CHUNK_OVERLAP=${CHUNK_OVERLAP},EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE},EMBEDDING_MODEL=${EMBEDDING_MODEL}"
+```
+
+**Why This Is Critical:**
+- ❌ **Without env vars:** OAuth fails with "Missing client_id"
+- ❌ **Without JWT_SECRET:** Sessions don't work
+- ❌ **Without PUBLIC_BASE_URL:** OAuth redirects to localhost
+- ✅ **With all env vars:** Everything works correctly
+
+**Verification:**
+```bash
+# Verify env vars are set
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --format="value(spec.template.spec.containers[0].env)" \
+  | grep -E "(GOOGLE_CLIENT_ID|PUBLIC_BASE_URL|JWT_SECRET)"
+
+# Should show all three variables with correct values
+```
+
+---
+
+### Step 7: Activate New Revision (If Needed)
+
+**Purpose:** Switch traffic to latest revision if deploy used --no-traffic
+
+```bash
+# 7.1 List revisions
+gcloud run revisions list \
+  --service cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --limit 5
+
+# 7.2 Find latest revision (top of list)
+LATEST_REVISION="cr-salfagpt-ai-ft-prod-00XXX-xxx"
+
+# 7.3 Switch traffic to new revision
+gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
+  --to-revisions=${LATEST_REVISION}=100 \
+  --region us-east4 \
+  --project salfagpt
+```
+
+**When to use this:**
+- Used `--no-traffic` flag during deploy
+- Want to test new revision before switching traffic
+- Need to rollback to previous revision
+
+---
+
+### Step 8: Verify Deployment (MANDATORY)
+
+**Purpose:** Confirm everything is working before users see it
+
+```bash
+# 8.1 Test custom domain
+curl -s -o /dev/null -w "Status: %{http_code}\n" https://salfagpt.salfagestion.cl/
+
+# Expected: Status: 200
+
+# 8.2 Test all static assets
+curl -s -o /dev/null -w "Favicon: %{http_code}\n" https://salfagpt.salfagestion.cl/favicon.ico
+curl -s -o /dev/null -w "CSS 1: %{http_code}\n" https://salfagpt.salfagestion.cl/admin-agents-list.DtMnwZ1K.css
+
+# Expected: All 200
+
+# 8.3 Test OAuth redirect URI
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "redirect_uri"
+
+# Expected: redirect_uri=https%3A%2F%2Fsalfagpt.salfagestion.cl%2Fauth%2Fcallback
+
+# 8.4 Verify client_id is populated
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "client_id="
+
+# Expected: client_id=82892384200-va003qnnoj9q0jf19j3jf0vects0st9h.apps.googleusercontent.com
+```
+
+**All tests must pass before proceeding.**
+
+---
+
+### Step 9: Manual Testing (MANDATORY)
+
+**Purpose:** Verify critical user flows work
+
+```markdown
+**In Browser:**
+
+1. **Homepage Loads**
+   - [ ] Visit https://salfagpt.salfagestion.cl
+   - [ ] Salfacorp logo visible
+   - [ ] Gradient background displays
+   - [ ] "Continuar con Google" button styled correctly
+   - [ ] No 404 errors in DevTools console
+
+2. **Design Loading**
+   - [ ] All Tailwind styles applied
+   - [ ] Typography correct
+   - [ ] Colors and spacing correct
+   - [ ] Responsive layout works
+
+3. **OAuth Login**
+   - [ ] Click "Continuar con Google"
+   - [ ] Redirects to Google OAuth consent screen
+   - [ ] Shows correct app name
+   - [ ] Login with @salfagestion.cl account
+   - [ ] Redirects back to /chat
+   - [ ] Session cookie set correctly
+
+4. **Chat Functionality**
+   - [ ] Can create new agent
+   - [ ] Can send message
+   - [ ] AI responds correctly
+   - [ ] No console errors
+
+5. **Admin Features** (if applicable)
+   - [ ] Admin pages load (/admin, /superadmin)
+   - [ ] Expertos page loads (/expertos)
+   - [ ] No CSS missing errors
+```
+
+**If any test fails:** Do NOT proceed. Fix the issue and redeploy.
+
+---
+
+## 🔧 Common Issues & Solutions
+
+### Issue 1: CSS 404 Errors
+
+**Symptoms:**
+- Console shows: `admin-agents-list.DtMnwZ1K.css:1 Failed to load resource: 404`
+- Design not loading (unstyled HTML)
+
+**Root Cause:**
+- Astro generates external CSS file references
+- But CSS files don't exist or are empty placeholders
+
+**Solution:**
+```bash
+# Compile Tailwind CSS
+npx tailwindcss -i src/styles/global.css -o public/_tailwind-compiled.css --minify
+
+# Copy to all referenced CSS files
+cp public/_tailwind-compiled.css public/admin-agents-list.DtMnwZ1K.css
+cp public/_tailwind-compiled.css public/admin-agents-list.CPH4UiPq.css
+cp public/_tailwind-compiled.css public/expertos.CPH4UiPq.css
+
+# Verify files are ~100KB each
+ls -lh public/*.css
+
+# Commit and redeploy
+git add public/*.css
+git commit -m "fix: Add compiled Tailwind CSS files"
+```
+
+**Prevention:**
+- Always add `import '../styles/global.css';` in frontmatter of .astro files
+- Use `<style is:inline>` for inline styles to prevent extraction
+- Test production build locally: `npm run build && npm run preview`
+
+---
+
+### Issue 2: OAuth Fails (Missing client_id / redirect_uri)
+
+**Symptoms:**
+- Google error: "Missing required parameter: client_id"
+- Google error: "redirect_uri_mismatch"
+- Login button doesn't redirect
+
+**Root Cause:**
+- Environment variables not set in Cloud Run
+- `isLocalhost` logic detecting production as localhost
+
+**Solution:**
+```bash
+# Check current env vars
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --format="value(spec.template.spec.containers[0].env)"
+
+# Push all env vars (use values from .env)
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --update-env-vars="GOOGLE_CLOUD_PROJECT=salfagpt,NODE_ENV=production,GOOGLE_AI_API_KEY=...,GOOGLE_CLIENT_ID=...,GOOGLE_CLIENT_SECRET=...,JWT_SECRET=...,PUBLIC_BASE_URL=https://salfagpt.salfagestion.cl,SESSION_COOKIE_NAME=salfagpt_session,SESSION_MAX_AGE=86400,CHUNK_SIZE=8000,CHUNK_OVERLAP=2000,EMBEDDING_BATCH_SIZE=32,EMBEDDING_MODEL=gemini-embedding-001"
+
+# Redeploy to create new revision with env vars
+gcloud run deploy cr-salfagpt-ai-ft-prod --source . --region us-east4 --project salfagpt
+```
+
+**Code Fix (if redirect still uses localhost):**
+
+Check `src/lib/auth.ts` line ~36:
+```typescript
+// ✅ CORRECT - Only check DEV_PORT, not NODE_ENV
+const isLocalhost = process.env.DEV_PORT === '3000';
+
+// ❌ WRONG - This makes production think it's localhost
+const isLocalhost = process.env.DEV_PORT === '3000' || process.env.NODE_ENV === 'development';
+```
+
+**Prevention:**
+- ALWAYS push env vars after deployment
+- ALWAYS verify redirect_uri in OAuth response
+- ALWAYS test login before announcing deployment
+
+---
+
+### Issue 3: Design Not Loading (Tailwind Styles Missing)
+
+**Symptoms:**
+- HTML loads but looks unstyled
+- Tailwind classes in HTML but no visual effect
+- No colors, spacing, or layout
+
+**Root Cause:**
+- CSS files exist but are empty placeholders
+- Tailwind CSS not compiled into CSS files
+
+**Solution:**
+```bash
+# Compile Tailwind CSS
+npx tailwindcss -i src/styles/global.css -o public/_tailwind-compiled.css --minify
+
+# Copy to all CSS files that are referenced
+cp public/_tailwind-compiled.css public/admin-agents-list.DtMnwZ1K.css
+cp public/_tailwind-compiled.css public/admin-agents-list.CPH4UiPq.css
+cp public/_tailwind-compiled.css public/expertos.CPH4UiPq.css
+
+# Verify file size (should be ~100-110KB each)
+ls -lh public/*.css
+
+# Commit and redeploy
+git add public/*.css
+git commit -m "fix: Add compiled Tailwind CSS to placeholder files"
+gcloud run deploy cr-salfagpt-ai-ft-prod --source . --region us-east4 --project salfagpt
+```
+
+**Why Localhost Works But Production Doesn't:**
+- **Localhost:** Vite dev server processes CSS on-demand in real-time
+- **Production:** CSS must be pre-compiled during build step
+- **Lesson:** Always test with `npm run build && npm run preview` before deploying
+
+---
+
+### Issue 4: Favicon 404 Error
+
+**Symptoms:**
+- Console: `favicon.ico:1 GET https://salfagpt.salfagestion.cl/favicon.ico 404`
+
+**Root Cause:**
+- Browsers automatically request `/favicon.ico`
+- Only `favicon.svg` exists
+
+**Solution:**
+```bash
+# Create minimal valid favicon.ico
+cd /Users/alec/salfagpt/public
+python3 << 'PYTHON'
+ico_data = bytes([
+    0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 32, 0, 22, 0, 0, 0, 22, 0, 0, 0,
+    40, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+])
+with open('favicon.ico', 'wb') as f:
+    f.write(ico_data)
+PYTHON
+
+# Add favicon link to index.astro
+# In <head> section:
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+# Commit and redeploy
+git add public/favicon.ico src/pages/index.astro
+git commit -m "fix: Add favicon.ico and proper favicon link"
+```
+
+---
+
+### Issue 5: Revision Not Updating / Using Old Code
+
+**Symptoms:**
+- Deployed but changes don't appear
+- Same revision number after deploy
+- Old behavior persists
+
+**Root Cause:**
+- Cloud Build cached the image
+- No actual code changes to trigger new build
+
+**Solution:**
+```bash
+# Force new revision by updating env vars or config
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --clear-env-vars
+
+# Then re-add them
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --update-env-vars="..."
+
+# Or force rebuild with --no-cache (if available)
+```
+
+---
+
+## 📊 Post-Deployment Verification
+
+### Immediate Checks (Within 5 minutes)
+
+```bash
+# 1. Homepage loads
+curl -s -o /dev/null -w "%{http_code}" https://salfagpt.salfagestion.cl/
+# Expected: 200
+
+# 2. All CSS files load
+for css in admin-agents-list.DtMnwZ1K.css admin-agents-list.CPH4UiPq.css expertos.CPH4UiPq.css; do
+  echo -n "$css: "
+  curl -s -o /dev/null -w "%{http_code}\n" https://salfagpt.salfagestion.cl/$css
+done
+# Expected: 200 for all
+
+# 3. Favicon loads
+curl -s -o /dev/null -w "%{http_code}" https://salfagpt.salfagestion.cl/favicon.ico
+# Expected: 200
+
+# 4. OAuth redirect URI correct
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "redirect_uri" | grep "salfagestion.cl"
+# Expected: Contains salfagestion.cl, NOT localhost
+
+# 5. Client ID populated
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "client_id=" | grep -v "client_id=$"
+# Expected: client_id has value, not empty
+```
+
+**All checks must pass.**
+
+---
+
+### Log Monitoring (Within 1 hour)
+
+```bash
+# Check for errors
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=cr-salfagpt-ai-ft-prod AND severity>=ERROR" \
+  --limit 20 \
+  --project salfagpt
+
+# Check for JWT_SECRET warnings
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=cr-salfagpt-ai-ft-prod AND textPayload=~\"JWT_SECRET\"" \
+  --limit 5 \
+  --project salfagpt
+
+# Check OAuth configuration logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=cr-salfagpt-ai-ft-prod AND textPayload=~\"Base URL\"" \
+  --limit 3 \
+  --project salfagpt \
+  --format="value(textPayload)"
+```
+
+**Expected:**
+- ✅ No ERROR level logs (except expected background tasks)
+- ✅ No "JWT_SECRET not configured" messages
+- ✅ Base URL shows production domain, not localhost
+
+---
+
+### Manual Testing (Within 1 hour)
+
+**Test in browser:**
+
+1. **Open:** https://salfagpt.salfagestion.cl
+2. **DevTools:** F12 → Console tab
+3. **Verify:** Zero 404 errors
+4. **Click:** "Continuar con Google"
+5. **Verify:** Google OAuth consent screen appears
+6. **Login:** With @salfagestion.cl account
+7. **Verify:** Redirects to /chat after login
+8. **Test:** Create agent, send message
+9. **Verify:** AI responds correctly
+
+**If any step fails:** Check logs, fix issue, redeploy.
+
+---
+
+## 🔄 Rollback Procedure
+
+**If deployment causes issues:**
+
+```bash
+# 1. List recent revisions
+gcloud run revisions list \
+  --service cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --limit 10
+
+# 2. Identify last known good revision
+LAST_GOOD_REVISION="cr-salfagpt-ai-ft-prod-00XXX-xxx"
+
+# 3. Rollback traffic
+gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
+  --to-revisions=${LAST_GOOD_REVISION}=100 \
+  --region us-east4 \
+  --project salfagpt
+
+# 4. Verify
+curl -s -o /dev/null -w "%{http_code}" https://salfagpt.salfagestion.cl/
+# Expected: 200
+
+# 5. Investigate issue in logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.revision_name=${LAST_GOOD_REVISION}" \
+  --limit 50 \
+  --project salfagpt
+```
+
+---
+
+## 📝 Deployment Checklist Template
+
+**Copy this for each deployment:**
+
+```markdown
+## Deployment - [Date]
+
+### Pre-Deployment
+- [ ] Git commit completed
+- [ ] `npm run build` successful
+- [ ] `npm run type-check` passes (0 errors)
+- [ ] .env file verified (13 variables)
+- [ ] GCP account: alec@salfacloud.cl
+- [ ] GCP project: salfagpt
+- [ ] Service: cr-salfagpt-ai-ft-prod
+- [ ] Region: us-east4
+
+### Deployment
+- [ ] Source deployed to Cloud Run
+- [ ] Build completed (~10 min)
+- [ ] New revision created: 00XXX-xxx
+- [ ] Traffic routed: 100%
+
+### Environment Variables
+- [ ] All 13 env vars pushed
+- [ ] GOOGLE_CLIENT_ID verified
+- [ ] PUBLIC_BASE_URL verified
+- [ ] JWT_SECRET verified
+
+### Verification
+- [ ] Homepage: HTTP 200
+- [ ] CSS files: HTTP 200
+- [ ] Favicon: HTTP 200
+- [ ] OAuth redirect: production URL
+- [ ] Client ID: populated
+- [ ] No 404 errors in console
+- [ ] Design loads completely
+
+### Manual Testing
+- [ ] Login works
+- [ ] Agent creation works
+- [ ] Message sending works
+- [ ] AI responds correctly
+
+### Documentation
+- [ ] DEPLOYMENT_YYYY-MM-DD.md created
+- [ ] Revision number documented
+- [ ] Issues fixed documented
+- [ ] Verification results documented
+```
+
+---
+
+## 🎯 Quick Reference Commands
+
+### Deploy (Full Process)
+```bash
+# Navigate to project
+cd /Users/alec/salfagpt
+
+# Verify build
+npm run build && npm run type-check
+
+# Commit changes
+git add -A
+git commit -m "fix: [description]"
+
+# Deploy
+gcloud run deploy cr-salfagpt-ai-ft-prod \
+  --source . \
+  --region us-east4 \
+  --project salfagpt \
+  --platform managed \
+  --allow-unauthenticated \
+  --min-instances 1 \
+  --max-instances 50 \
+  --memory 4Gi \
+  --cpu 2 \
+  --timeout 300s \
+  --quiet
+
+# Push env vars
+source .env
+gcloud run services update cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --update-env-vars="GOOGLE_CLOUD_PROJECT=salfagpt,NODE_ENV=production,GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID},GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET},JWT_SECRET=${JWT_SECRET},PUBLIC_BASE_URL=${PUBLIC_BASE_URL},SESSION_COOKIE_NAME=${SESSION_COOKIE_NAME},SESSION_MAX_AGE=${SESSION_MAX_AGE},CHUNK_SIZE=${CHUNK_SIZE},CHUNK_OVERLAP=${CHUNK_OVERLAP},EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE},EMBEDDING_MODEL=${EMBEDDING_MODEL}"
+
+# Verify
+curl -s -o /dev/null -w "%{http_code}\n" https://salfagpt.salfagestion.cl/
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "redirect_uri"
+```
+
+### Rollback (Emergency)
+```bash
+# List revisions
+gcloud run revisions list --service cr-salfagpt-ai-ft-prod --region us-east4 --project salfagpt --limit 5
+
+# Rollback to previous
+gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
+  --to-revisions=cr-salfagpt-ai-ft-prod-00XXX-xxx=100 \
+  --region us-east4 \
+  --project salfagpt
+```
+
+### Check Status
+```bash
+# Current revision
+gcloud run services describe cr-salfagpt-ai-ft-prod \
+  --region us-east4 \
+  --project salfagpt \
+  --format="value(status.latestReadyRevisionName)"
+
+# Recent logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=cr-salfagpt-ai-ft-prod" \
+  --limit 20 \
+  --project salfagpt
+```
+
+---
+
+## 🚨 Critical Rules
+
+### 1. ✅ ALWAYS Commit Before Deploying
+
+**Rule:** Every deployment must have a git commit.
+
+**Why:** 
+- Enables rollback to specific version
+- Documents what changed
+- Tracks deployment history
+
+**Verification:**
+```bash
+git log --oneline -1
+# Should show your recent commit
+```
+
+---
+
+### 2. ✅ ALWAYS Push Environment Variables
+
+**Rule:** After EVERY deployment, verify and update environment variables.
+
+**Why:**
+- OAuth requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+- Sessions require JWT_SECRET
+- Redirect requires PUBLIC_BASE_URL
+
+**Verification:**
+```bash
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect | grep "client_id="
+# Should show populated client_id, not empty
+```
+
+---
+
+### 3. ✅ ALWAYS Test Production Build Locally First
+
+**Rule:** Run `npm run build && npm run preview` before deploying.
+
+**Why:**
+- Catches CSS extraction issues
+- Catches asset path problems
+- Catches build-time errors
+
+**Verification:**
+```bash
+npm run build  # Must succeed
+npm run preview  # Test on http://localhost:4321
+# Open in browser, check console for 404s
+```
+
+---
+
+### 4. ✅ ALWAYS Verify OAuth Redirect URI
+
+**Rule:** After deployment, confirm redirect_uri uses production domain.
+
+**Why:**
+- Wrong redirect_uri breaks OAuth login
+- Users can't login if redirect_uri is localhost
+
+**Verification:**
+```bash
+curl -s -D - https://salfagpt.salfagestion.cl/auth/login-redirect \
+  | grep "redirect_uri" \
+  | grep "salfagestion.cl"
+# Must match production domain
+```
+
+---
+
+### 5. ✅ ALWAYS Check Logs After Deployment
+
+**Rule:** Monitor logs for 15 minutes after deployment.
+
+**Why:**
+- Catch runtime errors
+- Verify env vars loaded correctly
+- Confirm no authentication issues
+
+**Verification:**
+```bash
+gcloud logging read "resource.type=cloud_run_revision AND severity>=WARNING" \
+  --limit 20 \
+  --project salfagpt \
+  --format="table(timestamp,severity,textPayload)"
+```
+
+---
+
+## 📚 Related Documentation
+
+### Internal Rules
+- `.cursor/rules/alignment.mdc` - Core principles (data persistence, security)
+- `.cursor/rules/deployment.mdc` - General deployment rules (Flow platform)
+- `.cursor/rules/env.mdc` - Environment variable management
+- `.cursor/rules/gcp-project-consistency.mdc` - GCP configuration
+- `.cursor/rules/privacy.mdc` - Security and authentication
+
+### Deployment Docs
+- `docs/LocalToProduction.md` - Complete deployment guide
+- `DEPLOYMENT_2025-11-13.md` - Today's deployment (reference example)
+- `docs/DEPLOYMENT_SUCCESS.md` - Previous successful deployment
+
+### Configuration Files
+- `.env` - Environment variables (NOT in git)
+- `Dockerfile` - Container build instructions
+- `astro.config.mjs` - Astro configuration
+- `tailwind.config.js` - Tailwind CSS configuration
+
+---
+
+## ✅ Success Criteria
+
+A successful production deployment should achieve:
+
+### Technical
+- ✅ Build completes without errors
+- ✅ All assets return HTTP 200
+- ✅ No 404 errors in browser console
+- ✅ All environment variables configured
+- ✅ OAuth redirect uses production URL
+- ✅ Zero ERROR logs in first hour
+
+### Functional
+- ✅ Homepage loads with correct design
+- ✅ OAuth login flow completes successfully
+- ✅ Users can create agents
+- ✅ Users can send messages
+- ✅ AI responds correctly
+- ✅ Admin pages accessible (if user has permission)
+
+### Documentation
+- ✅ Git commit with changes
+- ✅ Deployment document created (DEPLOYMENT_YYYY-MM-DD.md)
+- ✅ Revision number tracked
+- ✅ Issues and fixes documented
+
+---
+
+## 🎓 Lessons Learned (2025-11-13)
+
+### What We Learned Today
+
+1. **CSS in Production ≠ CSS in Development**
+   - Dev server processes CSS on-demand
+   - Production needs pre-compiled CSS files
+   - Always test: `npm run build && npm run preview`
+
+2. **Empty Placeholder Files Break Design**
+   - Creating empty CSS files prevents 404s
+   - But design still doesn't load without actual CSS
+   - Must compile Tailwind and copy to placeholder files
+
+3. **Environment Variables Are Critical**
+   - OAuth fails completely without GOOGLE_CLIENT_ID
+   - Redirects fail without PUBLIC_BASE_URL
+   - Must push env vars AFTER deployment
+
+4. **Localhost Detection Must Be Precise**
+   - Checking `NODE_ENV=development` is too broad
+   - Only check `DEV_PORT=3000` for localhost
+   - Production should NEVER use localhost URLs
+
+5. **Revisions Need Traffic Routing**
+   - Deploying creates revision but may not activate it
+   - Use `update-traffic` to switch to new revision
+   - Verify active revision with `revisions list`
+
+---
+
+## 🚀 Deployment Summary Template
+
+**Create this document for EVERY deployment:**
+
+```markdown
+# Deployment - [YYYY-MM-DD]
+
+## Info
+- **Date:** [YYYY-MM-DD HH:MM]
+- **Branch:** [branch-name]
+- **Revision:** cr-salfagpt-ai-ft-prod-00XXX-xxx
+- **Deployed By:** [name]
+
+## Changes
+- [Change 1]
+- [Change 2]
+- [Change 3]
+
+## Commits
+- [commit-hash] - [commit message]
+
+## Issues Fixed
+1. [Issue 1] - [How it was fixed]
+2. [Issue 2] - [How it was fixed]
+
+## Verification
+- [ ] Homepage loads (HTTP 200)
+- [ ] All assets load (HTTP 200)
+- [ ] OAuth login works
+- [ ] Design loads correctly
+- [ ] No console errors
+
+## Notes
+- [Any special notes]
+- [Known issues]
+- [Follow-up items]
+```
+
+---
+
+## 🔗 Integration with Other Rules
+
+### Aligns with `.cursor/rules/alignment.mdc`
+- ✅ Data persistence (env vars in Cloud Run)
+- ✅ Security by default (OAuth configuration)
+- ✅ Graceful degradation (proper error handling)
+
+### Aligns with `.cursor/rules/deployment.mdc`
+- ✅ Environment variable management
+- ✅ GCP project consistency
+- ✅ Production readiness verification
+
+### Aligns with `.cursor/rules/privacy.mdc`
+- ✅ Secure authentication (OAuth + JWT)
+- ✅ Session management (HTTP-only cookies)
+- ✅ Environment-specific configuration
+
+---
+
+## 📋 AI Assistant Protocol
+
+**When user requests production deployment, ALWAYS:**
+
+1. **Ask for confirmation**
+   ```
+   🚨 Production Deployment Requested
+   
+   This will deploy to: https://salfagpt.salfagestion.cl
+   Service: cr-salfagpt-ai-ft-prod
+   Region: us-east4
+   
+   Have you:
+   - ✅ Tested locally?
+   - ✅ Committed changes?
+   - ✅ Verified .env variables?
+   
+   Proceed with deployment? (yes/no)
+   ```
+
+2. **Follow complete protocol**
+   - Run all pre-deployment checks
+   - Execute deployment command
+   - Push environment variables
+   - Verify deployment
+   - Test manually
+   - Document results
+
+3. **Create deployment document**
+   - DEPLOYMENT_YYYY-MM-DD.md
+   - Include all changes, commits, verifications
+   - Document any issues and fixes
+
+4. **Report results**
+   - Show verification results
+   - Highlight any issues
+   - Provide testing instructions
+
+---
+
+**Last Updated:** 2025-11-13  
+**Version:** 1.0.0  
+**Status:** ✅ Production Ready  
+**Always Apply:** YES  
+**Project:** salfagpt (SalfaGPT/Flow)  
+**Validated:** Deployment 00056-gc6 (successful)
+
+---
+
+**Remember:** Production deployments affect real users. Follow this protocol completely for every deployment. Missing even one step (especially environment variables) can break critical functionality like OAuth login.
