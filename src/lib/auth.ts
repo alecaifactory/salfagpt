@@ -33,10 +33,11 @@ const JWT_SECRET = process.env.JWT_SECRET
 // CRITICAL FIX: Detect if we're running on localhost
 // Use localhost URL when running locally, regardless of PUBLIC_BASE_URL env var
 // Check DEV_PORT (set when running npm run dev) to determine if we're in local development
-const isLocalhost = process.env.DEV_PORT === '3000' || process.env.NODE_ENV === 'development';
+// In production, NODE_ENV will be 'production' and DEV_PORT will not be set
+const isLocalhost = process.env.DEV_PORT === '3000';
 
 const BASE_URL = isLocalhost
-  ? 'http://localhost:3000' // Force localhost when running locally
+  ? 'http://localhost:3000' // Force localhost when running locally (npm run dev)
   : (process.env.PUBLIC_BASE_URL 
       || ENV_CONFIG?.baseUrl 
       || import.meta.env.PUBLIC_BASE_URL 
