@@ -620,7 +620,8 @@
       "collectionGroup": "context_sources",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "organizationId", "order": "ASCENDING" }
+        { "fieldPath": "organizationId", "order": "ASCENDING" },
+        { "fieldPath": "addedAt", "order": "DESCENDING" }
       ]
     },
     {

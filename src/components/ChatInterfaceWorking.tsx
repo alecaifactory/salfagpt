@@ -35,6 +35,7 @@ import ReferencePanel from './ReferencePanel';
 import StellaMarkerTool from './StellaMarkerTool_v2';
 import StellaSidebarChat, { type StellaAttachment } from './StellaSidebarChat';
 import ScreenshotAnnotator from './ScreenshotAnnotator';
+import CreateFolderModal from './CreateFolderModal'; // ✅ NEW: Elegant folder creation modal
 import DomainPromptModal from './DomainPromptModal'; // ✅ NEW
 import AgentPromptModal from './AgentPromptModal'; // ✅ NEW
 import AgentPromptEnhancer from './AgentPromptEnhancer'; // ✅ NEW: AI-powered prompt enhancement
@@ -190,6 +191,7 @@ interface Message {
   thinkingSteps?: ThinkingStep[];
   responseTime?: number; // Time in milliseconds to generate response
   isStreaming?: boolean; // Whether message is currently streaming
+  isLoadingReferences?: boolean; // Whether references are being loaded
   references?: Array<{
     id: number;
     sourceId: string;
@@ -305,6 +307,9 @@ interface Folder {
   name: string;
   createdAt: Date;
   conversationCount: number;
+  parentFolderId?: string; // ✅ NEW: For hierarchical folders
+  level?: number; // ✅ NEW: Folder depth (0=root, 1=subfolder, 2=sub-subfolder)
+  children?: Folder[]; // ✅ NEW: Nested folders
 }
 
 interface ChatInterfaceWorkingProps {
@@ -362,6 +367,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState('');
   const [showAgentContextModal, setShowAgentContextModal] = useState(false);
+  
+  // ✅ NEW: Create Folder Modal state
+  const [showCreateFolderModal, setShowCreateFolderModal] = useState(false);
+  const [createFolderParentId, setCreateFolderParentId] = useState<string | undefined>(undefined);
+  const [createFolderLevel, setCreateFolderLevel] = useState(0);
   
   // ✨ NEW: Expert Review System States
   const [showSupervisorPanel, setShowSupervisorPanel] = useState(false);
@@ -497,7 +507,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showArchivedConversations, setShowArchivedConversations] = useState(false);
   const [showArchivedSection, setShowArchivedSection] = useState(false);
   const [expandedArchivedAgents, setExpandedArchivedAgents] = useState(false); // Agents folder collapsed by default
-  const [expandedArchivedChats, setExpandedArchivedChats] = useState(false); // Chats folder collapsed by default
+  const [expandedArchivedChats, setExpandedArchivedChats] = useState(false); // Historial folder collapsed by default
   
   // Timer state - REMOVED: Was causing unnecessary re-renders every second
   // const [currentTime, setCurrentTime] = useState(Date.now());
@@ -671,7 +681,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // NEW: Load folders from Firestore
   const loadFolders = async () => {
     try {
-      console.log('📥 Cargando proyectos desde Firestore...');
+      console.log('📥 Cargando carpetas desde Firestore...');
       const response = await fetch(`/api/folders?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
@@ -684,10 +694,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setFolders(foldersWithDates);
         
         if (foldersWithDates.length > 0) {
-          console.log(`✅ ${foldersWithDates.length} proyectos cargados desde Firestore`);
-          console.log('📁 Proyectos:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
+          console.log(`✅ ${foldersWithDates.length} carpetas cargadas desde Firestore`);
+          console.log('📁 Carpetas:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
         } else {
-          console.log('ℹ️ No hay proyectos guardados');
+          console.log('ℹ️ No hay carpetas guardadas');
         }
       }
     } catch (error) {
@@ -1510,40 +1520,92 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ✅ NEW: Build hierarchical folder structure
+  const buildFolderHierarchy = (flatFolders: Folder[]): Folder[] => {
+    // Create a map for quick lookup
+    const folderMap = new Map<string, Folder>();
+    flatFolders.forEach(folder => {
+      folderMap.set(folder.id, { ...folder, children: [] });
+    });
+    
+    // Build hierarchy
+    const rootFolders: Folder[] = [];
+    
+    folderMap.forEach(folder => {
+      if (folder.parentFolderId) {
+        // This is a subfolder - add to parent's children
+        const parent = folderMap.get(folder.parentFolderId);
+        if (parent) {
+          parent.children = parent.children || [];
+          parent.children.push(folder);
+        } else {
+          // Parent not found - treat as root
+          rootFolders.push(folder);
+        }
+      } else {
+        // Root level folder
+        rootFolders.push(folder);
+      }
+    });
+    
+    return rootFolders;
+  };
+
   // NEW: Folder management functions
-  const createNewFolder = async (name: string) => {
+  const createNewFolder = async (name: string, parentFolderId?: string) => {
     try {
       console.log('🚀 Starting createNewFolder with name:', name);
       console.log('📋 userId:', userId);
+      console.log('📁 parentFolderId:', parentFolderId);
+      
+      // Calculate level based on parent
+      let level = 0;
+      if (parentFolderId) {
+        const parentFolder = folders.find(f => f.id === parentFolderId);
+        if (parentFolder) {
+          level = (parentFolder.level || 0) + 1;
+          
+          // ✅ LIMIT: Maximum 3 levels (0, 1, 2)
+          if (level >= 3) {
+            alert('Máximo 3 niveles de carpetas permitidos');
+            return;
+          }
+        }
+      }
       
       const response = await fetch('/api/folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, name }),
+        body: JSON.stringify({ 
+          userId, 
+          name,
+          parentFolderId,
+          level,
+        }),
       });
 
       console.log('📡 API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Proyecto creado en Firestore:', data.folder.id, 'Name:', data.folder.name);
+        console.log('✅ Carpeta creada en Firestore:', data.folder.id, 'Name:', data.folder.name, 'Level:', data.folder.level);
         console.log('📦 Folder data:', JSON.stringify(data.folder, null, 2));
         
-        // Ensure Projects section is expanded
+        // Ensure Carpetas section is expanded
         setShowProjectsSection(true);
         
         // CRITICAL: Reload from Firestore to ensure persistence
-        console.log('🔄 Recargando proyectos desde Firestore para verificar persistencia...');
+        console.log('🔄 Recargando carpetas desde Firestore para verificar persistencia...');
         await loadFolders();
-        console.log('✅ Proyecto creado y lista recargada desde Firestore');
+        console.log('✅ Carpeta creada y lista recargada desde Firestore');
       } else {
         const errorData = await response.json();
         console.error('❌ API error:', response.status, errorData);
-        alert(`Error al crear proyecto: ${errorData.error || 'Error desconocido'}`);
+        alert(`Error al crear carpeta: ${errorData.error || 'Error desconocido'}`);
       }
     } catch (error) {
       console.error('❌ Error creating folder:', error);
-      alert(`Error al crear proyecto: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      alert(`Error al crear carpeta: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -1567,7 +1629,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   };
 
   const deleteFolder = async (folderId: string) => {
-    if (!confirm('¿Eliminar este proyecto? Las conversaciones se moverán a Sin Proyecto.')) return;
+    if (!confirm('¿Eliminar esta carpeta? Las conversaciones se moverán a Sin Carpeta.')) return;
     
     try {
       const response = await fetch(`/api/folders/${folderId}`, {
@@ -1620,7 +1682,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const now = new Date();
       const optimisticChat: Conversation = {
         id: optimisticId,
-        title: 'Nuevo Chat',
+        title: 'Nueva Conversación',
         userId: userId,
         createdAt: now,
         updatedAt: now,
@@ -1648,7 +1710,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
-          title: 'Nuevo Chat', // Simple title, agent shown as tag
+          title: 'Nueva Conversación', // Simple title, agent shown as tag
           agentId, // Link to parent agent
           isAgent: false, // Mark as chat
         })
@@ -1722,8 +1784,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         // Get the current optimistic chat (may have been edited by user)
         const optimisticChat = conversations.find(c => c.id === optimisticId);
-        const userEditedTitle = optimisticChat?.title !== 'Nuevo Chat';
-        const editedTitle = optimisticChat?.title || 'Nuevo Chat';
+        const userEditedTitle = optimisticChat?.title !== 'Nueva Conversación';
+        const editedTitle = optimisticChat?.title || 'Nueva Conversación';
         
         // Replace optimistic chat with real one from Firestore
         setConversations(prev => 
@@ -1799,7 +1861,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const tempId = `temp-chat-${Date.now()}`;
         const tempChat: Conversation = {
           id: tempId,
-          title: 'Nuevo Chat',
+          title: 'Nueva Conversación',
           userId: userId,
           createdAt: now,
           updatedAt: now,
@@ -2042,6 +2104,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     if (!input.trim() || !currentConversation) return;
 
     const requestStartTime = Date.now(); // Track request start time
+    
+    // ✅ NEW: Check if this is the first message (to update title later)
+    const isFirstMessage = messages.length === 0;
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -2152,6 +2217,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
+          userEmail, // ✅ NEW: For admin contact lookup when no relevant docs found
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: finalSystemPrompt, // ✅ UPDATED: Use combined prompt
@@ -2237,9 +2303,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   accumulatedContent += data.content;
                   
                   // Update streaming message with new content
+                  // First chunk: expand the container width smoothly
                   setMessages(prev => prev.map(msg => 
                     msg.id === streamingId 
-                      ? { ...msg, content: accumulatedContent, thinkingSteps: undefined }
+                      ? { 
+                          ...msg, 
+                          content: accumulatedContent, 
+                          thinkingSteps: undefined,
+                          isStreaming: true // ✅ Mark as streaming to trigger width animation
+                        }
                       : msg
                   ));
                 } else if (data.type === 'complete') {
@@ -2393,6 +2465,30 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     return updated;
                   });
 
+                } else if (data.type === 'title') {
+                  // ✅ NEW: Receive title chunks and update conversation title progressively
+                  const titleChunk = data.chunk;
+                  const convId = data.conversationId;
+                  
+                  console.log('🏷️ Received title chunk:', titleChunk, 'for conversation:', convId);
+                  
+                  // Update conversation title in state (streaming effect)
+                  setConversations(prev => prev.map(c => {
+                    if (c.id === convId) {
+                      const currentTitle = c.title || '';
+                      // Replace generic titles with first chunk, append subsequent chunks
+                      const isGenericTitle = currentTitle.startsWith('Nuevo Agente') || 
+                                            currentTitle.startsWith('Nueva Conversación');
+                      const newTitle = isGenericTitle
+                        ? titleChunk // Replace generic title with first chunk
+                        : currentTitle + titleChunk; // Append subsequent chunks
+                      
+                      console.log('  Current:', currentTitle, '→ New:', newTitle);
+                      return { ...c, title: newTitle };
+                    }
+                    return c;
+                  }));
+                  
                 } else if (data.type === 'error') {
                   throw new Error(data.error);
                 }
@@ -3628,6 +3724,230 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ✅ NEW: Recursive function to render folder with children
+  const renderFolderWithChildren = (folder: Folder, depth: number): React.ReactNode => {
+    const folderChats = conversations.filter(c => c.folderId === folder.id && c.status !== 'archived');
+    const isExpanded = expandedFolders.has(folder.id);
+    const indentPx = depth * 12; // 12px per level (depth 0=0px, 1=12px, 2=24px)
+    const canAddSubfolder = (folder.level || 0) < 2; // Max 3 levels (0, 1, 2)
+    
+    return (
+      <div key={folder.id} style={{ marginLeft: `${indentPx}px` }}>
+        <div className="border border-slate-200 dark:border-slate-600 rounded-md overflow-hidden">
+          {/* Folder Header */}
+          <div
+            className="p-1.5 bg-slate-50 dark:bg-slate-700/50 hover:bg-green-50 dark:hover:bg-green-900/20 group transition-colors"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.add('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+            }}
+            onDragLeave={(e) => {
+              e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
+              const chatId = e.dataTransfer.getData('chatId');
+              if (chatId) {
+                moveChatToFolder(chatId, folder.id);
+                setExpandedFolders(prev => new Set([...prev, folder.id]));
+              }
+            }}
+          >
+            {editingFolderId === folder.id ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  value={editingFolderName}
+                  onChange={(e) => setEditingFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      renameFolder(folder.id, editingFolderName);
+                    } else if (e.key === 'Escape') {
+                      setEditingFolderId(null);
+                      setEditingFolderName('');
+                    }
+                  }}
+                  onBlur={() => renameFolder(folder.id, editingFolderName)}
+                  className="flex-1 text-xs px-2 py-1 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-slate-200"
+                  autoFocus
+                />
+                <button
+                  onClick={() => renameFolder(folder.id, editingFolderName)}
+                  className="p-1 text-green-600 hover:bg-green-50 rounded"
+                >
+                  <Check className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingFolderId(null);
+                    setEditingFolderName('');
+                  }}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                >
+                  <XIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    setExpandedFolders(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(folder.id)) {
+                        newSet.delete(folder.id);
+                      } else {
+                        newSet.add(folder.id);
+                      }
+                      return newSet;
+                    });
+                  }}
+                  className="flex items-center gap-1.5 flex-1 text-left"
+                  style={{ maxWidth: '90%' }}
+                >
+                  <span className={`transform transition-transform text-slate-500 dark:text-slate-400 ${isExpanded ? 'rotate-90' : ''}`}>
+                    ▶
+                  </span>
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
+                    {folder.name}
+                  </span>
+                  <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold whitespace-nowrap">
+                    {folderChats.length}
+                  </span>
+                </button>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {canAddSubfolder && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCreateFolderParentId(folder.id);
+                        setCreateFolderLevel((folder.level || 0) + 1);
+                        setShowCreateFolderModal(true);
+                      }}
+                      className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-700 rounded"
+                      title="Crear subcarpeta"
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingFolderId(folder.id);
+                      setEditingFolderName(folder.name);
+                    }}
+                    className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
+                    title="Renombrar"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteFolder(folder.id);
+                    }}
+                    className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
+                    title="Eliminar"
+                  >
+                    <XIcon className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Content when expanded: conversations + subfolders */}
+          {isExpanded && (
+            <div className="bg-white dark:bg-slate-800">
+              {/* Conversations in this folder */}
+              {folderChats.length > 0 && (
+                <div className="px-2 py-1 space-y-1">
+                  {folderChats.map(chat => (
+                    <div
+                      key={chat.id}
+                      className={`w-full p-1.5 rounded-md transition-colors group ${
+                        currentConversation === chat.id
+                          ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                      }`}
+                      onClick={() => setCurrentConversation(chat.id)}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('chatId', chat.id);
+                      }}
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        {chat.agentId && (
+                          <div className="flex items-center gap-1">
+                            <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                              <MessageSquare className="w-2.5 h-2.5" />
+                              {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1" style={{ maxWidth: '90%' }}>
+                            <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block truncate">
+                              {chat.title}
+                            </span>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                              {chat.lastMessageAt instanceof Date 
+                                ? chat.lastMessageAt.toLocaleDateString()
+                                : new Date(chat.lastMessageAt).toLocaleDateString()
+                              }
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startEditingConversation(chat);
+                              }}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
+                              title="Editar nombre"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveChatToFolder(chat.id, null);
+                              }}
+                              className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900 rounded"
+                              title="Quitar de carpeta"
+                            >
+                              <XIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Empty state when no conversations */}
+              {folderChats.length === 0 && (folder.children?.length || 0) === 0 && (
+                <div className="px-2 py-1 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Arrastra conversaciones aquí
+                </div>
+              )}
+              
+              {/* Subfolders (recursive) - rendered INSIDE parent */}
+              {folder.children && folder.children.length > 0 && (
+                <div className="px-2 pb-1 space-y-1 border-t border-slate-100 dark:border-slate-700/50 pt-1">
+                  {folder.children.map(child => renderFolderWithChildren(child, depth + 1))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
       {/* Left Sidebar - Conversations */}
@@ -3867,7 +4187,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   ▶
                 </span>
                 <FileText className="w-3.5 h-3.5" />
-                <span>Proyectos</span>
+                <span>Carpetas</span>
                 {isLoadingCounts ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-green-600 dark:text-green-400" />
                 ) : (
@@ -3879,17 +4199,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const name = prompt('Nombre del nuevo proyecto:');
-                  if (name && name.trim()) {
-                    console.log('📝 Creating project with name:', name.trim());
-                    createNewFolder(name.trim());
-                  } else if (name !== null) {
-                    // User clicked OK but entered empty name
-                    alert('Por favor ingresa un nombre para el proyecto');
-                  }
+                  setCreateFolderParentId(undefined);
+                  setCreateFolderLevel(0);
+                  setShowCreateFolderModal(true);
                 }}
                 className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900 rounded"
-                title="Nuevo Proyecto"
+                title="Nueva Carpeta"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -3897,200 +4212,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             
             {showProjectsSection && (
               <div className="px-2 pb-1 space-y-1">
-                {folders.map(folder => {
-                  const folderChats = conversations.filter(c => c.folderId === folder.id && c.status !== 'archived');
-                  const isExpanded = expandedFolders.has(folder.id);
-                  
-                  return (
-                    <div
-                      key={folder.id}
-                      className="border border-slate-200 dark:border-slate-600 rounded-md overflow-hidden"
-                    >
-                      {/* Folder Header with Drag & Drop */}
-                      <div
-                        className="p-1.5 bg-slate-50 dark:bg-slate-700/50 hover:bg-green-50 dark:hover:bg-green-900/20 group transition-colors"
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.classList.add('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
-                        }}
-                        onDragLeave={(e) => {
-                          e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          e.currentTarget.classList.remove('bg-green-100', 'dark:bg-green-900/20', 'border-green-400');
-                          const chatId = e.dataTransfer.getData('chatId');
-                          if (chatId) {
-                            moveChatToFolder(chatId, folder.id);
-                            // Auto-expand folder when chat is dropped
-                            setExpandedFolders(prev => new Set([...prev, folder.id]));
-                          }
-                        }}
-                      >
-                        {editingFolderId === folder.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="text"
-                              value={editingFolderName}
-                              onChange={(e) => setEditingFolderName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  renameFolder(folder.id, editingFolderName);
-                                } else if (e.key === 'Escape') {
-                                  setEditingFolderId(null);
-                                  setEditingFolderName('');
-                                }
-                              }}
-                              onBlur={() => renameFolder(folder.id, editingFolderName)}
-                              className="flex-1 text-xs px-2 py-1 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-slate-200"
-                              autoFocus
-                            />
-                            <button
-                              onClick={() => renameFolder(folder.id, editingFolderName)}
-                              className="p-1 text-green-600 hover:bg-green-50 rounded"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setEditingFolderId(null);
-                                setEditingFolderName('');
-                              }}
-                              className="p-1 text-red-600 hover:bg-red-50 rounded"
-                            >
-                              <XIcon className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <button
-                              onClick={() => {
-                                setExpandedFolders(prev => {
-                                  const newSet = new Set(prev);
-                                  if (newSet.has(folder.id)) {
-                                    newSet.delete(folder.id);
-                                  } else {
-                                    newSet.add(folder.id);
-                                  }
-                                  return newSet;
-                                });
-                              }}
-                              className="flex items-center gap-1.5 flex-1 text-left"
-                              style={{ maxWidth: '90%' }}
-                            >
-                              <span className={`transform transition-transform text-slate-500 dark:text-slate-400 ${isExpanded ? 'rotate-90' : ''}`}>
-                                ▶
-                              </span>
-                              <span className="text-xs font-medium text-slate-700 dark:text-slate-200 truncate">
-                                {folder.name}
-                              </span>
-                              <span className="px-1.5 py-0.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-[10px] font-semibold whitespace-nowrap">
-                                {folderChats.length}
-                              </span>
-                            </button>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => {
-                                  setEditingFolderId(folder.id);
-                                  setEditingFolderName(folder.name);
-                                }}
-                                className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
-                                title="Renombrar"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => deleteFolder(folder.id)}
-                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
-                                title="Eliminar"
-                              >
-                                <XIcon className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Chats under this folder - Collapsible */}
-                      {isExpanded && folderChats.length > 0 && (
-                        <div className="px-2 py-1 space-y-1 bg-white dark:bg-slate-800">
-                          {folderChats.map(chat => (
-                            <div
-                              key={chat.id}
-                              className={`w-full p-1.5 rounded-md transition-colors group ${
-                                currentConversation === chat.id
-                                  ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
-                                  : 'hover:bg-slate-50 dark:hover:bg-slate-700'
-                              }`}
-                              onClick={() => setCurrentConversation(chat.id)}
-                            >
-                              <div className="flex flex-col gap-1.5">
-                                {/* Agent Tag */}
-                                {chat.agentId && (
-                                  <div className="flex items-center gap-1">
-                                    <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
-                                      <MessageSquare className="w-2.5 h-2.5" />
-                                      {conversations.find(c => c.id === chat.agentId)?.title || 'Agente'}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {/* Chat Title and Actions */}
-                                <div className="flex items-center justify-between">
-                                  <div className="flex-1" style={{ maxWidth: '90%' }}>
-                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-200 block truncate">
-                                      {chat.title}
-                                    </span>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                      {chat.lastMessageAt instanceof Date 
-                                        ? chat.lastMessageAt.toLocaleDateString()
-                                        : new Date(chat.lastMessageAt).toLocaleDateString()
-                                      }
-                                    </p>
-                                  </div>
-                                  
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        startEditingConversation(chat);
-                                      }}
-                                      className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-700 rounded"
-                                      title="Editar nombre"
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Remove from folder (move back to Chats section)
-                                        moveChatToFolder(chat.id, null);
-                                      }}
-                                      className="p-1 text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900 rounded"
-                                      title="Quitar de proyecto"
-                                    >
-                                      <XIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      
-                      {/* Empty state when folder is expanded but has no chats */}
-                      {isExpanded && folderChats.length === 0 && (
-                        <div className="px-2 py-1 text-center text-xs text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800">
-                          Arrastra chats aquí
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {buildFolderHierarchy(folders).map(folder => renderFolderWithChildren(folder, 0))}
                 {folders.length === 0 && (
                   <div className="px-2 py-1 text-center text-xs text-slate-500">
-                    No hay proyectos creados
+                    No hay carpetas creadas
                   </div>
                 )}
               </div>
@@ -4108,7 +4233,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   ▶
                 </span>
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>Chats</span>
+                <span>Historial</span>
                 {isLoadingCounts ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-600 dark:text-purple-400" />
                 ) : (
@@ -4139,7 +4264,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   if (filteredChats.length === 0) {
                     return (
                       <div className="px-2 py-1 text-center text-xs text-slate-500">
-                        {selectedAgent ? 'No hay chats para este agente' : 'No hay chats sin proyecto'}
+                        {selectedAgent ? 'No hay conversaciones para este agente' : 'No hay conversaciones sin carpeta'}
                       </div>
                     );
                   }
@@ -5188,14 +5313,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               }}
             />
             
-            {/* Nuevo Chat Button - Only show when agent is selected - Moved to right */}
+            {/* Nueva Conversación Button - Only show when agent is selected - Moved to right */}
             {selectedAgent && (
               <button
                 onClick={() => createNewChatForAgent(selectedAgent)}
                 className="px-2 py-1.5 text-xs bg-purple-600 text-white hover:bg-purple-700 rounded-md transition-colors flex items-center gap-1.5 font-semibold shadow-sm"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Nuevo Chat
+                Nueva Conversación
               </button>
             )}
             
@@ -5246,7 +5371,22 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     </div>
                   </div>
                 ) : (
-                  <div className="inline-block max-w-xl rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <div 
+                    className={`inline-block rounded-md bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-sm transition-all duration-500 ease-out ${
+                      // Progressive width animation:
+                      // 1. During thinking steps: w-fit (fit to status text)
+                      // 2. Before streaming (steps complete, no content yet): w-[90%] (expand)
+                      // 3. During streaming: w-[90%] (maintain)
+                      // 4. After streaming: max-w-5xl (final state, wider for complete content)
+                      msg.thinkingSteps && msg.thinkingSteps.length > 0 && !msg.content
+                        ? 'w-fit' // Step 1: Fit to thinking steps
+                        : msg.thinkingSteps && msg.thinkingSteps.every(s => s.status === 'complete') && msg.isStreaming
+                        ? 'w-[90%]' // Step 2-3: Expand before/during streaming
+                        : msg.isStreaming
+                        ? 'w-[90%]' // During streaming
+                        : 'max-w-5xl' // Step 4: Final state (wider than before)
+                    }`}
+                  >
                     <div className="px-2 pt-1 pb-1 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
                       <span className="text-xs font-bold text-blue-600 dark:text-blue-400">SalfaGPT:</span>
                       <div className="flex items-center gap-1.5">
@@ -5329,6 +5469,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                               }))
                             }
                             references={msg.references} // Pass references for this message
+                            isLoadingReferences={msg.isStreaming && (!msg.references || msg.references.length === 0)} // Show loading while streaming and no references yet
                             onReferenceClick={(reference) => {
                               console.log('🔍 Opening reference panel:', reference);
                               setSelectedReference(reference);
@@ -7595,6 +7736,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         userId={userId}
         isOpen={showSuperAdminDomains}
         onClose={() => setShowSuperAdminDomains(false)}
+      />
+      
+      {/* ✅ NEW: Create Folder Modal */}
+      <CreateFolderModal
+        isOpen={showCreateFolderModal}
+        onClose={() => setShowCreateFolderModal(false)}
+        onCreateFolder={(name) => createNewFolder(name, createFolderParentId)}
+        parentFolderName={createFolderParentId ? folders.find(f => f.id === createFolderParentId)?.name : undefined}
+        folderLevel={createFolderLevel}
       />
     </div>
   );

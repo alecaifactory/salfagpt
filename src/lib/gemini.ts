@@ -520,6 +520,43 @@ export async function generateConversationTitle(firstMessage: string): Promise<s
   }
 }
 
+/**
+ * ✅ NEW: Stream conversation title generation for real-time UI updates
+ * Generates title token-by-token for smooth streaming effect
+ */
+export async function* streamConversationTitle(firstMessage: string): AsyncGenerator<string> {
+  try {
+    // ✅ Use streaming API
+    const stream = await genAI.models.generateContentStream({
+      model: 'gemini-2.5-flash',
+      contents: [{ role: 'user', parts: [{ text: firstMessage }] }],
+      config: {
+        systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else. No quotes, no punctuation at the end.',
+        temperature: 0.7,
+        maxOutputTokens: 20,
+      }
+    });
+
+    let fullTitle = '';
+    
+    // Stream each chunk
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        fullTitle += chunk.text;
+        yield chunk.text;
+      }
+    }
+
+    // Save final title to Firestore (for persistence)
+    // This will be called after streaming completes
+    return fullTitle.trim().replace(/^["']|["']$/g, '');
+    
+  } catch (error) {
+    console.error('Error streaming title:', error);
+    yield 'New Conversation';
+  }
+}
+
 // Analyze image using Gemini's multimodal capabilities
 export async function analyzeImage(
   imageData: string, // Base64 or URL

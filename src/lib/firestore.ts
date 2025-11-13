@@ -236,6 +236,8 @@ export interface Folder {
   name: string;
   createdAt: Date;
   conversationCount: number;
+  parentFolderId?: string; // ✅ NEW: For hierarchical folders (subcarpetas)
+  level?: number; // ✅ NEW: Folder depth (0=root, 1=nivel 1, 2=nivel 2) - Max 3 levels
 }
 
 export interface UserContext {
@@ -631,7 +633,12 @@ export async function getMessages(
 }
 
 // Folder Operations
-export async function createFolder(userId: string, name: string): Promise<Folder> {
+export async function createFolder(
+  userId: string, 
+  name: string, 
+  parentFolderId?: string,
+  level?: number
+): Promise<Folder> {
   const folderRef = firestore.collection(COLLECTIONS.FOLDERS).doc();
   
   const folder: Folder = {
@@ -640,6 +647,8 @@ export async function createFolder(userId: string, name: string): Promise<Folder
     name,
     createdAt: new Date(),
     conversationCount: 0,
+    parentFolderId, // ✅ NEW: Optional parent folder ID
+    level: level || 0, // ✅ NEW: Folder depth (default 0 = root)
   };
 
   await folderRef.set(folder);

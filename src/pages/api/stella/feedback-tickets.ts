@@ -92,6 +92,12 @@ export const GET: APIRoute = async ({ request, cookies }) => {
           createdByName: data.reportedByName || userData?.name || 'Usuario',
           createdAt: data.createdAt?.toDate?.() || new Date(),
           isRead: readTicketIds.has(doc.id),
+          // Extended fields for filtering
+          priority: data.priority || 'medium',
+          userStars: data.originalFeedback?.rating || 0,
+          domain: data.domain || data.userDomain || (data.reportedByEmail || userData?.email || '').split('@')[1],
+          organizationId: data.organizationId,
+          organizationName: data.organizationName,
         };
       })
     );

@@ -88,6 +88,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     let ragStats = null;
     let ragHadFallback = false;
     let ragResults: any[] = []; // ✅ Store RAG results for building references
+    let systemInstructionToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.';
     
     // RAG configuration (optimized for technical documents like SSOMA)
     const ragTopK = body.ragTopK || 10;
@@ -105,9 +106,11 @@ export const POST: APIRoute = async ({ params, request }) => {
           console.log(`  Effective Agent ID: ${effectiveAgentId}${isChat ? ' (chat parent)' : ' (direct agent)'}`);
           
           // ✅ NEW: Use optimized search (BigQuery first, Firestore fallback)
+          // Search with LOW threshold (0.3) to get all potentially relevant chunks
+          // We'll filter by 70% threshold AFTER getting results (to show real similarities)
           const searchResult = await searchRelevantChunksOptimized(userId, message, {
-            topK: ragTopK,
-            minSimilarity: ragMinSimilarity,
+            topK: ragTopK * 2, // Get more results to filter
+            minSimilarity: 0.3, // Low threshold to get all candidates
             activeSourceIds,
             preferBigQuery: true // Try BigQuery first for 6x speed improvement
           });
@@ -125,10 +128,11 @@ export const POST: APIRoute = async ({ params, request }) => {
             console.log(`  ${ragStats.totalTokens} tokens, Avg similarity: ${(ragStats.avgSimilarity * 100).toFixed(1)}%`);
             console.log(`  Sources: ${ragStats.sources.map((s: { name: string; chunkCount: number }) => `${s.name} (${s.chunkCount} chunks)`).join(', ')}`);
           } else if (searchResult.results.length > 0) {
-            // Found chunks but below 70% threshold - inform user instead of using low-quality docs
+            // Found chunks but below 70% threshold
+            // NEW APPROACH: Show references with REAL similarity + warning about low relevance
             const bestSimilarity = Math.max(...searchResult.results.map(r => r.similarity || 0));
             console.warn(`⚠️ RAG: Found ${searchResult.results.length} chunks but best similarity ${(bestSimilarity * 100).toFixed(1)}% < threshold ${(ragMinSimilarity * 100).toFixed(0)}%`);
-            console.log('  → Will inform user that no relevant documents are available');
+            console.log('  → Will show references with REAL similarities + warning about moderate-low relevance');
             
             // Log for analytics
             await logNoRelevantDocuments({
@@ -143,11 +147,32 @@ export const POST: APIRoute = async ({ params, request }) => {
             // Get admin contact information
             const userEmail = body.userEmail || '';
             const adminEmails = await getOrgAdminContactsForUser(userEmail);
+            const lowQualityDocsMessage = `
+NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 70%).
+
+INSTRUCCIONES PARA TU RESPUESTA:
+1. Informa al usuario que encontraste información relacionada pero con relevancia moderada-baja
+2. Menciona que las similitudes están entre ${((Math.min(...searchResult.results.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 70%)
+3. Recomienda verificar esta información con el documento completo o contactar a un experto
+4. Proporciona contacto del administrador si necesita documentos más específicos:
+   ${adminEmails.length > 0 ? adminEmails.map(email => `• ${email}`).join('\n   ') : 'Contacta a tu administrador'}
+5. Invita a dejar feedback en el Roadmap si esta información no fue suficiente
+
+Usa la información de los documentos encontrados para responder, pero aclara las limitaciones.`;
             
-            // Don't use low-quality context - let AI inform user instead
-            additionalContext = '';
-            ragHadFallback = true;
+            // Override system instruction with warning about low quality
+            systemInstructionToUse = systemPrompt + '\n\n' + lowQualityDocsMessage;
+            
+            // ✅ NEW: Use chunks with REAL similarities (show them even if <70%)
+            ragResults = searchResult.results; // Store for building references
+            additionalContext = buildRAGContext(searchResult.results);
+            ragUsed = true; // Use the chunks
+            ragStats = searchResult.stats;
+            ragHadFallback = false; // Not emergency fallback
+            
             console.log(`📧 Admin contacts for user guidance: ${adminEmails.join(', ')}`);
+            console.log(`  ✅ Will show ${ragResults.length} references with REAL similarities (${((Math.min(...searchResult.results.map(r => r.similarity || 0))) * 100).toFixed(1)}%-${(bestSimilarity * 100).toFixed(1)}%)`);
+            console.log('  ⚠️ AI will warn user about moderate-low relevance');
           } else {
             // NO chunks found at all
             console.log('⚠️ RAG: No chunks found above similarity threshold');
@@ -174,16 +199,17 @@ export const POST: APIRoute = async ({ params, request }) => {
       }
     }
 
-    // Prepare system instruction (may be modified if no relevant docs)
-    let systemInstructionToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.';
+    // systemInstructionToUse is modified during RAG search above if needed
+    // - If chunks <70% found: Warning message about low quality appended
+    // - If no chunks at all: No-docs message appended (done below)
     
-    // ✅ NEW: If no high-quality docs found, append admin contact message
+    // Only add no-docs message if true emergency (no chunks found at all)
     if (ragHadFallback && !ragUsed) {
       const userEmail = body.userEmail || '';
       const adminEmails = await getOrgAdminContactsForUser(userEmail);
       const noDocsMessage = generateNoRelevantDocsMessage(adminEmails, message);
       systemInstructionToUse = systemInstructionToUse + '\n\n' + noDocsMessage;
-      console.log(`📧 Added admin contact info to system prompt (${adminEmails.length} admins)`);
+      console.log(`📧 Added no-docs message to system prompt (${adminEmails.length} admins)`);
     }
     
     // Handle temporary conversations (no Firestore persistence)

@@ -151,6 +151,17 @@ export default function ContextManagementDashboard({
   const [selectedUploadId, setSelectedUploadId] = useState<string | null>(null);
   const [reviewPage, setReviewPage] = useState(0); // ✅ NEW: Pagination for review
   
+  // ✅ NEW: Organization and domain selection for SuperAdmin uploads
+  const [selectedOrgForUpload, setSelectedOrgForUpload] = useState<string>('');
+  const [selectedDomainForUpload, setSelectedDomainForUpload] = useState<string>('');
+  
+  // ✅ NEW: Filtering and sorting controls
+  const [filterByOrg, setFilterByOrg] = useState<string>(''); // SuperAdmin: filter by specific org
+  const [filterByDomain, setFilterByDomain] = useState<string>(''); // Admin/SuperAdmin: filter by domain
+  const [filterByTag, setFilterByTag] = useState<string>(''); // Filter by tag
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'size'>('date'); // Sort order
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc'); // Sort direction
+  
   // Multi-select state for sources
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const selectedSource = selectedSourceIds.length === 1 
@@ -166,6 +177,77 @@ export default function ContextManagementDashboard({
       loadFirstPage();
     }
   }, [isOpen]);
+
+  // ✅ NEW: Filtered and sorted organizations data
+  const filteredOrganizationsData = useMemo(() => {
+    if (!isOrgScoped || organizationsData.length === 0) return [];
+    
+    let filtered = [...organizationsData];
+    
+    // Filter by organization (SuperAdmin only)
+    if (filterByOrg) {
+      filtered = filtered.filter(org => org.id === filterByOrg);
+    }
+    
+    // Filter by domain
+    if (filterByDomain) {
+      filtered = filtered.map(org => ({
+        ...org,
+        domains: org.domains.filter((d: any) => d.domainId === filterByDomain)
+      })).filter(org => org.domains.length > 0);
+    }
+    
+    // Filter by tag (filter sources within domains)
+    if (filterByTag) {
+      filtered = filtered.map(org => ({
+        ...org,
+        domains: org.domains.map((domain: any) => ({
+          ...domain,
+          sources: domain.sources.filter((s: any) => 
+            s.labels && s.labels.includes(filterByTag)
+          ),
+          sourceCount: domain.sources.filter((s: any) => 
+            s.labels && s.labels.includes(filterByTag)
+          ).length
+        })).filter((d: any) => d.sourceCount > 0),
+        totalSources: org.domains.reduce((sum: number, d: any) => 
+          sum + (d.sources?.filter((s: any) => s.labels && s.labels.includes(filterByTag)).length || 0), 0
+        )
+      })).filter(org => org.totalSources > 0);
+    }
+    
+    // Sort sources within each domain
+    filtered = filtered.map(org => ({
+      ...org,
+      domains: org.domains.map((domain: any) => {
+        const sortedSources = [...domain.sources].sort((a: any, b: any) => {
+          let comparison = 0;
+          
+          switch (sortBy) {
+            case 'date':
+              const dateA = a.addedAt instanceof Date ? a.addedAt : new Date(a.addedAt);
+              const dateB = b.addedAt instanceof Date ? b.addedAt : new Date(b.addedAt);
+              comparison = dateB.getTime() - dateA.getTime();
+              break;
+            case 'name':
+              comparison = a.name.localeCompare(b.name);
+              break;
+            case 'size':
+              const sizeA = a.metadata?.originalFileSize || 0;
+              const sizeB = b.metadata?.originalFileSize || 0;
+              comparison = sizeB - sizeA;
+              break;
+          }
+          
+          return sortDirection === 'asc' ? -comparison : comparison;
+        });
+        
+        return { ...domain, sources: sortedSources };
+      })
+    }));
+    
+    return filtered;
+  }, [organizationsData, filterByOrg, filterByDomain, filterByTag, sortBy, sortDirection, isOrgScoped]);
 
   // Initialize pending assignments when sources are selected
   useEffect(() => {
@@ -235,6 +317,20 @@ export default function ContextManagementDashboard({
           
           console.log('✅ Loaded context for', data.organizations?.length || 0, 'organizations');
           console.log('📊 Total sources:', data.metadata?.totalSources || 0);
+          
+          // Extract all unique tags from sources across all orgs
+          const tagsSet = new Set<string>();
+          data.organizations?.forEach((org: any) => {
+            org.domains?.forEach((domain: any) => {
+              domain.sources?.forEach((source: any) => {
+                if (source.labels && Array.isArray(source.labels)) {
+                  source.labels.forEach((tag: string) => tagsSet.add(tag));
+                }
+              });
+            });
+          });
+          setAllTags(Array.from(tagsSet).sort());
+          console.log('🏷️ Found', tagsSet.size, 'unique tags across all organizations');
           
           // Auto-expand first organization for better UX
           if (data.organizations && data.organizations.length > 0) {
@@ -1048,8 +1144,18 @@ export default function ContextManagementDashboard({
       formData.append('file', item.file);
       formData.append('userId', userId);
       formData.append('name', item.file.name);
-      formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
+      formData.append('model', selectedModel); // ✅ Use selected model (Flash or Pro)
       formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
+      
+      // ✅ NEW: Include organization and domain for SuperAdmin uploads
+      if (selectedOrgForUpload) {
+        formData.append('organizationId', selectedOrgForUpload);
+        console.log(`   📍 Uploading to organization: ${selectedOrgForUpload}`);
+      }
+      if (selectedDomainForUpload) {
+        formData.append('domainId', selectedDomainForUpload);
+        console.log(`   📍 Uploading to domain: ${selectedDomainForUpload}`);
+      }
 
       // Upload stage (0-25%)
       setUploadQueue(prev => prev.map(i => 
@@ -1125,9 +1231,12 @@ export default function ContextManagementDashboard({
           extractedData: uploadData.extractedText || '',
           assignedToAgents: [], // Not assigned to any agent initially (admin upload)
           labels: item.tags || [], // Add tags
+          organizationId: selectedOrgForUpload || undefined, // ✅ NEW: Organization for SuperAdmin uploads
+          domainId: selectedDomainForUpload || undefined, // ✅ NEW: Domain for SuperAdmin uploads
           metadata: {
             ...uploadData.metadata,
             model: item.model || 'gemini-2.5-flash', // Save model used
+            uploaderEmail: userEmail, // ✅ Track who uploaded
           },
           pipelineLogs: uploadData.pipelineLogs || [], // ✅ Save pipeline execution logs
         })
@@ -2041,6 +2150,62 @@ export default function ContextManagementDashboard({
                     )}
                   </div>
 
+                  {/* Organization Selection (SuperAdmin only) */}
+                  {isSuperAdmin && organizationsData.length > 0 && (
+                    <div>
+                      <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                        <Globe className="w-3.5 h-3.5 text-blue-600" />
+                        Target Organization <span className="text-red-600">*</span>
+                      </label>
+                      <select
+                        value={selectedOrgForUpload}
+                        onChange={(e) => {
+                          setSelectedOrgForUpload(e.target.value);
+                          setSelectedDomainForUpload(''); // Reset domain when org changes
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-blue-600 focus:border-blue-600"
+                      >
+                        <option value="">Select organization...</option>
+                        {organizationsData.map(org => (
+                          <option key={org.id} value={org.id}>
+                            {org.name} ({org.totalSources} sources)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Domain Selection (SuperAdmin only, shown when org selected) */}
+                  {isSuperAdmin && selectedOrgForUpload && (
+                    <div>
+                      <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                        <Folder className="w-3.5 h-3.5 text-gray-600" />
+                        Target Domain <span className="text-xs text-gray-500">(optional)</span>
+                      </label>
+                      <select
+                        value={selectedDomainForUpload}
+                        onChange={(e) => setSelectedDomainForUpload(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-1 focus:ring-gray-600 focus:border-gray-600"
+                      >
+                        <option value="">Auto-assign by uploader email</option>
+                        {(() => {
+                          const org = organizationsData.find(o => o.id === selectedOrgForUpload);
+                          const domains = org?.domains || [];
+                          return domains.map((domain: any) => (
+                            <option key={domain.domainId} value={domain.domainId}>
+                              {domain.domainName} ({domain.sourceCount} sources)
+                            </option>
+                          ));
+                        })()}
+                      </select>
+                      {!selectedDomainForUpload && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Will use your email domain ({userEmail?.split('@')[1]}) or org primary domain
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Tags Input */}
                   <div>
                     <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
@@ -2116,9 +2281,13 @@ export default function ContextManagementDashboard({
                   <div className="flex gap-2">
                     <button
                       onClick={handleSubmitUpload}
-                      className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors"
+                      disabled={isSuperAdmin && !selectedOrgForUpload}
+                      className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                       Upload Files
+                      {isSuperAdmin && !selectedOrgForUpload && (
+                        <span className="ml-2 text-xs">(Select org first)</span>
+                      )}
                     </button>
                     <button
                       onClick={() => {
@@ -2126,6 +2295,8 @@ export default function ContextManagementDashboard({
                         setStagedFiles([]);
                         setUploadTags('');
                         setSelectedModel('gemini-2.5-flash');
+                        setSelectedOrgForUpload('');
+                        setSelectedDomainForUpload('');
                       }}
                       className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                     >
@@ -2572,6 +2743,108 @@ export default function ContextManagementDashboard({
               </div>
             )}
 
+            {/* Filters Bar (SuperAdmin & Admin) */}
+            {isOrgScoped && organizationsData.length > 0 && (
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Organization Filter (SuperAdmin only) */}
+                  {isSuperAdmin && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-700">Org:</label>
+                      <select
+                        value={filterByOrg}
+                        onChange={(e) => {
+                          setFilterByOrg(e.target.value);
+                          setFilterByDomain(''); // Reset domain when org changes
+                        }}
+                        className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-blue-600"
+                      >
+                        <option value="">All Organizations</option>
+                        {organizationsData.map(org => (
+                          <option key={org.id} value={org.id}>
+                            {org.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  {/* Domain Filter (appears when org selected or for Admins) */}
+                  {(filterByOrg || isAdmin) && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-700">Domain:</label>
+                      <select
+                        value={filterByDomain}
+                        onChange={(e) => setFilterByDomain(e.target.value)}
+                        className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-gray-600"
+                      >
+                        <option value="">All Domains</option>
+                        {(() => {
+                          const org = organizationsData.find(o => o.id === filterByOrg || (isAdmin && o.id));
+                          const domains = org?.domains || [];
+                          return domains.map((domain: any) => (
+                            <option key={domain.domainId} value={domain.domainId}>
+                              {domain.domainName} ({domain.sourceCount})
+                            </option>
+                          ));
+                        })()}
+                      </select>
+                    </div>
+                  )}
+                  
+                  {/* Tag Filter */}
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-medium text-gray-700">Tag:</label>
+                    <select
+                      value={filterByTag}
+                      onChange={(e) => setFilterByTag(e.target.value)}
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-green-600"
+                    >
+                      <option value="">All Tags</option>
+                      {allTags.map(tag => (
+                        <option key={tag} value={tag}>{tag}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Sort By */}
+                  <div className="flex items-center gap-2 ml-auto">
+                    <label className="text-xs font-medium text-gray-700">Sort:</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'size')}
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white"
+                    >
+                      <option value="date">Upload Date</option>
+                      <option value="name">Name</option>
+                      <option value="size">File Size</option>
+                    </select>
+                    <button
+                      onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white hover:bg-gray-50 transition-colors"
+                      title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
+                    >
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </button>
+                    
+                    {/* Clear Filters */}
+                    {(filterByOrg || filterByDomain || filterByTag) && (
+                      <button
+                        onClick={() => {
+                          setFilterByOrg('');
+                          setFilterByDomain('');
+                          setFilterByTag('');
+                        }}
+                        className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs hover:bg-red-200 transition-colors"
+                      >
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Sources List - Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 min-h-0">
               <div className="flex items-center justify-between mb-4">
@@ -2629,10 +2902,18 @@ export default function ContextManagementDashboard({
                 </div>
               )}
 
-              {!loading && sources.length === 0 && (
+              {!loading && sources.length === 0 && !isOrgScoped && (
                 <div className="text-center py-12 text-gray-500">
                   <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No context sources found</p>
+                </div>
+              )}
+              
+              {!loading && isOrgScoped && organizationsData.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No organizations found</p>
+                  <p className="text-xs text-gray-400 mt-2">Contact system administrator</p>
                 </div>
               )}
 
@@ -2650,20 +2931,25 @@ export default function ContextManagementDashboard({
               )}
 
               {/* Organization-Scoped View (SuperAdmins & Admins) */}
-              {!loading && isOrgScoped && organizationsData.length > 0 && (
+              {!loading && isOrgScoped && filteredOrganizationsData.length > 0 && (
                 <div className="space-y-4">
                   <div className="px-1 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800 font-medium">
-                      🏢 {isSuperAdmin ? 'SuperAdmin' : 'Admin'} View - Showing context for {organizationsData.length} organization(s)
+                      🏢 {isSuperAdmin ? 'SuperAdmin' : 'Admin'} View - Showing {filteredOrganizationsData.length} of {organizationsData.length} organization(s)
+                      {(filterByOrg || filterByDomain || filterByTag) && (
+                        <span className="ml-2 text-blue-600">
+                          (Filtered)
+                        </span>
+                      )}
                     </p>
                   </div>
 
-                  {organizationsData.map(org => {
+                  {filteredOrganizationsData.map(org => {
                     const isOrgExpanded = expandedOrgs.has(org.id);
                     
                     return (
                       <div key={org.id} className="border-2 border-blue-300 rounded-lg overflow-hidden">
-                        {/* Organization Header */}
+                        {/* Organization Header - Enhanced with Details */}
                         <div
                           onClick={() => {
                             const newExpanded = new Set(expandedOrgs);
@@ -2682,12 +2968,32 @@ export default function ContextManagementDashboard({
                                 className={`w-5 h-5 text-blue-700 transition-transform ${isOrgExpanded ? 'rotate-90' : ''}`}
                               />
                               <Globe className="w-5 h-5 text-blue-700" />
-                              <div>
-                                <span className="text-base font-bold text-blue-900">{org.name}</span>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-xs text-blue-700">
-                                    {org.domainCount} domain{org.domainCount !== 1 ? 's' : ''} • {org.totalSources} source{org.totalSources !== 1 ? 's' : ''}
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-base font-bold text-blue-900">{org.name}</span>
+                                  <span className="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full font-semibold">
+                                    {org.totalSources}
                                   </span>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                  <span className="text-xs text-blue-700">
+                                    {org.domainCount} domain{org.domainCount !== 1 ? 's' : ''}
+                                  </span>
+                                  {/* Show domain breakdown when collapsed */}
+                                  {!isOrgExpanded && org.domains && org.domains.length > 0 && (
+                                    <div className="flex items-center gap-1 text-xs text-blue-600">
+                                      <Folder className="w-3 h-3" />
+                                      {org.domains.slice(0, 3).map((d: any, idx: number) => (
+                                        <span key={d.domainId}>
+                                          {d.domainName} ({d.sourceCount})
+                                          {idx < Math.min(2, org.domains.length - 1) && ', '}
+                                        </span>
+                                      ))}
+                                      {org.domains.length > 3 && (
+                                        <span className="text-blue-500">+{org.domains.length - 3} more</span>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -2703,7 +3009,7 @@ export default function ContextManagementDashboard({
                               
                               return (
                                 <div key={domainKey} className="border-t border-blue-200">
-                                  {/* Domain Header */}
+                                  {/* Domain Header - Enhanced with Preview */}
                                   <div
                                     onClick={() => {
                                       const newExpanded = new Set(expandedDomains);
@@ -2717,15 +3023,36 @@ export default function ContextManagementDashboard({
                                     className="bg-gray-50 hover:bg-gray-100 px-6 py-2 cursor-pointer transition-colors"
                                   >
                                     <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2 flex-1">
                                         <ChevronRight 
                                           className={`w-4 h-4 text-gray-600 transition-transform ${isDomainExpanded ? 'rotate-90' : ''}`}
                                         />
                                         <Folder className="w-4 h-4 text-gray-700" />
-                                        <span className="text-sm font-semibold text-gray-900">{domain.domainName}</span>
-                                        <span className="text-xs text-gray-600">
-                                          {domain.sourceCount} source{domain.sourceCount !== 1 ? 's' : ''}
-                                        </span>
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-gray-900">{domain.domainName}</span>
+                                            <span className="px-1.5 py-0.5 bg-gray-600 text-white text-xs rounded-full font-semibold">
+                                              {domain.sourceCount}
+                                            </span>
+                                          </div>
+                                          {/* Show source preview when collapsed */}
+                                          {!isDomainExpanded && domain.sources && domain.sources.length > 0 && (
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
+                                              <FileText className="w-3 h-3" />
+                                              {domain.sources.slice(0, 2).map((s: any, idx: number) => (
+                                                <span key={s.id} className="truncate max-w-[150px]">
+                                                  {s.name}
+                                                  {idx < Math.min(1, domain.sources.length - 1) && ', '}
+                                                </span>
+                                              ))}
+                                              {domain.sources.length > 2 && (
+                                                <span className="text-gray-500">
+                                                  +{domain.sources.length - 2} more
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
