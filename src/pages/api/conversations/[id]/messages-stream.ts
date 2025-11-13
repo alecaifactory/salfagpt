@@ -593,7 +593,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
                   sourceId: doc.id,
                   sourceName: doc.data().name || 'Documento',
                   chunkIndex: -1, // -1 indicates full document (not a chunk)
-                  similarity: 0.5, // Default similarity for full document fallback
+                  similarity: 1.0, // ✅ 100% - using complete document (all content available)
                   snippet: (doc.data().extractedData || '').substring(0, 300),
                   fullText: doc.data().extractedData || '',
                   metadata: {
