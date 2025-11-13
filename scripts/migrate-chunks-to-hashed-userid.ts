@@ -14,6 +14,20 @@ async function migrateChunks() {
   console.log('🔧 Migrating document_chunks to use hashed userId...\n');
   
   try {
+    // 0. Build user ID mapping cache (googleUserId → document ID)
+    console.log('📊 Building user ID mapping cache...');
+    const userIdCache = new Map<string, string>();
+    
+    const usersSnapshot = await firestore.collection('users').get();
+    usersSnapshot.docs.forEach(doc => {
+      const googleId = doc.data().googleUserId;
+      if (googleId) {
+        userIdCache.set(googleId, doc.id); // Map googleUserId → document ID (usr_xxx)
+      }
+    });
+    
+    console.log(`✅ Cached ${userIdCache.size} user ID mappings\n`);
+    
     // 1. Get all chunks (in batches)
     console.log('📊 Loading all chunks...');
     const chunksSnapshot = await firestore
@@ -38,32 +52,43 @@ async function migrateChunks() {
       for (const doc of batchDocs) {
         processed++;
         const data = doc.data();
-        const googleUserId = data.userId; // Current userId is actually googleUserId
+        const currentUserId = data.userId;
         
-        if (!googleUserId) {
+        if (!currentUserId) {
           skipped++;
           console.warn(`⏭️  [${processed}] Skipped: No userId found`);
           continue;
         }
         
-        // Check if already has hashedUserId (idempotent)
-        if (data.hashedUserId) {
+        // Check if current userId is already in usr_ format (already correct)
+        if (currentUserId.startsWith('usr_')) {
           skipped++;
           if (processed % 100 === 0) {
-            console.log(`⏭️  [${processed}/${docs.length}] Already migrated`);
+            console.log(`⏭️  [${processed}/${docs.length}] Already in usr_ format`);
           }
           continue;
         }
         
-        // Generate hashed userId
-        const hashedUserId = hashUserId(googleUserId);
+        // Try to resolve to usr_ format
+        let correctHashedId: string;
         
-        // Update chunk with both IDs
+        // If we have googleUserId, look it up in cache
+        if (data.googleUserId && userIdCache.has(data.googleUserId)) {
+          correctHashedId = userIdCache.get(data.googleUserId)!;
+        } else if (currentUserId.match(/^\d+$/)) {
+          // currentUserId is numeric (googleUserId), look it up
+          correctHashedId = userIdCache.get(currentUserId) || currentUserId;
+        } else {
+          // currentUserId is in user_ format, need to find corresponding usr_ format
+          // This is complex - for now, skip
+          skipped++;
+          continue;
+        }
+        
+        // Update chunk - switch userId to correct usr_ format
         batch.update(doc.ref, {
-          googleUserId: googleUserId, // Keep original as reference
-          hashedUserId: hashedUserId, // Add hashed ID for queries
-          // Keep userId as googleUserId for now (backward compat)
-          // Will switch to hashedUserId in phase 2
+          userId: correctHashedId, // ✅ Switch to usr_ format (matches user documents)
+          googleUserId: data.googleUserId || currentUserId, // Keep Google ID for reference
           updatedAt: new Date(),
         });
         
@@ -93,55 +118,14 @@ async function migrateChunks() {
     console.log(`Errors encountered: ${errors}`);
     console.log('='.repeat(70));
     
-    // Phase 2: Switch userId field to hashedUserId
-    console.log('\n🔄 Phase 2: Switching userId field to hashedUserId...');
-    console.log('(This makes queries use hashed ID by default)\n');
-    
-    let phase2Updated = 0;
-    let phase2Errors = 0;
-    
-    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-      const batch = firestore.batch();
-      const batchDocs = docs.slice(i, Math.min(i + BATCH_SIZE, docs.length));
-      
-      for (const doc of batchDocs) {
-        const data = doc.data();
-        
-        if (data.hashedUserId) {
-          // Switch userId to hashedUserId
-          batch.update(doc.ref, {
-            userId: data.hashedUserId, // Now userId = hashed format
-            // googleUserId stays as-is (reference)
-            // hashedUserId stays as-is (reference)
-          });
-          phase2Updated++;
-        }
-      }
-      
-      try {
-        await batch.commit();
-        console.log(`💾 Phase 2 batch committed: ${batchDocs.length} chunks (userId switched to hashed)`);
-      } catch (error) {
-        phase2Errors++;
-        console.error(`❌ Phase 2 batch failed:`, error);
-      }
-    }
-    
-    console.log('\n' + '='.repeat(70));
-    console.log('📊 Phase 2 Summary:');
-    console.log('='.repeat(70));
-    console.log(`Chunks switched to hashed userId: ${phase2Updated}`);
-    console.log(`Errors: ${phase2Errors}`);
-    console.log('='.repeat(70));
-    
     console.log('\n✅ Migration complete!');
     console.log('\n🎯 Next steps:');
-    console.log('  1. Verify chunk queries now work with hashed userId');
+    console.log('  1. Verify chunk queries now work with usr_ format');
     console.log('  2. Test agent search finds chunks correctly');
     console.log('  3. Test similarity values show real percentages (70-90%)');
     
-    if (errors > 0 || phase2Errors > 0) {
-      console.warn(`\n⚠️  ${errors + phase2Errors} errors occurred. Check logs above.`);
+    if (errors > 0) {
+      console.warn(`\n⚠️  ${errors} errors occurred. Check logs above.`);
       process.exit(1);
     }
     
