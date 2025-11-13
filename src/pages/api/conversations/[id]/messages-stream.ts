@@ -412,6 +412,109 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           }
 
           // Step 4: Generando Respuesta... (streaming happens here)
+          // ✅ NEW ARCHITECTURE: Build references BEFORE streaming (prevents UI flicker)
+          // This way we stream complete content only ONCE, no updates after
+          let references: any[] = [];
+          
+          if (ragUsed && ragResults.length > 0) {
+            console.log('📚 Building references BEFORE streaming (prevents flicker)...');
+            
+            // Group chunks by source document (consolidate references)
+            const sourceGroups = new Map<string, typeof ragResults>();
+            ragResults.forEach(result => {
+              const key = result.sourceId || result.sourceName;
+              if (!sourceGroups.has(key)) {
+                sourceGroups.set(key, []);
+              }
+              sourceGroups.get(key)!.push(result);
+            });
+            
+            // Create ONE reference per unique source document
+            let refId = 1;
+            references = Array.from(sourceGroups.values()).map(chunks => {
+              chunks.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+              const primaryChunk = chunks[0];
+              const avgSimilarity = chunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / chunks.length;
+              const combinedText = chunks.map(c => c.text).join('\n\n---\n\n');
+              const totalTokens = chunks.reduce((sum, c) => 
+                sum + (c.metadata.tokenCount || Math.ceil(c.text.length / 4)), 0
+              );
+              
+              return {
+                id: refId++,
+                sourceId: primaryChunk.sourceId,
+                sourceName: primaryChunk.sourceName,
+                chunkIndex: primaryChunk.chunkIndex,
+                similarity: avgSimilarity,
+                snippet: primaryChunk.text.substring(0, 300),
+                fullText: combinedText,
+                metadata: {
+                  startChar: primaryChunk.metadata.startChar || 0,
+                  endChar: primaryChunk.metadata.endChar || primaryChunk.text.length,
+                  tokenCount: totalTokens,
+                  ...(primaryChunk.metadata.startPage !== undefined && { startPage: primaryChunk.metadata.startPage }),
+                  ...(primaryChunk.metadata.endPage !== undefined && { endPage: primaryChunk.metadata.endPage }),
+                  isRAGChunk: true,
+                  chunkCount: chunks.length,
+                }
+              };
+            });
+            
+            console.log(`✅ Built ${references.length} references ready for streaming`);
+          } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback && !shouldShowNoDocsMessage) {
+            console.log('📚 Building full document references BEFORE streaming...');
+            
+            const sourceIdsToReference = activeSourceIds.slice(0, 10);
+            const sourcesSnapshot = await firestore
+              .collection('context_sources')
+              .where('__name__', 'in', sourceIdsToReference)
+              .get();
+            
+            references = sourcesSnapshot.docs.map((doc, index) => ({
+              id: index + 1,
+              sourceId: doc.id,
+              sourceName: doc.data().name || 'Documento',
+              chunkIndex: -1,
+              similarity: 1.0,
+              snippet: (doc.data().extractedData || '').substring(0, 300),
+              fullText: doc.data().extractedData || '',
+              metadata: {
+                tokenCount: Math.ceil((doc.data().extractedData?.length || 0) / 4),
+                isFullDocument: true,
+              }
+            }));
+            
+            console.log(`✅ Built ${references.length} full doc references ready for streaming`);
+          }
+          
+          // Send references to client IMMEDIATELY (before streaming starts)
+          if (references.length > 0) {
+            const truncatedRefs = references.map(ref => ({
+              id: ref.id,
+              sourceId: ref.sourceId,
+              sourceName: ref.sourceName,
+              snippet: ref.snippet?.substring(0, 200) || '',
+              chunkIndex: ref.chunkIndex,
+              similarity: ref.similarity,
+              metadata: {
+                startChar: ref.metadata?.startChar,
+                endChar: ref.metadata?.endChar,
+                tokenCount: ref.metadata?.tokenCount,
+                startPage: ref.metadata?.startPage,
+                endPage: ref.metadata?.endPage,
+                isRAGChunk: ref.metadata?.isRAGChunk,
+                isFullDocument: ref.metadata?.isFullDocument,
+              },
+            }));
+            
+            const refsData = `data: ${JSON.stringify({ 
+              type: 'references',
+              references: truncatedRefs
+            })}\n\n`;
+            controller.enqueue(encoder.encode(refsData));
+            console.log('📤 Sent references to client BEFORE streaming');
+          }
+
           sendStatus('generating', 'active');
           
           // ✅ NEW APPROACH: Check if this is first message BEFORE saving
@@ -508,10 +611,14 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // Save complete AI message to Firestore (for persistent conversations)
           if (!conversationId.startsWith('temp-')) {
             try {
-              // Build references from RAG results OR full documents
-              let references: any[] = [];
+              // ✅ References already built BEFORE streaming (lines 419-488)
+              // No need to rebuild - just use them directly
+              console.log('📚 Using pre-built references:', references.length);
               
-              if (ragUsed && ragResults.length > 0) {
+              // OLD CODE REMOVED: Was rebuilding references here (caused delay + potential flicker)
+              // Now references are built earlier and sent via 'references' event
+              
+              if (false && ragUsed && ragResults.length > 0) {  // Disabled - keeping for reference
                 // ✅ NEW: Group chunks by source document (consolidate references)
                 const sourceGroups = new Map<string, typeof ragResults>();
                 ragResults.forEach(result => {

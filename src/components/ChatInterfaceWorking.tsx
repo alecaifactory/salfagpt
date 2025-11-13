@@ -2306,6 +2306,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   data.mapping.forEach((m: any) => {
                     console.log(`  [${m.refId}] → Fragmento ${m.chunkIndex} (${m.sourceName}) - ${(m.similarity * 100).toFixed(1)}%`);
                   });
+                } else if (data.type === 'references') {
+                  // ✅ NEW: Receive references BEFORE streaming starts
+                  // Store them but don't show yet (will attach after streaming completes)
+                  console.log('📚 Received references BEFORE streaming:', data.references?.length || 0);
+                  
+                  // Update message to include references (but keep isStreaming=true so they stay hidden)
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === streamingId 
+                      ? { 
+                          ...msg, 
+                          references: data.references, // ✅ Attach references early
+                          isStreaming: true // Keep streaming flag (references hidden until complete)
+                        }
+                      : msg
+                  ));
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
@@ -2364,31 +2379,28 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     }
                   }
                   
-                  // ✅ FIX: Mark message as complete WITHOUT changing ID (prevents flicker)
-                  // Keep streaming ID so React doesn't see it as a new message
-                  console.log('🔄 [STREAM COMPLETE] Updating message state with final content (keeping streaming ID)');
+                  // ✅ FIX: ONLY mark as complete, DON'T update content or references
+                  // Content was accumulated during streaming, references sent separately
+                  console.log('🔄 [STREAM COMPLETE] Marking as complete (no content update - prevents flicker)');
                   console.log('🔍 [STREAM COMPLETE] Streaming ID (kept):', streamingId);
                   console.log('🔍 [STREAM COMPLETE] Final content length:', accumulatedContent.length);
-                  console.log('🔍 [STREAM COMPLETE] Final content (first 300 chars):', accumulatedContent.substring(0, 300));
                   
                   setMessages(prev => {
                     const updated = prev.map(msg => 
                       msg.id === streamingId 
                         ? { 
                             ...msg, 
-                            // ✅ KEEP streaming ID to prevent React re-render flicker
-                            // Store real Firestore ID in metadata for backend sync if needed
+                            // ✅ ONLY change isStreaming flag - everything else already set
                             firestoreId: finalMessageId, // Save real ID for reference
-                            isStreaming: false,
-                            content: accumulatedContent,
-                            references: data.references, // RAG chunk references with real similarity
+                            isStreaming: false, // ✅ This reveals the references (already attached)
+                            // DON'T update content (already has it from chunks)
+                            // DON'T update references (already has them from 'references' event)
                             thinkingSteps: undefined
                           }
                         : msg
                     );
                     
-                    console.log('🔍 [STREAM COMPLETE] Updated messages count:', updated.length);
-                    console.log('🔍 [STREAM COMPLETE] Last message content length:', updated[updated.length - 1]?.content?.length);
+                    console.log('🔍 [STREAM COMPLETE] References already attached, just revealed them');
                     
                     return updated;
                   });
