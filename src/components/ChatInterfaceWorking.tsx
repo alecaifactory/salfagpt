@@ -2320,6 +2320,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
+                  console.log('📝 [CHUNK] Received chunk, accumulated length now:', accumulatedContent.length);
                   
                   // Update streaming message with new content
                   // First chunk: expand the container width smoothly
@@ -2342,6 +2343,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   console.log('✅ Message complete event received');
                   console.log('🔍 [STREAM COMPLETE] Content length:', accumulatedContent.length);
                   console.log('🔍 [STREAM COMPLETE] References already attached earlier');
+                  console.log('🔍 [STREAM COMPLETE] Streaming ID:', streamingId);
+                  console.log('🔍 [STREAM COMPLETE] Accumulated content preview:', accumulatedContent.substring(0, 100));
                   // ✅ No references in complete event (sent separately to prevent flicker)
                   
                   // NEW: Validate citations if we have fragment mapping
@@ -2379,16 +2382,44 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   console.log('   References to attach:', receivedReferences.length);
                   
                   // ✅ ONE FINAL UPDATE: Complete state with everything
-                  setMessages(prev => prev.map(msg => 
-                    msg.id === streamingId 
-                      ? {
-                          ...msg,
-                          isStreaming: false, // Reveal references
-                          references: receivedReferences.length > 0 ? receivedReferences : undefined, // Attach refs
-                          firestoreId: finalMessageId,
-                        }
-                      : msg
-                  ));
+                  setMessages(prev => {
+                    console.log('🔍 [STATE UPDATE] Previous messages count:', prev.length);
+                    console.log('🔍 [STATE UPDATE] Looking for streaming message:', streamingId);
+                    const found = prev.find(msg => msg.id === streamingId);
+                    console.log('🔍 [STATE UPDATE] Streaming message found:', !!found);
+                    if (found) {
+                      console.log('🔍 [STATE UPDATE] Streaming message current content length:', found.content?.length || 0);
+                      console.log('🔍 [STATE UPDATE] Streaming message isStreaming:', found.isStreaming);
+                    }
+                    
+                    const updated = prev.map(msg => 
+                      msg.id === streamingId 
+                        ? {
+                            ...msg,
+                            content: accumulatedContent, // ✅ CRITICAL: Use accumulated content, not msg.content
+                            thinkingSteps: undefined, // ✅ CRITICAL FIX: Clear thinking steps to show content
+                            isStreaming: false, // Reveal references
+                            references: receivedReferences.length > 0 ? receivedReferences : undefined, // Attach refs
+                            firestoreId: finalMessageId,
+                          }
+                        : msg
+                    );
+                    
+                    console.log('🔍 [STATE UPDATE] Updated messages count:', updated.length);
+                    const updatedMsg = updated.find(m => m.id === streamingId);
+                    if (updatedMsg) {
+                      console.log('🔍 [STATE UPDATE] Updated message content length:', updatedMsg.content?.length || 0);
+                      console.log('🔍 [STATE UPDATE] Updated message isStreaming:', updatedMsg.isStreaming);
+                    }
+                    return updated;
+                  });
+                  
+                  // ✅ CRITICAL FIX: Force React to process the state update immediately
+                  // This prevents batching issues that can occur with excessive re-renders
+                  setTimeout(() => {
+                    console.log('🔄 [FORCE UPDATE] Ensuring UI reflects completed message');
+                    setMessages(prev => [...prev]); // Shallow copy forces re-render
+                  }, 0);
 
                   // Calculate response time
                   const responseTime = Date.now() - requestStartTime;

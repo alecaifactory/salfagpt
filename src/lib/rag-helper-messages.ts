@@ -89,24 +89,30 @@ export function generateNoRelevantDocsMessage(
   return `NOTA IMPORTANTE: No se encontraron documentos con alta relevancia (>70% de similitud) para esta consulta específica.
 
 INSTRUCCIONES PARA TU RESPUESTA:
-1. Informa al usuario que no hay documentos específicos disponibles para su pregunta
-2. Explica que esto significa que los documentos actuales no contienen información suficientemente relevante (similitud <70%)
-3. Proporciona la siguiente información de contacto:
+1. Informa al usuario que no encontramos el documento que estaba buscando
+2. Explica que los documentos actuales no contienen información suficientemente relevante para su pregunta
+3. Invita al usuario a reportar esto usando el botón "Calificar" (⭐ en la esquina superior derecha)
+4. Sugiere que mencione en los comentarios:
+   - Los nombres de los documentos donde debería estar esta información (si los conoce)
+   - Puede subir los documentos si los tiene, para que el Admin los revise
+5. Proporciona la siguiente información de contacto:
    ${adminContactInfo}
-4. Anima al usuario a dejar feedback en el Roadmap para que el equipo tenga visibilidad sobre esta necesidad
 
 EJEMPLO DE RESPUESTA:
-"No encontré documentos específicos con alta relevancia (>70%) para tu pregunta sobre [tema]. 
+"No encontramos el documento que buscabas, o la información disponible en los documentos actuales no tiene suficiente relevancia para tu pregunta.
 
-Esto significa que los documentos actualmente disponibles no contienen información suficientemente detallada sobre este tema específico.
+📋 **Por favor, repórtalo:**
+- Haz clic en el botón **"Calificar"** (⭐) en la esquina superior derecha
+- En los comentarios, menciona los nombres de los documentos donde debería estar esta información (si los conoces)
+- Si tienes los documentos, puedes subirlos para que el Admin los revise y los agregue a la plataforma
 
-📧 **¿Necesitas esta información?**
+📧 **Contacto directo:**
 ${adminContactInfo}
 
 💡 **Ayúdanos a mejorar:**
-También te invito a dejar feedback en el Roadmap (botón 🗺️ Roadmap) para que el equipo tenga visibilidad sobre esta necesidad y pueda priorizar agregar documentación sobre este tema.
+Tu feedback ayuda al equipo a identificar qué documentación hace falta y priorizarla.
 
-¿Hay algo más en lo que pueda ayudarte con la información actual disponible?"`;
+¿Hay algo más en lo que pueda ayudarte con la información disponible?"`;
 }
 
 /**

@@ -318,9 +318,10 @@ Usa la información de los documentos encontrados para responder, pero aclara la
     });
 
     // ✅ Build references from RAG results (if available)
+    // 🚨 ONLY build references if RAG was actually used AND no fallback occurred
     let references: any[] = [];
     
-    if (ragUsed && ragResults.length > 0) {
+    if (ragUsed && ragResults.length > 0 && !ragHadFallback) {
       // Build references from actual RAG search results
       references = ragResults.map((result: any, index: number) => ({
         id: index + 1,
@@ -339,6 +340,8 @@ Usa la información de los documentos encontrados para responder, pero aclara la
       }));
       
       console.log(`📚 Built ${references.length} references from RAG results`);
+    } else if (ragHadFallback) {
+      console.log(`📚 No references built - ragHadFallback = true (no relevant docs found)`);
     }
     
     // Enhance references with source metadata (fallback if no RAG)
