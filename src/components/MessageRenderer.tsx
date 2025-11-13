@@ -423,7 +423,8 @@ export default function MessageRenderer({
                       <p className="text-sm font-bold text-slate-900 truncate">
                         {ref.sourceName}
                       </p>
-                      {ref.similarity !== undefined && (
+                      {/* Show similarity ONLY for RAG chunks (not full documents) */}
+                      {ref.similarity !== undefined && ref.chunkIndex >= 0 && !ref.metadata?.isFullDocument && (
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-2">
                             <div className="w-20 bg-slate-200 rounded-full h-1.5 overflow-hidden">
@@ -446,6 +447,17 @@ export default function MessageRenderer({
                           </div>
                           <span className="text-[10px] text-slate-500 font-medium">
                             Similitud semántica
+                          </span>
+                        </div>
+                      )}
+                      {/* For full documents, show badge instead of percentage */}
+                      {(ref.chunkIndex === -1 || ref.metadata?.isFullDocument) && (
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="text-sm font-black px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 border-2 border-blue-400">
+                            📝 Doc. Completo
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            Contenido completo
                           </span>
                         </div>
                       )}
