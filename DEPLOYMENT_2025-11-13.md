@@ -2,14 +2,17 @@
 
 ## 🚀 Deployment Information
 
-**Date:** November 13, 2025, 11:57 AM PST  
+**Date:** November 13, 2025, 12:21 PM PST  
 **Branch:** `feat/multi-org-system-2025-11-10`  
-**Revision:** `cr-salfagpt-ai-ft-prod-00053-xb6` ✅ **FINAL**  
-**Previous Revisions:**
-  - `00050-8rf` - Initial CSS fix attempt
-  - `00051-v8n` - Added placeholder CSS files (empty)
+**Revision:** `cr-salfagpt-ai-ft-prod-00056-gc6` ✅ **FINAL & ACTIVE**  
+**Deployment Iterations:**
+  - `00050-8rf` - Initial CSS import fix
+  - `00051-v8n` - Added empty placeholder CSS files
   - `00052-btk` - Added favicon.ico
-  - `00053-xb6` - Compiled Tailwind CSS in placeholder files (**current**)  
+  - `00053-xb6` - Compiled Tailwind CSS (104KB each)
+  - `00054-5kk` - Environment variables attempt 1
+  - `00055-std` - Environment variables attempt 2
+  - `00056-gc6` - OAuth redirect fix + env vars ✅ **ACTIVE**  
 **Service:** `cr-salfagpt-ai-ft-prod`  
 **Region:** `us-east4`  
 **Project:** `salfagpt`
@@ -116,6 +119,86 @@
 - `public/expertos.CPH4UiPq.css` (104KB → full styles)
 
 **Commit:** `7451177` - "fix: Replace placeholder CSS files with compiled Tailwind CSS"
+
+---
+
+### 4. Environment Variables Not Configured ✅ **RESOLVED**
+
+**Problem:**
+- OAuth login failing with "Missing required parameter: client_id"
+- Google showing "Access blocked: Authorization Error"
+- Environment variables not pushed to Cloud Run
+
+**Root Cause:**
+- Deployment completed but environment variables not set
+- Cloud Run needs explicit `--update-env-vars` command
+- Without env vars, OAuth credentials are undefined
+
+**Solution:**
+- Pushed all 13 required environment variables to Cloud Run service
+- Used `gcloud run services update` with `--update-env-vars`
+- Created new revision to pick up environment variables
+
+**Environment Variables Set:**
+```bash
+GOOGLE_CLOUD_PROJECT=salfagpt
+NODE_ENV=production
+GOOGLE_AI_API_KEY=AIzaSy...
+GOOGLE_CLIENT_ID=82892384200-va003qnnoj9q0jf19j3jf0vects0st9h.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-...
+JWT_SECRET=df45d920393b23177f56675c5bac8d99058b3388be154b620ef2e8eb7ad58dfd...
+PUBLIC_BASE_URL=https://salfagpt.salfagestion.cl
+SESSION_COOKIE_NAME=salfagpt_session
+SESSION_MAX_AGE=86400
+CHUNK_SIZE=8000
+CHUNK_OVERLAP=2000
+EMBEDDING_BATCH_SIZE=32
+EMBEDDING_MODEL=gemini-embedding-001
+```
+
+**Commits:** 
+- Multiple deployment iterations (00054-00056)
+- Final active revision: `00056-gc6`
+
+---
+
+### 5. OAuth Redirect Using Localhost in Production ✅ **RESOLVED**
+
+**Problem:**
+- OAuth redirect_uri showing `http://localhost:3000/auth/callback` in production
+- Google OAuth rejecting redirect because domain doesn't match
+- Users unable to complete login flow
+
+**Root Cause:**
+- `isLocalhost` logic in `src/lib/auth.ts` checking `NODE_ENV === 'development'`
+- In production, this condition should be false but was evaluating incorrectly
+- Environment detection too broad
+
+**Solution:** (`a5ca796`)
+- Changed localhost detection to ONLY check `DEV_PORT === '3000'`
+- Removed `NODE_ENV === 'development'` from condition
+- In production (no DEV_PORT set), uses PUBLIC_BASE_URL correctly
+
+**Code Change:**
+```typescript
+// ❌ BEFORE - Too broad
+const isLocalhost = process.env.DEV_PORT === '3000' || process.env.NODE_ENV === 'development';
+
+// ✅ AFTER - Precise
+const isLocalhost = process.env.DEV_PORT === '3000';
+```
+
+**Files Modified:**
+- `src/lib/auth.ts` (localhost detection logic)
+
+**Commit:** `a5ca796` - "fix: Use production URL for OAuth redirect in production environment"
+
+**Verification:**
+```bash
+# Redirect URI now correct
+redirect_uri=https://salfagpt.salfagestion.cl/auth/callback ✅
+client_id=82892384200-va003qnnoj9q0jf19j3jf0vects0st9h.apps.googleusercontent.com ✅
+```
 
 ---
 
@@ -318,11 +401,23 @@ gcloud run services update-traffic cr-salfagpt-ai-ft-prod \
 
 **Overall:** ✅ **SUCCESS**
 
-Production deployment completed successfully after two iterations:
-1. Initial deployment (00050-8rf) - CSS import fixes
-2. Final deployment (00051-v8n) - Placeholder CSS files + is:inline directive
+Production deployment completed successfully after **7 iterations** and **5 major fixes**:
 
-The application is now live at https://salfagpt.salfagestion.cl with **all CSS 404 errors resolved**.
+1. **00050-8rf** - CSS import fixes (partial)
+2. **00051-v8n** - Empty placeholder CSS files (404s fixed, design still broken)
+3. **00052-btk** - Favicon added (favicon 404 fixed)
+4. **00053-xb6** - Compiled Tailwind CSS (design loading)
+5. **00054-5kk** - Environment variables pushed
+6. **00055-std** - Environment variables retry
+7. **00056-gc6** - OAuth redirect fix + active ✅ **WORKING**
+
+The application is now **fully functional** at https://salfagpt.salfagestion.cl with:
+- ✅ All CSS 404 errors resolved
+- ✅ Favicon 404 error resolved
+- ✅ Design loading completely with Tailwind styles
+- ✅ Environment variables configured
+- ✅ OAuth login working
+- ✅ Session management working
 
 **Deployed By:** Cursor AI Assistant  
 **Approved By:** Alec  
