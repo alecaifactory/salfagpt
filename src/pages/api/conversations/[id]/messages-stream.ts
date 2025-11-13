@@ -416,8 +416,14 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // This way we stream complete content only ONCE, no updates after
           let references: any[] = [];
           
+          console.log('📊 Reference building decision:');
+          console.log('   ragUsed:', ragUsed);
+          console.log('   ragResults.length:', ragResults.length);
+          console.log('   activeSourceIds.length:', activeSourceIds.length);
+          console.log('   ragHadFallback:', ragHadFallback);
+          
           if (ragUsed && ragResults.length > 0) {
-            console.log('📚 Building references BEFORE streaming (prevents flicker)...');
+            console.log('📚 Building RAG references BEFORE streaming (prevents flicker)...');
             
             // Group chunks by source document (consolidate references)
             const sourceGroups = new Map<string, typeof ragResults>();
@@ -460,9 +466,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
               };
             });
             
-            console.log(`✅ Built ${references.length} references ready for streaming`);
-          } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback && !shouldShowNoDocsMessage) {
+            console.log(`✅ Built ${references.length} RAG references ready for streaming`);
+          } else if (activeSourceIds && activeSourceIds.length > 0 && ragHadFallback) {
+            // ✅ ALWAYS build references for full documents if we loaded them
             console.log('📚 Building full document references BEFORE streaming...');
+            console.log('   Will use full documents since no high-quality RAG matches found');
             
             const sourceIdsToReference = activeSourceIds.slice(0, 10);
             const sourcesSnapshot = await firestore
