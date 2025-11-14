@@ -1,0 +1,746 @@
+📊 Context Source Assignment Analysis
+================================================================================
+
+Step 1: Loading users...
+  Found 50 users
+
+Step 2: Loading context sources...
+  Found 885 sources
+
+  Tags found: 11
+  Sources without tags: 1
+
+Step 3: Building assignment table...
+
+================================================================================
+
+📌 TAG: Cartolas (7 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: W23QXVRv1eSFI1UJmn9l
+    Name: Banco Itaú Chile.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: ZwB5AUOVhnmecQ5beu8a
+    Name: Banco Scotiabank (Correo).pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: hHnjKTNyRdq5hXLy9auJ
+    Name: TenpoBank.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: ogwNitUnnEvGXyrqXCia
+    Name: MachBank.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: rmTTEYZQmvQvDUHuNrkB
+    Name: Banco de Chile.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: tMnAkYeMXVwkXV902OPl
+    Name: Banco del Estado de Chile (BancoEstado).pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+  Source: tjxcDGhT3BVSPwABiv0S
+    Name: Banco Scotiabank (descarga web).pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (Br1fEbbJdvkOVclUmYLD)
+    RAG enabled: Yes
+
+📌 TAG: M001 (538 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 01tZhW7t56mwSrd8Aqrm
+    Name: Cir95-modificada-por-DDU-390.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 02QBBSUiF9HqISeJcOdE
+    Name: DDU-ESP-071-07.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 09e2HJTqmLAPMrwNMjFE
+    Name: DDU-ESPECIFICA-50-CIR.782.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 09rSYfMgkFlXELV6NHiL
+    Name: DDU-466-modificada-por-Cir_DDU-480.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0BIV47EVOi3uj73Oh6Om
+    Name: DDU-331.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0GuhPTSPkYvXi3kW7Mip
+    Name: DDU-ESP-032-10.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0GxaOe9tGK5c1ZkC7Sv1
+    Name: DDU-248.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0K2tKl1CD22N6j8tehpa
+    Name: DDU-471.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0Ng63obmHdsn72UWVxFc
+    Name: DDU-ESPECIFICA-53-CIR.816.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  Source: 0WINqZj3Mfx2KURvEIfc
+    Name: DDU-363.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (cjn3bC0HrUYtHqu69CKS, 0oiOz6LkzGuojFNBtTNQ...)
+    RAG enabled: Yes
+
+  ... and 528 more sources
+
+📌 TAG: M004 (7 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 9NMVO2ot4z1Jnl5F3gVa
+    Name: CC001 BT - Anexo 02 Bases de Medicion y Pago Rev5.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: DFmYMyf4Zq1gMnkLwneR
+    Name: Bases Especiales de Contratación CC-001 Rev. 0.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: Gtg2q0xtNaiZ6KNm4ko5
+    Name: Bases Tecnicas CC001 Rev4 firmadas.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: KEX5nO8wZVOrl9GVLfqW
+    Name: RCA 127_2023.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: ouI5ijJsBOdCbTV7VBR4
+    Name: CC-001-Ronda de consulas N°1-Aclaraciones.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: reOrvewPlWtOajHko1nY
+    Name: CC-001 Consultas y Respuestas N°1.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+  Source: twcD9AQZWXvBuXqyQpAu
+    Name: SGP-12CON-BASEC-00001 BASES GENERALES DE CONTRATACIÓN (BGC) Rev7.1.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 0 ()
+    RAG enabled: Yes
+
+📌 TAG: M3 (28 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 0wKs54A12DqZcTsXil8R
+    Name: GOP-P-PCO-2.2.TRAZABILIDAD, CERTIFICADOS Y ENSAYOS-(V.4).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 1C5bK59K3VmCfgzDGfKw
+    Name: GOP-P-PCO-2.ELABORACION DE DOCUMENTOS-(V.0).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 1XzcHjRqiKdrUw42JZyi
+    Name: GOP-P-PF-3.1.ANEXO 3 EQUIPOS-(V.0).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 25rThSSa31PTe9zuINxp
+    Name: GOP-P-PF-3.PROCESO PANEL FINANCIERO PROYECTOS AFECTOS-(V.1) (1).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 2tyNEWaubGdZsvPoms6I
+    Name: GOP-R-PCO-2.4.MINUTA_DE_REUNION-(V.0).DOCX.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 3KXsBmyYTjif5SkEA6cv
+    Name: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 4zGMFzbg5oxsbzUa4Mqz
+    Name: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 6lftg0cNe59nyTBrciXb
+    Name: GOP-P-CE-5.PROCEDIMIENTO CONTROL DE ETAPA DS49-(V.0).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: 90HhrU2rkTIxM38GeH95
+    Name: GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  Source: GU2yW8lobTop9CNUgOtp
+    Name: CONTRATACION DE SUBCONTRATISTAS.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 120 (5aNwSMgff2BRKrrVRypF, 1n1tSkSyxACK5r7WmgLe...)
+    RAG enabled: Yes
+
+  ... and 18 more sources
+
+📌 TAG: S001 (76 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 0SueXFxB6CIKQqykkb0R
+    Name: MAQ-GG-CAL-I-003 Creación de Proveedor en SAP Rev.00.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: 7pPIwc3t7S442VJN31vf
+    Name: MAQ-ABA-DTM-P-001 Gestión de Compras Técnicas Rev.01.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: 7qPnJnVebWRhcM6hNQaF
+    Name: MAQ-LOG-CBO-PP-010 Emisión Guías Despacho Electrónicas Sin Referencia.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: 9y08VbHvCu9Vvy6UgzKN
+    Name: MAQ-LOG-CBO-PP-005 Inventario de Existencias MB52 Rev.01.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: AtddS3CRBhlr2wW5N5h0
+    Name: MAQ-LOG-CT-PP-006 Solicitud de Transporte LETRA -ST SUBCARGO.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: AwCYFT9DSi3V0Ek50m1E
+    Name: Paso a Paso Reporte de Pedidos y Mov Equipos ME2N.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: BWP7PwscPzL2FL8QndVI
+    Name: MAQ-LOG-CBO-PP-016 Manejo de Stock Crítico-PEP Nivel 2.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: C7UqJJKBUXPZ87Bm7W79
+    Name: Paso a Paso Aprobación de HES-Aprobación individual.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: CN8PuGRsbZWiyP6JhIjF
+    Name: MAQ-LOG-CBO-I-003 Traspaso de Bodega Rev.02.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  Source: DsqXZHAvjaR5YZ7fTS9d
+    Name: MAQ-LOG-CBO-PP-019 Manejo de Stock Crítico-PEP Nivel 4.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 221 (AjtQZEIMQvFnPRJRjl4y, 16kV3zeCkECmTDEeUmLI...)
+    RAG enabled: Yes
+
+  ... and 66 more sources
+
+📌 TAG: S2 (134 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 0ZkdxJqk3vozcOniOjWX
+    Name: Control semanal de grúas HIAB..pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 12Rcnt0HHePxPlaR82Tt
+    Name: Tabla de Carga AK-3008.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 1DPDHKI4QsZEVKGuPhXt
+    Name: Tabla de Carga National 500C.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 1Ip2v6UYTPgmmzyU1ndf
+    Name: Tabla de Carga HIAB_XS_288_EP-5_Duo.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 1v6diAeksIeDUE2bEctW
+    Name: Tabla de Carga PK-23080B.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 2liwYgJ739NxWjRkkmgl
+    Name: Tabla de Carga pluma Palfinger PK15500.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 32cOB9sZGyaAXQxxtrcI
+    Name: Tabla de Carga Hiab XS 377EP-5 HiDuo.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 33S7066IAT2Afcj7L7D0
+    Name: Manual de Operacion Hiab 322-377 Duo-HiDuo.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 38LzpemuA8MxgPCWgnkz
+    Name: Manual del Operador Camion International 7600.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  Source: 3JjPQDlSZKZNLUfzHg1w
+    Name: Manual Operador Ford Cargo 2428.pdf
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 104 (KfoKcDrb6pMnduAiLlrD, 02ynQ5qi0HErbFqbj8yl...)
+    RAG enabled: Yes
+
+  ... and 124 more sources
+
+📌 TAG: SSOMA Pro (1 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: dHbdWeZwgk4ptcT6I7eJ
+    Name: SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 4 (yE0LmtdsdKE3cMxTomk2, 48QMwiXzheQOq6NqKNsc...)
+    RAG enabled: Yes
+
+📌 TAG: SSOMA (89 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 1OFK4FhsgajT6zznXkCe
+    Name: SSOMA-ME-RCO-08 CONTACTO CON ENERGIA ELECTRICA (12).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 98 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 1RJP2yDPReZ9xkeydjbH
+    Name: SSOMA-GS-012 SEGURIDAD, SALUD E HIGIENE OCUPACIONAL EN TELETRABAJO REV.0 (5).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 98 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 2MLY49cCEUqMpohubxpa
+    Name: FICHA N°5 PROTECCION DE VANOS Y SHAFT REV.01 (3).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 98 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 3cLx08qJTreD46ZWPiVl
+    Name: SSOMA-ME-MA-01 MITIGACION DE IMPACTOS AMBIENTALES_V2024 (7).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 97 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 4ZdFVv2fIX6LF6cyfqeX
+    Name: SSOMA-REG-004 REGLAMENTO ESPECIAL SSOMA REV 6.. (4).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 97 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 52JJmvi4zA0sxqTOtYD4
+    Name: SSOMA-P-002 ENTRENAMIENTO Y CAPACITACION REV.2 (28).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 95 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 5JCU0jVCetSAuoQQJXrf
+    Name: SSOMA-ME-SHO-10 EXPOSICION A ARSENICO (3).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 94 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 6F9ctNPRfE46hbCJ7xzr
+    Name: SSOMA-ME-SHO-05 EXPOSICION A RUIDO (4).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 91 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 6fSRbAYDHGY0NdusrhrF
+    Name: SSOMA-ME-RCO-07 ATRAPADO POR PIEZAS MOVILES (6).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 91 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  Source: 6uZjSKVHXGJoxj25uSSd
+    Name: TARJETA POR LA VIDA REV.2023 (4).PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 90 (fAPZHQaocTYLwInZlVaQ, 2oVviKUIQYtOJWfpaEZK...)
+    RAG enabled: Yes
+
+  ... and 79 more sources
+
+📌 TAG: SSOMAv2 (2 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: VQaUj62kKG6mxBk7SecM
+    Name: SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (nlmQBqdCKMEL8d0ZO8eP)
+    RAG enabled: Yes
+
+  Source: rByzPiKd9c66Q0neHmIn
+    Name: SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 2 (JEJ9vPjFDXeP9aH7k2uI, nlmQBqdCKMEL8d0ZO8eP)
+    RAG enabled: Yes
+
+📌 TAG: SSOMAv4 (1 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: 4MlbtXHrVbr2eS2LIkSb
+    Name: SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (owOjHuwaMJwpK2rvtjYo)
+    RAG enabled: Yes
+
+📌 TAG: SSOMAv5 (1 sources)
+────────────────────────────────────────────────────────────────────────────────
+  Source: PqUXrmQtiVLQzYpv0P6I
+    Name: SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF
+    Current userId: 114671162830729001607
+    User email: N/A
+    Google ID: N/A
+    Assigned agents: 1 (fd9P0UYklk9hn9v4Ir8W)
+    RAG enabled: Yes
+
+
+================================================================================
+📋 COMPREHENSIVE MAPPING TABLE
+================================================================================
+
+Tag,Source ID,Source Name,Current userId,User Email,Google ID,Assigned Agents,Suggested Hash ID
+Cartolas,"W23QXVRv1eSFI1UJmn9l","Banco Itaú Chile.pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"ZwB5AUOVhnmecQ5beu8a","Banco Scotiabank (Correo).pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"hHnjKTNyRdq5hXLy9auJ","TenpoBank.pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"ogwNitUnnEvGXyrqXCia","MachBank.pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"rmTTEYZQmvQvDUHuNrkB","Banco de Chile.pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"tMnAkYeMXVwkXV902OPl","Banco del Estado de Chile (BancoEstado).pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+Cartolas,"tjxcDGhT3BVSPwABiv0S","Banco Scotiabank (descarga web).pdf","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+M001,"01tZhW7t56mwSrd8Aqrm","Cir95-modificada-por-DDU-390.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"02QBBSUiF9HqISeJcOdE","DDU-ESP-071-07.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"09e2HJTqmLAPMrwNMjFE","DDU-ESPECIFICA-50-CIR.782.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"09rSYfMgkFlXELV6NHiL","DDU-466-modificada-por-Cir_DDU-480.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0BIV47EVOi3uj73Oh6Om","DDU-331.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0GuhPTSPkYvXi3kW7Mip","DDU-ESP-032-10.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0GxaOe9tGK5c1ZkC7Sv1","DDU-248.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0K2tKl1CD22N6j8tehpa","DDU-471.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0Ng63obmHdsn72UWVxFc","DDU-ESPECIFICA-53-CIR.816.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M001,"0WINqZj3Mfx2KURvEIfc","DDU-363.pdf","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+M004,"9NMVO2ot4z1Jnl5F3gVa","CC001 BT - Anexo 02 Bases de Medicion y Pago Rev5.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"DFmYMyf4Zq1gMnkLwneR","Bases Especiales de Contratación CC-001 Rev. 0.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"Gtg2q0xtNaiZ6KNm4ko5","Bases Tecnicas CC001 Rev4 firmadas.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"KEX5nO8wZVOrl9GVLfqW","RCA 127_2023.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"ouI5ijJsBOdCbTV7VBR4","CC-001-Ronda de consulas N°1-Aclaraciones.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"reOrvewPlWtOajHko1nY","CC-001 Consultas y Respuestas N°1.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M004,"twcD9AQZWXvBuXqyQpAu","SGP-12CON-BASEC-00001 BASES GENERALES DE CONTRATACIÓN (BGC) Rev7.1.pdf","114671162830729001607","Unknown","Unknown",0,"114671162830729001607"
+M3,"0wKs54A12DqZcTsXil8R","GOP-P-PCO-2.2.TRAZABILIDAD, CERTIFICADOS Y ENSAYOS-(V.4).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"1C5bK59K3VmCfgzDGfKw","GOP-P-PCO-2.ELABORACION DE DOCUMENTOS-(V.0).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"1XzcHjRqiKdrUw42JZyi","GOP-P-PF-3.1.ANEXO 3 EQUIPOS-(V.0).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"25rThSSa31PTe9zuINxp","GOP-P-PF-3.PROCESO PANEL FINANCIERO PROYECTOS AFECTOS-(V.1) (1).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"2tyNEWaubGdZsvPoms6I","GOP-R-PCO-2.4.MINUTA_DE_REUNION-(V.0).DOCX.pdf","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"3KXsBmyYTjif5SkEA6cv","6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"4zGMFzbg5oxsbzUa4Mqz","GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"6lftg0cNe59nyTBrciXb","GOP-P-CE-5.PROCEDIMIENTO CONTROL DE ETAPA DS49-(V.0).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"90HhrU2rkTIxM38GeH95","GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+M3,"GU2yW8lobTop9CNUgOtp","CONTRATACION DE SUBCONTRATISTAS.PDF","114671162830729001607","Unknown","Unknown",120,"114671162830729001607"
+S001,"0SueXFxB6CIKQqykkb0R","MAQ-GG-CAL-I-003 Creación de Proveedor en SAP Rev.00.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"7pPIwc3t7S442VJN31vf","MAQ-ABA-DTM-P-001 Gestión de Compras Técnicas Rev.01.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"7qPnJnVebWRhcM6hNQaF","MAQ-LOG-CBO-PP-010 Emisión Guías Despacho Electrónicas Sin Referencia.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"9y08VbHvCu9Vvy6UgzKN","MAQ-LOG-CBO-PP-005 Inventario de Existencias MB52 Rev.01.PDF","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"AtddS3CRBhlr2wW5N5h0","MAQ-LOG-CT-PP-006 Solicitud de Transporte LETRA -ST SUBCARGO.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"AwCYFT9DSi3V0Ek50m1E","Paso a Paso Reporte de Pedidos y Mov Equipos ME2N.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"BWP7PwscPzL2FL8QndVI","MAQ-LOG-CBO-PP-016 Manejo de Stock Crítico-PEP Nivel 2.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"C7UqJJKBUXPZ87Bm7W79","Paso a Paso Aprobación de HES-Aprobación individual.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"CN8PuGRsbZWiyP6JhIjF","MAQ-LOG-CBO-I-003 Traspaso de Bodega Rev.02.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S001,"DsqXZHAvjaR5YZ7fTS9d","MAQ-LOG-CBO-PP-019 Manejo de Stock Crítico-PEP Nivel 4.pdf","114671162830729001607","Unknown","Unknown",221,"114671162830729001607"
+S2,"0ZkdxJqk3vozcOniOjWX","Control semanal de grúas HIAB..pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"12Rcnt0HHePxPlaR82Tt","Tabla de Carga AK-3008.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"1DPDHKI4QsZEVKGuPhXt","Tabla de Carga National 500C.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"1Ip2v6UYTPgmmzyU1ndf","Tabla de Carga HIAB_XS_288_EP-5_Duo.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"1v6diAeksIeDUE2bEctW","Tabla de Carga PK-23080B.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"2liwYgJ739NxWjRkkmgl","Tabla de Carga pluma Palfinger PK15500.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"32cOB9sZGyaAXQxxtrcI","Tabla de Carga Hiab XS 377EP-5 HiDuo.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"33S7066IAT2Afcj7L7D0","Manual de Operacion Hiab 322-377 Duo-HiDuo.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"38LzpemuA8MxgPCWgnkz","Manual del Operador Camion International 7600.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+S2,"3JjPQDlSZKZNLUfzHg1w","Manual Operador Ford Cargo 2428.pdf","114671162830729001607","Unknown","Unknown",104,"114671162830729001607"
+SSOMA Pro,"dHbdWeZwgk4ptcT6I7eJ","SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF","114671162830729001607","Unknown","Unknown",4,"114671162830729001607"
+SSOMA,"1OFK4FhsgajT6zznXkCe","SSOMA-ME-RCO-08 CONTACTO CON ENERGIA ELECTRICA (12).PDF","114671162830729001607","Unknown","Unknown",98,"114671162830729001607"
+SSOMA,"1RJP2yDPReZ9xkeydjbH","SSOMA-GS-012 SEGURIDAD, SALUD E HIGIENE OCUPACIONAL EN TELETRABAJO REV.0 (5).PDF","114671162830729001607","Unknown","Unknown",98,"114671162830729001607"
+SSOMA,"2MLY49cCEUqMpohubxpa","FICHA N°5 PROTECCION DE VANOS Y SHAFT REV.01 (3).PDF","114671162830729001607","Unknown","Unknown",98,"114671162830729001607"
+SSOMA,"3cLx08qJTreD46ZWPiVl","SSOMA-ME-MA-01 MITIGACION DE IMPACTOS AMBIENTALES_V2024 (7).PDF","114671162830729001607","Unknown","Unknown",97,"114671162830729001607"
+SSOMA,"4ZdFVv2fIX6LF6cyfqeX","SSOMA-REG-004 REGLAMENTO ESPECIAL SSOMA REV 6.. (4).PDF","114671162830729001607","Unknown","Unknown",97,"114671162830729001607"
+SSOMA,"52JJmvi4zA0sxqTOtYD4","SSOMA-P-002 ENTRENAMIENTO Y CAPACITACION REV.2 (28).PDF","114671162830729001607","Unknown","Unknown",95,"114671162830729001607"
+SSOMA,"5JCU0jVCetSAuoQQJXrf","SSOMA-ME-SHO-10 EXPOSICION A ARSENICO (3).PDF","114671162830729001607","Unknown","Unknown",94,"114671162830729001607"
+SSOMA,"6F9ctNPRfE46hbCJ7xzr","SSOMA-ME-SHO-05 EXPOSICION A RUIDO (4).PDF","114671162830729001607","Unknown","Unknown",91,"114671162830729001607"
+SSOMA,"6fSRbAYDHGY0NdusrhrF","SSOMA-ME-RCO-07 ATRAPADO POR PIEZAS MOVILES (6).PDF","114671162830729001607","Unknown","Unknown",91,"114671162830729001607"
+SSOMA,"6uZjSKVHXGJoxj25uSSd","TARJETA POR LA VIDA REV.2023 (4).PDF","114671162830729001607","Unknown","Unknown",90,"114671162830729001607"
+SSOMAv2,"VQaUj62kKG6mxBk7SecM","SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+SSOMAv2,"rByzPiKd9c66Q0neHmIn","SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF","114671162830729001607","Unknown","Unknown",2,"114671162830729001607"
+SSOMAv4,"4MlbtXHrVbr2eS2LIkSb","SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+SSOMAv5,"PqUXrmQtiVLQzYpv0P6I","SSOMA-P-004 PROCEDIMIENTO PARA LA GESTION DEL RIESGO REV.2.PDF","114671162830729001607","Unknown","Unknown",1,"114671162830729001607"
+
+================================================================================
+📊 SUMMARY BY TAG
+================================================================================
+
+Cartolas:
+  Sources: 7
+  Users: 1
+  Total agent assignments: 7
+  RAG-enabled: 7
+
+M001:
+  Sources: 538
+  Users: 1
+  Total agent assignments: 50574
+  RAG-enabled: 538
+
+M004:
+  Sources: 7
+  Users: 1
+  Total agent assignments: 0
+  RAG-enabled: 7
+
+M3:
+  Sources: 28
+  Users: 1
+  Total agent assignments: 3360
+  RAG-enabled: 28
+
+S001:
+  Sources: 76
+  Users: 1
+  Total agent assignments: 16823
+  RAG-enabled: 76
+
+S2:
+  Sources: 134
+  Users: 1
+  Total agent assignments: 12168
+  RAG-enabled: 131
+
+SSOMA Pro:
+  Sources: 1
+  Users: 1
+  Total agent assignments: 4
+  RAG-enabled: 1
+
+SSOMA:
+  Sources: 89
+  Users: 1
+  Total agent assignments: 7257
+  RAG-enabled: 89
+
+SSOMAv2:
+  Sources: 2
+  Users: 1
+  Total agent assignments: 3
+  RAG-enabled: 2
+
+SSOMAv4:
+  Sources: 1
+  Users: 1
+  Total agent assignments: 1
+  RAG-enabled: 1
+
+SSOMAv5:
+  Sources: 1
+  Users: 1
+  Total agent assignments: 1
+  RAG-enabled: 1
+

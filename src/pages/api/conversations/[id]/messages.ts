@@ -92,7 +92,7 @@ export const POST: APIRoute = async ({ params, request }) => {
     
     // RAG configuration (optimized for technical documents like SSOMA)
     const ragTopK = body.ragTopK || 10;
-    const ragMinSimilarity = body.ragMinSimilarity || 0.7; // 70% minimum - only provide high-quality references
+    const ragMinSimilarity = body.ragMinSimilarity || 0.5; // 50% minimum - allow more references (was 0.7)
     const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
 
     if (contextSources && contextSources.length > 0) {

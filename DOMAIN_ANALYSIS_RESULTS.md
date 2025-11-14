@@ -10,7 +10,7 @@
 
 ### **Salfa Corporation Domains Identified:**
 
-**7 distinct Salfa-related domains found:**
+**8 distinct Salfa-related domains found:**
 
 1. **maqsa.cl** - 20 users (largest)
 2. **iaconcagua.com** - 9 users
@@ -19,8 +19,9 @@
 5. **salfamontajes.com** - 1 user
 6. **practicantecorp.cl** - 1 user
 7. **salfacloud.cl** - 1 user (alec@ service account)
+8. **constructorasalfa.cl** - 0 users (future/active domain) ⭐ **NEW**
 
-**Total Salfa users: 37 out of 39 total users** (95% of database)
+**Total Salfa users: 38 out of 39 total users** (97% of database)
 
 ---
 
@@ -58,6 +59,11 @@
 **salfacloud.cl (1 user):**
 - alec@salfacloud.cl (user) - Service account
 
+**constructorasalfa.cl (1 user):**
+- fcerda@constructorasalfa.cl (user) - Felipe Cerda
+- ⭐ **ACTIVE DOMAIN** - Construction Division
+- Has agent access: MAQSA Mantenimiento S2
+
 ---
 
 ### **❌ EXCLUDE from Salfa Corp (2 users):**
@@ -72,7 +78,7 @@
 
 ## 🎯 **Migration Impact**
 
-### **Users to Migrate: 37**
+### **Users to Migrate: 38**
 
 All users from these domains will be assigned to "salfa-corp" organization:
 - maqsa.cl
@@ -82,10 +88,11 @@ All users from these domains will be assigned to "salfa-corp" organization:
 - salfamontajes.com
 - practicantecorp.cl
 - salfacloud.cl
+- constructorasalfa.cl ⭐ **NEW**
 
 ### **Estimated Impact:**
 
-Based on 37 users, likely migration will include:
+Based on 38 users, likely migration will include:
 - **Conversations:** ~150-400 (based on typical usage)
 - **Context Sources:** ~50-200 (based on uploads)
 - **Messages:** All messages in assigned conversations
@@ -99,7 +106,7 @@ Based on 37 users, likely migration will include:
 ```bash
 npm run migrate:multi-org:dry-run -- \
   --org=salfa-corp \
-  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl
+  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,constructorasalfa.cl
 ```
 
 **This will show:**
@@ -115,7 +122,7 @@ npm run migrate:multi-org:dry-run -- \
 ```bash
 npm run migrate:multi-org -- \
   --org=salfa-corp \
-  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl \
+  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,constructorasalfa.cl \
   --env=production
 ```
 
@@ -154,10 +161,10 @@ npm run migrate:multi-org -- \
 ```bash
 npm run migrate:multi-org:dry-run -- \
   --org=salfa-corp \
-  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl
+  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,constructorasalfa.cl
 ```
 
 **Want me to run this now?**
 
-This will show the complete preview with all 7 Salfa domains and 37 users!
+This will show the complete preview with all **8 Salfa domains** (including constructorasalfa.cl) and 37 users!
 
