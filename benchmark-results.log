@@ -1,0 +1,101 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+📊 BigQuery Agent Search initialized
+  Project: salfagpt
+📊 BigQuery Optimized Search initialized
+  Project: salfagpt
+  Dataset: flow_rag_optimized (NEW - optimized)
+  Table: document_chunks_vectorized
+🔬 GREEN vs BLUE BigQuery Benchmark
+=======================================================================
+
+Configuration:
+  User: usr_uhwqffaqag1wrryd82tw
+  Agent: "GESTION BODEGAS GPT (S001)"
+  Query: "¿Cuál es el procedimiento para inventario de existencias?"
+
+🔍 Finding agent: "GESTION BODEGAS GPT (S001)" for user usr_uhwqffaqag1wrryd82tw...
+  ✓ Found agent: AjtQZEIMQvFnPRJRjl4y
+✅ Using agent: AjtQZEIMQvFnPRJRjl4y
+
+🚀 Starting parallel benchmark...
+=======================================================================
+
+🔬 Testing GREEN...
+🔍 [OPTIMIZED] BigQuery Vector Search starting...
+  User: usr_uhwqffaqag1wrryd82tw
+  Agent: AjtQZEIMQvFnPRJRjl4y
+  Query: "¿Cuál es el procedimiento para inventario de existencias?..."
+  Config: topK=8, minSim=0.25
+  [1/4] Generating query embedding...
+🔑 [Embeddings] Loaded API key from .env file
+🧮 [Gemini AI] Generating semantic embedding (¿Cuál es el procedimiento para inventario de exist...)
+
+🔬 Testing BLUE...
+🔍 BigQuery Agent Search starting...
+  Current User: usr_uhwqffaqag1wrryd82tw
+  Agent: AjtQZEIMQvFnPRJRjl4y
+  Query: "¿Cuál es el procedimiento para inventario de existencias?..."
+  TopK: 8, MinSimilarity: 0.25
+  🔑 Effective owner for context: usr_uhwqffaqag1wrryd82tw (own agent)
+     Current user ID: usr_uhwqffaqag1wrryd82tw
+  1/4 Generating query embedding...
+🔑 [Embeddings] Loaded API key from .env file
+🧮 [Gemini AI] Generating semantic embedding (¿Cuál es el procedimiento para inventario de exist...)
+✅ [Gemini AI] Generated SEMANTIC embedding: 768 dimensions
+  ✓ Embedding ready (3761ms)
+  [2/4] Loading sources assigned to agent...
+✅ [Gemini AI] Generated SEMANTIC embedding: 768 dimensions
+  ✓ Query embedding generated (2470ms)
+  2/4 Getting sources assigned to agent...
+  🔍 Searching Firestore for sources assigned to agent AjtQZEIMQvFnPRJRjl4y...
+     Step 1: Querying by assignedToAgents, then filtering by userId
+  ✓ Found 0 sources (829ms)
+  ⚠️ No sources assigned to agent
+  ✓ Duration: 4593ms
+  ✓ Results: 0 chunks
+  ✓ Avg similarity: 0.0%
+     Query result: 76 sources found (before userId filter)
+     After userId filter: 0 sources match effectiveUserId
+     Step 1 result: 0 sources found
+     Step 2: No sources found with effectiveUserId, checking agent owner...
+     Agent found: owner userId = usr_uhwqffaqag1wrryd82tw
+     Comparing: effectiveUserId (usr_uhwqffaqag1wrryd82tw) vs agent.userId (usr_uhwqffaqag1wrryd82tw)
+     Are they different? false
+     Same user - not trying owner lookup (would be redundant)
+  📊 FINAL RESULT: 0 sources will be used for RAG search
+  ⚠️ No sources assigned to this agent
+  ✓ Duration: 5820ms
+  ✓ Results: 0 chunks
+  ✓ Avg similarity: 0.0%
+
+
+📊 BENCHMARK RESULTS
+=======================================================================
+
+┌─────────────────────────┬─────────────────┬─────────────────┐
+│ Metric                  │ 🔵 BLUE         │ 🟢 GREEN        │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│ Success                 │ ❌ No          │ ❌ No          │
+│ Duration                │ 5820       ms │ 4593       ms │
+│ Results Found           │ 0               │ 0               │
+│ Avg Similarity          │ 0.0          % │ 0.0          % │
+└─────────────────────────┴─────────────────┴─────────────────┘
+
+
+🎯 Target Performance Check:
+=======================================================================
+  ❌ GREEN FAILED: undefined
+  ❌ BLUE FAILED: undefined
+
+🏁 Recommendation:
+=======================================================================
+  ⚠️ Review results above for issues
+

@@ -1,0 +1,237 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+🔄 BigQuery Optimized Migration (Blue-Green Deployment)
+=============================================================
+Mode: LIVE MIGRATION
+Batch size: 50
+Target: salfagpt.flow_rag_optimized.document_chunks_vectorized
+Current: flow_analytics.document_embeddings (UNTOUCHED)
+
+🔍 Step 1: Verifying new table exists...
+  ✅ Table exists: flow_rag_optimized.document_chunks_vectorized
+
+📊 Step 2: Checking current state of new table...
+  Current state of NEW table:
+    Total chunks: 1
+    Unique users: 1
+    Unique sources: 1
+
+📥 Step 3: Fetching chunks from Firestore...
+  Found 8402 chunks in Firestore
+  Grouped into 875 sources
+
+📤 Step 4: Migrating chunks to NEW table...
+
+  ✓ Batch 1: 50/8402 chunks (0.6%) - 268.3s elapsed, ~Infinitys remaining, 0 chunks/s
+  ✓ Batch 2: 100/8402 chunks (1.2%) - 269.5s elapsed, ~Infinitys remaining, 0 chunks/s
+  ✓ Batch 3: 150/8402 chunks (1.8%) - 270.6s elapsed, ~8252s remaining, 1 chunks/s
+  ✓ Batch 4: 200/8402 chunks (2.4%) - 271.8s elapsed, ~8202s remaining, 1 chunks/s
+  ✓ Batch 5: 250/8402 chunks (3.0%) - 272.9s elapsed, ~8152s remaining, 1 chunks/s
+  ✓ Batch 6: 300/8402 chunks (3.6%) - 274.0s elapsed, ~8102s remaining, 1 chunks/s
+  ✓ Batch 7: 350/8402 chunks (4.2%) - 275.1s elapsed, ~8052s remaining, 1 chunks/s
+  ✓ Batch 8: 400/8402 chunks (4.8%) - 276.2s elapsed, ~8002s remaining, 1 chunks/s
+  ✓ Batch 9: 450/8402 chunks (5.4%) - 277.4s elapsed, ~3976s remaining, 2 chunks/s
+  ✓ Batch 10: 500/8402 chunks (6.0%) - 278.6s elapsed, ~3951s remaining, 2 chunks/s
+  ✓ Batch 11: 550/8402 chunks (6.5%) - 279.6s elapsed, ~3926s remaining, 2 chunks/s
+  ✓ Batch 12: 600/8402 chunks (7.1%) - 280.7s elapsed, ~3901s remaining, 2 chunks/s
+  ✓ Batch 13: 650/8402 chunks (7.7%) - 281.8s elapsed, ~3876s remaining, 2 chunks/s
+  ✓ Batch 14: 700/8402 chunks (8.3%) - 282.9s elapsed, ~3851s remaining, 2 chunks/s
+  ✓ Batch 15: 750/8402 chunks (8.9%) - 284.0s elapsed, ~2551s remaining, 3 chunks/s
+  ✓ Batch 16: 800/8402 chunks (9.5%) - 285.3s elapsed, ~2534s remaining, 3 chunks/s
+  ✓ Batch 17: 850/8402 chunks (10.1%) - 287.4s elapsed, ~2517s remaining, 3 chunks/s
+  ✓ Batch 18: 900/8402 chunks (10.7%) - 288.7s elapsed, ~2501s remaining, 3 chunks/s
+  ✓ Batch 19: 950/8402 chunks (11.3%) - 289.9s elapsed, ~2484s remaining, 3 chunks/s
+  ✓ Batch 20: 1000/8402 chunks (11.9%) - 291.1s elapsed, ~2467s remaining, 3 chunks/s
+  ✓ Batch 21: 1050/8402 chunks (12.5%) - 292.3s elapsed, ~1838s remaining, 4 chunks/s
+  ✓ Batch 22: 1100/8402 chunks (13.1%) - 293.5s elapsed, ~1826s remaining, 4 chunks/s
+  ✓ Batch 23: 1150/8402 chunks (13.7%) - 294.6s elapsed, ~1813s remaining, 4 chunks/s
+  ✓ Batch 24: 1200/8402 chunks (14.3%) - 295.7s elapsed, ~1801s remaining, 4 chunks/s
+  ✓ Batch 25: 1250/8402 chunks (14.9%) - 296.8s elapsed, ~1788s remaining, 4 chunks/s
+  ✓ Batch 26: 1300/8402 chunks (15.5%) - 298.4s elapsed, ~1776s remaining, 4 chunks/s
+  ✓ Batch 27: 1350/8402 chunks (16.1%) - 299.9s elapsed, ~1410s remaining, 5 chunks/s
+  ✓ Batch 28: 1400/8402 chunks (16.7%) - 301.1s elapsed, ~1400s remaining, 5 chunks/s
+  ✓ Batch 29: 1450/8402 chunks (17.3%) - 302.3s elapsed, ~1390s remaining, 5 chunks/s
+  ✓ Batch 30: 1500/8402 chunks (17.9%) - 303.3s elapsed, ~1380s remaining, 5 chunks/s
+  ✓ Batch 31: 1550/8402 chunks (18.4%) - 304.5s elapsed, ~1370s remaining, 5 chunks/s
+  ✓ Batch 32: 1600/8402 chunks (19.0%) - 305.6s elapsed, ~1360s remaining, 5 chunks/s
+  ✓ Batch 33: 1650/8402 chunks (19.6%) - 306.7s elapsed, ~1350s remaining, 5 chunks/s
+  ✓ Batch 34: 1700/8402 chunks (20.2%) - 308.3s elapsed, ~1117s remaining, 6 chunks/s
+  ✓ Batch 35: 1750/8402 chunks (20.8%) - 309.4s elapsed, ~1109s remaining, 6 chunks/s
+  ✓ Batch 36: 1800/8402 chunks (21.4%) - 310.7s elapsed, ~1100s remaining, 6 chunks/s
+  ✓ Batch 37: 1850/8402 chunks (22.0%) - 311.8s elapsed, ~1092s remaining, 6 chunks/s
+  ✓ Batch 38: 1900/8402 chunks (22.6%) - 313.0s elapsed, ~1084s remaining, 6 chunks/s
+  ✓ Batch 39: 1950/8402 chunks (23.2%) - 314.1s elapsed, ~1075s remaining, 6 chunks/s
+  ✓ Batch 40: 2000/8402 chunks (23.8%) - 315.2s elapsed, ~1067s remaining, 6 chunks/s
+  ✓ Batch 41: 2050/8402 chunks (24.4%) - 316.3s elapsed, ~1059s remaining, 6 chunks/s
+  ✓ Batch 42: 2100/8402 chunks (25.0%) - 317.5s elapsed, ~900s remaining, 7 chunks/s
+  ✓ Batch 43: 2150/8402 chunks (25.6%) - 318.7s elapsed, ~893s remaining, 7 chunks/s
+  ✓ Batch 44: 2200/8402 chunks (26.2%) - 319.8s elapsed, ~886s remaining, 7 chunks/s
+  ✓ Batch 45: 2250/8402 chunks (26.8%) - 321.0s elapsed, ~879s remaining, 7 chunks/s
+  ✓ Batch 46: 2300/8402 chunks (27.4%) - 322.2s elapsed, ~872s remaining, 7 chunks/s
+  ✓ Batch 47: 2350/8402 chunks (28.0%) - 323.4s elapsed, ~865s remaining, 7 chunks/s
+  ✓ Batch 48: 2400/8402 chunks (28.6%) - 324.5s elapsed, ~857s remaining, 7 chunks/s
+  ✓ Batch 49: 2450/8402 chunks (29.2%) - 325.9s elapsed, ~744s remaining, 8 chunks/s
+  ✓ Batch 50: 2500/8402 chunks (29.8%) - 327.0s elapsed, ~738s remaining, 8 chunks/s
+  ✓ Batch 51: 2550/8402 chunks (30.3%) - 328.5s elapsed, ~732s remaining, 8 chunks/s
+  ✓ Batch 52: 2600/8402 chunks (30.9%) - 332.0s elapsed, ~725s remaining, 8 chunks/s
+  ✓ Batch 53: 2650/8402 chunks (31.5%) - 340.3s elapsed, ~719s remaining, 8 chunks/s
+  ✓ Batch 54: 2700/8402 chunks (32.1%) - 349.3s elapsed, ~713s remaining, 8 chunks/s
+  ✓ Batch 55: 2750/8402 chunks (32.7%) - 352.6s elapsed, ~707s remaining, 8 chunks/s
+  ✓ Batch 56: 2800/8402 chunks (33.3%) - 359.0s elapsed, ~700s remaining, 8 chunks/s
+  ✓ Batch 57: 2850/8402 chunks (33.9%) - 371.6s elapsed, ~694s remaining, 8 chunks/s
+  ✓ Batch 58: 2900/8402 chunks (34.5%) - 374.0s elapsed, ~688s remaining, 8 chunks/s
+  ✓ Batch 59: 2950/8402 chunks (35.1%) - 378.4s elapsed, ~682s remaining, 8 chunks/s
+  ✓ Batch 60: 3000/8402 chunks (35.7%) - 383.0s elapsed, ~675s remaining, 8 chunks/s
+  ✓ Batch 61: 3050/8402 chunks (36.3%) - 386.8s elapsed, ~669s remaining, 8 chunks/s
+  ✓ Batch 62: 3100/8402 chunks (36.9%) - 392.8s elapsed, ~663s remaining, 8 chunks/s
+  ✓ Batch 63: 3150/8402 chunks (37.5%) - 398.5s elapsed, ~657s remaining, 8 chunks/s
+  ✓ Batch 64: 3200/8402 chunks (38.1%) - 403.2s elapsed, ~650s remaining, 8 chunks/s
+  ✓ Batch 65: 3250/8402 chunks (38.7%) - 414.1s elapsed, ~644s remaining, 8 chunks/s
+  ✓ Batch 66: 3300/8402 chunks (39.3%) - 423.3s elapsed, ~638s remaining, 8 chunks/s
+  ✓ Batch 67: 3350/8402 chunks (39.9%) - 426.6s elapsed, ~632s remaining, 8 chunks/s
+  ✓ Batch 68: 3400/8402 chunks (40.5%) - 429.4s elapsed, ~625s remaining, 8 chunks/s
+  ✓ Batch 69: 3450/8402 chunks (41.1%) - 433.0s elapsed, ~619s remaining, 8 chunks/s
+  ✓ Batch 70: 3500/8402 chunks (41.7%) - 437.4s elapsed, ~613s remaining, 8 chunks/s
+  ✓ Batch 71: 3550/8402 chunks (42.3%) - 440.3s elapsed, ~607s remaining, 8 chunks/s
+  ✓ Batch 72: 3600/8402 chunks (42.8%) - 446.1s elapsed, ~600s remaining, 8 chunks/s
+  ✓ Batch 73: 3650/8402 chunks (43.4%) - 454.9s elapsed, ~594s remaining, 8 chunks/s
+  ✓ Batch 74: 3700/8402 chunks (44.0%) - 462.1s elapsed, ~588s remaining, 8 chunks/s
+  ✓ Batch 75: 3750/8402 chunks (44.6%) - 468.4s elapsed, ~582s remaining, 8 chunks/s
+  ✓ Batch 76: 3800/8402 chunks (45.2%) - 474.0s elapsed, ~575s remaining, 8 chunks/s
+  ✓ Batch 77: 3850/8402 chunks (45.8%) - 480.2s elapsed, ~569s remaining, 8 chunks/s
+  ✓ Batch 78: 3900/8402 chunks (46.4%) - 485.9s elapsed, ~563s remaining, 8 chunks/s
+  ✓ Batch 79: 3950/8402 chunks (47.0%) - 493.0s elapsed, ~557s remaining, 8 chunks/s
+  ✓ Batch 80: 4000/8402 chunks (47.6%) - 498.6s elapsed, ~550s remaining, 8 chunks/s
+  ✓ Batch 81: 4050/8402 chunks (48.2%) - 505.9s elapsed, ~544s remaining, 8 chunks/s
+  ✓ Batch 82: 4100/8402 chunks (48.8%) - 507.5s elapsed, ~538s remaining, 8 chunks/s
+  ✓ Batch 83: 4150/8402 chunks (49.4%) - 508.9s elapsed, ~532s remaining, 8 chunks/s
+  ✓ Batch 84: 4200/8402 chunks (50.0%) - 512.0s elapsed, ~525s remaining, 8 chunks/s
+  ✓ Batch 85: 4250/8402 chunks (50.6%) - 515.1s elapsed, ~519s remaining, 8 chunks/s
+  ✓ Batch 86: 4300/8402 chunks (51.2%) - 531.6s elapsed, ~513s remaining, 8 chunks/s
+  ✓ Batch 87: 4350/8402 chunks (51.8%) - 540.8s elapsed, ~507s remaining, 8 chunks/s
+  ✓ Batch 88: 4400/8402 chunks (52.4%) - 546.1s elapsed, ~500s remaining, 8 chunks/s
+  ✓ Batch 89: 4450/8402 chunks (53.0%) - 558.1s elapsed, ~494s remaining, 8 chunks/s
+  ✓ Batch 90: 4500/8402 chunks (53.6%) - 564.3s elapsed, ~488s remaining, 8 chunks/s
+  ✓ Batch 91: 4550/8402 chunks (54.2%) - 569.2s elapsed, ~482s remaining, 8 chunks/s
+  ✓ Batch 92: 4600/8402 chunks (54.7%) - 581.1s elapsed, ~475s remaining, 8 chunks/s
+  ✓ Batch 93: 4650/8402 chunks (55.3%) - 588.2s elapsed, ~469s remaining, 8 chunks/s
+  ✓ Batch 94: 4700/8402 chunks (55.9%) - 593.2s elapsed, ~463s remaining, 8 chunks/s
+  ✓ Batch 95: 4750/8402 chunks (56.5%) - 598.7s elapsed, ~457s remaining, 8 chunks/s
+  ✓ Batch 96: 4800/8402 chunks (57.1%) - 602.1s elapsed, ~450s remaining, 8 chunks/s
+  ✓ Batch 97: 4850/8402 chunks (57.7%) - 605.8s elapsed, ~444s remaining, 8 chunks/s
+  ✓ Batch 98: 4900/8402 chunks (58.3%) - 608.5s elapsed, ~438s remaining, 8 chunks/s
+  ✓ Batch 99: 4950/8402 chunks (58.9%) - 612.5s elapsed, ~432s remaining, 8 chunks/s
+  ✓ Batch 100: 5000/8402 chunks (59.5%) - 614.8s elapsed, ~425s remaining, 8 chunks/s
+  ✓ Batch 101: 5050/8402 chunks (60.1%) - 617.6s elapsed, ~419s remaining, 8 chunks/s
+  ✓ Batch 102: 5100/8402 chunks (60.7%) - 620.8s elapsed, ~413s remaining, 8 chunks/s
+  ✓ Batch 103: 5150/8402 chunks (61.3%) - 626.5s elapsed, ~407s remaining, 8 chunks/s
+  ✓ Batch 104: 5200/8402 chunks (61.9%) - 628.9s elapsed, ~400s remaining, 8 chunks/s
+  ✓ Batch 105: 5250/8402 chunks (62.5%) - 631.5s elapsed, ~394s remaining, 8 chunks/s
+  ✓ Batch 106: 5300/8402 chunks (63.1%) - 642.0s elapsed, ~388s remaining, 8 chunks/s
+  ✓ Batch 107: 5350/8402 chunks (63.7%) - 645.1s elapsed, ~382s remaining, 8 chunks/s
+  ✓ Batch 108: 5400/8402 chunks (64.3%) - 648.4s elapsed, ~375s remaining, 8 chunks/s
+  ✓ Batch 109: 5450/8402 chunks (64.9%) - 652.6s elapsed, ~369s remaining, 8 chunks/s
+  ✓ Batch 110: 5500/8402 chunks (65.5%) - 655.2s elapsed, ~363s remaining, 8 chunks/s
+  ✓ Batch 111: 5550/8402 chunks (66.1%) - 658.8s elapsed, ~357s remaining, 8 chunks/s
+  ✓ Batch 112: 5600/8402 chunks (66.7%) - 665.1s elapsed, ~350s remaining, 8 chunks/s
+  ✓ Batch 113: 5650/8402 chunks (67.2%) - 669.9s elapsed, ~344s remaining, 8 chunks/s
+  ✓ Batch 114: 5700/8402 chunks (67.8%) - 678.9s elapsed, ~338s remaining, 8 chunks/s
+  ✓ Batch 115: 5750/8402 chunks (68.4%) - 688.3s elapsed, ~332s remaining, 8 chunks/s
+  ✓ Batch 116: 5800/8402 chunks (69.0%) - 692.0s elapsed, ~325s remaining, 8 chunks/s
+  ✓ Batch 117: 5850/8402 chunks (69.6%) - 695.9s elapsed, ~319s remaining, 8 chunks/s
+  ✓ Batch 118: 5900/8402 chunks (70.2%) - 700.4s elapsed, ~313s remaining, 8 chunks/s
+  ✓ Batch 119: 5950/8402 chunks (70.8%) - 704.8s elapsed, ~307s remaining, 8 chunks/s
+  ✓ Batch 120: 6000/8402 chunks (71.4%) - 707.6s elapsed, ~300s remaining, 8 chunks/s
+  ✓ Batch 121: 6050/8402 chunks (72.0%) - 715.1s elapsed, ~294s remaining, 8 chunks/s
+  ✓ Batch 122: 6100/8402 chunks (72.6%) - 743.3s elapsed, ~288s remaining, 8 chunks/s
+  ✓ Batch 123: 6150/8402 chunks (73.2%) - 751.7s elapsed, ~282s remaining, 8 chunks/s
+  ✓ Batch 124: 6200/8402 chunks (73.8%) - 755.4s elapsed, ~275s remaining, 8 chunks/s
+  ✓ Batch 125: 6250/8402 chunks (74.4%) - 759.1s elapsed, ~269s remaining, 8 chunks/s
+  ✓ Batch 126: 6300/8402 chunks (75.0%) - 767.5s elapsed, ~263s remaining, 8 chunks/s
+  ✓ Batch 127: 6350/8402 chunks (75.6%) - 773.8s elapsed, ~257s remaining, 8 chunks/s
+  ✓ Batch 128: 6400/8402 chunks (76.2%) - 777.7s elapsed, ~250s remaining, 8 chunks/s
+  ✓ Batch 129: 6450/8402 chunks (76.8%) - 782.2s elapsed, ~244s remaining, 8 chunks/s
+  ✓ Batch 130: 6500/8402 chunks (77.4%) - 798.1s elapsed, ~238s remaining, 8 chunks/s
+  ✓ Batch 131: 6550/8402 chunks (78.0%) - 817.9s elapsed, ~232s remaining, 8 chunks/s
+  ✓ Batch 132: 6600/8402 chunks (78.6%) - 826.5s elapsed, ~225s remaining, 8 chunks/s
+  ✓ Batch 133: 6650/8402 chunks (79.1%) - 828.7s elapsed, ~219s remaining, 8 chunks/s
+  ✓ Batch 134: 6700/8402 chunks (79.7%) - 830.4s elapsed, ~213s remaining, 8 chunks/s
+  ✓ Batch 135: 6750/8402 chunks (80.3%) - 831.6s elapsed, ~207s remaining, 8 chunks/s
+  ✓ Batch 136: 6800/8402 chunks (80.9%) - 832.7s elapsed, ~200s remaining, 8 chunks/s
+  ✓ Batch 137: 6850/8402 chunks (81.5%) - 834.0s elapsed, ~194s remaining, 8 chunks/s
+  ✓ Batch 138: 6900/8402 chunks (82.1%) - 835.6s elapsed, ~188s remaining, 8 chunks/s
+  ✓ Batch 139: 6950/8402 chunks (82.7%) - 836.7s elapsed, ~182s remaining, 8 chunks/s
+  ✓ Batch 140: 7000/8402 chunks (83.3%) - 837.8s elapsed, ~175s remaining, 8 chunks/s
+  ✓ Batch 141: 7050/8402 chunks (83.9%) - 838.9s elapsed, ~169s remaining, 8 chunks/s
+  ✓ Batch 142: 7100/8402 chunks (84.5%) - 839.9s elapsed, ~163s remaining, 8 chunks/s
+  ✓ Batch 143: 7150/8402 chunks (85.1%) - 841.1s elapsed, ~139s remaining, 9 chunks/s
+  ✓ Batch 144: 7200/8402 chunks (85.7%) - 842.3s elapsed, ~134s remaining, 9 chunks/s
+  ✓ Batch 145: 7250/8402 chunks (86.3%) - 843.5s elapsed, ~128s remaining, 9 chunks/s
+  ✓ Batch 146: 7300/8402 chunks (86.9%) - 845.2s elapsed, ~122s remaining, 9 chunks/s
+  ✓ Batch 147: 7350/8402 chunks (87.5%) - 846.4s elapsed, ~117s remaining, 9 chunks/s
+  ✓ Batch 148: 7400/8402 chunks (88.1%) - 847.5s elapsed, ~111s remaining, 9 chunks/s
+  ✓ Batch 149: 7450/8402 chunks (88.7%) - 848.6s elapsed, ~106s remaining, 9 chunks/s
+  ✓ Batch 150: 7500/8402 chunks (89.3%) - 849.8s elapsed, ~100s remaining, 9 chunks/s
+  ✓ Batch 151: 7550/8402 chunks (89.9%) - 851.3s elapsed, ~95s remaining, 9 chunks/s
+  ✓ Batch 152: 7600/8402 chunks (90.5%) - 852.6s elapsed, ~89s remaining, 9 chunks/s
+  ✓ Batch 153: 7650/8402 chunks (91.0%) - 854.0s elapsed, ~84s remaining, 9 chunks/s
+  ✓ Batch 154: 7700/8402 chunks (91.6%) - 855.5s elapsed, ~78s remaining, 9 chunks/s
+  ✓ Batch 155: 7750/8402 chunks (92.2%) - 856.6s elapsed, ~72s remaining, 9 chunks/s
+  ✓ Batch 156: 7800/8402 chunks (92.8%) - 857.7s elapsed, ~67s remaining, 9 chunks/s
+  ✓ Batch 157: 7850/8402 chunks (93.4%) - 858.7s elapsed, ~61s remaining, 9 chunks/s
+  ✓ Batch 158: 7900/8402 chunks (94.0%) - 859.8s elapsed, ~56s remaining, 9 chunks/s
+  ✓ Batch 159: 7950/8402 chunks (94.6%) - 861.0s elapsed, ~50s remaining, 9 chunks/s
+  ✓ Batch 160: 8000/8402 chunks (95.2%) - 862.1s elapsed, ~45s remaining, 9 chunks/s
+  ✓ Batch 161: 8050/8402 chunks (95.8%) - 863.2s elapsed, ~39s remaining, 9 chunks/s
+  ✓ Batch 162: 8100/8402 chunks (96.4%) - 864.3s elapsed, ~34s remaining, 9 chunks/s
+  ✓ Batch 163: 8150/8402 chunks (97.0%) - 865.8s elapsed, ~28s remaining, 9 chunks/s
+  ✓ Batch 164: 8200/8402 chunks (97.6%) - 867.0s elapsed, ~22s remaining, 9 chunks/s
+  ✓ Batch 165: 8250/8402 chunks (98.2%) - 868.1s elapsed, ~15s remaining, 10 chunks/s
+  ✓ Batch 166: 8300/8402 chunks (98.8%) - 869.2s elapsed, ~10s remaining, 10 chunks/s
+  ✓ Batch 167: 8350/8402 chunks (99.4%) - 870.3s elapsed, ~5s remaining, 10 chunks/s
+  ✓ Batch 168: 8400/8402 chunks (100.0%) - 871.3s elapsed, ~0s remaining, 10 chunks/s
+  ✓ Batch 169: 8402/8402 chunks (100.0%) - 871.7s elapsed, ~0s remaining, 10 chunks/s
+
+✅ Step 5: Verifying migration...
+  Final state of NEW table:
+    Total chunks: 8403 (was 1)
+    Unique users: 1
+    Unique sources: 875
+    Table size: 78.50 MB
+
+📊 Migration Summary
+=============================================================
+Total chunks in Firestore: 8402
+Successfully migrated: 8402
+Skipped: 0
+Failed: 0
+Duration: 871.66s
+Rate: 10 chunks/sec
+
+✅ Migration successful!
+
+🧪 Next: Test the new setup
+
+Terminal 1 (Test new setup):
+  export USE_OPTIMIZED_BIGQUERY=true
+  npm run dev
+  # Test queries, verify <2s performance
+
+Terminal 2 (Keep current running):
+  npm run dev
+  # Current setup still works as fallback
+
+Once validated:
+  1. Update .env: USE_OPTIMIZED_BIGQUERY=true
+  2. Deploy to production
+  3. Monitor for 24-48 hours
+  4. If stable, delete old table (optional)
+
+🎉 Migration completed!

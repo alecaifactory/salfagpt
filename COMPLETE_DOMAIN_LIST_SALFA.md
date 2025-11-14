@@ -69,7 +69,7 @@ duocuc.cl
 ```bash
 npm run migrate:multi-org:dry-run -- \
   --org=salfa-corp \
-  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,fegrande.cl,geovita.cl,inoval.cl,salfacorp.com,salfamantenciones.cl,salfaustral.cl,tecsa.cl,duocuc.cl
+  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,constructorasalfa.cl,fegrande.cl,geovita.cl,inoval.cl,salfacorp.com,salfamantenciones.cl,salfaustral.cl,tecsa.cl,duocuc.cl
 ```
 
 This will show:
@@ -84,7 +84,7 @@ This will show:
 ```bash
 npm run migrate:multi-org -- \
   --org=salfa-corp \
-  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,fegrande.cl,geovita.cl,inoval.cl,salfacorp.com,salfamantenciones.cl,salfaustral.cl,tecsa.cl,duocuc.cl \
+  --domains=maqsa.cl,iaconcagua.com,salfagestion.cl,novatec.cl,salfamontajes.com,practicantecorp.cl,salfacloud.cl,constructorasalfa.cl,fegrande.cl,geovita.cl,inoval.cl,salfacorp.com,salfamantenciones.cl,salfaustral.cl,tecsa.cl,duocuc.cl \
   --env=production
 ```
 

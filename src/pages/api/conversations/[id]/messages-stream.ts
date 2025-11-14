@@ -15,7 +15,7 @@ import {
 import { streamAIResponse } from '../../../../lib/gemini';
 import { searchRelevantChunksOptimized, buildRAGContext, getRAGStats } from 
   '../../../../lib/rag-search-optimized';
-import { searchByAgent } from '../../../../lib/bigquery-agent-search';
+import { searchByAgent } from '../../../../lib/bigquery-router'; // ✅ NEW: Use router (domain-based)
 import { 
   getOrgAdminContactsForUser, 
   generateNoRelevantDocsMessage, 
@@ -70,7 +70,7 @@ export const POST: APIRoute = async ({ params, request }) => {
 
     // RAG configuration (RAG is now the ONLY option) - optimized for technical documents like SSOMA
     const ragTopK = body.ragTopK || 10;
-    const ragMinSimilarity = body.ragMinSimilarity || 0.7; // 70% minimum - only provide high-quality references
+    const ragMinSimilarity = body.ragMinSimilarity || 0.5; // 50% minimum - allow more references (was 0.7)
     const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
 
     // Get conversation history for temp conversations (can do this early)
@@ -137,10 +137,17 @@ export const POST: APIRoute = async ({ params, request }) => {
               // ✅ OPTIMAL: Agent-based search (no source loading needed!)
               if (useAgentSearch) {
                 console.log('  🚀 Using agent-based BigQuery search (OPTIMAL)...');
+                
+                // ✅ NEW: Pass origin header for domain-based routing
+                const requestOrigin = request.headers.get('origin') || 
+                                     request.headers.get('referer') || 
+                                     request.url;
+                
                 // Search with LOW threshold to get all candidates, filter by 70% after
                 searchResults = await searchByAgent(userId, agentId, message, {
                   topK: ragTopK * 2, // Get more results
-                  minSimilarity: 0.3 // Low threshold - we'll filter by 70% after getting results
+                  minSimilarity: 0.3, // Low threshold - we'll filter by 70% after getting results
+                  requestOrigin // ✅ Router uses this to decide BLUE vs GREEN
                 });
                 
                 if (searchResults.length > 0) {
