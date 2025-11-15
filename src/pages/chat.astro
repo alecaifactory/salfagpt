@@ -1,8 +1,12 @@
 ---
 import ChatInterfaceWorking from '../components/ChatInterfaceWorking.tsx';
+import ChatContainerV2 from '../components/chat-v2/ChatContainer.tsx';
 import { verifyJWT } from '../lib/auth';
 import { isUserDomainEnabled, getDomainFromEmail } from '../lib/domains';
 import '../styles/global.css';
+
+// ✅ FEATURE FLAG: Toggle Chat V2
+const USE_CHAT_V2 = import.meta.env.PUBLIC_USE_CHAT_V2 === 'true';
 
 // 🔒 SECURITY: Always require authentication
 const cookies = Astro.cookies;
@@ -183,13 +187,23 @@ try {
       }
     </script>
     
-    <!-- ULTRA SIMPLE: client:only for zero SSR -->
-    <ChatInterfaceWorking 
-      client:only="react"
-      userId={userId}
-      userEmail={userEmail}
-      userName={userName}
-      userRole={userRole}
-    />
+    <!-- FEATURE FLAG: Choose which chat interface to use -->
+    {USE_CHAT_V2 ? (
+      <ChatContainerV2
+        client:only="react"
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+      />
+    ) : (
+      <ChatInterfaceWorking 
+        client:only="react"
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+      />
+    )}
   </body>
 </html>
