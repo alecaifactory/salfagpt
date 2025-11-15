@@ -744,7 +744,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     lastLoadedAgentRef.current = effectiveAgentId;
     
   }, [currentConversation, conversations]);
-  
+
   // Handle panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1182,7 +1182,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       console.error('❌ [OPTIMIZED] Error loading agent data:', error);
     }
   };
-  
+
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     // ✅ FEATURE FLAG: Route to coordinated version (with progress UI)
     if (USE_OPTIMIZED_LOADING) {
@@ -5970,33 +5970,33 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             
             {/* Context Bar - Collapsible (only show when FULLY loaded) */}
             {!agentLoadingProgress?.isLoading && agentData.isLoaded && showContextBar ? (
-              <div className="mb-1 flex justify-center">
+            <div className="mb-1 flex justify-center">
                 <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 rounded-md border border-slate-200 bg-slate-50">
-                  <button
-                    onClick={() => setShowContextPanel(!showContextPanel)}
+              <button
+                onClick={() => setShowContextPanel(!showContextPanel)}
                     className="flex items-center gap-1.5 hover:text-slate-800 transition-colors"
-                  >
-                    <span className="font-medium">Contexto:</span>
-                    <span className={`${
-                      calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
-                      calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
-                      'text-green-600'
-                    } font-semibold`}>
-                      {calculateContextUsage().usagePercent}%
-                    </span>
-                    <span className="text-slate-400">•</span>
-                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="font-medium text-slate-700">
-                      {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
-                    </span>
-                    <span className="text-slate-400">•</span>
+              >
+                <span className="font-medium">Contexto:</span>
+                <span className={`${
+                  calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
+                  calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
+                  'text-green-600'
+                } font-semibold`}>
+                  {calculateContextUsage().usagePercent}%
+                </span>
+                <span className="text-slate-400">•</span>
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                <span className="font-medium text-slate-700">
+                  {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                </span>
+                <span className="text-slate-400">•</span>
                     <span className="text-blue-600" title={`contextStats: ${USE_OPTIMIZED_LOADING ? JSON.stringify(agentData.contextStats) : JSON.stringify(contextStats)}`}>
                       {USE_OPTIMIZED_LOADING 
                         ? (agentData.contextStats?.activeCount || 0)
                         : (contextStats?.activeCount || 0)
                       } fuentes
-                    </span>
-                  </button>
+                </span>
+              </button>
                   <button
                     onClick={() => setShowContextBar(false)}
                     className="ml-1 text-slate-400 hover:text-slate-600"
@@ -6004,7 +6004,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   >
                     <XIcon className="w-3 h-3" />
                   </button>
-                </div>
+            </div>
               </div>
             ) : !agentLoadingProgress?.isLoading && agentData.isLoaded && (
               <div className="mb-1 flex justify-center">
