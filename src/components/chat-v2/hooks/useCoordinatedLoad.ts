@@ -11,32 +11,7 @@
 import { useRef } from 'react';
 import { useChatStore } from '../core/ChatStore';
 import type { AgentData } from '../core/ChatStore';
-
-// Helper: Extract agent code from title (S001, M003, etc.)
-function getAgentCode(title: string | undefined): string | null {
-  if (!title) return null;
-  
-  const parenthesesMatch = title.match(/\(([MS]\d{3})\)/);
-  if (parenthesesMatch) return parenthesesMatch[1];
-  
-  const spaceMatch = title.match(/\b([MS]\d{3})\b/);
-  if (spaceMatch) return spaceMatch[1];
-  
-  const endMatch = title.match(/([MS])\s*(\d+)$/);
-  if (endMatch) {
-    const num = endMatch[2].padStart(3, '0');
-    return `${endMatch[1]}${num}`;
-  }
-  
-  return null;
-}
-
-// Helper: Get sample questions (will be imported from main app)
-function getSampleQuestions(code: string | null): string[] {
-  // TODO: Import from actual AGENT_SAMPLE_QUESTIONS constant
-  // For now return empty array
-  return [];
-}
+import { getAgentCode, getSampleQuestions } from '../core/sampleQuestions';
 
 export function useCoordinatedLoad() {
   const { setLoading, updateAgentCache, getAgentFromCache } = useChatStore();

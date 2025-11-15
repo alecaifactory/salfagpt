@@ -15,6 +15,17 @@ import { persist } from 'zustand/middleware';
 
 // ===== TYPES =====
 
+export interface Conversation {
+  id: string;
+  userId: string;
+  title: string;
+  agentId?: string;
+  isAgent?: boolean;
+  status?: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+}
+
 export interface AgentData {
   id: string; // ✅ ALWAYS usr_xxx format
   title: string;
