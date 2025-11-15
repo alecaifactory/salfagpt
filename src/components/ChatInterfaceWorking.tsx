@@ -354,6 +354,24 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ FIX: Cache sample questions to prevent recalculation on every render
   const cachedSampleQuestions = useRef<{ agentId: string; questions: string[] } | null>(null);
   
+  // ✅ FEATURE FLAG: New optimized agent data loading
+  const USE_OPTIMIZED_LOADING = true; // Toggle to false to use old system
+  
+  // ✅ NEW: Consolidated agent data state (replaces multiple individual states)
+  const [agentData, setAgentData] = useState<{
+    contextStats: { totalCount: number; activeCount: number } | null;
+    sampleQuestions: string[];
+    agentPrompt: string;
+    isLoaded: boolean;
+    loadedAt: number;
+  }>({
+    contextStats: null,
+    sampleQuestions: [],
+    agentPrompt: '',
+    isLoaded: false,
+    loadedAt: 0
+  });
+  
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     conversationId: string;
@@ -896,7 +914,93 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ✅ NEW OPTIMIZED: Load all agent data in one batch (no flickering, single state update)
+  const loadAgentDataOptimized = async (conversationId: string) => {
+    try {
+      // Check cache (30 second TTL)
+      const now = Date.now();
+      if (agentData.isLoaded && (now - agentData.loadedAt) < 30000) {
+        console.log('⚡ [OPTIMIZED] Using cached agent data (age:', Math.round((now - agentData.loadedAt)/1000), 'seconds)');
+        return;
+      }
+      
+      console.log('🚀 [OPTIMIZED] Loading all agent data in parallel...');
+      const startTime = Date.now();
+      
+      // Get agent info
+      const currentConv = conversations.find(c => c.id === conversationId);
+      const agentIdToLoad = currentConv?.agentId || conversationId;
+      const agentTitle = currentConv?.title || conversations.find(c => c.id === agentIdToLoad)?.title;
+      
+      // ✅ PARALLEL: Load all data simultaneously
+      const [statsResponse, promptResponse] = await Promise.all([
+        fetch(`/api/agents/${conversationId}/context-stats`).catch(() => null),
+        fetch(`/api/conversations/${agentIdToLoad}/prompt`).catch(() => null)
+      ]);
+      
+      // Parse responses
+      const stats = statsResponse?.ok ? await statsResponse.json() : null;
+      const promptData = promptResponse?.ok ? await promptResponse.json() : null;
+      
+      // Get sample questions (synchronous, instant)
+      const agentCode = getAgentCode(agentTitle);
+      const questions = getSampleQuestions(agentCode);
+      
+      // ✅ ATOMIC: Single state update with ALL data
+      const newAgentData = {
+        contextStats: stats ? {
+          totalCount: stats.totalCount || 0,
+          activeCount: stats.activeCount || 0
+        } : null,
+        sampleQuestions: questions,
+        agentPrompt: promptData?.agentPrompt || '',
+        isLoaded: true,
+        loadedAt: now
+      };
+      
+      setAgentData(newAgentData);
+      
+      // Legacy compatibility: Update old state variables too
+      if (stats) {
+        setContextStats({
+          totalCount: stats.totalCount || 0,
+          activeCount: stats.activeCount || 0
+        });
+        
+        const minimalSources: ContextSource[] = (stats.activeContextSourceIds || []).map((id: string) => ({
+          id,
+          userId: userId,
+          name: `Source ${id.substring(0, 8)}`,
+          type: 'pdf' as const,
+          enabled: true,
+          status: 'active' as const,
+          addedAt: new Date(),
+        }));
+        setContextSources(minimalSources);
+      }
+      
+      if (promptData?.agentPrompt) {
+        setCurrentAgentPrompt(promptData.agentPrompt);
+      }
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ [OPTIMIZED] All agent data loaded in ${elapsed}ms (1 batch, 1 render)`);
+      console.log(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
+      console.log(`   - Questions: ${questions.length} disponibles`);
+      console.log(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
+      
+    } catch (error) {
+      console.error('❌ [OPTIMIZED] Error loading agent data:', error);
+    }
+  };
+  
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
+    // ✅ FEATURE FLAG: Route to optimized version
+    if (USE_OPTIMIZED_LOADING) {
+      return loadAgentDataOptimized(conversationId);
+    }
+    
+    // OLD CODE BELOW (for fallback):
     try {
       // ✅ CACHE: Skip if already loaded for this conversation (within 30 seconds)
       const now = Date.now();
@@ -5659,8 +5763,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
                   </span>
                   <span className="text-slate-400">•</span>
-                  <span className="text-blue-600" title={`contextStats: ${contextStats ? JSON.stringify(contextStats) : 'null'}`}>
-                    {contextStats ? contextStats.activeCount : 0} fuentes
+                  <span className="text-blue-600" title={`contextStats: ${USE_OPTIMIZED_LOADING ? JSON.stringify(agentData.contextStats) : JSON.stringify(contextStats)}`}>
+                    {USE_OPTIMIZED_LOADING 
+                      ? (agentData.contextStats?.activeCount || 0)
+                      : (contextStats?.activeCount || 0)
+                    } fuentes
                   </span>
                   <button
                     onClick={(e) => {
@@ -5682,7 +5789,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   title="Mostrar información de contexto"
                 >
                   <Sparkles className="w-3 h-3" />
-                  <span>{contextStats ? contextStats.activeCount : 0} fuentes</span>
+                  <span>
+                    {USE_OPTIMIZED_LOADING 
+                      ? (agentData.contextStats?.activeCount || 0)
+                      : (contextStats?.activeCount || 0)
+                    } fuentes
+                  </span>
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -6427,12 +6539,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
             {/* Sample Questions Carousel - Collapsible */}
             {(() => {
-              // Get agent for this conversation (direct agent or parent agent for chats)
-              const currentConv = conversations.find(c => c.id === currentConversation);
-              const parentAgent = getParentAgent();
-              const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
-              const agentCode = getAgentCode(agentToUse?.title);
-              const sampleQuestions = getSampleQuestions(agentCode);
+              // ✅ FEATURE FLAG: Use optimized data source
+              const sampleQuestions = USE_OPTIMIZED_LOADING 
+                ? agentData.sampleQuestions 
+                : (() => {
+                    // OLD: Calculate on every render
+                    const currentConv = conversations.find(c => c.id === currentConversation);
+                    const parentAgent = getParentAgent();
+                    const agentToUse = parentAgent || currentConv;
+                    const agentCode = getAgentCode(agentToUse?.title);
+                    return getSampleQuestions(agentCode);
+                  })();
               
               // ✅ Don't show if no questions available
               if (sampleQuestions.length === 0) return null;
