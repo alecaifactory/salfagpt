@@ -359,12 +359,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   
   // ✅ NEW: Consolidated agent data state (replaces multiple individual states)
   const [agentData, setAgentData] = useState<{
+    agentId: string | null; // ✅ Track which agent this data belongs to
     contextStats: { totalCount: number; activeCount: number } | null;
     sampleQuestions: string[];
     agentPrompt: string;
     isLoaded: boolean;
     loadedAt: number;
   }>({
+    agentId: null,
     contextStats: null,
     sampleQuestions: [],
     agentPrompt: '',
@@ -917,20 +919,26 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ NEW OPTIMIZED: Load all agent data in one batch (no flickering, single state update)
   const loadAgentDataOptimized = async (conversationId: string) => {
     try {
-      // Check cache (30 second TTL)
+      // ✅ FIX: Always reload for different conversation (cache only works for same conversation)
+      const currentConv = conversations.find(c => c.id === conversationId);
+      const agentIdToLoad = currentConv?.agentId || conversationId;
+      
+      // Check cache (30 second TTL) - but only for SAME agent
       const now = Date.now();
-      if (agentData.isLoaded && (now - agentData.loadedAt) < 30000) {
-        console.log('⚡ [OPTIMIZED] Using cached agent data (age:', Math.round((now - agentData.loadedAt)/1000), 'seconds)');
+      
+      if (agentData.isLoaded && agentData.agentId === agentIdToLoad && (now - agentData.loadedAt) < 30000) {
+        console.log('⚡ [OPTIMIZED] Using cached agent data for agent:', agentIdToLoad, '(age:', Math.round((now - agentData.loadedAt)/1000), 'seconds)');
         return;
       }
       
-      console.log('🚀 [OPTIMIZED] Loading all agent data in parallel...');
+      console.log('🚀 [OPTIMIZED] Loading all agent data in parallel for agent:', agentIdToLoad);
       const startTime = Date.now();
       
-      // Get agent info
-      const currentConv = conversations.find(c => c.id === conversationId);
-      const agentIdToLoad = currentConv?.agentId || conversationId;
-      const agentTitle = currentConv?.title || conversations.find(c => c.id === agentIdToLoad)?.title;
+      // ✅ FIX: Get agent to determine title for sample questions
+      const agent = conversations.find(c => c.id === agentIdToLoad);
+      const agentTitle = agent?.title || currentConv?.title;
+      
+      console.log('🔍 [OPTIMIZED] Agent for questions:', { agentId: agentIdToLoad, title: agentTitle });
       
       // ✅ PARALLEL: Load all data simultaneously
       const [statsResponse, promptResponse] = await Promise.all([
@@ -946,8 +954,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const agentCode = getAgentCode(agentTitle);
       const questions = getSampleQuestions(agentCode);
       
+      console.log('🔍 [OPTIMIZED] Extracted agentCode:', agentCode, 'from title:', agentTitle);
+      console.log('🔍 [OPTIMIZED] Found', questions.length, 'sample questions');
+      
       // ✅ ATOMIC: Single state update with ALL data
       const newAgentData = {
+        agentId: agentIdToLoad, // ✅ Store which agent this data belongs to
         contextStats: stats ? {
           totalCount: stats.totalCount || 0,
           activeCount: stats.activeCount || 0
@@ -5745,41 +5757,40 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             {/* Context Bar - Collapsible */}
             {showContextBar ? (
               <div className="mb-1 flex justify-center">
-                <button
-                  onClick={() => setShowContextPanel(!showContextPanel)}
-                  className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md transition-colors border border-slate-200"
-                >
-                  <span className="font-medium">Contexto:</span>
-                  <span className={`${
-                    calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
-                    calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
-                    'text-green-600'
-                  } font-semibold`}>
-                    {calculateContextUsage().usagePercent}%
-                  </span>
-                  <span className="text-slate-400">•</span>
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="font-medium text-slate-700">
-                    {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
-                  </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="text-blue-600" title={`contextStats: ${USE_OPTIMIZED_LOADING ? JSON.stringify(agentData.contextStats) : JSON.stringify(contextStats)}`}>
-                    {USE_OPTIMIZED_LOADING 
-                      ? (agentData.contextStats?.activeCount || 0)
-                      : (contextStats?.activeCount || 0)
-                    } fuentes
-                  </span>
+                <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 rounded-md border border-slate-200 bg-slate-50">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowContextBar(false);
-                    }}
-                    className="ml-1"
+                    onClick={() => setShowContextPanel(!showContextPanel)}
+                    className="flex items-center gap-1.5 hover:text-slate-800 transition-colors"
+                  >
+                    <span className="font-medium">Contexto:</span>
+                    <span className={`${
+                      calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
+                      calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
+                      'text-green-600'
+                    } font-semibold`}>
+                      {calculateContextUsage().usagePercent}%
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="font-medium text-slate-700">
+                      {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="text-blue-600" title={`contextStats: ${USE_OPTIMIZED_LOADING ? JSON.stringify(agentData.contextStats) : JSON.stringify(contextStats)}`}>
+                      {USE_OPTIMIZED_LOADING 
+                        ? (agentData.contextStats?.activeCount || 0)
+                        : (contextStats?.activeCount || 0)
+                      } fuentes
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowContextBar(false)}
+                    className="ml-1 text-slate-400 hover:text-slate-600"
                     title="Ocultar"
                   >
-                    <XIcon className="w-3 h-3 text-slate-400 hover:text-slate-600" />
+                    <XIcon className="w-3 h-3" />
                   </button>
-                </button>
+                </div>
               </div>
             ) : (
               <div className="mb-1 flex justify-center">
