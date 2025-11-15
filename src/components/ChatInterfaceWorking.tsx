@@ -32,6 +32,7 @@ import GenericChannelPanel from './channels/GenericChannelPanel';
 import RAGModeControl from './RAGModeControl';
 import MessageRenderer from './MessageRenderer';
 import ReferencePanel from './ReferencePanel';
+import DocumentViewerModal from './DocumentViewerModal';
 import StellaMarkerTool from './StellaMarkerTool_v2';
 import StellaSidebarChat, { type StellaAttachment } from './StellaSidebarChat';
 import ScreenshotAnnotator from './ScreenshotAnnotator';
@@ -343,6 +344,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const isTransitioningRef = useRef(false); // ✅ NEW: Track optimistic→real ID transition without causing re-render
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
+  const [showDocumentViewer, setShowDocumentViewer] = useState(false);
+  const [documentViewerSource, setDocumentViewerSource] = useState<ContextSource | null>(null);
   
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
@@ -5517,9 +5520,20 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                             }
                             references={msg.references} // Pass references for this message
                             isLoadingReferences={msg.isStreaming && (!msg.references || msg.references.length === 0)} // Show loading while streaming and no references yet
-                            onReferenceClick={(reference) => {
-                              console.log('🔍 Opening reference panel:', reference);
-                              setSelectedReference(reference);
+                            onReferenceClick={async (reference) => {
+                              console.log('🔍 Opening document viewer for reference:', reference);
+                              
+                              // Load full source for document viewer
+                              const fullSource = await loadFullContextSource(reference.sourceId);
+                              
+                              if (fullSource) {
+                                setDocumentViewerSource(fullSource);
+                                setShowDocumentViewer(true);
+                                setSelectedReference(reference); // Also set for context
+                              } else {
+                                console.error('❌ Could not load source for reference');
+                                alert('No se pudo cargar el documento. Por favor, intenta nuevamente.');
+                              }
                             }}
                             onSourceClick={(sourceId) => {
                               const source = contextSources.find(s => s.id === sourceId);
@@ -7588,25 +7602,38 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         </div>
       )}
 
-      {/* Reference Panel - Opens when clicking on reference badges in messages */}
-      {selectedReference && (
+      {/* Document Viewer Modal - Enhanced collaboration view */}
+      {showDocumentViewer && documentViewerSource && (
+        <DocumentViewerModal
+          source={documentViewerSource}
+          isOpen={showDocumentViewer}
+          onClose={() => {
+            setShowDocumentViewer(false);
+            setDocumentViewerSource(null);
+            setSelectedReference(null);
+          }}
+          userId={userId}
+          userEmail={userEmail}
+          userName={userName}
+        />
+      )}
+      
+      {/* Reference Panel - Legacy fallback (kept for backward compatibility) */}
+      {selectedReference && !showDocumentViewer && (
         <ReferencePanel
           reference={selectedReference}
           onClose={() => setSelectedReference(null)}
           onViewFullDocument={async (sourceId) => {
             console.log('📄 Attempting to load full document for reference:', sourceId);
             
-            // ✅ FIX: Always fetch full source from API, don't rely on contextSources array
-            // The contextSources array might only have metadata or be filtered
+            // Load and open in new DocumentViewer
             const fullSource = await loadFullContextSource(sourceId);
             
             if (fullSource) {
-              console.log('✅ Loaded full source, opening settings modal:', fullSource.name);
-              setSettingsSource(fullSource);
-              setSelectedReference(null); // Close reference panel when opening full document
+              setDocumentViewerSource(fullSource);
+              setShowDocumentViewer(true);
             } else {
               console.error('❌ Could not load full source for:', sourceId);
-              // Show user-friendly error
               alert('No se pudo cargar el documento completo. Por favor, intenta nuevamente.');
             }
           }}

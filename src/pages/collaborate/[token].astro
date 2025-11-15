@@ -1,0 +1,260 @@
+---
+/**
+ * Collaboration Invitation Page
+ * 
+ * When a user receives an invitation link, they land here.
+ * They can view the document, see highlighted sections, and leave comments.
+ */
+
+import { getSession } from '../../lib/auth';
+import { firestore } from '../../lib/firestore';
+
+const { token } = Astro.params;
+
+if (!token) {
+  return Astro.redirect('/');
+}
+
+// Load invitation
+const invitationSnapshot = await firestore
+  .collection('collaboration_invitations')
+  .where('invitationToken', '==', token)
+  .limit(1)
+  .get();
+
+if (invitationSnapshot.empty) {
+  return Astro.redirect('/?error=invitation-not-found');
+}
+
+const invitationDoc = invitationSnapshot.docs[0];
+const invitation = {
+  id: invitationDoc.id,
+  ...invitationDoc.data(),
+  createdAt: invitationDoc.data().createdAt?.toDate(),
+  expiresAt: invitationDoc.data().expiresAt?.toDate(),
+};
+
+// Check if expired
+if (invitation.expiresAt && invitation.expiresAt < new Date()) {
+  return Astro.redirect('/?error=invitation-expired');
+}
+
+// Check if already accepted/declined
+if (invitation.status === 'declined') {
+  return Astro.redirect('/?error=invitation-declined');
+}
+
+const session = getSession(Astro);
+const isAuthenticated = !!session;
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitación de Colaboración - Flow</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      color: #1e293b;
+      margin: 0 0 10px 0;
+      font-size: 28px;
+    }
+    .header p {
+      color: #64748b;
+      margin: 0;
+    }
+    .sender-info {
+      background: #f1f5f9;
+      border-left: 4px solid #3b82f6;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+    .sender-info strong {
+      color: #0f172a;
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .document-info {
+      background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+    }
+    .document-info h3 {
+      color: #1e40af;
+      margin: 0 0 12px 0;
+      font-size: 18px;
+    }
+    .message {
+      background: white;
+      border: 2px solid #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      color: #334155;
+      margin-top: 12px;
+    }
+    .highlight {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px;
+      border-radius: 4px;
+      margin: 16px 0;
+      font-style: italic;
+    }
+    .cta-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 30px;
+    }
+    .btn {
+      flex: 1;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+      font-size: 15px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    }
+    .btn-secondary {
+      background: white;
+      color: #3b82f6;
+      border: 2px solid #3b82f6;
+    }
+    .btn-secondary:hover {
+      background: #eff6ff;
+    }
+    .welcome {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 24px;
+      text-align: center;
+    }
+    .welcome h3 {
+      margin: 0 0 8px 0;
+      font-size: 20px;
+    }
+    .welcome p {
+      margin: 0;
+      opacity: 0.95;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🤝 Invitación de Colaboración</h1>
+      <p>Te han invitado a revisar un documento</p>
+    </div>
+    
+    <div class="sender-info">
+      <strong>📨 De: {invitation.senderName}</strong>
+      <p style="color: #64748b; font-size: 14px;">{invitation.senderEmail}</p>
+    </div>
+    
+    <div class="document-info">
+      <h3>📄 Documento: {invitation.sourceName}</h3>
+      
+      <div class="message">
+        {invitation.message}
+      </div>
+      
+      {invitation.selectedText && (
+        <div class="highlight">
+          <strong style="color: #92400e; font-size: 13px;">📌 Texto destacado:</strong>
+          <p style="margin: 8px 0 0 0; color: #78350f;">"{invitation.selectedText}"</p>
+        </div>
+      )}
+    </div>
+    
+    {!isAuthenticated ? (
+      <>
+        <div class="welcome">
+          <h3>✨ Bienvenido a Flow</h3>
+          <p>Colabora con tu equipo usando IA de última generación</p>
+        </div>
+        
+        <div class="cta-buttons">
+          <a href={`/auth/login?redirect=/collaborate/${token}`} class="btn btn-primary">
+            🚀 Iniciar Sesión con Google
+          </a>
+        </div>
+        
+        <p style="text-align: center; margin-top: 20px; font-size: 13px; color: #64748b;">
+          Al iniciar sesión, podrás dejar tus comentarios y explorar Flow gratis por 30 días
+        </p>
+      </>
+    ) : (
+      <>
+        <div class="cta-buttons">
+          <a href={`/document/${invitation.sourceId}?invitation=${token}`} class="btn btn-primary">
+            📄 Ver Documento y Comentar
+          </a>
+          <button onclick="history.back()" class="btn btn-secondary">
+            Volver
+          </button>
+        </div>
+      </>
+    )}
+    
+    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+      <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+        Este enlace {invitation.expiresAt ? `expira el ${new Date(invitation.expiresAt).toLocaleDateString('es')}` : 'no tiene fecha de expiración'}
+      </p>
+    </div>
+  </div>
+  
+  <script>
+    // Track invitation view
+    fetch('/api/invitations/track-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        invitationToken: '{token}',
+        timestamp: new Date().toISOString()
+      })
+    }).catch(console.error);
+  </script>
+</body>
+</html>
+
