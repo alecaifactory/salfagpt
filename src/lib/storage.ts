@@ -197,3 +197,40 @@ export async function getFileMetadata(storagePath: string): Promise<{
   }
 }
 
+/**
+ * Generate signed URL with progress tracking support
+ * Returns both the URL and file metadata for client-side progress
+ */
+export async function getSignedUrlWithMetadata(
+  storagePath: string,
+  expiresInMinutes: number = 60
+): Promise<{
+  url: string;
+  size: number;
+  contentType: string;
+}> {
+  try {
+    const bucket = storage.bucket(BUCKET_NAME);
+    const file = bucket.file(storagePath);
+    
+    // Get metadata first for size info
+    const [metadata] = await file.getMetadata();
+    
+    // Generate signed URL
+    const [signedUrl] = await file.getSignedUrl({
+      action: 'read',
+      expires: Date.now() + expiresInMinutes * 60 * 1000,
+    });
+    
+    return {
+      url: signedUrl,
+      size: parseInt(String(metadata.size || '0')),
+      contentType: metadata.contentType || 'application/pdf',
+    };
+    
+  } catch (error) {
+    console.error('❌ Error generating signed URL with metadata:', error);
+    throw new Error(`Signed URL generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+

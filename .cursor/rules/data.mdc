@@ -62,7 +62,12 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ promotion_snapshots    # Rollback snapshots (2025-11-10)│
 │  ├─ data_lineage          # Audit trail (2025-11-10)│
 │  ├─ conflict_resolutions  # Conflict handling (2025-11-10)│
-│  └─ org_memberships       # User-org relationships (2025-11-10)│
+│  ├─ org_memberships       # User-org relationships (2025-11-10)│
+│  ├─ document_annotations  # Document collaboration annotations (2025-11-15)│
+│  ├─ collaboration_invitations # Document sharing invitations (2025-11-15)│
+│  ├─ referral_network      # Viral growth network (2025-11-15)│
+│  ├─ gmail_connections     # Gmail OAuth tokens (2025-11-15)│
+│  └─ invitation_requests   # Platform invitation requests (2025-11-15)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │
@@ -1329,6 +1334,318 @@ if (status?.status === 'completed') {
 - Memory: 4GB
 - Timeout: 540s (9 minutes)
 - Trigger: HTTP (authenticated)
+
+---
+
+### 20. document_annotations
+
+**Purpose:** Store user annotations on documents for collaboration and knowledge capture
+
+**Collection Path:** `document_annotations/{annotationId}`
+
+**TypeScript Interface:**
+```typescript
+interface DocumentAnnotation {
+  // Identity
+  id: string;                         // Document ID
+  sourceId: string;                   // Context source ID (indexed)
+  userId: string;                     // Creator (indexed)
+  userEmail: string;
+  userName: string;
+  
+  // Selection
+  selectionText: string;              // Highlighted text
+  startChar: number;                  // Position in document
+  endChar: number;
+  pageNumber?: number;                // PDF page if available
+  
+  // Annotation
+  annotationType: 'question' | 'comment' | 'revision-request' | 'highlight';
+  content: string;                    // Question/comment text
+  
+  // Position (for visual markers)
+  position: {
+    x: number;                        // Horizontal % (0-100)
+    y: number;                        // Vertical % (0-100)
+    page?: number;                    // Page number
+  };
+  
+  // Status
+  status: 'open' | 'resolved' | 'dismissed';
+  resolvedBy?: string;
+  resolvedAt?: Date;
+  
+  // Thread
+  responses?: Array<{
+    id: string;
+    userId: string;
+    userEmail: string;
+    userName: string;
+    content: string;
+    createdAt: Date;
+  }>;
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- sourceId ASC, userId ASC, createdAt DESC
+- sourceId ASC, status ASC, createdAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_annotations (or salfagpt)
+
+**API Endpoints:**
+- `GET /api/annotations?sourceId={id}&userId={id}` - List annotations
+- `POST /api/annotations` - Create annotation
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-15)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `sourceId`, `userId`, `annotationType` (breaking)
+
+---
+
+### 21. collaboration_invitations
+
+**Purpose:** Track document sharing and collaboration invitations
+
+**Collection Path:** `collaboration_invitations/{invitationId}`
+
+**TypeScript Interface:**
+```typescript
+interface CollaborationInvitation {
+  // Identity
+  id: string;
+  sourceId: string;                   // Document being shared (indexed)
+  sourceName: string;
+  
+  // Sender
+  senderId: string;                   // (indexed)
+  senderEmail: string;
+  senderName: string;
+  
+  // Recipient
+  recipientEmail: string;             // (indexed)
+  recipientName?: string;
+  
+  // Invitation
+  message: string;                    // Personal message
+  selectedText?: string;              // Highlighted text (optional)
+  accessLevel: 'view' | 'comment' | 'edit';
+  invitationToken: string;            // Unique token for URL
+  
+  // Status
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  acceptedAt?: Date;
+  declinedAt?: Date;
+  expiresAt?: Date;
+  
+  // Email delivery
+  emailSent: boolean;
+  emailSentAt?: Date;
+  emailProvider?: 'gmail' | 'smtp' | 'sendgrid';
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- senderId ASC, createdAt DESC
+- recipientEmail ASC, status ASC
+- sourceId ASC, createdAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fcollaboration_invitations (or salfagpt)
+
+**API Endpoints:**
+- `POST /api/invitations/send` - Send invitation
+- `GET /api/invitations?userId={id}` - List user's invitations
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-15)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `invitationToken`, `status` (breaking)
+
+---
+
+### 22. referral_network
+
+**Purpose:** Track viral growth network with anonymized user connections
+
+**Collection Path:** `referral_network/{hashedUserId}`
+
+**TypeScript Interface:**
+```typescript
+interface ReferralNetwork {
+  // Identity (anonymized)
+  id: string;                         // Hashed user ID
+  hashedId: string;                   // Public anonymous ID
+  
+  // Network
+  invitedBy?: string;                 // Parent hashedId
+  invitedAt?: Date;
+  directReferrals: number;            // Count of direct invites
+  networkSize: number;                // Total network size
+  networkDepth: number;               // Distance from origin
+  
+  // Status
+  status: 'invited' | 'active' | 'trial' | 'premium';
+  trialStartedAt?: Date;
+  trialEndsAt?: Date;
+  
+  // Privacy
+  anonymousInGraph: boolean;          // Opt-in for public graph (indexed)
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- anonymousInGraph ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Freferral_network (or salfagpt)
+
+**API Endpoints:**
+- `GET /api/referral-network` - Get network graph
+- `POST /api/referral-network/request-invitation` - Request invite
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-15)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `hashedId`, `anonymousInGraph` (breaking)
+
+**Privacy Guarantee:**
+- ✅ All IDs hashed with SHA-256
+- ✅ No PII in graph
+- ✅ Opt-in to public display
+- ✅ Network connections visible, identities hidden
+
+---
+
+### 23. gmail_connections
+
+**Purpose:** Store Gmail OAuth tokens for sending invitations from user's account
+
+**Collection Path:** `gmail_connections/{userId}`
+
+**TypeScript Interface:**
+```typescript
+interface GmailConnection {
+  // Identity
+  id: string;                         // User ID (document ID)
+  userId: string;
+  userEmail: string;
+  
+  // OAuth tokens (encrypted at rest)
+  accessToken: string;                // Encrypted
+  refreshToken: string;               // Encrypted
+  expiresAt: Date;                    // Token expiration
+  
+  // Permissions
+  scopes: string[];                   // Granted OAuth scopes
+  
+  // Status
+  isConnected: boolean;               // (indexed)
+  lastUsedAt?: Date;
+  
+  // Timestamps
+  connectedAt: Date;
+  updatedAt: Date;
+  source: 'localhost' | 'production';
+}
+```
+
+**Indexes Required:**
+```
+- isConnected ASC, expiresAt ASC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fgmail_connections (or salfagpt)
+
+**API Endpoints:**
+- `GET /api/gmail/status?userId={id}` - Check connection status
+- `GET /api/gmail/connect?userId={id}` - Initiate OAuth
+
+**Security:**
+- ✅ Tokens encrypted at rest (future enhancement)
+- ✅ Scoped to minimum permissions
+- ✅ Auto-refresh before expiration
+- ✅ User can disconnect anytime
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-15)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `userId`, `isConnected` (breaking)
+
+---
+
+### 24. invitation_requests
+
+**Purpose:** Track requests from interested users to join the platform
+
+**Collection Path:** `invitation_requests/{requestId}`
+
+**TypeScript Interface:**
+```typescript
+interface InvitationRequest {
+  // Identity
+  id: string;
+  email: string;                      // Requester email
+  name: string;                       // Requester name
+  
+  // Referral
+  referredBy?: string;                // Who referred them (hashedId)
+  source: 'collaboration_feature' | 'landing_page' | 'referral';
+  
+  // Status
+  status: 'pending' | 'approved' | 'rejected';
+  requestedAt: Date;                  // (indexed)
+  approvedAt?: Date;
+  approvedBy?: string;                // Admin who approved
+  rejectedAt?: Date;
+  rejectionReason?: string;
+  
+  // Timestamps
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
+
+**Indexes Required:**
+```
+- status ASC, requestedAt DESC
+```
+
+**Where Visible:**
+- Firebase Console: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Finvitation_requests (or salfagpt)
+
+**API Endpoints:**
+- `POST /api/referral-network/request-invitation` - Create request
+- `GET /api/invitations/pending` - List pending (admin only)
+
+**Backward Compatibility:**
+- ✅ New collection (additive only - 2025-11-15)
+- ✅ All fields optional except identity
+- ⚠️ Never remove `email`, `status` (breaking)
 
 ---
 

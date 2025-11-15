@@ -409,20 +409,30 @@ export default function MessageRenderer({
           {referencesExpanded && (
             <div className="space-y-2">
               {references.map(ref => (
-              <button
-                key={ref.id}
-                onClick={() => onReferenceClick?.(ref)}
-                className="w-full text-left bg-white hover:bg-blue-50 border-2 border-slate-200 hover:border-blue-400 rounded-lg p-3 transition-all group shadow-sm hover:shadow-md"
-              >
-                <div className="flex items-start gap-3">
+              <div key={ref.id} className="w-full bg-white border-2 border-slate-200 hover:border-blue-400 rounded-lg transition-all group shadow-sm hover:shadow-md">
+                <div className="flex items-start gap-3 p-3">
                   <span className="inline-flex items-center px-2.5 py-1.5 bg-blue-600 text-white rounded-lg font-bold text-sm group-hover:bg-blue-700 flex-shrink-0 shadow-sm">
                     [{ref.id}]
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-sm font-bold text-slate-900 truncate">
-                        {ref.sourceName}
-                      </p>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-900 truncate">
+                          {ref.sourceName}
+                        </p>
+                        {/* NEW: View Document Button - Prominently placed */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReferenceClick?.(ref);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md text-xs font-medium"
+                          title="Ver documento completo"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Ver Documento
+                        </button>
+                      </div>
                       {/* Show similarity ONLY for RAG chunks (not full documents) */}
                       {ref.similarity !== undefined && ref.chunkIndex >= 0 && !ref.metadata?.isFullDocument && (
                         <div className="flex flex-col items-end gap-1">
@@ -494,7 +504,7 @@ export default function MessageRenderer({
                     </div>
                   </div>
                 </div>
-              </button>
+              </div>
               ))}
             </div>
           )}
