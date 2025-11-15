@@ -40,10 +40,20 @@ export const GET: APIRoute = async (context) => {
     const effectiveUserId = await getEffectiveOwnerForContext(agentId, session.id);
     console.log(`   🔑 Effective owner: ${effectiveUserId}`);
 
-    // 2. Count documents (minimal query)
+    // 🔑 CRITICAL FIX: Get user's Google OAuth ID for legacy context sources
+    // Context sources were created with numeric Google ID, but users now use hash format
+    const { getUserById } = await import('../../../../lib/firestore.js');
+    const ownerUser = await getUserById(effectiveUserId);
+    const googleUserId = ownerUser?.googleUserId || effectiveUserId;
+    
+    if (googleUserId !== effectiveUserId) {
+      console.log(`   🔑 Using Google ID for legacy sources: ${effectiveUserId} → ${googleUserId}`);
+    }
+
+    // 2. Count documents (minimal query) - use Google ID for backward compatibility
     const countSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('userId', '==', effectiveUserId)
+      .where('userId', '==', googleUserId) // ✅ Use Google ID for legacy compatibility
       .where('assignedToAgents', 'array-contains', agentId)
       .select('name') // Minimal field selection
       .get();
@@ -51,7 +61,7 @@ export const GET: APIRoute = async (context) => {
     const total = countSnapshot.size;
     const elapsed = Date.now() - startTime;
 
-    console.log(`✅ Agent ${agentId}: ${total} documents in ${elapsed}ms`);
+    console.log(`✅ Agent ${agentId}: ${total} documents in ${elapsed}ms (using googleUserId: ${googleUserId})`);
 
     return new Response(
       JSON.stringify({

@@ -67,7 +67,9 @@ export default function AgentContextModal({
       console.log('📊 Loading document count for agent:', agentId);
       
       // Get count only - no actual documents
-      const response = await fetch(`/api/agents/${agentId}/context-count`);
+      const response = await fetch(`/api/agents/${agentId}/context-count`, {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       
       if (response.ok) {
         const data = await response.json();
@@ -130,7 +132,9 @@ export default function AgentContextModal({
   const enableAllAssignedSources = async () => {
     try {
       // Get ALL source IDs assigned to this agent (using the same query as the page load)
-      const allIdsResponse = await fetch(`/api/agents/${agentId}/context-sources/all-ids`);
+      const allIdsResponse = await fetch(`/api/agents/${agentId}/context-sources/all-ids`, {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       if (!allIdsResponse.ok) {
         console.warn('⚠️ Could not fetch all source IDs, skipping auto-enable');
         return;
@@ -145,6 +149,7 @@ export default function AgentContextModal({
       await fetch(`/api/conversations/${agentId}/context-sources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
         body: JSON.stringify({ activeContextSourceIds: allSourceIds })
       });
       
@@ -187,7 +192,9 @@ export default function AgentContextModal({
       console.log('📥 Loading full details for:', sourceId);
       
       // Load FULL source with extractedData
-      const response = await fetch(`/api/context-sources/${sourceId}`);
+      const response = await fetch(`/api/context-sources/${sourceId}`, {
+        credentials: 'include', // ✅ FIX: Include cookies for authentication
+      });
       
       if (response.ok) {
         const data = await response.json();
