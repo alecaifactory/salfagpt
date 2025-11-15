@@ -347,6 +347,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
   const [documentViewerSource, setDocumentViewerSource] = useState<ContextSource | null>(null);
   
+  // ✅ FIX: Cache loaded context data to prevent unnecessary reloads
+  const loadedContextRef = useRef<{ conversationId: string; timestamp: number } | null>(null);
+  const loadedPromptsRef = useRef<{ conversationId: string; timestamp: number } | null>(null);
+  
+  // ✅ FIX: Cache sample questions to prevent recalculation on every render
+  const cachedSampleQuestions = useRef<{ agentId: string; questions: string[] } | null>(null);
+  
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     conversationId: string;
@@ -889,6 +896,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
     try {
+      // ✅ CACHE: Skip if already loaded for this conversation (within 30 seconds)
+      const now = Date.now();
+      const cached = loadedContextRef.current;
+      if (cached && cached.conversationId === conversationId && (now - cached.timestamp) < 30000) {
+        console.log('⚡ Using cached context stats for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
+        return;
+      }
+      
       // ✅ MINIMAL: For RAG with BigQuery, we only need IDs (not full metadata!)
       // BigQuery handles finding relevant chunks by agentId
       console.log('⚡ Loading minimal context stats (IDs only - BigQuery handles search)...');
@@ -932,6 +947,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         activeCount: data.activeCount || 0
       };
       setContextStats(newStats);
+      
+      // ✅ CACHE: Store that we loaded this
+      loadedContextRef.current = {
+        conversationId,
+        timestamp: now
+      };
       
       console.log(`✅ Minimal context loaded: ${minimalSources.length} active sources (${data.loadTime}ms)`);
       console.log(`   IDs ready for references, BigQuery handles chunk search`);
@@ -3166,6 +3187,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ NEW: Load domain and agent prompts when selecting agent
   const loadPromptsForAgent = async (conversationId: string, skipReload = false) => {
     try {
+      // ✅ CACHE: Skip if already loaded for this conversation (within 30 seconds)
+      const now = Date.now();
+      const cached = loadedPromptsRef.current;
+      if (cached && cached.conversationId === conversationId && (now - cached.timestamp) < 30000) {
+        console.log('⚡ Using cached prompts for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
+        return;
+      }
+      
       // 🔑 Skip reload if we recently saved (within last 5 seconds)
       const timeSinceLastSave = Date.now() - lastPromptSaveTime;
       if (timeSinceLastSave < 5000 && lastPromptSaveTime > 0) {
@@ -3205,6 +3234,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         console.log('📥 [LOAD PROMPTS] Prompt data received:', promptData);
         console.log('🔍 [LOAD PROMPTS] Agent prompt length:', promptData.agentPrompt?.length);
         setCurrentAgentPrompt(promptData.agentPrompt || '');
+        
+        // ✅ CACHE: Store that we loaded this
+        loadedPromptsRef.current = {
+          conversationId,
+          timestamp: now
+        };
       }
     } catch (error) {
       console.error('❌ Error loading prompts:', error);
@@ -6363,13 +6398,50 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             )}
 
             {/* Sample Questions Carousel */}
-            {(() => {
+            {React.useMemo(() => {
               // Get agent for this conversation (direct agent or parent agent for chats)
               const currentConv = conversations.find(c => c.id === currentConversation);
               const parentAgent = getParentAgent();
               const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
+              const agentId = agentToUse?.id || '';
+              
+              // ✅ CACHE: Use cached questions if agent hasn't changed
+              if (cachedSampleQuestions.current?.agentId === agentId) {
+                const cachedQuestions = cachedSampleQuestions.current.questions;
+                if (cachedQuestions.length === 0) return null;
+                if (!isLoadingMessages && !isCreatingConversation && messages.length > 2) return null;
+                
+                // Use cached questions (skip recalculation)
+                const visibleStart = sampleQuestionIndex;
+                const visibleQuestions = [
+                  cachedQuestions[visibleStart],
+                  cachedQuestions[(visibleStart + 1) % cachedQuestions.length],
+                  cachedQuestions[(visibleStart + 2) % cachedQuestions.length],
+                ];
+                
+                const calculateProgress = () => {
+                  if (cachedQuestions.length === 0) return 0;
+                  if (sampleQuestionIndex >= cachedQuestions.length - 2) {
+                    return 3 + (sampleQuestionIndex - (cachedQuestions.length - 2));
+                  }
+                  return 3 + sampleQuestionIndex;
+                };
+                
+                const progressCount = calculateProgress();
+                const progressPercent = (progressCount / cachedQuestions.length) * 100;
+                
+                return renderSampleQuestionsUI(visibleQuestions, visibleStart, cachedQuestions.length, progressCount, progressPercent);
+              }
+              
+              // ✅ LOAD: Calculate questions for first time
               const agentCode = getAgentCode(agentToUse?.title);
               const sampleQuestions = getSampleQuestions(agentCode);
+              
+              // ✅ CACHE: Store for next render
+              cachedSampleQuestions.current = {
+                agentId,
+                questions: sampleQuestions
+              };
               
               // ✅ FIX: Keep visible during creation and loading to prevent flash
               if (sampleQuestions.length === 0) return null;
@@ -6407,13 +6479,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               const progressCount = calculateProgress();
               const progressPercent = (progressCount / sampleQuestions.length) * 100;
               
+              // Return UI
               return (
-                <div className="mb-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <div className="mb-0.5">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <p className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">
                       💡 Preguntas de ejemplo
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[9px] text-slate-500">
                       Mostrando {Math.min(3, sampleQuestions.length)} de {sampleQuestions.length} preguntas
                     </p>
                   </div>
@@ -6436,10 +6509,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           key={`${visibleStart + idx}-${question}`}
                           onClick={() => handleSampleQuestionClick(question)}
-                          className="group relative px-2 py-1.5 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 rounded-md hover:shadow-md hover:scale-[1.02] transition-all text-left"
+                          className="group relative px-1.5 py-1 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-700 dark:to-slate-600 border border-blue-200 dark:border-slate-500 rounded-md hover:shadow-md hover:scale-[1.02] transition-all text-left"
                           title={question}
                         >
-                          <p className="text-xs text-slate-700 dark:text-slate-200 font-medium line-clamp-1.5 leading-snug">
+                          <p className="text-[10px] text-slate-700 dark:text-slate-200 font-medium line-clamp-1 leading-tight">
                             {question}
                           </p>
                           <div className="absolute inset-0 bg-blue-600 dark:bg-blue-500 opacity-0 group-hover:opacity-5 rounded-md transition-opacity" />
@@ -6460,36 +6533,37 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   </div>
                   
                   {/* Progress Bar - Shows how many questions have been seen */}
-                  <div className="mt-1 px-11">
+                  <div className="mt-0.5 px-11">
                     <div className="flex items-center gap-1.5">
-                      <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1 overflow-hidden">
+                      <div className="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-0.5 overflow-hidden">
                         <div 
-                          className="bg-blue-500 h-1 rounded-full transition-all duration-300 ease-out"
+                          className="bg-blue-500 h-0.5 rounded-full transition-all duration-300 ease-out"
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-slate-500 font-medium tabular-nums">
+                      <span className="text-[9px] text-slate-500 font-medium tabular-nums">
                         {progressCount}/{sampleQuestions.length}
                       </span>
                     </div>
                   </div>
                 </div>
               );
-            })()}
+            }, [currentConversation, conversations, sampleQuestionIndex, isLoadingMessages, isCreatingConversation, messages.length])}
 
             <div className="flex gap-1.5">
-              <input
-                type="text"
+              <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => {
                   const currentAgentLoading = currentConversation && agentProcessing[currentConversation]?.isProcessing;
-                  if (e.key === 'Enter' && !currentAgentLoading && input.trim()) {
+                  if (e.key === 'Enter' && !e.shiftKey && !currentAgentLoading && input.trim()) {
+                    e.preventDefault();
                     sendMessage();
                   }
                 }}
-                placeholder="Escribe un mensaje..."
-                className="flex-1 px-2 py-1 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs"
+                placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
+                rows={3}
+                className="flex-1 px-2 py-2 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs resize-none"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (

@@ -44,7 +44,17 @@
     "init:onboarding": "tsx scripts/init-feature-onboarding.ts",
     "migrate:multi-org": "tsx scripts/migrate-to-multi-org.ts",
     "migrate:multi-org:dry-run": "tsx scripts/migrate-to-multi-org.ts --dry-run",
-    "staging:setup": "bash scripts/create-staging-mirror.sh"
+    "staging:setup": "bash scripts/create-staging-mirror.sh",
+    "qa:setup": "bash scripts/setup-qa-environment.sh",
+    "qa:deploy": "bash scripts/deploy-to-qa.sh",
+    "qa:compare": "bash scripts/compare-qa-prod.sh",
+    "verify:userid-formats": "tsx scripts/verify-userid-formats.ts",
+    "discover:userid-mappings": "tsx scripts/discover-userid-mappings.ts",
+    "migrate:userid": "tsx scripts/migrate-userid-format.ts",
+    "qa:status": "bash scripts/status.sh",
+    "prod:deploy": "bash scripts/deploy-to-production.sh",
+    "prod:rollback": "bash scripts/rollback-production.sh",
+    "deploy:track": "bash scripts/track-deployment.sh"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

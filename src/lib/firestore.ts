@@ -2944,14 +2944,20 @@ export async function getSharedAgents(userId: string, userEmail?: string): Promi
     for (const agentId of agentIds) {
       const agent = await getConversation(agentId);
       if (agent) {
-        console.log('     ✅ Loaded agent:', agent.title);
+        // ✅ Filter out agents owned by the current user (they already appear in "own agents")
+        if (agent.userId === userHashId) {
+          console.log('     ⏭️  Skipping agent owned by user:', agent.title, '(already in own agents)');
+          continue;
+        }
+        
+        console.log('     ✅ Loaded shared agent:', agent.title);
         agents.push(agent);
       } else {
         console.warn('     ⚠️ Agent not found:', agentId);
       }
     }
 
-    console.log('✅ Returning', agents.length, 'shared agents');
+    console.log('✅ Returning', agents.length, 'shared agents (excluding owned agents)');
     return agents;
   } catch (error) {
     console.error('❌ Error getting shared agents:', error);
