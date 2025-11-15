@@ -354,8 +354,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ FIX: Cache sample questions to prevent recalculation on every render
   const cachedSampleQuestions = useRef<{ agentId: string; questions: string[] } | null>(null);
   
-  // ✅ FEATURE FLAG: New optimized agent data loading
+  // ✅ FEATURE FLAGS
   const USE_OPTIMIZED_LOADING = true; // Toggle to false to use old system
+  const USE_OPTIMIZED_REFERENCES = true; // Toggle to false for old reference system
   
   // ✅ NEW: Consolidated agent data state (replaces multiple individual states)
   const [agentData, setAgentData] = useState<{
@@ -391,7 +392,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // NEW: Left pane organization state
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [showAgentsSection, setShowAgentsSection] = useState(false);
+  const [showAgentsSection, setShowAgentsSection] = useState(true); // ✅ Open by default
   const [showProjectsSection, setShowProjectsSection] = useState(false);
   const [showChatsSection, setShowChatsSection] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
@@ -458,6 +459,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     similarity: number;
     tokens: number;
   }> | null>(null);
+  
+  // ✅ OPTIMIZED REFERENCES: Pre-load references during streaming (no post-load flickering)
+  const pendingReferencesRef = useRef<Map<string, any[]>>(new Map()); // messageId -> references
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -5535,8 +5539,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking messages
         >
           {messages.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-slate-400">
-              <p>Comienza una conversación...</p>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 px-6">
+              <Bot className="w-16 h-16 mb-4 text-slate-300" />
+              <p className="text-lg font-medium text-slate-600 mb-2">Comienza una conversación</p>
+              <p className="text-sm text-center text-slate-500">
+                Selecciona un agente en el panel izquierdo para empezar a chatear
+              </p>
             </div>
           ) : (
             messages.map(msg => (
@@ -6724,9 +6732,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 <button
                   onClick={sendMessage}
                   disabled={!input.trim()}
-                  className="px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
+                  <span className="text-sm">Enviar</span>
                 </button>
               )}
             </div>
