@@ -427,6 +427,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [sampleQuestionIndex, setSampleQuestionIndex] = useState(0); // NEW: Carousel index
+  const [showSampleQuestions, setShowSampleQuestions] = useState(false); // ✅ NEW: Collapsed by default
+  const [showContextBar, setShowContextBar] = useState(false); // ✅ NEW: Collapsed by default
   
   // NEW: Ref to store fragment mapping for current streaming response
   const fragmentMappingRef = useRef<Array<{
@@ -5636,31 +5638,57 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking input area
         >
           <div className="max-w-4xl mx-auto">
-            {/* Context Button */}
-            <div className="mb-1 flex justify-center">
-              <button
-                onClick={() => setShowContextPanel(!showContextPanel)}
-                className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md transition-colors border border-slate-200"
-              >
-                <span className="font-medium">Contexto:</span>
-                <span className={`${
-                  calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
-                  calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
-                  'text-green-600'
-                } font-semibold`}>
-                  {calculateContextUsage().usagePercent}%
-                </span>
-                <span className="text-slate-400">•</span>
-                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                <span className="font-medium text-slate-700">
-                  {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
-                </span>
-                <span className="text-slate-400">•</span>
-                <span className="text-blue-600" title={`contextStats: ${contextStats ? JSON.stringify(contextStats) : 'null'}`}>
-                  {contextStats ? contextStats.activeCount : 0} fuentes
-                </span>
-              </button>
-            </div>
+            {/* Context Bar - Collapsible */}
+            {showContextBar ? (
+              <div className="mb-1 flex justify-center">
+                <button
+                  onClick={() => setShowContextPanel(!showContextPanel)}
+                  className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded-md transition-colors border border-slate-200"
+                >
+                  <span className="font-medium">Contexto:</span>
+                  <span className={`${
+                    calculateContextUsage().usagePercent > 80 ? 'text-red-600' : 
+                    calculateContextUsage().usagePercent > 50 ? 'text-yellow-600' : 
+                    'text-green-600'
+                  } font-semibold`}>
+                    {calculateContextUsage().usagePercent}%
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="font-medium text-slate-700">
+                    {globalUserSettings.preferredModel === 'gemini-2.5-pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}
+                  </span>
+                  <span className="text-slate-400">•</span>
+                  <span className="text-blue-600" title={`contextStats: ${contextStats ? JSON.stringify(contextStats) : 'null'}`}>
+                    {contextStats ? contextStats.activeCount : 0} fuentes
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowContextBar(false);
+                    }}
+                    className="ml-1"
+                    title="Ocultar"
+                  >
+                    <XIcon className="w-3 h-3 text-slate-400 hover:text-slate-600" />
+                  </button>
+                </button>
+              </div>
+            ) : (
+              <div className="mb-1 flex justify-center">
+                <button
+                  onClick={() => setShowContextBar(true)}
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                  title="Mostrar información de contexto"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>{contextStats ? contextStats.activeCount : 0} fuentes</span>
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+            )}
 
             {/* Context Panel */}
             {showContextPanel && (
@@ -6397,8 +6425,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </div>
             )}
 
-            {/* Sample Questions Carousel */}
-            {React.useMemo(() => {
+            {/* Sample Questions Carousel - Collapsible */}
+            {(() => {
               // Get agent for this conversation (direct agent or parent agent for chats)
               const currentConv = conversations.find(c => c.id === currentConversation);
               const parentAgent = getParentAgent();
@@ -6406,9 +6434,30 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               const agentCode = getAgentCode(agentToUse?.title);
               const sampleQuestions = getSampleQuestions(agentCode);
               
-              // ✅ FIX: Keep visible during creation and loading to prevent flash
+              // ✅ Don't show if no questions available
               if (sampleQuestions.length === 0) return null;
-              if (!isLoadingMessages && !isCreatingConversation && messages.length > 2) return null;
+              
+              // ✅ Don't show if conversation has messages (unless explicitly expanded)
+              if (!showSampleQuestions && messages.length > 2) return null;
+              
+              // ✅ Collapsed state - just a small expand button
+              if (!showSampleQuestions) {
+                return (
+                  <div className="mb-0.5 flex justify-center">
+                    <button
+                      onClick={() => setShowSampleQuestions(true)}
+                      className="flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded transition-colors"
+                      title="Mostrar preguntas de ejemplo"
+                    >
+                      <span>💡</span>
+                      <span>{sampleQuestions.length} preguntas de ejemplo</span>
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              }
               
               // Calculate visible questions (3 at a time)
               const visibleStart = sampleQuestionIndex;
@@ -6449,9 +6498,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     <p className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">
                       💡 Preguntas de ejemplo
                     </p>
-                    <p className="text-[9px] text-slate-500">
-                      Mostrando {Math.min(3, sampleQuestions.length)} de {sampleQuestions.length} preguntas
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[9px] text-slate-500">
+                        {Math.min(3, sampleQuestions.length)} de {sampleQuestions.length}
+                      </p>
+                      <button
+                        onClick={() => setShowSampleQuestions(false)}
+                        className="text-slate-400 hover:text-slate-600"
+                        title="Ocultar preguntas"
+                      >
+                        <XIcon className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                   
                   <div className="flex items-center gap-1.5">
@@ -6511,7 +6569,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   </div>
                 </div>
               );
-            }, [currentConversation, conversations, sampleQuestionIndex, isLoadingMessages, isCreatingConversation, messages.length])}
+            })()}
 
             <div className="flex gap-1.5">
               <textarea
