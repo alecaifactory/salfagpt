@@ -6,7 +6,7 @@ import { isUserDomainEnabled, getDomainFromEmail } from '../lib/domains';
 import '../styles/global.css';
 
 // ✅ FEATURE FLAG: Toggle Chat V2
-const USE_CHAT_V2 = true; // Hardcoded for testing - import.meta.env.PUBLIC_USE_CHAT_V2 === 'true';
+const USE_CHAT_V2 = true; // V2 Complete - Fully functional rebuild
 
 // 🔒 SECURITY: Always require authentication
 const cookies = Astro.cookies;
@@ -187,13 +187,23 @@ try {
       }
     </script>
     
-    <!-- CHAT V2: Temporarily disabled - keeping V1 with all optimizations -->
-    <ChatInterfaceWorking 
-      client:only="react"
-      userId={userId}
-      userEmail={userEmail}
-      userName={userName}
-      userRole={userRole}
-    />
+    <!-- CHAT V2: Fully Functional - Complete Rebuild -->
+    {USE_CHAT_V2 ? (
+      <ChatContainerV2
+        client:only="react"
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+      />
+    ) : (
+      <ChatInterfaceWorking 
+        client:only="react"
+        userId={userId}
+        userEmail={userEmail}
+        userName={userName}
+        userRole={userRole}
+      />
+    )}
   </body>
 </html>
