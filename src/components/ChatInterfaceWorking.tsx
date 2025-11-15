@@ -2462,7 +2462,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   // ✅ Receive references early and store in ref (not state - prevents re-render)
                   console.log('📚 Received references BEFORE streaming:', data.references?.length || 0);
                   receivedReferences = data.references || []; // Store in local variable
-                  console.log('   Stored in variable, will attach on complete');
+                  
+                  if (USE_OPTIMIZED_REFERENCES) {
+                    // ✅ OPTIMIZED: Attach references immediately (no wait for complete)
+                    console.log('⚡ [OPTIMIZED REF] Attaching references immediately to streaming message');
+                    setMessages(prev => prev.map(msg => 
+                      msg.id === streamingId 
+                        ? { ...msg, references: receivedReferences, isLoadingReferences: false }
+                        : msg
+                    ));
+                  } else {
+                    console.log('   [OLD] Stored in variable, will attach on complete');
+                  }
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
@@ -2545,7 +2556,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                             content: accumulatedContent, // ✅ CRITICAL: Use accumulated content, not msg.content
                             thinkingSteps: undefined, // ✅ CRITICAL FIX: Clear thinking steps to show content
                             isStreaming: false, // Reveal references
-                            references: receivedReferences.length > 0 ? receivedReferences : undefined, // Attach refs
+                            references: USE_OPTIMIZED_REFERENCES 
+                              ? (msg.references || receivedReferences) // ✅ OPTIMIZED: Keep existing if already attached
+                              : (receivedReferences.length > 0 ? receivedReferences : undefined), // OLD: Attach on complete
                             firestoreId: finalMessageId,
                           }
                         : msg
