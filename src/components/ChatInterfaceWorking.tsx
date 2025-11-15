@@ -6403,45 +6403,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               const currentConv = conversations.find(c => c.id === currentConversation);
               const parentAgent = getParentAgent();
               const agentToUse = parentAgent || currentConv; // Use parent agent if chat, otherwise use conversation
-              const agentId = agentToUse?.id || '';
-              
-              // ✅ CACHE: Use cached questions if agent hasn't changed
-              if (cachedSampleQuestions.current?.agentId === agentId) {
-                const cachedQuestions = cachedSampleQuestions.current.questions;
-                if (cachedQuestions.length === 0) return null;
-                if (!isLoadingMessages && !isCreatingConversation && messages.length > 2) return null;
-                
-                // Use cached questions (skip recalculation)
-                const visibleStart = sampleQuestionIndex;
-                const visibleQuestions = [
-                  cachedQuestions[visibleStart],
-                  cachedQuestions[(visibleStart + 1) % cachedQuestions.length],
-                  cachedQuestions[(visibleStart + 2) % cachedQuestions.length],
-                ];
-                
-                const calculateProgress = () => {
-                  if (cachedQuestions.length === 0) return 0;
-                  if (sampleQuestionIndex >= cachedQuestions.length - 2) {
-                    return 3 + (sampleQuestionIndex - (cachedQuestions.length - 2));
-                  }
-                  return 3 + sampleQuestionIndex;
-                };
-                
-                const progressCount = calculateProgress();
-                const progressPercent = (progressCount / cachedQuestions.length) * 100;
-                
-                return renderSampleQuestionsUI(visibleQuestions, visibleStart, cachedQuestions.length, progressCount, progressPercent);
-              }
-              
-              // ✅ LOAD: Calculate questions for first time
               const agentCode = getAgentCode(agentToUse?.title);
               const sampleQuestions = getSampleQuestions(agentCode);
-              
-              // ✅ CACHE: Store for next render
-              cachedSampleQuestions.current = {
-                agentId,
-                questions: sampleQuestions
-              };
               
               // ✅ FIX: Keep visible during creation and loading to prevent flash
               if (sampleQuestions.length === 0) return null;
