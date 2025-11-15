@@ -2452,33 +2452,69 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     const messageToSend = input;
     setInput('');
     
-    // ✅ NEW: Generate title immediately for first message
+    // ✅ NEW: Stream title generation immediately for first message
     if (isFirstMessage && !currentConversation?.startsWith('temp-')) {
-      console.log('🏷️ First message - generating title immediately...');
+      console.log('🏷️ First message - streaming title generation...');
       
-      // Call backend to generate title (fire and forget)
-      fetch('/api/generate-title', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          conversationId: currentConversation,
-          message: firstMessageText,
-        }),
-      })
-      .then(async response => {
-        if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Title generated:', data.title);
-          
-          // Update immediately in sidebar
-          setConversations(prev => prev.map(c => 
-            c.id === currentConversation 
-              ? { ...c, title: data.title }
-              : c
-          ));
+      // Stream title from backend
+      (async () => {
+        try {
+          const response = await fetch('/api/generate-title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conversationId: currentConversation,
+              message: firstMessageText,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('❌ Title generation request failed');
+            return;
+          }
+
+          // Read SSE stream
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let accumulatedTitle = '';
+
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              
+              if (done) break;
+
+              const chunk = decoder.decode(value);
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6));
+
+                    if (data.type === 'chunk') {
+                      accumulatedTitle += data.chunk;
+                      
+                      // Update title progressively in sidebar
+                      setConversations(prev => prev.map(c => 
+                        c.id === currentConversation 
+                          ? { ...c, title: accumulatedTitle }
+                          : c
+                      ));
+                    } else if (data.type === 'complete') {
+                      console.log('✅ Title streaming complete:', data.title);
+                    }
+                  } catch (parseError) {
+                    console.error('Error parsing title SSE:', parseError);
+                  }
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Title streaming failed:', error);
         }
-      })
-      .catch(err => console.error('❌ Title generation failed:', err));
+      })();
     }
     
     // Track processing for this agent
