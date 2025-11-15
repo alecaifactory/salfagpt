@@ -187,23 +187,13 @@ try {
       }
     </script>
     
-    <!-- FEATURE FLAG: Choose which chat interface to use -->
-    {USE_CHAT_V2 ? (
-      <ChatContainerV2
-        client:only="react"
-        userId={userId}
-        userEmail={userEmail}
-        userName={userName}
-        userRole={userRole}
-      />
-    ) : (
-      <ChatInterfaceWorking 
-        client:only="react"
-        userId={userId}
-        userEmail={userEmail}
-        userName={userName}
-        userRole={userRole}
-      />
-    )}
+    <!-- CHAT V2: Temporarily disabled - keeping V1 with all optimizations -->
+    <ChatInterfaceWorking 
+      client:only="react"
+      userId={userId}
+      userEmail={userEmail}
+      userName={userName}
+      userRole={userRole}
+    />
   </body>
 </html>
