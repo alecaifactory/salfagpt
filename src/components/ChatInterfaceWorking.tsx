@@ -462,6 +462,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   
   // ✅ OPTIMIZED REFERENCES: Pre-load references during streaming (no post-load flickering)
   const pendingReferencesRef = useRef<Map<string, any[]>>(new Map()); // messageId -> references
+  
+  // ✅ NEW REFACTOR: Stable sample questions system
+  const [currentSampleQuestions, setCurrentSampleQuestions] = useState<string[]>([]);
+  const lastLoadedAgentRef = useRef<string | null>(null); // Track which agent questions are loaded for
+  
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -694,6 +699,44 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   //   return () => clearInterval(interval);
   // }, []);
 
+  // ✅ NEW REFACTOR: Load sample questions when agent changes (separate from render)
+  useEffect(() => {
+    if (!currentConversation) {
+      setCurrentSampleQuestions([]);
+      lastLoadedAgentRef.current = null;
+      return;
+    }
+    
+    // Get the effective agent (parent agent for chats, or the conversation itself)
+    const currentConv = conversations.find(c => c.id === currentConversation);
+    const parentAgent = currentConv?.agentId 
+      ? conversations.find(c => c.id === currentConv.agentId)
+      : null;
+    const effectiveAgent = parentAgent || currentConv;
+    const effectiveAgentId = effectiveAgent?.id || '';
+    
+    // Skip if already loaded for this agent
+    if (lastLoadedAgentRef.current === effectiveAgentId && currentSampleQuestions.length > 0) {
+      console.log('⚡ [QUESTIONS] Using cached questions for agent:', effectiveAgentId);
+      return;
+    }
+    
+    // Load questions for this agent
+    const agentCode = getAgentCode(effectiveAgent?.title);
+    const questions = getSampleQuestions(agentCode);
+    
+    console.log('📝 [QUESTIONS] Loading for agent:', {
+      agentId: effectiveAgentId,
+      title: effectiveAgent?.title,
+      code: agentCode,
+      questionCount: questions.length
+    });
+    
+    setCurrentSampleQuestions(questions);
+    lastLoadedAgentRef.current = effectiveAgentId;
+    
+  }, [currentConversation, conversations]);
+  
   // Handle panel resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -6571,20 +6614,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
             {/* Sample Questions Carousel - Collapsible */}
             {(() => {
-              // ✅ FEATURE FLAG: Use optimized data source
-              const sampleQuestions = USE_OPTIMIZED_LOADING 
-                ? agentData.sampleQuestions 
-                : (() => {
-                    // OLD: Calculate on every render
-                    const currentConv = conversations.find(c => c.id === currentConversation);
-                    const parentAgent = getParentAgent();
-                    const agentToUse = parentAgent || currentConv;
-                    const agentCode = getAgentCode(agentToUse?.title);
-                    return getSampleQuestions(agentCode);
-                  })();
+              // ✅ NEW REFACTOR: Use stable state (loaded in useEffect, not recalculated on render)
+              const sampleQuestions = currentSampleQuestions;
               
               // ✅ Don't show if no questions available
-              if (sampleQuestions.length === 0) return null;
+              if (sampleQuestions.length === 0) {
+                console.log('🔍 [QUESTIONS RENDER] No questions to show');
+                return null;
+              }
               
               // ✅ ALWAYS show collapsed button (user controls visibility)
               if (!showSampleQuestions) {
