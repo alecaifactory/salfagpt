@@ -467,6 +467,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [currentSampleQuestions, setCurrentSampleQuestions] = useState<string[]>([]);
   const lastLoadedAgentRef = useRef<string | null>(null); // Track which agent questions are loaded for
   
+  // ✅ NEW: Coordinated loading system with progress
+  const [agentLoadingProgress, setAgentLoadingProgress] = useState<{
+    isLoading: boolean;
+    stage: 'context' | 'questions' | 'prompts' | 'complete';
+    progress: number; // 0-100
+    message: string;
+  } | null>(null);
+  
   const [showAddSourceModal, setShowAddSourceModal] = useState(false);
   const [preSelectedSourceType, setPreSelectedSourceType] = useState<SourceType | undefined>(undefined);
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -963,6 +971,128 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ✅ NEW COORDINATED: Load all agent data with progress indicator (perfect UX)
+  const loadAgentDataCoordinated = async (conversationId: string) => {
+    try {
+      // Get agent info first
+      const currentConv = conversations.find(c => c.id === conversationId);
+      const agentIdToLoad = currentConv?.agentId || conversationId;
+      
+      // Check cache
+      const now = Date.now();
+      if (agentData.isLoaded && agentData.agentId === agentIdToLoad && (now - agentData.loadedAt) < 30000) {
+        console.log('⚡ [COORDINATED] Using cached agent data');
+        return;
+      }
+      
+      console.log('🎬 [COORDINATED] Starting coordinated load for agent:', agentIdToLoad);
+      
+      // STAGE 1: Context (33%)
+      setAgentLoadingProgress({
+        isLoading: true,
+        stage: 'context',
+        progress: 0,
+        message: 'Cargando contexto...'
+      });
+      
+      const statsResponse = await fetch(`/api/agents/${conversationId}/context-stats`).catch(() => null);
+      const stats = statsResponse?.ok ? await statsResponse.json() : null;
+      
+      setAgentLoadingProgress(prev => prev ? { ...prev, progress: 33 } : null);
+      
+      // STAGE 2: Questions (66%)
+      setAgentLoadingProgress(prev => prev ? {
+        ...prev,
+        stage: 'questions',
+        progress: 33,
+        message: 'Cargando preguntas sugeridas...'
+      } : null);
+      
+      const agent = conversations.find(c => c.id === agentIdToLoad);
+      const agentTitle = agent?.title || currentConv?.title;
+      const agentCode = getAgentCode(agentTitle);
+      const questions = getSampleQuestions(agentCode);
+      
+      setAgentLoadingProgress(prev => prev ? { ...prev, progress: 66 } : null);
+      
+      // STAGE 3: Prompts (100%)
+      setAgentLoadingProgress(prev => prev ? {
+        ...prev,
+        stage: 'prompts',
+        progress: 66,
+        message: 'Cargando configuración...'
+      } : null);
+      
+      const promptResponse = await fetch(`/api/conversations/${agentIdToLoad}/prompt`).catch(() => null);
+      const promptData = promptResponse?.ok ? await promptResponse.json() : null;
+      
+      setAgentLoadingProgress(prev => prev ? { ...prev, progress: 100 } : null);
+      
+      // ✅ ATOMIC: Update ALL data at once
+      const newAgentData = {
+        agentId: agentIdToLoad,
+        contextStats: stats ? {
+          totalCount: stats.totalCount || 0,
+          activeCount: stats.activeCount || 0
+        } : null,
+        sampleQuestions: questions,
+        agentPrompt: promptData?.agentPrompt || '',
+        isLoaded: true,
+        loadedAt: now
+      };
+      
+      // Update all states atomically
+      setAgentData(newAgentData);
+      setCurrentSampleQuestions(questions);
+      lastLoadedAgentRef.current = agentIdToLoad;
+      
+      // Legacy compatibility
+      if (stats) {
+        setContextStats({
+          totalCount: stats.totalCount || 0,
+          activeCount: stats.activeCount || 0
+        });
+        
+        const minimalSources: ContextSource[] = (stats.activeContextSourceIds || []).map((id: string) => ({
+          id,
+          userId: userId,
+          name: `Source ${id.substring(0, 8)}`,
+          type: 'pdf' as const,
+          enabled: true,
+          status: 'active' as const,
+          addedAt: new Date(),
+        }));
+        setContextSources(minimalSources);
+      }
+      
+      if (promptData?.agentPrompt) {
+        setCurrentAgentPrompt(promptData.agentPrompt);
+      }
+      
+      console.log('✅ [COORDINATED] All data loaded successfully');
+      console.log(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
+      console.log(`   - Questions: ${questions.length} disponibles`);
+      console.log(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
+      
+      // COMPLETE: Mark as done and hide progress
+      setAgentLoadingProgress({
+        isLoading: false,
+        stage: 'complete',
+        progress: 100,
+        message: 'Completo'
+      });
+      
+      // Clear progress after short delay
+      setTimeout(() => {
+        setAgentLoadingProgress(null);
+      }, 500);
+      
+    } catch (error) {
+      console.error('❌ [COORDINATED] Error:', error);
+      setAgentLoadingProgress(null);
+    }
+  };
+  
   // ✅ NEW OPTIMIZED: Load all agent data in one batch (no flickering, single state update)
   const loadAgentDataOptimized = async (conversationId: string) => {
     try {
@@ -1054,9 +1184,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   };
   
   const loadContextForConversation = async (conversationId: string, skipRAGVerification = true) => {
-    // ✅ FEATURE FLAG: Route to optimized version
+    // ✅ FEATURE FLAG: Route to coordinated version (with progress UI)
     if (USE_OPTIMIZED_LOADING) {
-      return loadAgentDataOptimized(conversationId);
+      return loadAgentDataCoordinated(conversationId);
     }
     
     // OLD CODE BELOW (for fallback):
@@ -5818,8 +5948,28 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking input area
         >
           <div className="max-w-4xl mx-auto">
-            {/* Context Bar - Collapsible */}
-            {showContextBar ? (
+            {/* Loading Progress Bar */}
+            {agentLoadingProgress?.isLoading && (
+              <div className="mb-2 bg-blue-50 border border-blue-200 rounded-md p-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-blue-700">
+                    {agentLoadingProgress.message}
+                  </span>
+                  <span className="text-xs text-blue-600 font-semibold">
+                    {agentLoadingProgress.progress}%
+                  </span>
+                </div>
+                <div className="w-full bg-blue-100 rounded-full h-1.5 overflow-hidden">
+                  <div 
+                    className="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${agentLoadingProgress.progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Context Bar - Collapsible (only show when NOT loading) */}
+            {!agentLoadingProgress?.isLoading && showContextBar ? (
               <div className="mb-1 flex justify-center">
                 <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 rounded-md border border-slate-200 bg-slate-50">
                   <button
@@ -5856,7 +6006,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : !agentLoadingProgress?.isLoading && (
               <div className="mb-1 flex justify-center">
                 <button
                   onClick={() => setShowContextBar(true)}
@@ -6612,14 +6762,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </div>
             )}
 
-            {/* Sample Questions Carousel - Collapsible */}
-            {(() => {
+            {/* Sample Questions Carousel - Collapsible (only show when NOT loading) */}
+            {!agentLoadingProgress?.isLoading && (() => {
               // ✅ NEW REFACTOR: Use stable state (loaded in useEffect, not recalculated on render)
               const sampleQuestions = currentSampleQuestions;
               
               // ✅ Don't show if no questions available
               if (sampleQuestions.length === 0) {
-                console.log('🔍 [QUESTIONS RENDER] No questions to show');
                 return null;
               }
               
