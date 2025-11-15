@@ -12,19 +12,9 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { Conversation, Message } from './types';
 
 // ===== TYPES =====
-
-export interface Conversation {
-  id: string;
-  userId: string;
-  title: string;
-  agentId?: string;
-  isAgent?: boolean;
-  status?: string;
-  createdAt: Date;
-  lastMessageAt: Date;
-}
 
 export interface AgentData {
   id: string; // ✅ ALWAYS usr_xxx format
@@ -37,15 +27,6 @@ export interface AgentData {
   prompt: string;
   model: 'gemini-2.5-pro' | 'gemini-2.5-flash';
   loadedAt: number; // Timestamp
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  references?: any[];
-  isStreaming?: boolean;
 }
 
 export interface LoadingState {
@@ -67,6 +48,10 @@ interface ChatStore {
   // ===== CURRENT STATE =====
   currentAgentId: string | null;
   currentChatId: string | null;
+  
+  // ===== DATA =====
+  conversations: Conversation[];
+  messages: Message[];
   
   // ===== CACHED DATA =====
   agentCache: Map<string, AgentData>; // agentId → cached agent data
