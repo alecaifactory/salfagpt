@@ -2774,6 +2774,34 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   // Play sound notification
                   playNotificationSound();
 
+                  // ✅ NEW: Auto-reload title for first message
+                  if (isFirstMessage) {
+                    console.log('🏷️ First message completed - will reload title in 3 seconds...');
+                    
+                    // Wait for backend to generate and save title
+                    setTimeout(async () => {
+                      try {
+                        const response = await fetch(`/api/conversations/${currentConversation}`);
+                        if (response.ok) {
+                          const updatedConv = await response.json();
+                          
+                          // Update conversation title in sidebar
+                          setConversations(prev => prev.map(c => 
+                            c.id === currentConversation 
+                              ? { ...c, title: updatedConv.title }
+                              : c
+                          ));
+                          
+                          console.log('✅ Title auto-updated:', updatedConv.title);
+                        } else {
+                          console.warn('⚠️ Could not fetch updated conversation');
+                        }
+                      } catch (error) {
+                        console.error('❌ Error reloading title:', error);
+                      }
+                    }, 3000); // Wait 3 seconds for backend to generate title
+                  }
+
                   // Log references for debugging
                   if (data.references && data.references.length > 0) {
                     console.log('📚 Message saved with references:', data.references.length);
