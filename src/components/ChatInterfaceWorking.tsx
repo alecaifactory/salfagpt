@@ -6565,10 +6565,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               // ✅ Don't show if no questions available
               if (sampleQuestions.length === 0) return null;
               
-              // ✅ Don't show if conversation has messages (unless explicitly expanded)
-              if (!showSampleQuestions && messages.length > 2) return null;
-              
-              // ✅ Collapsed state - just a small expand button
+              // ✅ ALWAYS show collapsed button (user controls visibility)
               if (!showSampleQuestions) {
                 return (
                   <div className="mb-0.5 flex justify-center">
