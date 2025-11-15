@@ -803,6 +803,27 @@ Usa la información de los documentos encontrados para responder, pero aclara la
                 lastMessageAt: new Date(),
               });
 
+              // ✅ NEW: Generate title for first message (non-blocking)
+              const allMessagesNow = await getMessages(conversationId);
+              const isFirstMessage = allMessagesNow.length === 2; // user + assistant
+              
+              if (isFirstMessage) {
+                console.log('🏷️ First message detected - generating title...');
+                console.log('   Message:', message.substring(0, 100));
+                
+                // Generate and save title (don't await - let it run in background)
+                import('../../../../lib/gemini').then(({ generateConversationTitle }) => {
+                  return generateConversationTitle(message);
+                }).then(title => {
+                  console.log('✅ Title generated:', title);
+                  return updateConversation(conversationId, { title });
+                }).then(() => {
+                  console.log('✅ Title saved to Firestore');
+                }).catch(err => {
+                  console.error('❌ Title generation/save failed:', err);
+                });
+              }
+
               // Send completion event - MINIMAL data only
               // ✅ NO references (already sent via 'references' event)
               // ✅ NO unnecessary data (prevents re-processing)
