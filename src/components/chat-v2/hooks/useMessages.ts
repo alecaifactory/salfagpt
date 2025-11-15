@@ -34,6 +34,10 @@ export function useMessages(conversationId: string | null, userId: string) {
       const data = await response.json();
       const msgs = (data.messages || []).map((m: any) => ({
         ...m,
+        // ✅ FIX: Transform MessageContent object to string
+        content: typeof m.content === 'string' 
+          ? m.content 
+          : m.content?.text || JSON.stringify(m.content),
         timestamp: new Date(m.timestamp),
       }));
       
