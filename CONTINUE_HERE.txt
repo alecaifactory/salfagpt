@@ -1,0 +1,146 @@
+═══════════════════════════════════════════════════════════
+PROMPT PARA NUEVA CONVERSACIÓN - SalfaGPT Auto-Title Fix
+═══════════════════════════════════════════════════════════
+
+Necesito resolver 2 problemas críticos en auto-generación de títulos:
+
+📁 PROYECTO: SalfaGPT (Flow Platform)
+📂 BRANCH: refactor/chat-v2-2025-11-15
+🗂️ COMPONENTE: src/components/ChatInterfaceWorking.tsx (V1B)
+
+───────────────────────────────────────────────────────────
+🚨 PROBLEMA #1: EXCESSIVE RE-RENDERS (CRÍTICO)
+───────────────────────────────────────────────────────────
+
+SÍNTOMA:
+- Component monta 30+ veces (cada 500ms)
+- Mensajes desaparecen brevemente
+- Flickering en UI
+
+CAUSA RAÍZ IDENTIFICADA:
+Archivo: src/components/ChatInterfaceWorking.tsx
+Líneas: 2609-2614
+
+```typescript
+const dotsInterval = setInterval(() => {
+  setCurrentThinkingSteps(prev => prev.map(step => ({
+    ...step,
+    dots: step.status === 'active' ? ((step.dots || 0) + 1) % 4 : step.dots || 0
+  })));
+}, 500);  // ← State update cada 500ms = re-render
+```
+
+FIX (15 minutos):
+1. Comentar líneas 2609-2614
+2. Reiniciar servidor
+3. Probar: Solo debe haber 1-2 MOUNTING logs
+
+───────────────────────────────────────────────────────────
+🚨 PROBLEMA #2: TITLE RETURNS "New Conversation" FALLBACK
+───────────────────────────────────────────────────────────
+
+SÍNTOMA:
+Server logs muestran:
+```
+🏷️ Generating title for conversation: xxx
+✅ Title generated: New Conversation  ← Siempre fallback!
+```
+
+CAUSA:
+Archivo: src/lib/gemini.ts
+Función: generateConversationTitle (línea 501-521)
+Problema: result.text está undefined o empty
+
+FIX (15 minutos):
+Agregar logging detallado para ver qué devuelve Gemini:
+
+```typescript
+export async function generateConversationTitle(firstMessage: string): Promise<string> {
+  try {
+    console.log('🏷️ [TITLE] Starting...');
+    console.log('   Input:', firstMessage.substring(0, 100));
+    
+    const result = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [{ 
+        role: 'user', 
+        parts: [{ 
+          text: `Create a 3-6 word title for: "${firstMessage}"`
+        }] 
+      }],
+      config: {
+        temperature: 0.5,
+        maxOutputTokens: 30,  // Aumentar de 20
+      }
+    });
+    
+    console.log('🏷️ [TITLE] Raw result:', result);
+    console.log('🏷️ [TITLE] result.text:', result.text);
+    
+    if (!result.text) {
+      console.error('❌ Gemini returned empty!');
+      return 'Nueva Conversación';
+    }
+    
+    const title = result.text.trim();
+    console.log('✅ [TITLE] Final:', title);
+    return title || 'Nueva Conversación';
+  } catch (error) {
+    console.error('❌ [TITLE] Error:', error);
+    return 'Nueva Conversación';
+  }
+}
+```
+
+───────────────────────────────────────────────────────────
+📋 TESTING (10 minutos)
+───────────────────────────────────────────────────────────
+
+Después de ambos fixes:
+
+1. Crear nueva conversación
+2. Enviar: "¿Cómo solicito vacaciones?"
+3. Verificar:
+   ✅ Mensaje persiste (no desaparece)
+   ✅ Solo 1-2 MOUNTING logs
+   ✅ Título cambia a "Solicitud Vacaciones"
+   ✅ No flickering
+
+───────────────────────────────────────────────────────────
+📚 DOCUMENTACIÓN COMPLETA
+───────────────────────────────────────────────────────────
+
+Leer PRIMERO:
+- docs/URGENT_FIXES_NEEDED_2025-11-15.md
+- docs/FINAL_STATUS_REPORT_2025-11-15.md
+- docs/HANDOFF_PROMPT_2025-11-15.md
+
+Referencia:
+- docs/V1_VS_V2_FEATURE_COMPARISON.md (186 features)
+- docs/V1B_OPTIMIZATION_CHECKLIST.md (plan 2-3 semanas)
+- docs/TITLE_GENERATION_ROOT_CAUSE_2025-11-15.md
+
+───────────────────────────────────────────────────────────
+✅ DEFINICIÓN DE COMPLETADO
+───────────────────────────────────────────────────────────
+
+Tarea completa cuando:
+1. Component monta máximo 2-3 veces (no 30+)
+2. Mensajes persisten sin desaparecer
+3. Título genera automáticamente con texto descriptivo
+4. Título actualiza en sidebar
+5. Tests manuales exitosos
+6. Cambios committed
+
+TIEMPO ESTIMADO: 40 minutos total
+
+───────────────────────────────────────────────────────────
+
+Por favor implementa Fix #1 primero (comentar setInterval), 
+luego Fix #2 (agregar logging y ver qué devuelve Gemini).
+
+Toda la información técnica detallada está en:
+/Users/alec/salfagpt/docs/HANDOFF_PROMPT_2025-11-15.md
+
+═══════════════════════════════════════════════════════════
+
