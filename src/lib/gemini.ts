@@ -526,34 +526,47 @@ export async function generateConversationTitle(firstMessage: string): Promise<s
  */
 export async function* streamConversationTitle(firstMessage: string): AsyncGenerator<string> {
   try {
+    console.log('🏷️ [streamConversationTitle] Starting...');
+    console.log('   Message:', firstMessage.substring(0, 100));
+    
     // ✅ Use streaming API
     const stream = await genAI.models.generateContentStream({
       model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: firstMessage }] }],
+      contents: [{ role: 'user', parts: [{ text: `Create a short, descriptive title (3-6 words maximum) for this question: "${firstMessage}"` }] }],
       config: {
-        systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else. No quotes, no punctuation at the end.',
-        temperature: 0.7,
+        systemInstruction: 'You generate short titles for conversations. Return ONLY the title text, nothing else. No quotes, no punctuation at the end. Make it descriptive and concise.',
+        temperature: 0.3,
         maxOutputTokens: 20,
       }
     });
 
     let fullTitle = '';
+    let chunkCount = 0;
+    
+    console.log('🏷️ [streamConversationTitle] Stream started, reading chunks...');
     
     // Stream each chunk
     for await (const chunk of stream) {
       if (chunk.text) {
+        chunkCount++;
         fullTitle += chunk.text;
+        console.log(`  📤 Chunk ${chunkCount}:`, chunk.text);
         yield chunk.text;
+      } else {
+        console.log('  ⚠️ Chunk with no text:', chunk);
       }
     }
 
-    // Save final title to Firestore (for persistence)
-    // This will be called after streaming completes
-    return fullTitle.trim().replace(/^["']|["']$/g, '');
+    console.log('✅ [streamConversationTitle] Complete:', fullTitle);
+    console.log(`   Total chunks: ${chunkCount}`);
+    
+    // Clean and return
+    const cleaned = fullTitle.trim().replace(/^["']|["']$/g, '');
+    return cleaned || 'Nueva Conversación';
     
   } catch (error) {
-    console.error('Error streaming title:', error);
-    yield 'New Conversation';
+    console.error('❌ [streamConversationTitle] Error:', error);
+    yield 'Nueva Conversación';
   }
 }
 
