@@ -5968,8 +5968,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </div>
             )}
             
-            {/* Context Bar - Collapsible (only show when NOT loading) */}
-            {!agentLoadingProgress?.isLoading && showContextBar ? (
+            {/* Context Bar - Collapsible (only show when FULLY loaded) */}
+            {!agentLoadingProgress?.isLoading && agentData.isLoaded && showContextBar ? (
               <div className="mb-1 flex justify-center">
                 <div className="flex items-center gap-1.5 px-2 py-1 text-xs text-slate-600 rounded-md border border-slate-200 bg-slate-50">
                   <button
@@ -6006,7 +6006,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   </button>
                 </div>
               </div>
-            ) : !agentLoadingProgress?.isLoading && (
+            ) : !agentLoadingProgress?.isLoading && agentData.isLoaded && (
               <div className="mb-1 flex justify-center">
                 <button
                   onClick={() => setShowContextBar(true)}
@@ -6762,8 +6762,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </div>
             )}
 
-            {/* Sample Questions Carousel - Collapsible (only show when NOT loading) */}
-            {!agentLoadingProgress?.isLoading && (() => {
+            {/* Sample Questions Carousel - Collapsible (only show when FULLY loaded) */}
+            {!agentLoadingProgress?.isLoading && agentData.isLoaded && (() => {
               // ✅ NEW REFACTOR: Use stable state (loaded in useEffect, not recalculated on render)
               const sampleQuestions = currentSampleQuestions;
               
