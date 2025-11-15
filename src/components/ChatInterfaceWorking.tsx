@@ -2437,8 +2437,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
     const requestStartTime = Date.now(); // Track request start time
     
-    // ✅ NEW: Check if this is the first message (to update title later)
+    // ✅ NEW: Check if this is the first message
     const isFirstMessage = messages.length === 0;
+    const firstMessageText = input; // Save for title generation
 
     const userMessage: Message = {
       id: `msg-${Date.now()}`,
@@ -2450,6 +2451,35 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     setMessages(prev => [...prev, userMessage]);
     const messageToSend = input;
     setInput('');
+    
+    // ✅ NEW: Generate title immediately for first message
+    if (isFirstMessage && !currentConversation?.startsWith('temp-')) {
+      console.log('🏷️ First message - generating title immediately...');
+      
+      // Call backend to generate title (fire and forget)
+      fetch('/api/generate-title', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: currentConversation,
+          message: firstMessageText,
+        }),
+      })
+      .then(async response => {
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Title generated:', data.title);
+          
+          // Update immediately in sidebar
+          setConversations(prev => prev.map(c => 
+            c.id === currentConversation 
+              ? { ...c, title: data.title }
+              : c
+          ));
+        }
+      })
+      .catch(err => console.error('❌ Title generation failed:', err));
+    }
     
     // Track processing for this agent
     const agentId = currentConversation;
@@ -2773,34 +2803,6 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
                   // Play sound notification
                   playNotificationSound();
-
-                  // ✅ NEW: Auto-reload title for first message
-                  if (isFirstMessage) {
-                    console.log('🏷️ First message completed - will reload title in 3 seconds...');
-                    
-                    // Wait for backend to generate and save title
-                    setTimeout(async () => {
-                      try {
-                        const response = await fetch(`/api/conversations/${currentConversation}`);
-                        if (response.ok) {
-                          const updatedConv = await response.json();
-                          
-                          // Update conversation title in sidebar
-                          setConversations(prev => prev.map(c => 
-                            c.id === currentConversation 
-                              ? { ...c, title: updatedConv.title }
-                              : c
-                          ));
-                          
-                          console.log('✅ Title auto-updated:', updatedConv.title);
-                        } else {
-                          console.warn('⚠️ Could not fetch updated conversation');
-                        }
-                      } catch (error) {
-                        console.error('❌ Error reloading title:', error);
-                      }
-                    }, 3000); // Wait 3 seconds for backend to generate title
-                  }
 
                   // Log references for debugging
                   if (data.references && data.references.length > 0) {
