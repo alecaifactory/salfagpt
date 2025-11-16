@@ -256,18 +256,26 @@ export default function ContextManagementDashboard({
     }
     
     // Filter by tag (filter sources within domains)
+    // ✅ FIX: Only filter if domains have sources array
     if (filterByTag) {
       filtered = filtered.map(org => ({
         ...org,
-        domains: org.domains.map((domain: any) => ({
-          ...domain,
-          sources: domain.sources.filter((s: any) => 
-            s.labels && s.labels.includes(filterByTag)
-          ),
-          sourceCount: domain.sources.filter((s: any) => 
-            s.labels && s.labels.includes(filterByTag)
-          ).length
-        })).filter((d: any) => d.sourceCount > 0),
+        domains: org.domains.map((domain: any) => {
+          // Skip if domain doesn't have sources yet
+          if (!domain.sources || !Array.isArray(domain.sources)) {
+            return { ...domain, sources: [], sourceCount: 0 };
+          }
+          
+          return {
+            ...domain,
+            sources: domain.sources.filter((s: any) => 
+              s.labels && s.labels.includes(filterByTag)
+            ),
+            sourceCount: domain.sources.filter((s: any) => 
+              s.labels && s.labels.includes(filterByTag)
+            ).length
+          };
+        }).filter((d: any) => d.sourceCount > 0),
         totalSources: org.domains.reduce((sum: number, d: any) => 
           sum + (d.sources?.filter((s: any) => s.labels && s.labels.includes(filterByTag)).length || 0), 0
         )
@@ -275,9 +283,15 @@ export default function ContextManagementDashboard({
     }
     
     // Sort sources within each domain
+    // ✅ FIX: Only process domains that have sources array (context data loaded)
     filtered = filtered.map(org => ({
       ...org,
       domains: org.domains.map((domain: any) => {
+        // If domain doesn't have sources array yet (basic org data only), skip sorting
+        if (!domain.sources || !Array.isArray(domain.sources)) {
+          return domain;
+        }
+        
         const sortedSources = [...domain.sources].sort((a: any, b: any) => {
           let comparison = 0;
           
