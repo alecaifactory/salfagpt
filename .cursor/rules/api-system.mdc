@@ -1,0 +1,1003 @@
+# Flow API System - Developer API Architecture
+
+**Created:** 2025-11-16  
+**Version:** 1.0.0  
+**Status:** ✅ Phase 1 Complete  
+**Always Apply:** Yes
+
+---
+
+## 🎯 **Purpose**
+
+This rule documents the Flow API System - enabling external developers to integrate Flow's Vision API capabilities into their applications through a secure, invitation-based, quota-managed system.
+
+---
+
+## 🏗️ **System Overview**
+
+### Architecture Layers
+
+```
+Layer 1: Invitation System (SuperAdmin control)
+   └─ SuperAdmin creates targeted invitations
+   └─ Developers receive invitation codes
+
+Layer 2: CLI Authentication (Developer onboarding)
+   └─ Developer installs CLI: npm i -g @flow/cli
+   └─ Login with OAuth: flow-cli login [code]
+   └─ API organization auto-created
+
+Layer 3: API Access (Developer integration)
+   └─ API key generated and saved
+   └─ Developer calls Vision API
+   └─ Usage tracked and enforced
+
+Layer 4: Developer Portal (Self-service)
+   └─ API documentation
+   └─ Usage analytics
+   └─ API key management
+   └─ Support channels
+```
+
+---
+
+## 📊 **Data Model**
+
+### Firestore Collections
+
+#### 1. `api_organizations`
+
+**Purpose:** Developer workspace with quotas and usage tracking
+
+```typescript
+{
+  id: string;                     // org-{timestamp}-{random}
+  name: string;                   // "domain.com-API"
+  domain: string;                 // Extracted from email
+  ownerId: string;
+  memberIds: string[];
+  tier: 'trial' | 'starter' | 'pro' | 'enterprise';
+  quotas: {
+    monthlyRequests: number;
+    dailyRequests: number;
+    concurrentRequests: number;
+    maxFileSize: number;
+  };
+  usage: {
+    totalRequests: number;
+    currentMonthRequests: number;
+    currentDayRequests: number;
+    totalDocumentsProcessed: number;
+    totalTokensUsed: number;
+    totalCost: number;
+  };
+  status: 'active' | 'suspended' | 'trial';
+  webhookUrl?: string;
+  allowedIPs?: string[];
+}
+```
+
+**Indexes Required:**
+```
+- memberIds (array-contains) + createdAt DESC
+- domain ASC + ownerId ASC
+- status ASC + createdAt DESC
+```
+
+---
+
+#### 2. `api_keys`
+
+**Purpose:** Authentication credentials with scopes
+
+```typescript
+{
+  id: string;
+  key: string;                    // Bcrypt hashed
+  keyPrefix: string;              // First 8 chars (display)
+  organizationId: string;
+  name: string;
+  scopes: string[];               // ['vision:read', 'vision:write']
+  status: 'active' | 'revoked';
+  createdAt: Date;
+  expiresAt?: Date;
+}
+```
+
+**Indexes Required:**
+```
+- status ASC + organizationId ASC
+- organizationId ASC + createdAt DESC
+```
+
+---
+
+#### 3. `api_invitations`
+
+**Purpose:** SuperAdmin-controlled access distribution
+
+```typescript
+{
+  id: string;
+  invitationCode: string;         // FLOW-{AUDIENCE}-{YYYYMM}-{RANDOM}
+  createdBy: string;
+  targetAudience: string;
+  maxRedemptions: number;
+  currentRedemptions: number;
+  defaultTier: string;
+  status: 'active' | 'expired' | 'exhausted' | 'revoked';
+  redeemedBy: Array<{
+    userId: string;
+    userEmail: string;
+    organizationId: string;
+    redeemedAt: Date;
+  }>;
+}
+```
+
+**Indexes Required:**
+```
+- invitationCode ASC + status ASC
+- status ASC + createdAt DESC
+```
+
+---
+
+#### 4. `api_usage_logs`
+
+**Purpose:** Complete request tracking for analytics
+
+```typescript
+{
+  id: string;
+  organizationId: string;
+  apiKeyId: string;
+  endpoint: string;
+  method: string;
+  statusCode: number;
+  success: boolean;
+  fileType?: string;
+  fileSize?: number;
+  model?: string;
+  tokensUsed?: number;
+  costUSD?: number;
+  durationMs: number;
+  ipAddress: string;              // Hashed
+  timestamp: Date;
+}
+```
+
+**Indexes Required:**
+```
+- organizationId ASC + timestamp DESC
+- organizationId ASC + success ASC + timestamp DESC
+```
+
+---
+
+#### 5. `api_requirement_workflows`
+
+**Purpose:** AI-enhanced requirement document workflow
+
+```typescript
+{
+  id: string;
+  organizationId: string;
+  userId: string;
+  originalDocumentId: string;
+  currentVersion: number;         // 1-10
+  iterations: Array<{
+    version: number;
+    aiSuggestions: string;
+    userFeedback: string;
+    approved: boolean;
+  }>;
+  status: 'draft' | 'in_review' | 'approved' | 'needs_help';
+  helpRequests?: Array<{
+    type: 'admin' | 'ally' | 'stella';
+    message: string;
+  }>;
+  stagingIssues?: Array<{
+    description: string;
+    fixedInStaging: boolean;
+    deployedToProduction: boolean;
+  }>;
+}
+```
+
+**Indexes Required:**
+```
+- organizationId ASC + status ASC + createdAt DESC
+- userId ASC + createdAt DESC
+```
+
+---
+
+## 🔐 **Security Rules**
+
+### Authentication Flow
+
+```typescript
+// Every API request
+1. Extract API key from Authorization header
+2. Validate key (bcrypt compare)
+3. Check key not expired
+4. Check key not revoked
+5. Verify organization active
+6. Check required scopes
+7. Check quota limits
+8. Process request
+9. Log usage (non-blocking)
+```
+
+### API Key Security
+
+```typescript
+// ✅ CORRECT: Generate and store
+const key = generateAPIKey('production');
+// → fv_live_a1b2c3d4e5f6...
+
+const hash = await bcrypt.hash(key, 10);
+// Store hash, show key ONCE
+
+// ❌ WRONG: Store plain key
+const key = generateAPIKey();
+await save({ key: key }); // Never do this!
+```
+
+### Scope System
+
+```typescript
+type APIScope = 
+  | 'vision:read'         // Get extraction results
+  | 'vision:write'        // Upload & extract
+  | 'vision:delete'       // Delete documents
+  | 'org:read'            // View org info
+  | 'org:write'           // Update org settings
+  | 'analytics:read';     // View analytics
+
+// Check before action
+if (!scopes.includes('vision:write')) {
+  return error403('Insufficient scope');
+}
+```
+
+---
+
+## 📋 **Business Rules**
+
+### Business Email Validation
+
+```typescript
+// ✅ CORRECT: Only business domains
+function isBusinessEmail(email: string): boolean {
+  const domain = email.split('@')[1];
+  
+  const consumerDomains = [
+    'gmail.com', 'yahoo.com', 'hotmail.com',
+    'outlook.com', 'icloud.com', 'live.com', 'aol.com'
+  ];
+  
+  return !consumerDomains.includes(domain?.toLowerCase());
+}
+
+// ❌ WRONG: Allow consumer emails
+// Creates poor user base, support burden
+```
+
+### Tier Quotas
+
+```typescript
+const TIER_QUOTAS = {
+  trial: {
+    monthlyRequests: 100,
+    dailyRequests: 10,
+    maxFileSize: 20,      // MB
+    durationDays: 14,
+  },
+  starter: {
+    monthlyRequests: 1000,
+    dailyRequests: 100,
+    maxFileSize: 100,
+  },
+  pro: {
+    monthlyRequests: 10000,
+    dailyRequests: 1000,
+    maxFileSize: 500,
+  },
+  enterprise: {
+    monthlyRequests: 100000,
+    dailyRequests: 10000,
+    maxFileSize: 2000,
+  },
+};
+```
+
+---
+
+## 🚀 **API Endpoints**
+
+### Vision API v1
+
+**Endpoint:** `POST /api/v1/extract-document`
+
+**Authentication:** Required (Bearer token)
+
+**Request:**
+```typescript
+Headers:
+  Authorization: Bearer fv_live_xxxxx
+
+Body (multipart/form-data):
+  file: File
+  model?: 'flash' | 'pro'
+  extractionMethod?: 'vision-api' | 'gemini'
+  webhookUrl?: string
+```
+
+**Response (Sync):**
+```json
+{
+  "success": true,
+  "documentId": "doc_xxxxx",
+  "extractedText": "Content...",
+  "metadata": {
+    "fileName": "doc.pdf",
+    "fileSize": 1240000,
+    "model": "gemini-2.5-flash",
+    "tokensUsed": 12450,
+    "costUSD": 0.0034
+  }
+}
+```
+
+**Response (Async - Large Files):**
+```json
+{
+  "success": true,
+  "jobId": "job_xxxxx",
+  "status": "processing",
+  "estimatedCompletion": "2025-11-16T10:35:00Z"
+}
+```
+
+---
+
+### Organization Management
+
+**Endpoint:** `GET /api/v1/organization`
+
+**Response:**
+```json
+{
+  "id": "org_xxxxx",
+  "name": "Company-API",
+  "tier": "pro",
+  "quotas": {...},
+  "usage": {...}
+}
+```
+
+**Endpoint:** `PATCH /api/v1/organization`
+
+**Request:**
+```json
+{
+  "webhookUrl": "https://yourapp.com/webhooks/flow",
+  "allowedIPs": ["1.2.3.4", "5.6.7.8"]
+}
+```
+
+---
+
+### Admin Invitations
+
+**Endpoint:** `POST /api/admin/api-invitations`
+
+**Authentication:** SuperAdmin only
+
+**Request:**
+```json
+{
+  "targetAudience": "Enterprise Clients",
+  "description": "Q4 2025 Beta",
+  "maxRedemptions": 50,
+  "defaultTier": "trial",
+  "expiresInDays": 90,
+  "allowedDomains": ["enterprise.com"]
+}
+```
+
+**Response:**
+```json
+{
+  "invitation": {
+    "invitationCode": "FLOW-ENTERPRISE-202511-A3F9E2D8",
+    ...
+  }
+}
+```
+
+---
+
+## 🔄 **Developer Workflow**
+
+### Onboarding
+
+```
+1. Developer receives invitation email
+   └─ Contains: invitation code
+   
+2. Developer installs CLI
+   └─ npm install -g @flow/cli
+   
+3. Developer authenticates
+   └─ flow-cli login FLOW-XXX-202511-XXXXX
+   └─ Browser opens for Google OAuth
+   └─ Must use business email
+   
+4. API organization created
+   └─ Name: {domain}-API
+   └─ Quotas set based on tier
+   └─ First API key generated
+   
+5. CLI saves credentials
+   └─ ~/.flow/credentials.json
+   └─ Secure permissions (600)
+   
+6. Developer can now use API
+   └─ flow-cli extract document.pdf
+   └─ Or programmatic: FlowAPI(apiKey).extract()
+```
+
+---
+
+## 🎨 **UI Components**
+
+### Settings → APIs Tab
+
+**Location:** UserSettingsModal.tsx (new tab)
+
+**States:**
+
+**Not Connected:**
+```
+🔌 Flow Vision API
+Status: ⚪ Not Connected
+
+Getting Started:
+1. Request invitation from admin
+2. Install CLI: npm i -g @flow/cli
+3. Login: flow-cli login [code]
+4. Access developer portal
+
+[Request API Access]
+```
+
+**Connected:**
+```
+🔌 Flow Vision API ✅ Active
+
+Organization: Company-API
+Domain: company.com
+Tier: Pro
+
+Usage This Month:
+• Requests: 1,234 / 10,000
+• Documents: 456
+• Cost: $12.34
+
+[View Dashboard] [Manage Keys] [Documentation]
+```
+
+---
+
+### SuperAdmin API Management
+
+**Location:** AdminPanel → APIs section (new)
+
+**Features:**
+```
+Invitations Tab:
+  └─ [+ Create Invitation]
+  └─ List active invitations
+  └─ Redemption tracking
+  └─ Revoke capability
+
+Organizations Tab:
+  └─ List all API organizations
+  └─ Usage analytics per org
+  └─ Suspend/activate
+  └─ View developer portal
+
+Analytics Tab:
+  └─ Platform-wide metrics
+  └─ Revenue tracking
+  └─ Usage trends
+  └─ Top organizations
+```
+
+---
+
+## 🔧 **Implementation Patterns**
+
+### API Endpoint Pattern
+
+```typescript
+// Standard API v1 endpoint structure
+
+import type { APIRoute } from 'astro';
+import { validateAPIKey, checkQuotas, logAPIUsage } from '../../../lib/api-management';
+
+export const POST: APIRoute = async ({ request }) => {
+  const startTime = Date.now();
+  
+  try {
+    // 1. Authenticate
+    const apiKey = extractAPIKey(request);
+    const validation = await validateAPIKey(apiKey);
+    
+    if (!validation.valid) {
+      return jsonError('Unauthorized', 401);
+    }
+    
+    // 2. Check scopes
+    if (!validation.scopes.includes('vision:write')) {
+      return jsonError('Insufficient scope', 403);
+    }
+    
+    // 3. Check quotas
+    const quotaCheck = await checkQuotas(validation.organization.id);
+    if (!quotaCheck.allowed) {
+      return jsonError('Quota exceeded', 403, quotaCheck.quotas);
+    }
+    
+    // 4. Process request
+    const result = await processRequest(request);
+    
+    // 5. Log usage (non-blocking)
+    logAPIUsage(validation.organization.id, ...);
+    
+    // 6. Return response
+    return jsonSuccess(result);
+    
+  } catch (error) {
+    return jsonError('Internal error', 500);
+  }
+};
+```
+
+---
+
+### Quota Check Pattern
+
+```typescript
+// ✅ ALWAYS check quotas before processing
+
+const quotaCheck = await checkQuotas(organizationId);
+
+if (!quotaCheck.allowed) {
+  return {
+    success: false,
+    error: {
+      code: 'QUOTA_EXCEEDED',
+      message: quotaCheck.reason,
+      quota: {
+        limit: quotaCheck.quotas.limit,
+        used: quotaCheck.quotas.used,
+        remaining: quotaCheck.quotas.remaining,
+        resetsAt: quotaCheck.quotas.resetsAt,
+      },
+    },
+  };
+}
+```
+
+---
+
+### Usage Logging Pattern
+
+```typescript
+// ✅ ALWAYS log API usage (non-blocking)
+
+await logAPIUsage(
+  organizationId,
+  apiKeyId,
+  endpoint,
+  method,
+  statusCode,
+  success,
+  {
+    fileType: file.type,
+    fileSize: file.size,
+    model: model,
+    tokensUsed: tokens,
+    costUSD: cost,
+    durationMs: Date.now() - startTime,
+    ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+    userAgent: request.headers.get('user-agent') || 'unknown',
+  }
+);
+```
+
+---
+
+## 🎯 **Critical Rules**
+
+### 1. ✅ ALWAYS Validate Business Email
+
+```typescript
+// ❌ WRONG: Allow any email
+const domain = email.split('@')[1];
+await createOrganization(userId, email);
+
+// ✅ CORRECT: Validate first
+if (!isBusinessEmail(email)) {
+  throw new Error('Business email required (no gmail.com, yahoo.com, etc.)');
+}
+```
+
+**Why:** Ensures professional users, prevents spam, enables domain-based organization.
+
+---
+
+### 2. ✅ ALWAYS Hash API Keys
+
+```typescript
+// ❌ WRONG: Store plain key
+await firestore.collection('api_keys').add({
+  key: apiKey, // SECURITY VULNERABILITY!
+});
+
+// ✅ CORRECT: Hash with bcrypt
+const hash = await bcrypt.hash(apiKey, 10);
+await firestore.collection('api_keys').add({
+  key: hash,
+  keyPrefix: apiKey.substring(0, 8),
+});
+```
+
+**Why:** Security - if database compromised, keys are safe.
+
+---
+
+### 3. ✅ ALWAYS Check Quotas Before Processing
+
+```typescript
+// ❌ WRONG: Process then check
+const result = await processDocument(file);
+await checkQuotas(orgId); // Too late!
+
+// ✅ CORRECT: Check first
+const quotaCheck = await checkQuotas(orgId);
+if (!quotaCheck.allowed) {
+  return error403('Quota exceeded', quotaCheck.quotas);
+}
+const result = await processDocument(file);
+```
+
+**Why:** Prevent overuse, enforce limits, protect resources.
+
+---
+
+### 4. ✅ ALWAYS Use Scopes for Authorization
+
+```typescript
+// ❌ WRONG: Assume key has permission
+await deleteDocument(documentId);
+
+// ✅ CORRECT: Check scope
+if (!scopes.includes('vision:delete')) {
+  return error403('Insufficient scope - requires vision:delete');
+}
+await deleteDocument(documentId);
+```
+
+**Why:** Granular permissions, principle of least privilege.
+
+---
+
+### 5. ✅ ALWAYS Log API Usage (Non-Blocking)
+
+```typescript
+// ✅ CORRECT: Non-blocking log
+logAPIUsage(orgId, endpoint, status, details)
+  .catch(err => console.warn('Failed to log (non-critical):', err));
+
+// Don't wait for logging
+return jsonSuccess(result);
+
+// ❌ WRONG: Blocking log
+await logAPIUsage(...); // Slows down response
+return jsonSuccess(result);
+```
+
+**Why:** Logging shouldn't slow API responses, but we still need tracking.
+
+---
+
+### 6. ✅ ALWAYS Use Environment-Aware Key Prefixes
+
+```typescript
+// ✅ CORRECT: Different prefixes
+const prefix = environment === 'production' ? 'fv_live' : 'fv_test';
+const key = `${prefix}_${randomHex}`;
+
+// Production: fv_live_xxxxx
+// Development: fv_test_xxxxx
+```
+
+**Why:** Prevents accidental production key use in dev, clear environment distinction.
+
+---
+
+## 📚 **Integration with Existing Rules**
+
+### Aligns with `.cursor/rules/alignment.mdc`
+
+1. ✅ **Data Persistence:** All API data in Firestore
+2. ✅ **Security by Default:** Multi-layer authentication
+3. ✅ **Type Safety:** 100% TypeScript
+4. ✅ **Graceful Degradation:** Non-blocking logging
+5. ✅ **Performance:** Indexed queries, async jobs
+
+### Aligns with `.cursor/rules/privacy.mdc`
+
+1. ✅ **User Isolation:** API orgs are user-scoped
+2. ✅ **Business Email:** Professional users only
+3. ✅ **Secure Credentials:** Bcrypt hashing
+4. ✅ **IP Privacy:** Hashed IP addresses
+5. ✅ **Audit Trail:** Complete logging
+
+### Aligns with `.cursor/rules/data.mdc`
+
+1. ✅ **Schema Design:** 5 new collections documented
+2. ✅ **Indexes:** All queries indexed
+3. ✅ **Source Tracking:** localhost/production field
+4. ✅ **Backward Compatible:** Additive only
+
+---
+
+## 🔗 **Quick Reference**
+
+### For SuperAdmins
+
+**Create Invitation:**
+```bash
+POST /api/admin/api-invitations
+{
+  "targetAudience": "Enterprise",
+  "maxRedemptions": 50,
+  "defaultTier": "trial"
+}
+```
+
+**Monitor Usage:**
+```bash
+GET /api/admin/api-organizations
+GET /api/admin/api-usage-stats
+```
+
+---
+
+### For Developers
+
+**Authenticate:**
+```bash
+flow-cli login FLOW-CODE
+```
+
+**Extract Document:**
+```bash
+flow-cli extract document.pdf
+```
+
+**Check Status:**
+```bash
+flow-cli whoami
+```
+
+---
+
+### For API Consumers
+
+**Extract (cURL):**
+```bash
+curl -X POST https://api.flow.ai/v1/extract-document \
+  -H "Authorization: Bearer fv_live_xxxxx" \
+  -F "file=@doc.pdf"
+```
+
+**Extract (JS):**
+```javascript
+const result = await flowAPI.extractDocument('doc.pdf');
+console.log(result.extractedText);
+```
+
+---
+
+## 📖 **Documentation References**
+
+### Architecture & Design
+- `docs/API_SYSTEM_ARCHITECTURE.md` - Complete architecture
+- `docs/WHAT_WE_BUILT_API_SYSTEM.md` - Feature summary
+
+### Implementation
+- `docs/API_SYSTEM_IMPLEMENTATION_GUIDE.md` - Phase-by-phase guide
+- `docs/API_SYSTEM_PHASE1_COMPLETE.md` - Phase 1 summary
+
+### Quick Reference
+- `docs/API_QUICK_REFERENCE.md` - Commands and examples
+
+### Code
+- `src/types/api-system.ts` - Type definitions
+- `src/lib/api-management.ts` - Core functions
+- `src/pages/api/v1/` - Public API endpoints
+- `src/pages/api/admin/api-invitations.ts` - Admin controls
+
+---
+
+## ✅ **Success Criteria**
+
+### MVP (Minimum Viable Product)
+
+- [ ] SuperAdmin can create invitations ✅ (endpoints ready)
+- [ ] Developer can login via CLI 🚧 (Phase 2)
+- [ ] Developer receives API key 🚧 (Phase 2)
+- [ ] Developer can call Vision API ✅ (endpoint ready)
+- [ ] Extraction returns results ✅ (wraps existing)
+- [ ] Usage tracked and displayed ✅ (logging implemented)
+- [ ] Quotas enforced ✅ (check implemented)
+- [ ] Documentation complete 🚧 (developer portal Phase 3)
+
+### Production Ready
+
+- [ ] 99.9% uptime
+- [ ] <2s average response time
+- [ ] Comprehensive error handling ✅
+- [ ] Complete audit logging ✅
+- [ ] Security hardened ✅
+- [ ] Load tested (Phase 3)
+- [ ] Documentation for all features (Phase 3)
+- [ ] Support channels (Phase 4)
+
+---
+
+## 🔮 **Roadmap**
+
+### Phase 2: CLI & Testing (Week 1)
+
+- Deploy Firestore indexes
+- Create CLI package
+- Implement OAuth flow
+- Test end-to-end
+- Add APIs tab to settings
+
+### Phase 3: UI & Portal (Week 2)
+
+- SuperAdmin API panel
+- Developer portal
+- API documentation
+- Interactive playground
+- Usage analytics
+
+### Phase 4: Advanced (Weeks 3-4)
+
+- Requirement workflow
+- Help request system
+- Ally integration
+- Stella ticketing
+- Staging feedback loop
+
+### Phase 5: Scale (Weeks 5-8)
+
+- Billing integration
+- Team management
+- Advanced analytics
+- SDK libraries
+- White-label options
+
+---
+
+## 🎓 **Key Principles**
+
+### Design Principles
+
+1. **Invitation-Only:** Quality over quantity
+2. **Business Emails:** Professional users
+3. **Multi-Tier:** Clear upgrade path
+4. **Quota-Based:** Fair usage, cost recovery
+5. **Async-Ready:** Scale to enterprise
+
+### Security Principles
+
+1. **Defense in Depth:** Multiple auth layers
+2. **Least Privilege:** Scope-based access
+3. **Audit Everything:** Complete logging
+4. **Hash Sensitive Data:** Keys, IPs
+5. **Validate Always:** Never trust input
+
+### Developer Experience
+
+1. **Simple Onboarding:** One command login
+2. **Clear Documentation:** Quick start to advanced
+3. **Helpful Errors:** Actionable messages
+4. **Fast Responses:** <2s target
+5. **Transparent Usage:** Real-time analytics
+
+---
+
+## 🚨 **Common Mistakes to Avoid**
+
+### ❌ DON'T
+
+1. **Allow Consumer Emails**
+   - Creates support burden
+   - Lower quality user base
+   - Hurts professional perception
+
+2. **Store Plain API Keys**
+   - Critical security vulnerability
+   - ALWAYS hash with bcrypt
+
+3. **Skip Quota Checks**
+   - Resource abuse
+   - Cost overruns
+   - Poor UX (surprise limits)
+
+4. **Block on Logging**
+   - Slows API responses
+   - Always non-blocking
+
+5. **Forget Scopes**
+   - Security holes
+   - Privilege escalation
+   - Always check scopes
+
+---
+
+## 📚 **Related Rules**
+
+- `.cursor/rules/alignment.mdc` - Design principles
+- `.cursor/rules/data.mdc` - Database schema
+- `.cursor/rules/privacy.mdc` - Security requirements
+- `.cursor/rules/backend.mdc` - API patterns
+- `.cursor/rules/firestore.mdc` - Database operations
+
+---
+
+## 📊 **Metrics to Track**
+
+### Developer Metrics
+
+```
+- Total API organizations
+- Active developers
+- API calls per day/month
+- Success rate
+- Average response time
+- Error rate by type
+- Documents processed
+- Total tokens used
+- Total cost
+```
+
+### Business Metrics
+
+```
+- Invitation redemption rate
+- Trial-to-paid conversion
+- Revenue by tier
+- Churn rate
+- Support tickets
+- Developer NPS
+- Time to first API call
+- Developer retention
+```
+
+---
+
+**Last Updated:** 2025-11-16  
+**Version:** 1.0.0  
+**Status:** ✅ Production Ready (Phase 1)  
+**Phase 2 Start:** Ready to begin immediately

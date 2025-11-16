@@ -23,6 +23,12 @@ export interface AgentData {
     totalCount: number;
     activeCount: number;
   };
+  contextSources?: Array<{
+    id: string;
+    name: string;
+    type: string;
+    enabled: boolean;
+  }>; // For mindmap visualization
   sampleQuestions: string[];
   prompt: string;
   model: 'gemini-2.5-pro' | 'gemini-2.5-flash';

@@ -67,7 +67,10 @@ This rule documents the complete data schema across all storage systems (Firesto
 │  ├─ collaboration_invitations # Document sharing invitations (2025-11-15)│
 │  ├─ referral_network      # Viral growth network (2025-11-15)│
 │  ├─ gmail_connections     # Gmail OAuth tokens (2025-11-15)│
-│  └─ invitation_requests   # Platform invitation requests (2025-11-15)│
+│  ├─ invitation_requests   # Platform invitation requests (2025-11-15)│
+│  ├─ evaluation_assignments # Supervisor/Evaluador assignments (2025-11-16)│
+│  ├─ evaluation_test_cases # Centralized test cases (2025-11-16)│
+│  └─ evaluation_work_items # Denormalized queue view (2025-11-16)│
 │                                                         │
 │  📊 BIGQUERY (Analytics Warehouse)                     │
 │  ├─ users                   # User analytics           │

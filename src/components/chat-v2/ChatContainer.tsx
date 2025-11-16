@@ -95,6 +95,8 @@ export default function ChatContainer({ userId, userEmail, userName, userRole }:
           <MessagesArea
             messages={messagesHook.messages}
             agentTitle={currentAgent?.title}
+            userRole={userRole}
+            contextSources={agentData?.contextSources}
           />
         </div>
         
@@ -109,4 +111,5 @@ export default function ChatContainer({ userId, userEmail, userName, userRole }:
     </div>
   );
 }
+
 

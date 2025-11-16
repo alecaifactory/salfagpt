@@ -112,7 +112,7 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       );
     }
 
-    // Generate simple HTML preview
+    // Generate enhanced HTML preview with recovery options
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="es">
@@ -157,11 +157,83 @@ export const GET: APIRoute = async ({ params, cookies }) => {
     .notice {
       background: #fef3c7;
       border-left: 4px solid #f59e0b;
-      padding: 12px 16px;
+      padding: 16px 20px;
       margin-bottom: 20px;
-      border-radius: 4px;
+      border-radius: 8px;
       font-size: 13px;
+    }
+    .notice-title {
       color: #92400e;
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .notice-text {
+      color: #78350f;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    .explanation {
+      background: #fffbeb;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .explanation-title {
+      font-weight: 600;
+      color: #92400e;
+      margin-bottom: 6px;
+    }
+    .explanation ul {
+      margin: 0;
+      padding-left: 20px;
+      color: #78350f;
+    }
+    .explanation li {
+      margin: 4px 0;
+    }
+    .recovery-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #475569;
     }
   </style>
 </head>
@@ -175,11 +247,53 @@ export const GET: APIRoute = async ({ params, cookies }) => {
   </div>
   
   <div class="notice">
-    ⚠️ <strong>Vista de solo texto</strong> - El archivo original no está disponible. 
-    Mostrando el texto extraído del documento.
+    <div class="notice-title">
+      ⚠️ Vista de solo texto - Archivo PDF original no disponible
+    </div>
+    <div class="notice-text">
+      El texto extraído está disponible abajo, pero el archivo PDF original no se encuentra en Cloud Storage.
+    </div>
+    
+    <div class="explanation">
+      <div class="explanation-title">¿Por qué ocurre esto?</div>
+      <ul>
+        <li>Documento subido antes de Octubre 2025 (solo se guardó el texto)</li>
+        <li>Ruta de almacenamiento cambió tras migración de formato de usuario</li>
+        <li>Archivo eliminado o no disponible en Google Cloud Storage</li>
+      </ul>
+    </div>
+    
+    <div class="recovery-actions">
+      <button class="btn btn-danger" onclick="reportMissingFile()">
+        🐛 Reportar Problema
+      </button>
+      <button class="btn btn-secondary" onclick="window.parent.postMessage({action: 'close'}, '*')">
+        ✓ Entendido, Ver Texto
+      </button>
+    </div>
   </div>
   
   <div class="content">${extractedText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+  
+  <script>
+    function reportMissingFile() {
+      // Send message to parent window to open bug report dialog
+      window.parent.postMessage({
+        action: 'reportMissingFile',
+        sourceId: '${source.id}',
+        sourceName: '${source.name.replace(/'/g, "\\'")}',
+        storagePath: '${metadata?.storagePath || metadata?.gcsPath || 'N/A'}',
+        diagnostic: {
+          hasExtractedData: true,
+          hasStoragePath: ${!!(metadata?.storagePath || metadata?.gcsPath)},
+          extractedDataSize: ${extractedText.length},
+          sourceUserId: '${source.userId}',
+        }
+      }, '*');
+      
+      alert('✅ Abriendo formulario de reporte...');
+    }
+  </script>
 </body>
 </html>`;
 

@@ -69,6 +69,12 @@ export default function DocumentViewerModal({
   const [zoom, setZoom] = useState(100);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
+  // 🆕 Bug report state (for missing files)
+  const [showBugReportDialog, setShowBugReportDialog] = useState(false);
+  const [bugDescription, setBugDescription] = useState('');
+  const [submittingBugReport, setSubmittingBugReport] = useState(false);
+  const [bugReportData, setBugReportData] = useState<any>(null);
+  
   // Load document on mount
   useEffect(() => {
     if (isOpen && source) {
@@ -77,6 +83,25 @@ export default function DocumentViewerModal({
       checkGmailConnection();
     }
   }, [isOpen, source]);
+  
+  // 🆕 Listen for messages from iframe (bug report trigger)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.action === 'reportMissingFile') {
+        console.log('📨 Received bug report request from iframe:', event.data);
+        setBugReportData(event.data);
+        setShowBugReportDialog(true);
+      } else if (event.data.action === 'close') {
+        // User clicked "Entendido" - just dismiss notice, keep viewing text
+        console.log('👍 User acknowledged missing file notice');
+      }
+    };
+    
+    if (isOpen) {
+      window.addEventListener('message', handleMessage);
+      return () => window.removeEventListener('message', handleMessage);
+    }
+  }, [isOpen]);
   
   // ESC key to close
   useEffect(() => {

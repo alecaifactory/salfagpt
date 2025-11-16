@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio, Pin } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -330,6 +330,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     timestamp: new Date().toISOString()
   });
   
+  // 🆕 ALLY: Ally conversation (pinned at top of agents)
+  const [allyConversationId, setAllyConversationId] = useState<string | null>(null);
+  
   // Core state
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversation, setCurrentConversation] = useState<string | null>(null);
@@ -346,6 +349,36 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
   const [documentViewerSource, setDocumentViewerSource] = useState<ContextSource | null>(null);
+  
+  // 🆕 ALLY: Load Ally conversation on mount
+  useEffect(() => {
+    loadAllyConversation();
+  }, [userId, userEmail]);
+  
+  async function loadAllyConversation() {
+    try {
+      console.log('🤖 [ALLY] Loading Ally conversation for:', userEmail);
+      
+      const response = await fetch(
+        `/api/ally?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}&userDomain=${userEmail?.split('@')[1] || 'unknown'}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAllyConversationId(data.allyId);
+        
+        console.log('✅ [ALLY] Ally conversation loaded:', data.allyId);
+        
+        // Auto-select Ally if no conversation selected
+        if (!currentConversation) {
+          console.log('🎯 [ALLY] Auto-selecting Ally as default conversation');
+          setCurrentConversation(data.allyId);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [ALLY] Failed to load Ally:', error);
+    }
+  }
   
   // ✅ FIX: Cache loaded context data to prevent unnecessary reloads
   const loadedContextRef = useRef<{ conversationId: string; timestamp: number } | null>(null);
@@ -4445,6 +4478,57 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             
             {showAgentsSection && (
               <div className="px-2 pb-1 space-y-1">
+                {/* 🆕 ALLY - Pinned at top */}
+                {allyConversationId && (
+                  <>
+                    <div
+                      onClick={() => {
+                        setCurrentConversation(allyConversationId);
+                        setSelectedAgent(null);
+                        loadMessages(allyConversationId);
+                      }}
+                      className={`
+                        w-full p-2 rounded-lg transition-all cursor-pointer
+                        bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20
+                        border-2 border-blue-200 dark:border-blue-700
+                        hover:border-blue-400 dark:hover:border-blue-500
+                        ${currentConversation === allyConversationId 
+                          ? 'border-blue-600 dark:border-blue-500 shadow-lg ring-2 ring-blue-200 dark:ring-blue-700' 
+                          : ''}
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        {/* Ally Avatar */}
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                        
+                        {/* Ally Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">Ally</span>
+                            <span className="px-1.5 py-0.5 bg-blue-600 text-white text-[9px] rounded-full font-bold">
+                              Personal
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 truncate">
+                            Tu asistente personal
+                          </p>
+                        </div>
+                        
+                        {/* Pin icon */}
+                        <div className="flex-shrink-0">
+                          <Pin className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Separator after Ally */}
+                    <div className="my-1.5 border-t border-slate-300 dark:border-slate-600" />
+                  </>
+                )}
+                
+                {/* EXISTING AGENTS - UNCHANGED */}
                 {conversations
                   .filter(c => c.isAgent !== false && c.status !== 'archived')
                   .map(agent => (
@@ -4570,15 +4654,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         </button>
                       )}
                       
-                      {/* Admin-only: Delete button */}
-                      {userRole === 'admin' && (
+                      {/* SuperAdmin-only: Delete button - PERMANENT deletion */}
+                      {(userRole === 'superadmin' || userEmail === 'alec@getaifactory.com') && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             openDeleteConfirmation(agent.id);
                           }}
                           className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
-                          title="Eliminar permanentemente (solo admin)"
+                          title="Eliminar permanentemente (solo superadmin)"
                         >
                           <XIcon className="w-3.5 h-3.5" />
                         </button>
@@ -4807,183 +4891,182 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           </div>
         </div>
 
-        {/* Archived Section - Collapsible with Folders */}
-        {conversations.filter(c => c.status === 'archived').length > 0 && (
-          <div className="border-t border-slate-200 bg-slate-50">
-            <button
-              onClick={() => setShowArchivedSection(!showArchivedSection)}
-              className="w-full px-2 py-1 flex items-center justify-between text-xs text-slate-600 hover:bg-slate-100 transition-colors"
-            >
-              <div className="flex items-center gap-1.5">
-                <Archive className="w-3.5 h-3.5" />
-                <span className="font-medium">Archivados</span>
-                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
-                  {conversations.filter(c => c.status === 'archived').length}
-                </span>
-              </div>
-              <span className={`transform transition-transform ${showArchivedSection ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-            </button>
-            
-            {/* Expanded archived section with folders */}
-            {showArchivedSection && (
-              <div className="px-2 pb-1 space-y-1">
-                {/* Agentes Folder */}
-                {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-md overflow-hidden">
-                    <button
-                      onClick={() => setExpandedArchivedAgents(!expandedArchivedAgents)}
-                      className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Folder className="w-3.5 h-3.5 text-blue-600" />
-                        <span className="text-xs font-semibold text-slate-700">Agentes</span>
-                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold">
-                          {conversations.filter(c => c.status === 'archived' && c.isAgent).length}
-                        </span>
-                      </div>
-                      <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedAgents ? 'rotate-180' : ''}`}>
-                        ▼
-                      </span>
-                    </button>
-                    
-                    {expandedArchivedAgents && (
-                      <div className="p-1 space-y-1">
-                        {conversations
-                          .filter(c => c.status === 'archived' && c.isAgent)
-                          .slice(0, 3)
-                          .map(conv => (
-                            <div
-                              key={conv.id}
-                              className={`w-full p-1.5 rounded transition-colors bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 ${
-                                currentConversation === conv.id ? 'ring-2 ring-blue-400' : ''
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 group">
-                                <button
-                                  onClick={() => setCurrentConversation(conv.id)}
-                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
-                                  <span className="text-xs font-medium truncate text-blue-700">
-                                    {conv.title}
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    unarchiveConversation(conv.id);
-                                  }}
-                                  className="p-1 rounded text-green-600 hover:text-green-700 hover:bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                  title="Restaurar"
-                                >
-                                  <ArchiveRestore className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        
-                        {/* Show more if there are more than 3 agents */}
-                        {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 3 && (
-                          <div className="text-center pt-1">
-                            <button
-                              onClick={() => setShowArchivedConversations(true)}
-                              className="text-[10px] text-blue-600 hover:text-blue-700"
-                            >
-                              +{conversations.filter(c => c.status === 'archived' && c.isAgent).length - 3} más
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Conversaciones Folder */}
-                {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 0 && (
-                  <div className="border border-slate-200 rounded-md overflow-hidden">
-                    <button
-                      onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
-                      className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <Folder className="w-3.5 h-3.5 text-purple-600" />
-                        <span className="text-xs font-semibold text-slate-700">Conversaciones</span>
-                        <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
-                          {conversations.filter(c => c.status === 'archived' && !c.isAgent).length}
-                        </span>
-                      </div>
-                      <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedChats ? 'rotate-180' : ''}`}>
-                        ▼
-                      </span>
-                    </button>
-                    
-                    {expandedArchivedChats && (
-                      <div className="p-1 space-y-1">
-                        {conversations
-                          .filter(c => c.status === 'archived' && !c.isAgent)
-                          .slice(0, 3)
-                          .map(conv => (
-                            <div
-                              key={conv.id}
-                              className={`w-full p-1.5 rounded transition-colors bg-purple-50/50 hover:bg-purple-50 border border-purple-200/50 ${
-                                currentConversation === conv.id ? 'ring-2 ring-purple-400' : ''
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 group">
-                                <button
-                                  onClick={() => setCurrentConversation(conv.id)}
-                                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
-                                >
-                                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-purple-500" />
-                                  <span className="text-xs font-medium truncate text-purple-700">
-                                    {conv.title}
-                                  </span>
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    unarchiveConversation(conv.id);
-                                  }}
-                                  className="p-1 rounded text-green-600 hover:text-green-700 hover:bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                                  title="Restaurar"
-                                >
-                                  <ArchiveRestore className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        
-                        {/* Show more if there are more than 3 conversations */}
-                        {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 3 && (
-                          <div className="text-center pt-1">
-                            <button
-                              onClick={() => setShowArchivedConversations(true)}
-                              className="text-[10px] text-purple-600 hover:text-purple-700"
-                            >
-                              +{conversations.filter(c => c.status === 'archived' && !c.isAgent).length - 3} más
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Show all archived link at bottom */}
-                <button
-                  onClick={() => setShowArchivedConversations(true)}
-                  className="w-full px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded font-medium"
-                >
-                  Ver todos los archivados ({conversations.filter(c => c.status === 'archived').length})
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Context Sources moved to Agent Configuration Modal */}
+
+        {/* Archived Section - ALWAYS visible (above User Menu) */}
+        <div className="border-t border-slate-200 bg-slate-50">
+          <button
+            onClick={() => setShowArchivedSection(!showArchivedSection)}
+            className="w-full px-2 py-1 flex items-center justify-between text-xs text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <div className="flex items-center gap-1.5">
+              <Archive className="w-3.5 h-3.5" />
+              <span className="font-medium">Archivados</span>
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                {conversations.filter(c => c.status === 'archived').length}
+              </span>
+            </div>
+            <span className={`transform transition-transform ${showArchivedSection ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+          
+          {/* Expanded archived section with folders */}
+          {showArchivedSection && (
+            <div className="px-2 pb-1 space-y-1">
+              {/* Agentes Folder */}
+              {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 0 && (
+                <div className="border border-slate-200 rounded-md overflow-hidden">
+                  <button
+                    onClick={() => setExpandedArchivedAgents(!expandedArchivedAgents)}
+                    className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Folder className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="text-xs font-semibold text-slate-700">Agentes</span>
+                      <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold">
+                        {conversations.filter(c => c.status === 'archived' && c.isAgent).length}
+                      </span>
+                    </div>
+                    <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedAgents ? 'rotate-180' : ''}`}>
+                      ▼
+                    </span>
+                  </button>
+                  
+                  {expandedArchivedAgents && (
+                    <div className="p-1 space-y-1">
+                      {conversations
+                        .filter(c => c.status === 'archived' && c.isAgent)
+                        .slice(0, 3)
+                        .map(conv => (
+                          <div
+                            key={conv.id}
+                            className={`w-full p-1.5 rounded transition-colors bg-blue-50/50 hover:bg-blue-50 border border-blue-200/50 ${
+                              currentConversation === conv.id ? 'ring-2 ring-blue-400' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 group">
+                              <button
+                                onClick={() => setCurrentConversation(conv.id)}
+                                className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
+                                <span className="text-xs font-medium truncate text-blue-700">
+                                  {conv.title}
+                                </span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  unarchiveConversation(conv.id);
+                                }}
+                                className="p-1 rounded text-green-600 hover:text-green-700 hover:bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                title="Restaurar"
+                              >
+                                <ArchiveRestore className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {/* Show more if there are more than 3 agents */}
+                      {conversations.filter(c => c.status === 'archived' && c.isAgent).length > 3 && (
+                        <div className="text-center pt-1">
+                          <button
+                            onClick={() => setShowArchivedConversations(true)}
+                            className="text-[10px] text-blue-600 hover:text-blue-700"
+                          >
+                            +{conversations.filter(c => c.status === 'archived' && c.isAgent).length - 3} más
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Conversaciones Folder */}
+              {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 0 && (
+                <div className="border border-slate-200 rounded-md overflow-hidden">
+                  <button
+                    onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
+                    className="w-full px-2 py-1 bg-white hover:bg-slate-50 flex items-center justify-between transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Folder className="w-3.5 h-3.5 text-purple-600" />
+                      <span className="text-xs font-semibold text-slate-700">Conversaciones</span>
+                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
+                        {conversations.filter(c => c.status === 'archived' && !c.isAgent).length}
+                      </span>
+                    </div>
+                    <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedChats ? 'rotate-180' : ''}`}>
+                      ▼
+                    </span>
+                  </button>
+                  
+                  {expandedArchivedChats && (
+                    <div className="p-1 space-y-1">
+                      {conversations
+                        .filter(c => c.status === 'archived' && !c.isAgent)
+                        .slice(0, 3)
+                        .map(conv => (
+                          <div
+                            key={conv.id}
+                            className={`w-full p-1.5 rounded transition-colors bg-purple-50/50 hover:bg-purple-50 border border-purple-200/50 ${
+                              currentConversation === conv.id ? 'ring-2 ring-purple-400' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 group">
+                              <button
+                                onClick={() => setCurrentConversation(conv.id)}
+                                className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-purple-500" />
+                                <span className="text-xs font-medium truncate text-purple-700">
+                                  {conv.title}
+                                </span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  unarchiveConversation(conv.id);
+                                }}
+                                className="p-1 rounded text-green-600 hover:text-green-700 hover:bg-green-50 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                title="Restaurar"
+                              >
+                                <ArchiveRestore className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      
+                      {/* Show more if there are more than 3 conversations */}
+                      {conversations.filter(c => c.status === 'archived' && !c.isAgent).length > 3 && (
+                        <div className="text-center pt-1">
+                          <button
+                            onClick={() => setShowArchivedConversations(true)}
+                            className="text-[10px] text-purple-600 hover:text-purple-700"
+                          >
+                            +{conversations.filter(c => c.status === 'archived' && !c.isAgent).length - 3} más
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Show all archived link at bottom */}
+              <button
+                onClick={() => setShowArchivedConversations(true)}
+                className="w-full px-2 py-1 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded font-medium"
+              >
+                Ver todos los archivados ({conversations.filter(c => c.status === 'archived').length})
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* User Menu */}
         <div className="border-t border-slate-200 p-1.5">
@@ -6964,7 +7047,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 }}
                 placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
                 rows={3}
-                className="flex-1 px-2 py-2 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-xs resize-none"
+                className="flex-1 px-2 py-2 border border-slate-300 dark:border-slate-600 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 text-lg resize-none"
                 disabled={currentConversation ? agentProcessing[currentConversation]?.isProcessing : false}
               />
               {currentConversation && agentProcessing[currentConversation]?.isProcessing ? (
