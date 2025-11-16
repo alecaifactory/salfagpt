@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Sparkles, Moon, Sun } from 'lucide-react';
+import { X, Save, Sparkles, Moon, Sun, Key, Globe, TrendingUp, Code, CheckCircle, AlertCircle } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
+import { APIsTabContent } from './settings/APIsTabContent';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface UserSettingsModalProps {
   currentSettings: UserSettings;
   userName?: string;
   userEmail?: string;
+  userId?: string;
 }
 
 export interface UserSettings {
@@ -30,10 +32,14 @@ export default function UserSettingsModal({
   currentSettings,
   userName,
   userEmail,
+  userId,
 }: UserSettingsModalProps) {
   const [settings, setSettings] = useState<UserSettings>(currentSettings);
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark'>('light');
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'rag' | 'apis'>('general');
+  const [apiOrganizations, setApiOrganizations] = useState<any[]>([]);
+  const [loadingAPI, setLoadingAPI] = useState(false);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
@@ -110,14 +116,51 @@ export default function UserSettingsModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-slate-500" />
           </button>
         </div>
 
-        {/* Content - 2 Column Layout */}
-        <div className="flex-1 p-6 grid grid-cols-2 gap-6">
+        {/* Tab Navigation */}
+        <div className="flex gap-2 px-6 pt-4 border-b border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => setActiveTab('general')}
+            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-all ${
+              activeTab === 'general'
+                ? 'bg-white dark:bg-slate-800 border-t-2 border-x-2 border-blue-500 text-blue-600 -mb-px'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            General
+          </button>
+          <button
+            onClick={() => setActiveTab('rag')}
+            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-all ${
+              activeTab === 'rag'
+                ? 'bg-white dark:bg-slate-800 border-t-2 border-x-2 border-blue-500 text-blue-600 -mb-px'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            RAG
+          </button>
+          <button
+            onClick={() => setActiveTab('apis')}
+            className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-all flex items-center gap-2 ${
+              activeTab === 'apis'
+                ? 'bg-white dark:bg-slate-800 border-t-2 border-x-2 border-blue-500 text-blue-600 -mb-px'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            <Code className="w-4 h-4" />
+            APIs
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-bold">New</span>
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'general' && (
+          <div className="flex-1 p-6 grid grid-cols-2 gap-6">
           {/* Left Column */}
           <div className="space-y-5">
             {/* Preferred Model */}
@@ -311,6 +354,44 @@ export default function UserSettingsModal({
             </div>
           </div>
         </div>
+        )}
+
+        {/* RAG Tab Content */}
+        {activeTab === 'rag' && (
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="max-w-3xl mx-auto space-y-6">
+              {/* RAG Settings - Keep existing RAG content from Right Column */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+                      🔍 Búsqueda Vectorial (RAG)
+                    </label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Busca solo las partes relevantes de los documentos
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.ragEnabled !== false}
+                      onChange={(e) => setSettings({ ...settings, ragEnabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 peer-checked:bg-green-600"></div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* APIs Tab Content */}
+        {activeTab === 'apis' && (
+          <div className="flex-1 overflow-y-auto">
+            <APIsTabContent userEmail={userEmail} userId={userId} />
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between p-5 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30">
@@ -321,13 +402,15 @@ export default function UserSettingsModal({
             Cancelar
           </button>
           
-          <button
-            onClick={handleSave}
-            className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Guardar Configuración
-          </button>
+          {activeTab !== 'apis' && (
+            <button
+              onClick={handleSave}
+              className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              Guardar Configuración
+            </button>
+          )}
         </div>
       </div>
     </div>

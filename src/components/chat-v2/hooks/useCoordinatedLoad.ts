@@ -47,10 +47,12 @@ export function useCoordinatedLoad() {
       });
       
       // ✅ PARALLEL: Load all data simultaneously
-      const [contextRes, promptRes] = await Promise.allSettled([
+      const [contextRes, promptRes, sourcesRes] = await Promise.allSettled([
         fetch(`/api/agents/${agentId}/context-stats`, { signal })
           .then(r => r.ok ? r.json() : null),
         fetch(`/api/conversations/${agentId}/prompt`, { signal })
+          .then(r => r.ok ? r.json() : null),
+        fetch(`/api/agents/${agentId}/context-sources`, { signal })
           .then(r => r.ok ? r.json() : null)
       ]);
       
@@ -76,6 +78,7 @@ export function useCoordinatedLoad() {
       // Parse results
       const contextData = contextRes.status === 'fulfilled' ? contextRes.value : null;
       const promptData = promptRes.status === 'fulfilled' ? promptRes.value : null;
+      const sourcesData = sourcesRes.status === 'fulfilled' ? sourcesRes.value : null;
       
       // Get sample questions (synchronous)
       // TODO: Get agent title to extract code
@@ -107,6 +110,7 @@ export function useCoordinatedLoad() {
           totalCount: contextData?.totalCount || 0,
           activeCount: contextData?.activeCount || 0,
         },
+        contextSources: sourcesData?.sources || [],
         sampleQuestions,
         prompt: promptData?.agentPrompt || '',
         model: promptData?.model || 'gemini-2.5-flash',

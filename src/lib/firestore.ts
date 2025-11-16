@@ -137,6 +137,12 @@ export interface Conversation {
   sharedAccessLevel?: 'view' | 'edit' | 'admin'; // NEW: Access level if shared
   
   // ========================================
+  // ALLY FIELDS (2025-11-16) - ALL OPTIONAL
+  // ========================================
+  isAlly?: boolean;                     // True if this is Ally (personal assistant)
+  isPinned?: boolean;                   // Pin to top of agent list
+  
+  // ========================================
   // MULTI-ORG FIELDS (2025-11-10) - ALL OPTIONAL
   // ========================================
   organizationId?: string;              // Organization this conversation belongs to
