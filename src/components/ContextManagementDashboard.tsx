@@ -2289,11 +2289,22 @@ export default function ContextManagementDashboard({
                         {(() => {
                           const org = organizationsData.find(o => o.id === selectedOrgForUpload);
                           const domains = org?.domains || [];
-                          return domains.map((domain: any) => (
-                            <option key={domain.domainId} value={domain.domainId}>
-                              {domain.domainName} ({domain.sourceCount} sources)
-                            </option>
-                          ));
+                          
+                          // ✅ Handle both formats:
+                          // - Basic org data: domains = ["domain1", "domain2"] (string array)
+                          // - Context org data: domains = [{domainId, domainName, sources}] (object array)
+                          return domains.map((domain: any, index: number) => {
+                            // Check if domain is a string (basic format) or object (context format)
+                            const domainId = typeof domain === 'string' ? domain : domain.domainId;
+                            const domainName = typeof domain === 'string' ? domain : domain.domainName;
+                            const sourceCount = typeof domain === 'string' ? 0 : (domain.sourceCount || 0);
+                            
+                            return (
+                              <option key={domainId || index} value={domainId}>
+                                {domainName} {sourceCount > 0 ? `(${sourceCount} sources)` : ''}
+                              </option>
+                            );
+                          });
                         })()}
                       </select>
                       {!selectedDomainForUpload && (
