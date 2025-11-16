@@ -194,8 +194,11 @@ export default function ContextManagementDashboard({
         
         console.log('📊 Organizations API returned:', {
           count: orgs.length,
-          orgs: orgs.map((o: any) => ({ id: o.id, name: o.name }))
+          orgs: orgs.map((o: any) => ({ id: o.id, name: o.name, slug: o.slug, domains: o.domains }))
         });
+        
+        // ✅ DEBUG: Log the full organization objects to see what we have
+        console.log('🔍 Full organizations data:', JSON.stringify(orgs, null, 2));
         
         // Always update organizationsData to ensure dropdown has fresh data
         // Create basic structure that will be enriched when context sources load
@@ -207,16 +210,21 @@ export default function ContextManagementDashboard({
           totalSources: 0 // Will be counted when context sources load
         }));
         
+        console.log('🔍 basicOrgsData to be set:', JSON.stringify(basicOrgsData, null, 2));
+        
         setOrganizationsData(prevData => {
           // If we already have context data, merge intelligently
           if (prevData.length > 0 && prevData.some(org => org.domains?.length > 0)) {
             console.log('✅ Merging with existing context data...');
-            return basicOrgsData.map(newOrg => {
+            const merged = basicOrgsData.map(newOrg => {
               const existing = prevData.find(existingOrg => existingOrg.id === newOrg.id);
               return existing && existing.domains?.length > 0 ? existing : newOrg;
             });
+            console.log('🔍 Merged result:', merged.map(o => ({ id: o.id, name: o.name })));
+            return merged;
           }
           // Fresh load
+          console.log('🔍 Fresh load result:', basicOrgsData.map(o => ({ id: o.id, name: o.name })));
           return basicOrgsData;
         });
         
