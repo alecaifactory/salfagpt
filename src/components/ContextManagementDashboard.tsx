@@ -178,6 +178,64 @@ export default function ContextManagementDashboard({
     }
   }, [isOpen]);
 
+  // ✅ NEW: Load organizations separately for upload dropdown
+  // This ensures the "Target Organization" dropdown is populated
+  // even if context sources haven't been loaded yet
+  const loadOrganizationsForUpload = React.useCallback(async () => {
+    try {
+      console.log('🏢 Loading organizations for upload dropdown...');
+      const response = await fetch('/api/organizations', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const orgs = data.organizations || [];
+        
+        console.log('📊 Organizations API returned:', {
+          count: orgs.length,
+          orgs: orgs.map((o: any) => ({ id: o.id, name: o.name }))
+        });
+        
+        // Always update organizationsData to ensure dropdown has fresh data
+        // Create basic structure that will be enriched when context sources load
+        const basicOrgsData = orgs.map((org: any) => ({
+          id: org.id,
+          name: org.name,
+          slug: org.slug || org.id, // Fallback to id if slug missing
+          domains: org.domains || [], // Include domains from API if available
+          totalSources: 0 // Will be counted when context sources load
+        }));
+        
+        setOrganizationsData(prevData => {
+          // If we already have context data, merge intelligently
+          if (prevData.length > 0 && prevData.some(org => org.domains?.length > 0)) {
+            console.log('✅ Merging with existing context data...');
+            return basicOrgsData.map(newOrg => {
+              const existing = prevData.find(existingOrg => existingOrg.id === newOrg.id);
+              return existing && existing.domains?.length > 0 ? existing : newOrg;
+            });
+          }
+          // Fresh load
+          return basicOrgsData;
+        });
+        
+        console.log(`✅ Loaded ${orgs.length} organizations for upload dropdown`);
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Failed to load organizations:', errorData);
+      }
+    } catch (error) {
+      console.error('❌ Error loading organizations for upload:', error);
+    }
+  }, []); // No dependencies - safe to call anytime
+
+  useEffect(() => {
+    if (isOpen && isSuperAdmin) {
+      loadOrganizationsForUpload();
+    }
+  }, [isOpen, isSuperAdmin, loadOrganizationsForUpload]);
+
   // ✅ NEW: Filtered and sorted organizations data
   const filteredOrganizationsData = useMemo(() => {
     if (!isOrgScoped || organizationsData.length === 0) return [];

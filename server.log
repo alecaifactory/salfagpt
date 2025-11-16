@@ -19,17 +19,20 @@
    Project: salfagpt
    Port: 3000
    Base URL: https://salfagpt.salfagestion.cl
-14:49:58 [@astrojs/node] Enabling sessions with filesystem storage
-14:49:58 [WARN] [router] The route "/api/groups" is defined in both "src/pages/api/groups/index.ts" and "src/pages/api/groups.ts". A static route cannot be defined more than once.
-14:49:58 [WARN] [router] A collision will result in an hard error in following versions of Astro.
-14:49:58 [types] Generated 1ms
-14:49:58 [content] Syncing content
-14:49:58 [content] Synced content
+15:09:15 [@astrojs/node] Enabling sessions with filesystem storage
+15:09:16 [WARN] [router] The route "/api/groups" is defined in both "src/pages/api/groups/index.ts" and "src/pages/api/groups.ts". A static route cannot be defined more than once.
+15:09:16 [WARN] [router] A collision will result in an hard error in following versions of Astro.
+15:09:16 [types] Generated 1ms
+15:09:16 [content] Syncing content
+15:09:16 [content] Synced content
+15:09:16 [vite] Port 3000 is in use, trying another one...
 
- astro  v5.14.7 ready in 1364 ms
+ astro  v5.14.7 ready in 3673 ms
 
-┃ Local    http://localhost:3000/
-┃ Network  http://192.168.100.28:3000/
+┃ Local    http://localhost:3001/
+┃ Network  http://192.168.100.28:3001/
+           http://192.168.100.25:3001/
 
-14:49:58 watching for file changes...
-sh: line 1: 41861 Killed: 9               astro dev
+15:09:16 watching for file changes...
+15:10:24 [WARN] [router] The route "/api/groups" is defined in both "src/pages/api/groups/index.ts" and "src/pages/api/groups.ts". A static route cannot be defined more than once.
+15:10:24 [WARN] [router] A collision will result in an hard error in following versions of Astro.

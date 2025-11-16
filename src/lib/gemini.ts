@@ -500,23 +500,42 @@ RECOMENDADO (pero no obligatorio):
 // Generate title for conversation based on first message
 export async function generateConversationTitle(firstMessage: string): Promise<string> {
   try {
-    // ✅ CORRECT API: genAI.models.generateContent()
-    const result = await genAI.models.generateContent({
-      model: 'gemini-2.5-flash', // Use flash for speed
-      contents: [{ role: 'user', parts: [{ text: firstMessage }] }],
-      config: {
-        systemInstruction: 'Generate a short, descriptive title (3-6 words) for a conversation based on the first message. Only return the title, nothing else.',
-        temperature: 0.7,
-        maxOutputTokens: 20,
-      }
-    });
-
-    const title = (result.text || 'New Conversation').trim().replace(/^["']|["']$/g, '');
+    console.log('🏷️ [TITLE] Starting title generation...');
+    console.log('🏷️ [TITLE] Input message:', firstMessage.substring(0, 150));
     
-    return title.length > 60 ? title.slice(0, 60) + '...' : title;
+    // 🚨 NOTE: gemini-2.5-flash auto-thinking consumes ALL tokens (no text output)
+    // Using smart heuristic extraction instead (fast, reliable, no API cost)
+    
+    let title = firstMessage
+      .replace(/¿|\?/g, '') // Remove question marks
+      .replace(/\bMe puedes (decir|explicar|ayudar con)\b/gi, '') // Remove filler
+      .replace(/\bla diferencia entre\b/gi, 'Diferencia')
+      .replace(/\ben\b/gi, 'en')
+      .replace(/\bun\b/gi, '')
+      .replace(/\buna\b/gi, '')
+      .replace(/\by\b/gi, 'y')
+      .trim();
+    
+    // Take first 6 meaningful words
+    const words = title.split(/\s+/).filter(w => w.length > 2); // Filter out 2-letter words
+    title = words.slice(0, 6).join(' ');
+    
+    // Capitalize first letter
+    if (title.length > 0) {
+      title = title.charAt(0).toUpperCase() + title.slice(1);
+    }
+    
+    // Fallback if too short
+    if (title.length < 5) {
+      title = 'Nueva Conversación';
+    }
+    
+    console.log('✅ [TITLE] Generated (heuristic):', title);
+    return title.substring(0, 60);
+    
   } catch (error) {
-    console.error('Error generating title:', error);
-    return 'New Conversation';
+    console.error('❌ [TITLE] Error generating title:', error);
+    return 'Nueva Conversación';
   }
 }
 
