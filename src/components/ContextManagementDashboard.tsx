@@ -392,11 +392,29 @@ export default function ContextManagementDashboard({
         
         if (response.ok) {
           const data = await response.json();
-          setOrganizationsData(data.organizations || []);
+          const orgsWithContext = data.organizations || [];
           setTotalCount(data.metadata?.totalSources || 0);
           
-          console.log('✅ Loaded context for', data.organizations?.length || 0, 'organizations');
+          console.log('✅ Loaded context for', orgsWithContext.length, 'organizations');
           console.log('📊 Total sources:', data.metadata?.totalSources || 0);
+          
+          // ✅ FIX: Merge with existing organizationsData instead of overwriting
+          // This preserves the full org list loaded from /api/organizations
+          setOrganizationsData(prevData => {
+            // If prevData is empty (first load), use orgsWithContext
+            if (prevData.length === 0) {
+              console.log('🔄 First load - using context organizations');
+              return orgsWithContext;
+            }
+            
+            // Merge: Update orgs that have context, preserve others without context
+            console.log(`🔄 Merging context data: ${orgsWithContext.length} orgs with context + ${prevData.length} total orgs`);
+            return prevData.map(existingOrg => {
+              const orgWithContext = orgsWithContext.find((o: any) => o.id === existingOrg.id);
+              // If this org has context data, use it; otherwise keep basic structure
+              return orgWithContext || existingOrg;
+            });
+          });
           
           // Extract all unique tags from sources across all orgs
           const tagsSet = new Set<string>();
