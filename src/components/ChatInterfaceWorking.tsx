@@ -1656,6 +1656,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       console.log('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes para evitar flash');
       return;
     }
+    
+    // 🚨 CRITICAL FIX: Skip if we have messages already (avoid clearing during title update)
+    // Only reload if we're actually switching conversations
+    if (messages.length > 0) {
+      console.log('⏭️ Ya hay mensajes cargados - no recargar para evitar flash');
+      return;
+    }
 
     console.log('🔄 Cambiando a conversación:', currentConversation);
     
@@ -2448,7 +2455,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    console.log('📨 [USER MSG] Adding user message to state');
+    console.log('📨 [USER MSG] Current messages count:', messages.length);
+    setMessages(prev => {
+      console.log('📨 [USER MSG] Previous messages:', prev.length);
+      const updated = [...prev, userMessage];
+      console.log('📨 [USER MSG] After adding user:', updated.length);
+      return updated;
+    });
     const messageToSend = input;
     setInput('');
     
@@ -2505,7 +2519,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       isStreaming: true
     };
 
-    setMessages(prev => [...prev, streamingMessage]);
+    console.log('🤖 [AI MSG] Adding streaming message to state');
+    console.log('🤖 [AI MSG] Messages before adding streaming:', messages.length);
+    setMessages(prev => {
+      console.log('🤖 [AI MSG] Previous messages:', prev.length);
+      const updated = [...prev, streamingMessage];
+      console.log('🤖 [AI MSG] After adding streaming:', updated.length);
+      console.log('🤖 [AI MSG] Message types:', updated.map(m => `${m.role}:${m.id.substring(0, 10)}`));
+      return updated;
+    });
 
     try {
       // ✅ SHOW STATUS IMMEDIATELY: Initialize thinking steps BEFORE heavy operations
@@ -2605,19 +2627,19 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
       if (reader) {
         // ✅ Thinking steps already initialized above (lines 1442-1478)
-        // Just start the ellipsis animation
-        const dotsInterval = setInterval(() => {
-          setCurrentThinkingSteps(prev => prev.map(step => ({
-            ...step,
-            dots: step.status === 'active' ? ((step.dots || 0) + 1) % 4 : step.dots || 0
-          })));
-        }, 500);
+        // 🚨 FIX: Commenting out interval to prevent excessive re-renders
+        // const dotsInterval = setInterval(() => {
+        //   setCurrentThinkingSteps(prev => prev.map(step => ({
+        //     ...step,
+        //     dots: step.status === 'active' ? ((step.dots || 0) + 1) % 4 : step.dots || 0
+        //   })));
+        // }, 500);
 
         while (true) {
           const { done, value } = await reader.read();
           
           if (done) {
-            clearInterval(dotsInterval);
+            // clearInterval(dotsInterval); // Already commented out
             break;
           }
 
@@ -2776,12 +2798,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     return updated;
                   });
                   
-                  // ✅ CRITICAL FIX: Force React to process the state update immediately
-                  // This prevents batching issues that can occur with excessive re-renders
-                  setTimeout(() => {
-                    console.log('🔄 [FORCE UPDATE] Ensuring UI reflects completed message');
-                    setMessages(prev => [...prev]); // Shallow copy forces re-render
-                  }, 0);
+                  // 🚨 FIX: Removed setTimeout re-render (was causing message flash)
+                  // The setMessages above is sufficient - no need to force another render
 
                   // Calculate response time
                   const responseTime = Date.now() - requestStartTime;
