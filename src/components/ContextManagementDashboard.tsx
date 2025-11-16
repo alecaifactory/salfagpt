@@ -131,6 +131,7 @@ export default function ContextManagementDashboard({
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   
   // Agent assignment state
@@ -140,6 +141,11 @@ export default function ContextManagementDashboard({
   // Tag management state
   const [uploadTags, setUploadTags] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [batchTagPrefix, setBatchTagPrefix] = useState(''); // e.g., "S2-upload-2-251107"
+  
+  // Folder upload state
+  const [folderTree, setFolderTree] = useState<Map<string, File[]>>(new Map());
+  const [showFolderPreview, setShowFolderPreview] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
   
   // Upload staging state
@@ -693,6 +699,68 @@ export default function ContextManagementDashboard({
     });
   };
 
+  // ✅ NEW: Handle folder selection with recursive structure
+  const handleFolderSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    const filesArray = Array.from(files);
+    
+    // Filter only PDFs
+    const pdfFiles = filesArray.filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    
+    if (pdfFiles.length === 0) {
+      alert('No se encontraron archivos PDF en la carpeta seleccionada');
+      return;
+    }
+    
+    console.log(`📁 Processing folder structure: ${pdfFiles.length} PDFs found`);
+    
+    // Build folder tree structure
+    const tree = new Map<string, File[]>();
+    
+    pdfFiles.forEach(file => {
+      // Extract folder path from file.webkitRelativePath
+      // Example: "Segunda Carga/scania/Manual de Operaciones.pdf"
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      const pathParts = relativePath.split('/');
+      
+      // Remove filename to get folder path
+      const folderPath = pathParts.length > 1 
+        ? pathParts.slice(0, -1).join('/')
+        : 'root';
+      
+      if (!tree.has(folderPath)) {
+        tree.set(folderPath, []);
+      }
+      tree.get(folderPath)!.push(file);
+    });
+    
+    setFolderTree(tree);
+    
+    // Generate suggested batch tag (e.g., "upload-251116")
+    const today = new Date();
+    const dateStr = today.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+    const suggestedTag = `upload-${dateStr}`;
+    setBatchTagPrefix(suggestedTag);
+    
+    // Convert tree to staged files with auto-generated tags
+    const allFiles: File[] = [];
+    tree.forEach((files, folderPath) => {
+      allFiles.push(...files);
+    });
+    
+    setStagedFiles(allFiles);
+    setReviewPage(0);
+    
+    console.log('📊 Folder structure:', {
+      folders: tree.size,
+      files: pdfFiles.length,
+      suggestedTag,
+      folders: Array.from(tree.keys())
+    });
+  };
+
   const handleFileSelect = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -825,11 +893,48 @@ export default function ContextManagementDashboard({
   const handleSubmitUpload = async () => {
     if (stagedFiles.length === 0) return;
 
-    // Parse tags from input
-    const tags = uploadTags
+    // Parse base tags from input
+    const baseTags = uploadTags
       .split(',')
       .map(t => t.trim())
       .filter(t => t.length > 0);
+    
+    // ✅ NEW: Generate tags for each file based on folder structure
+    const fileTagsMap = new Map<File, string[]>();
+    
+    if (folderTree.size > 0) {
+      // Folder upload - generate tags from path
+      folderTree.forEach((files, folderPath) => {
+        // Extract folder names from path
+        // e.g., "Segunda Carga/scania" -> ["segunda-carga", "scania"]
+        const folderNames = folderPath
+          .split('/')
+          .filter(p => p && p !== 'root')
+          .map(name => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''));
+        
+        // Build tags: [batchPrefix, batchPrefix-folder1, batchPrefix-folder2, ...baseTags]
+        const folderTags = [
+          batchTagPrefix,
+          ...folderNames.map(name => `${batchTagPrefix}-${name}`),
+          ...baseTags
+        ].filter(t => t.length > 0);
+        
+        files.forEach(file => {
+          fileTagsMap.set(file, folderTags);
+        });
+      });
+      
+      console.log('📁 Generated tags for folder upload:', {
+        folders: folderTree.size,
+        batchPrefix: batchTagPrefix,
+        sampleTags: fileTagsMap.values().next().value
+      });
+    } else {
+      // Individual file upload - use base tags for all
+      stagedFiles.forEach(file => {
+        fileTagsMap.set(file, baseTags);
+      });
+    }
 
     // ✅ OPTIMIZED: Batch duplicate check (all at once instead of sequential)
     const totalFiles = stagedFiles.length;
@@ -947,15 +1052,20 @@ export default function ContextManagementDashboard({
       return; // Exit early
     }
 
-    // Create upload queue items with selected model
-    const newItems: UploadQueueItem[] = newFiles.map(file => ({
-      id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      file,
-      status: 'queued',
-      progress: 0,
-      tags: tags.length > 0 ? tags : undefined,
-      model: selectedModel, // Include selected model
-    }));
+    // Create upload queue items with selected model and file-specific tags
+    const newItems: UploadQueueItem[] = newFiles.map(file => {
+      // Get tags for this specific file (may include folder-based tags)
+      const fileTags = fileTagsMap.get(file) || baseTags;
+      
+      return {
+        id: `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        status: 'queued',
+        progress: 0,
+        tags: fileTags.length > 0 ? fileTags : undefined,
+        model: selectedModel, // Include selected model
+      };
+    });
 
     // ✅ VERIFICATION: Log exactly what's being added to queue
     console.log(`➕ Adding ${newItems.length} items to upload queue`);
@@ -979,6 +1089,8 @@ export default function ContextManagementDashboard({
     setStagedTags([]);
     setUploadTags('');
     setSelectedModel('gemini-2.5-flash'); // Reset to default
+    setFolderTree(new Map()); // Clear folder structure
+    setBatchTagPrefix(''); // Clear batch tag prefix
   };
 
   const handleDuplicates = async (duplicates: Array<{ file: File; existing: ContextSource }>): Promise<'replace' | 'keep-both' | 'skip' | 'cancel'> => {
@@ -2160,6 +2272,34 @@ export default function ContextManagementDashboard({
                     className="hidden"
                     onChange={(e) => handleFileSelect(e.target.files)}
                   />
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    /* @ts-ignore - webkitdirectory is not in TypeScript types but works in Chrome/Edge */
+                    webkitdirectory=""
+                    directory=""
+                    multiple
+                    className="hidden"
+                    onChange={handleFolderSelect}
+                  />
+                  
+                  {/* ✅ NEW: Folder upload button */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 px-4 py-2 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-sm font-medium text-gray-700 flex items-center justify-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Select Files
+                    </button>
+                    <button
+                      onClick={() => folderInputRef.current?.click()}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-sm font-medium flex items-center justify-center gap-2"
+                    >
+                      <Folder className="w-4 h-4" />
+                      Select Folder
+                    </button>
+                  </div>
                 </div>
               ) : (
                 // Upload staging area
@@ -2315,6 +2455,26 @@ export default function ContextManagementDashboard({
                     </div>
                   )}
 
+                  {/* Batch Tag Prefix (for folder uploads) */}
+                  {folderTree.size > 0 && (
+                    <div>
+                      <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
+                        <Tag className="w-3.5 h-3.5 text-purple-600" />
+                        Batch Tag Prefix <span className="text-xs text-gray-500">(auto-generated)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={batchTagPrefix}
+                        onChange={(e) => setBatchTagPrefix(e.target.value)}
+                        placeholder="e.g., S2-upload-2-251116"
+                        className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm font-mono bg-purple-50 focus:ring-1 focus:ring-purple-600 focus:border-purple-600"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        📁 {folderTree.size} folders • Files will be tagged with: <code className="px-1 py-0.5 bg-gray-100 rounded">{batchTagPrefix}-[folder-name]</code>
+                      </p>
+                    </div>
+                  )}
+
                   {/* Tags Input */}
                   <div>
                     <label className="flex items-center gap-1 text-xs font-medium text-gray-700 mb-1">
@@ -2406,6 +2566,8 @@ export default function ContextManagementDashboard({
                         setSelectedModel('gemini-2.5-flash');
                         setSelectedOrgForUpload('');
                         setSelectedDomainForUpload('');
+                        setFolderTree(new Map());
+                        setBatchTagPrefix('');
                       }}
                       className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                     >
