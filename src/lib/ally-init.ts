@@ -16,7 +16,7 @@ import { firestore } from './firestore';
  * Creates the platform-wide SuperPrompt that governs all Ally instances.
  * Should be run once by SuperAdmin.
  */
-export async function initializeAllySuper Prompt(createdBy: string): Promise<string> {
+export async function initializeAllySuperPrompt(createdBy: string): Promise<string> {
   
   console.log('🎯 [ALLY INIT] Initializing SuperPrompt...');
   
