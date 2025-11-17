@@ -2011,31 +2011,29 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // ✅ FIX: Auto-expand Historial section when new conversation created
         setShowChatsSection(true);
         
-        // ✅ FIX: Add optimistic message instead of clearing
-        const optimisticMsg: Message = {
-          id: 'opt-' + Date.now(),
+        // ✅ FIX: Show user message and start processing (like M001)
+        const optimisticUserMsg: Message = {
+          id: 'opt-user-' + Date.now(),
           conversationId: newConvId,
           userId,
           role: 'user',
-          content: messageText, // ✅ FIX: Use string directly, not object
+          content: messageText,
           timestamp: new Date(),
           tokenCount: 0,
         };
-        setMessages([optimisticMsg]); // Show user message immediately
         
-        // ✅ AUTO-SEND: Now send the message
-        console.log('📤 Auto-sending message to Ally...');
+        setMessages([optimisticUserMsg]);
         
-        // Set input with the message text
+        // ✅ FIX: Now call sendMessage with the text (it will show thinking steps)
         setInput(messageText);
         
-        // Wait for state to update
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Small delay for state to settle
+        await new Promise(resolve => setTimeout(resolve, 50));
         
-        // Trigger sendMessage (uses input state)
+        // Call sendMessage - this will show all thinking steps and stream the response
         await sendMessage();
         
-        // Clear input after sending
+        // Clear input
         setInput('');
       }
     } catch (error) {
@@ -2706,24 +2704,33 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // ✅ NEW: Check if this is the first message
     const isFirstMessage = messages.length === 0;
     const firstMessageText = input; // Save for title generation
-
-    const userMessage: Message = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: input,
-      timestamp: new Date()
-    };
-
-    console.log('📨 [USER MSG] Adding user message to state');
-    console.log('📨 [USER MSG] Current messages count:', messages.length);
-    setMessages(prev => {
-      console.log('📨 [USER MSG] Previous messages:', prev.length);
-      const updated = [...prev, userMessage];
-      console.log('📨 [USER MSG] After adding user:', updated.length);
-      return updated;
-    });
+    
+    // ✅ FIX: Check if there's already an optimistic user message (from Ally conversation creation)
+    const hasOptimisticMessage = messages.length > 0 && messages[messages.length - 1].id?.startsWith('opt-user-');
+    
     const messageToSend = input;
     setInput('');
+
+    // ✅ FIX: Only add user message if not already present (avoid duplication)
+    if (!hasOptimisticMessage) {
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: input,
+        timestamp: new Date()
+      };
+
+      console.log('📨 [USER MSG] Adding user message to state');
+      console.log('📨 [USER MSG] Current messages count:', messages.length);
+      setMessages(prev => {
+        console.log('📨 [USER MSG] Previous messages:', prev.length);
+        const updated = [...prev, userMessage];
+        console.log('📨 [USER MSG] After adding user:', updated.length);
+        return updated;
+      });
+    } else {
+      console.log('✅ [USER MSG] Optimistic message already present, skipping duplication');
+    }
     
     // ✅ NEW: Generate title immediately for first message (non-streaming - PROVEN)
     if (isFirstMessage && !currentConversation?.startsWith('temp-')) {
