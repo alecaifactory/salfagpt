@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio, Pin } from 'lucide-react';
+import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio, Pin, Key, Code, ExternalLink, Upload } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -545,6 +545,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [selectedTicketId, setSelectedTicketId] = useState<string | undefined>(undefined); // NEW: Selected ticket ID from notification
   const [showChangelog, setShowChangelog] = useState(false); // NEW: In-app changelog modal
   const [highlightFeatureId, setHighlightFeatureId] = useState<string | null>(null); // NEW: Auto-scroll to feature
+  const [showAPIPlayground, setShowAPIPlayground] = useState(false); // NEW: API Playground modal
+  const [showAPIManagement, setShowAPIManagement] = useState(false); // NEW: API Management modal
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
@@ -1898,10 +1900,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => [newConv, ...prev]);
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
-        setMessages([]); // Clear messages for new conversation
-        setIsLoadingMessages(false); // ✅ Stop loading state to show chat UI
         
-        console.log('✅ Ready to send message in new conversation');
+        // ✅ FIX: Load messages first (will be empty), then add user message
+        // This ensures empty state disappears before we send
+        setIsLoadingMessages(true);
+        await loadMessages(newConvId);
+        setIsLoadingMessages(false);
+        
+        console.log('✅ Conversation ready, empty state hidden');
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation:', error);
@@ -5015,7 +5021,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         ) : (
                           <div className="flex flex-col gap-1.5">
                             {/* Tag - Show Ally tag OR Agent tag */}
-                            {chat.isAlly ? (
+                            {chat.isAlly || (chat.agentId === allyConversationId) ? (
                               <div className="flex items-center gap-1">
                                 <span className="px-2 py-0.5 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
                                   <Bot className="w-2.5 h-2.5" />
