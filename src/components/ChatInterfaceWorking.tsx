@@ -2020,11 +2020,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // ✅ AUTO-SEND: Now send the message
         console.log('📤 Auto-sending message to Ally...');
         
-        // Wait a moment for state to settle
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Set input with the message text
+        setInput(messageText);
         
-        // Trigger sendMessage
+        // Wait for state to update
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Trigger sendMessage (uses input state)
         await sendMessage();
+        
+        // Clear input after sending
+        setInput('');
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation and send:', error);
