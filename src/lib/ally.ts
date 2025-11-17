@@ -508,111 +508,97 @@ export async function getAllyMessages(conversationId: string): Promise<AllyMessa
 }
 
 /**
- * Send message to Ally
+ * Send message to Ally with AI integration
  */
 export async function sendAllyMessage(
   conversationId: string,
   userId: string,
   message: string,
-  contextInputs?: {
-    organizationInfo?: boolean;
-    domainInfo?: boolean;
-    agentIds?: string[];
-  }
-): Promise<{ userMessage: AllyMessage; allyResponse: AllyMessage }> {
+  userEmail?: string
+): Promise<{ userMessageId: string; allyMessageId: string; response: string }> {
   
-  console.log('💬 [ALLY] Sending message...');
+  console.log('💬 [ALLY] Sending message to Ally...');
   
   try {
-    // Save user message
+    // 1. Save user message to regular messages collection
     const userMessageData = {
       conversationId,
       userId,
       role: 'user' as const,
-      content: message,
-      timestamp: new Date(),
-      contextUsed: {
-        promptComponents: [],
-        inputSources: [],
-        tokensUsed: {
-          input: 0,
-          output: 0,
-          context: 0,
-          total: 0,
-        },
+      content: {
+        type: 'text' as const,
+        text: message,
       },
+      timestamp: new Date(),
+      tokenCount: Math.ceil(message.length / 4),
       source: getEnvironmentSource(),
     };
     
-    const userMessageRef = await firestore
-      .collection(COLLECTIONS.ALLY_MESSAGES)
-      .add(userMessageData);
-    
-    const userMessage = {
-      id: userMessageRef.id,
-      ...userMessageData,
-    };
-    
+    const userMessageRef = await firestore.collection(COLLECTIONS.MESSAGES).add(userMessageData);
     console.log('✅ [ALLY] User message saved:', userMessageRef.id);
     
-    // Generate Ally response (simplified for MVP)
-    // TODO: Integrate with Gemini AI and use effective prompt
-    const allyResponseText = `I received your message: "${message}"
-
-This is a test response from Ally Beta. The full AI integration will be implemented in the next phase.
-
-**What's working now:**
-✅ Message persistence to ally_messages collection
-✅ Conversation isolation from classic system
-✅ Feature flag access control
-
-**Coming next:**
-🔨 Full AI integration with Gemini
-🔨 Hierarchical prompt application
-🔨 Ally Apps (Summary, Email, Collaborate)
-
-How can I help you test the system?`;
+    // 2. Load conversation to get effective prompt
+    const conversationDoc = await firestore.collection(COLLECTIONS.CONVERSATIONS).doc(conversationId).get();
+    if (!conversationDoc.exists) {
+      throw new Error('Conversation not found');
+    }
     
+    const conversationData = conversationDoc.data();
+    const effectivePrompt = conversationData?.systemPrompt || getDefaultSuperPrompt();
+    
+    // 3. Load conversation history
+    const historySnapshot = await firestore
+      .collection(COLLECTIONS.MESSAGES)
+      .where('conversationId', '==', conversationId)
+      .orderBy('timestamp', 'asc')
+      .get();
+    
+    const conversationHistory = historySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      timestamp: doc.data().timestamp?.toDate() || new Date(),
+    })) as Message[];
+    
+    // 4. Generate Ally response with Gemini AI
+    const { generateAllyResponse } = await import('./ally-ai');
+    const aiResult = await generateAllyResponse(
+      conversationId,
+      userId,
+      message,
+      effectivePrompt,
+      conversationHistory
+    );
+    
+    console.log('✅ [ALLY] AI response generated:', aiResult.model);
+    
+    // 5. Save Ally response to regular messages collection
     const allyMessageData = {
       conversationId,
       userId,
-      role: 'ally' as const,
-      content: allyResponseText,
-      timestamp: new Date(),
-      contextUsed: {
-        promptComponents: ['superprompt'],
-        inputSources: [],
-        tokensUsed: {
-          input: message.length,
-          output: allyResponseText.length,
-          context: 0,
-          total: message.length + allyResponseText.length,
-        },
+      role: 'assistant' as const,
+      content: {
+        type: 'text' as const,
+        text: aiResult.response,
       },
+      timestamp: new Date(),
+      tokenCount: aiResult.tokensUsed.total,
       source: getEnvironmentSource(),
     };
     
-    const allyMessageRef = await firestore
-      .collection(COLLECTIONS.ALLY_MESSAGES)
-      .add(allyMessageData);
-    
-    const allyResponse = {
-      id: allyMessageRef.id,
-      ...allyMessageData,
-    };
-    
+    const allyMessageRef = await firestore.collection(COLLECTIONS.MESSAGES).add(allyMessageData);
     console.log('✅ [ALLY] Ally response saved:', allyMessageRef.id);
     
-    // Update conversation
-    await firestore.collection(COLLECTIONS.ALLY_CONVERSATIONS).doc(conversationId).update({
+    // 6. Update conversation
+    await firestore.collection(COLLECTIONS.CONVERSATIONS).doc(conversationId).update({
       messageCount: firestore.FieldValue.increment(2),
       lastMessageAt: new Date(),
       updatedAt: new Date(),
     });
     
     return {
-      userMessage,
-      allyResponse,
+      userMessageId: userMessageRef.id,
+      allyMessageId: allyMessageRef.id,
+      response: aiResult.response,
     };
     
   } catch (error) {
