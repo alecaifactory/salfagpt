@@ -4772,16 +4772,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   <>
                     <div
                       onClick={() => {
-                        setCurrentConversation(allyConversationId);
-                        setSelectedAgent(null);
-                        loadMessages(allyConversationId);
+                        // ✅ FIX: Show empty state with sample questions, not old conversation
+                        setCurrentConversation(null);
+                        setSelectedAgent(allyConversationId);
+                        setMessages([]);
+                        console.log('✅ Ally selected - showing empty state with sample questions');
                       }}
                       className={`
                         w-full p-2 rounded-lg transition-all cursor-pointer
                         bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20
                         border-2 border-blue-200 dark:border-blue-700
                         hover:border-blue-400 dark:hover:border-blue-500
-                        ${currentConversation === allyConversationId 
+                        ${selectedAgent === allyConversationId && !currentConversation
                           ? 'border-blue-600 dark:border-blue-500 shadow-lg ring-2 ring-blue-200 dark:ring-blue-700' 
                           : ''}
                       `}
