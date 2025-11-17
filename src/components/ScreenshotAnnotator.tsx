@@ -84,15 +84,17 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
       // Small delay to ensure DOM has updated
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Capture with html2canvas
+      // Capture with html2canvas - HIGH QUALITY for feedback clarity
       const canvas = await html2canvas(bodyElement, {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        scale: 1, // 1:1 scale for performance
+        scale: window.devicePixelRatio || 2, // Use device pixel ratio for sharp images (Retina support)
         logging: false,
         width: window.innerWidth,
-        height: window.innerHeight,
+        height: document.documentElement.scrollHeight, // Full page height (not just viewport)
+        windowWidth: window.innerWidth,
+        windowHeight: document.documentElement.scrollHeight,
         x: 0,
         y: 0,
         scrollY: -window.scrollY,
@@ -104,8 +106,9 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
         (el as HTMLElement).style.display = '';
       });
 
-      const dataUrl = canvas.toDataURL('image/png', 0.9);
-      console.log('✅ Full UI captured (feedback panels restored):', canvas.width, 'x', canvas.height);
+      // High quality PNG (0.95 instead of 0.9 for better clarity)
+      const dataUrl = canvas.toDataURL('image/png', 0.95);
+      console.log('✅ Full UI captured (feedback panels restored):', canvas.width, 'x', canvas.height, 'DPR:', window.devicePixelRatio);
       
       return dataUrl;
     } catch (error) {
@@ -434,13 +437,23 @@ export default function ScreenshotAnnotator({ onComplete, onCancel, existingScre
             {annotations.length} anotación{annotations.length !== 1 ? 'es' : ''}
           </div>
           <button
-            onClick={onCancel}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCancel();
+            }}
             className="px-4 py-2 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
           >
             Cancelar
           </button>
           <button
-            onClick={handleComplete}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleComplete();
+            }}
             className="flex items-center gap-2 px-6 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-colors"
           >
             <Check className="w-4 h-4" />

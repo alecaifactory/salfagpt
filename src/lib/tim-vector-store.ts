@@ -21,7 +21,7 @@ const TABLE_ID = 'tim_session_vectors';
 const bigquery = new BigQuery({ projectId: PROJECT_ID });
 
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.GOOGLE_AI_API_KEY : undefined);
+  (typeof import.meta !== 'undefined' && import.meta.env?.GOOGLE_AI_API_KEY ? import.meta.env.GOOGLE_AI_API_KEY : undefined);
 
 const genAI = new GoogleGenAI({ apiKey: GOOGLE_AI_API_KEY || '' });
 
