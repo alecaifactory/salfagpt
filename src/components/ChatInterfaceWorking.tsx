@@ -1843,6 +1843,121 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ✅ NEW: Create Ally conversation with personalized title (auto-trigger when typing)
+  const handleCreateAllyConversation = async (initialText: string) => {
+    // Prevent multiple rapid calls
+    if (isCreatingConversation || currentConversation) return;
+    
+    setIsCreatingConversation(true);
+    
+    try {
+      console.log('🆕 Creating new Ally conversation with personalized title...');
+      
+      // Generate personalized title from first 50 chars
+      const personalizedTitle = initialText.substring(0, 50) + (initialText.length > 50 ? '...' : '');
+      
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          title: personalizedTitle,
+          isAlly: false,  // This is a conversation WITH Ally
+          agentId: allyConversationId, // Link to Ally as parent
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const newConvId = data.conversation.id;
+        
+        console.log('✅ Ally conversation created:', newConvId, 'with title:', personalizedTitle);
+        
+        // Add to conversations list
+        const newConv: Conversation = {
+          id: newConvId,
+          title: personalizedTitle,
+          isAlly: false,
+          agentId: allyConversationId,
+          lastMessageAt: new Date(),
+          messageCount: 0,
+        };
+        
+        setConversations(prev => [newConv, ...prev]);
+        setCurrentConversation(newConvId);
+        setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
+        setMessages([]); // Clear messages for new conversation
+        
+        console.log('✅ Ready to send message in new conversation');
+      }
+    } catch (error) {
+      console.error('❌ Failed to create Ally conversation:', error);
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+
+  // ✅ NEW: Create Ally conversation AND send message (when Enter pressed)
+  const handleCreateAllyConversationAndSend = async (messageText: string) => {
+    if (!messageText.trim() || !allyConversationId) return;
+    
+    setIsCreatingConversation(true);
+    
+    try {
+      console.log('🆕 Creating new Ally conversation and sending message...');
+      
+      // Generate personalized title from message
+      const personalizedTitle = messageText.substring(0, 50) + (messageText.length > 50 ? '...' : '');
+      
+      // Create conversation
+      const response = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          title: personalizedTitle,
+          isAlly: false,
+          agentId: allyConversationId,
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const newConvId = data.conversation.id;
+        
+        console.log('✅ Ally conversation created:', newConvId);
+        
+        // Add to conversations
+        const newConv: Conversation = {
+          id: newConvId,
+          title: personalizedTitle,
+          isAlly: false,
+          agentId: allyConversationId,
+          lastMessageAt: new Date(),
+          messageCount: 0,
+        };
+        
+        setConversations(prev => [newConv, ...prev]);
+        setCurrentConversation(newConvId);
+        setSelectedAgent(allyConversationId);
+        setMessages([]);
+        
+        // ✅ AUTO-SEND: Now send the message
+        console.log('📤 Auto-sending message to Ally...');
+        
+        // Wait a moment for state to settle
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Trigger sendMessage
+        await sendMessage();
+      }
+    } catch (error) {
+      console.error('❌ Failed to create Ally conversation and send:', error);
+    } finally {
+      setIsCreatingConversation(false);
+    }
+  };
+
   // ✅ NEW: Submit feedback (Expert or User)
   const handleSubmitFeedback = async (feedback: Omit<MessageFeedback, 'id' | 'timestamp' | 'source'>) => {
     try {
@@ -4973,7 +5088,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           {showArchivedSection && (
             <div className="px-2 pb-1 space-y-1">
               {/* Ally Folder */}
-              {conversations.filter(c => c.status === 'archived' && c.isAlly).length > 0 && (
+              {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'ally' || c.isAlly)).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedAlly(!expandedArchivedAlly)}
@@ -4983,7 +5098,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-indigo-600" />
                       <span className="text-xs font-semibold text-slate-700">Ally</span>
                       <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && c.isAlly).length}
+                        {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'ally' || c.isAlly)).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedAlly ? 'rotate-180' : ''}`}>
@@ -4994,7 +5109,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {expandedArchivedAlly && (
                     <div className="p-1 space-y-1">
                       {conversations
-                        .filter(c => c.status === 'archived' && c.isAlly)
+                        .filter(c => c.status === 'archived' && (c.archivedFolder === 'ally' || c.isAlly))
                         .slice(0, 3)
                         .map(conv => (
                           <div
@@ -5027,13 +5142,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ))}
                       
-                      {conversations.filter(c => c.status === 'archived' && c.isAlly).length > 3 && (
+                      {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'ally' || c.isAlly)).length > 3 && (
                         <div className="text-center pt-1">
                           <button
                             onClick={() => setShowArchivedConversations(true)}
                             className="text-[10px] text-indigo-600 hover:text-indigo-700"
                           >
-                            +{conversations.filter(c => c.status === 'archived' && c.isAlly).length - 3} más
+                            +{conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'ally' || c.isAlly)).length - 3} más
                           </button>
                         </div>
                       )}
@@ -5043,7 +5158,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               )}
 
               {/* Agentes Folder */}
-              {conversations.filter(c => c.status === 'archived' && c.isAgent && !c.isAlly).length > 0 && (
+              {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly))).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedAgents(!expandedArchivedAgents)}
@@ -5053,7 +5168,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-blue-600" />
                       <span className="text-xs font-semibold text-slate-700">Agentes</span>
                       <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && c.isAgent && !c.isAlly).length}
+                        {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly))).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedAgents ? 'rotate-180' : ''}`}>
@@ -5064,7 +5179,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {expandedArchivedAgents && (
                     <div className="p-1 space-y-1">
                       {conversations
-                        .filter(c => c.status === 'archived' && c.isAgent && !c.isAlly)
+                        .filter(c => c.status === 'archived' && (c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly)))
                         .slice(0, 3)
                         .map(conv => (
                           <div
@@ -5097,13 +5212,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ))}
                       
-                      {conversations.filter(c => c.status === 'archived' && c.isAgent && !c.isAlly).length > 3 && (
+                      {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly))).length > 3 && (
                         <div className="text-center pt-1">
                           <button
                             onClick={() => setShowArchivedConversations(true)}
                             className="text-[10px] text-blue-600 hover:text-blue-700"
                           >
-                            +{conversations.filter(c => c.status === 'archived' && c.isAgent && !c.isAlly).length - 3} más
+                            +{conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly))).length - 3} más
                           </button>
                         </div>
                       )}
@@ -5113,7 +5228,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               )}
 
               {/* Projects Folder */}
-              {conversations.filter(c => c.status === 'archived' && c.folderId).length > 0 && (
+              {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'projects' || c.folderId)).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedProjects(!expandedArchivedProjects)}
@@ -5123,7 +5238,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-green-600" />
                       <span className="text-xs font-semibold text-slate-700">Proyectos</span>
                       <span className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && c.folderId).length}
+                        {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'projects' || c.folderId)).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedProjects ? 'rotate-180' : ''}`}>
@@ -5134,7 +5249,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {expandedArchivedProjects && (
                     <div className="p-1 space-y-1">
                       {conversations
-                        .filter(c => c.status === 'archived' && c.folderId)
+                        .filter(c => c.status === 'archived' && (c.archivedFolder === 'projects' || c.folderId))
                         .slice(0, 3)
                         .map(conv => (
                           <div
@@ -5167,13 +5282,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ))}
                       
-                      {conversations.filter(c => c.status === 'archived' && c.folderId).length > 3 && (
+                      {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'projects' || c.folderId)).length > 3 && (
                         <div className="text-center pt-1">
                           <button
                             onClick={() => setShowArchivedConversations(true)}
                             className="text-[10px] text-green-600 hover:text-green-700"
                           >
-                            +{conversations.filter(c => c.status === 'archived' && c.folderId).length - 3} más
+                            +{conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'projects' || c.folderId)).length - 3} más
                           </button>
                         </div>
                       )}
@@ -5182,8 +5297,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </div>
               )}
 
-              {/* Conversaciones Folder */}
-              {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length > 0 && (
+              {/* Conversaciones Folder - Show items without archivedFolder OR explicitly categorized as conversations */}
+              {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'conversations' || (!c.archivedFolder && !c.isAgent && !c.isAlly && !c.folderId))).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
@@ -5193,7 +5308,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-purple-600" />
                       <span className="text-xs font-semibold text-slate-700">Conversaciones</span>
                       <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length}
+                        {conversations.filter(c => c.status === 'archived' && (c.archivedFolder === 'conversations' || (!c.archivedFolder && !c.isAgent && !c.isAlly && !c.folderId))).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedChats ? 'rotate-180' : ''}`}>
@@ -6073,56 +6188,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   <button
                     key={idx}
                     onClick={async () => {
-                      // 🆕 Create NEW Ally conversation (not reuse existing)
-                      try {
-                        console.log('🆕 Creating new Ally conversation from sample question...');
-                        
-                        const response = await fetch('/api/conversations', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            userId,
-                            title: question.substring(0, 50), // First 50 chars as title
-                            isAlly: false,  // This is a conversation WITH Ally, not Ally itself
-                            agentId: allyConversationId, // Link to Ally as parent agent
-                          })
-                        });
-                        
-                        if (response.ok) {
-                          const data = await response.json();
-                          const newConvId = data.conversation.id;
-                          
-                          console.log('✅ New Ally conversation created:', newConvId);
-                          
-                          // Add to conversations list
-                          const newConv = {
-                            id: newConvId,
-                            title: question.substring(0, 50),
-                            isAlly: false,
-                            agentId: allyConversationId,
-                            lastMessageAt: new Date(),
-                            messageCount: 0,
-                          };
-                          
-                          setConversations(prev => [newConv, ...prev]);
-                          setCurrentConversation(newConvId);
-                          setSelectedAgent(allyConversationId);
-                          
-                          // ✅ AUTO-SEND: Send the question immediately
-                          console.log('📤 Auto-sending question to Ally...');
-                          
-                          // Temporarily set input for sendMessage
-                          setInput(question);
-                          
-                          // Wait for state to update, then send
-                          setTimeout(async () => {
-                            // Trigger send by calling sendMessage
-                            await sendMessage();
-                          }, 100);
-                        }
-                      } catch (error) {
-                        console.error('Failed to create Ally conversation:', error);
-                      }
+                      // ✅ Use the new helper function
+                      setInput(question);
+                      await handleCreateAllyConversationAndSend(question);
                     }}
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
                   >
@@ -7316,12 +7384,27 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             <div className="flex gap-1.5">
               <textarea
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  
+                  // ✅ AUTO-CREATE: When user starts typing and no conversation selected, create Ally conversation
+                  if (e.target.value.trim() && !currentConversation && allyConversationId) {
+                    console.log('🆕 User started typing - auto-creating Ally conversation...');
+                    handleCreateAllyConversation(e.target.value);
+                  }
+                }}
                 onKeyPress={(e) => {
                   const currentAgentLoading = currentConversation && agentProcessing[currentConversation]?.isProcessing;
                   if (e.key === 'Enter' && !e.shiftKey && !currentAgentLoading && input.trim()) {
                     e.preventDefault();
-                    sendMessage();
+                    
+                    // ✅ AUTO-CREATE: If no conversation, create Ally conversation first
+                    if (!currentConversation && allyConversationId) {
+                      console.log('🆕 Enter pressed - creating Ally conversation and sending...');
+                      handleCreateAllyConversationAndSend(input);
+                    } else {
+                      sendMessage();
+                    }
                   }
                 }}
                 placeholder="Escribe un mensaje... (Shift+Enter para nueva línea)"
