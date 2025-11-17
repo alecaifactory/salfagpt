@@ -6108,10 +6108,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           setCurrentConversation(newConvId);
                           setSelectedAgent(allyConversationId);
                           
-                          // Set input and focus
+                          // ✅ AUTO-SEND: Send the question immediately
+                          console.log('📤 Auto-sending question to Ally...');
+                          
+                          // Temporarily set input for sendMessage
                           setInput(question);
-                          setTimeout(() => {
-                            document.querySelector('textarea')?.focus();
+                          
+                          // Wait for state to update, then send
+                          setTimeout(async () => {
+                            // Trigger send by calling sendMessage
+                            await sendMessage();
                           }, 100);
                         }
                       } catch (error) {
