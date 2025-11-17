@@ -101,7 +101,7 @@ export async function getOrCreateAlly(
     
     console.log('✅ [ALLY] Created Ally conversation:', docRef.id);
     
-    // Send welcome message (uses regular messages collection)
+    // Send welcome message ONLY on creation (not on subsequent loads)
     await sendAllyWelcomeMessage(docRef.id, userId, userEmail, userDomain, organizationId);
     
     return docRef.id;
@@ -318,6 +318,18 @@ export async function sendAllyWelcomeMessage(
   console.log('💬 [ALLY] Sending welcome message...');
   
   try {
+    // Check if welcome message already exists (don't send twice!)
+    const existingMessages = await firestore
+      .collection(COLLECTIONS.MESSAGES)
+      .where('conversationId', '==', allyId)
+      .limit(1)
+      .get();
+    
+    if (!existingMessages.empty) {
+      console.log('ℹ️ [ALLY] Welcome message already sent, skipping');
+      return;
+    }
+    
     // Get context for personalized welcome
     const userName = userEmail.split('@')[0]; // Simple name extraction
     const organizationName = await getOrganizationName(organizationId);
