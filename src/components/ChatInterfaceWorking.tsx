@@ -5859,8 +5859,53 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             <div className="h-full flex flex-col items-center justify-center text-slate-400 px-6">
               <Bot className="w-16 h-16 mb-4 text-slate-300" />
               <p className="text-lg font-medium text-slate-600 mb-2">Comienza una conversación</p>
-              <p className="text-sm text-center text-slate-500">
-                Selecciona un agente en el panel izquierdo para empezar a chatear
+              <p className="text-sm text-center text-slate-500 mb-6">
+                Chatea con <span className="font-semibold text-blue-600">Ally</span> (tu asistente personal) o selecciona un agente especializado
+              </p>
+              
+              {/* Sample questions for Ally */}
+              <div className="w-full max-w-2xl space-y-2">
+                <p className="text-xs font-semibold text-slate-600 mb-3 text-center">
+                  💬 Preguntas de ejemplo para Ally:
+                </p>
+                
+                {[
+                  '¿Por dónde empiezo?',
+                  '¿Qué puedo preguntarte?',
+                  '¿Qué puedo hacer en la plataforma?',
+                  'Resume mis últimas interacciones del día y plan de acción para la semana',
+                ].map((question, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      // Auto-select Ally and set input
+                      if (allyConversationId) {
+                        setCurrentConversation(allyConversationId);
+                        setSelectedAgent(null);
+                        loadMessages(allyConversationId);
+                        setInput(question);
+                        // Focus input after short delay
+                        setTimeout(() => {
+                          document.querySelector('textarea')?.focus();
+                        }, 100);
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-blue-500 group-hover:text-blue-600 flex-shrink-0 mt-0.5">
+                        →
+                      </span>
+                      <span className="text-sm text-slate-700 group-hover:text-blue-900">
+                        {question}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              <p className="text-xs text-slate-400 mt-6">
+                O selecciona un agente especializado del panel izquierdo
               </p>
             </div>
           ) : (
