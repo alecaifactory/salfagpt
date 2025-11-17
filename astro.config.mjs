@@ -50,19 +50,13 @@ export default defineConfig({
     },
     // Cache busting for development
     build: {
-      cssCodeSplit: false, // Prevent CSS splitting that causes phantom files
+      cssCodeSplit: false, // Prevent CSS splitting that causes phantom files - use single CSS bundle
       rollupOptions: {
         output: {
           // Add version hash to filenames to bust browser cache
           entryFileNames: '[name].[hash].js',
           chunkFileNames: '[name].[hash].js',
-          assetFileNames: (assetInfo) => {
-            // Don't create separate CSS files for admin pages
-            if (assetInfo.name && (assetInfo.name.includes('admin-') || assetInfo.name === 'index')) {
-              return '_tailwind-compiled.[ext]';
-            }
-            return '[name].[hash].[ext]';
-          }
+          assetFileNames: '[name].[hash].[ext]'
         }
       }
     },
