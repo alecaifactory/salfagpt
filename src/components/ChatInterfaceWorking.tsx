@@ -4689,7 +4689,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 
                 {/* EXISTING AGENTS - UNCHANGED */}
                 {conversations
-                  .filter(c => c.isAgent !== false && c.status !== 'archived')
+                  .filter(c => 
+                    c.isAgent !== false &&      // Is an agent
+                    c.status !== 'archived' &&  // Not archived
+                    c.id !== allyConversationId // Not the main Ally (only show in Agentes if pinned Ally)
+                  )
                   .map(agent => (
                     <div
                       key={agent.id}
