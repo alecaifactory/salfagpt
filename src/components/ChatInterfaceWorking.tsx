@@ -888,6 +888,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 isAgent: conv.isAgent !== false,
                 agentId: conv.agentId,
                 folderId: conv.folderId,
+                isAlly: conv.isAlly || false,
+                isPinned: conv.isPinned || false,
+                archivedFolder: conv.archivedFolder,
+                archivedAt: conv.archivedAt ? new Date(conv.archivedAt) : undefined,
               });
             });
           });
@@ -915,6 +919,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               createdAt: new Date(conv.createdAt || Date.now()),
               updatedAt: new Date(conv.updatedAt || Date.now()),
               lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
+              status: conv.status || 'active',
+              archivedFolder: conv.archivedFolder,
+              archivedAt: conv.archivedAt ? new Date(conv.archivedAt) : undefined,
             }));
             
             console.log('   Processed shared agents:', sharedAgents.length);
@@ -930,6 +937,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             // ✅ Summary logs
             console.log(`📋 Agentes: ${combinedConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
             console.log(`📋 Chats: ${combinedConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+            console.log(`📦 Archivados: ${combinedConversations.filter(c => c.status === 'archived').length}`);
           } else {
             const errorText = await sharedResponse.text();
             console.warn('   Shared agents API failed:', errorText);
@@ -938,6 +946,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             // ✅ Summary logs
             console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
             console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+            console.log(`📦 Archivados: ${allConversations.filter(c => c.status === 'archived').length}`);
           }
         } catch (sharedError) {
           console.error('Could not load shared agents:', sharedError);
@@ -946,6 +955,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           // ✅ Summary logs
           console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
           console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
+          console.log(`📦 Archivados: ${allConversations.filter(c => c.status === 'archived').length}`);
         }
         
         if (data.warning) {

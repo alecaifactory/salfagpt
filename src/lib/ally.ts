@@ -558,7 +558,7 @@ export async function sendAllyMessage(
     const conversationData = conversationDoc.data();
     const effectivePrompt = conversationData?.systemPrompt || getDefaultSuperPrompt();
     
-    // 3. Load conversation history
+    // 3. Load conversation history (current conversation)
     const historySnapshot = await firestore
       .collection(COLLECTIONS.MESSAGES)
       .where('conversationId', '==', conversationId)
@@ -571,14 +571,75 @@ export async function sendAllyMessage(
       timestamp: doc.data().timestamp?.toDate() || new Date(),
     })) as Message[];
     
-    // 4. Generate Ally response with Gemini AI
+    // ✅ NEW: Load context from last 3 user conversations for Ally context
+    let recentConversationsContext = '';
+    try {
+      console.log('📚 [ALLY] Loading last 3 conversations for context...');
+      
+      // Get user's last 3 conversations (excluding current and Ally itself)
+      const recentConvsSnapshot = await firestore
+        .collection(COLLECTIONS.CONVERSATIONS)
+        .where('userId', '==', userId)
+        .where('isAlly', '!=', true)
+        .orderBy('lastMessageAt', 'desc')
+        .limit(4) // Get 4 to ensure we have 3 after filtering current
+        .get();
+      
+      const recentConvs = recentConvsSnapshot.docs
+        .filter(doc => doc.id !== conversationId) // Exclude current
+        .slice(0, 3); // Take only 3
+      
+      if (recentConvs.length > 0) {
+        const contextParts: string[] = [];
+        
+        for (const convDoc of recentConvs) {
+          const convData = convDoc.data();
+          const convTitle = convData.title || 'Sin título';
+          
+          // Get last 2 messages from this conversation
+          const convMessagesSnapshot = await firestore
+            .collection(COLLECTIONS.MESSAGES)
+            .where('conversationId', '==', convDoc.id)
+            .orderBy('timestamp', 'desc')
+            .limit(2)
+            .get();
+          
+          const convMessages = convMessagesSnapshot.docs.map(doc => doc.data());
+          
+          if (convMessages.length > 0) {
+            const summaryText = convMessages
+              .reverse() // Chronological order
+              .map(msg => {
+                const content = typeof msg.content === 'string' 
+                  ? msg.content 
+                  : msg.content?.text || '';
+                return `${msg.role === 'user' ? 'Usuario' : 'Asistente'}: ${content.substring(0, 200)}...`;
+              })
+              .join('\n');
+            
+            contextParts.push(`**Conversación: "${convTitle}"**\n${summaryText}`);
+          }
+        }
+        
+        if (contextParts.length > 0) {
+          recentConversationsContext = '\n\n## Contexto de Conversaciones Recientes\n\n' + contextParts.join('\n\n---\n\n');
+          console.log(`✅ [ALLY] Loaded context from ${contextParts.length} recent conversations`);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ [ALLY] Failed to load recent conversations context:', error);
+      // Non-critical - continue without it
+    }
+    
+    // 4. Generate Ally response with Gemini AI (with recent conversations context)
     const { generateAllyResponse } = await import('./ally-ai');
     const aiResult = await generateAllyResponse(
       conversationId,
       userId,
       message,
       effectivePrompt,
-      conversationHistory
+      conversationHistory,
+      recentConversationsContext // ✅ NEW: Pass recent conversations context
     );
     
     console.log('✅ [ALLY] AI response generated:', aiResult.model);
