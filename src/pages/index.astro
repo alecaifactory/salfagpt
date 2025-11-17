@@ -2,6 +2,11 @@
 import { getSession } from '../lib/auth';
 import '../styles/global.css';
 
+// Prevent caching to avoid serving stale HTML with old CSS references
+Astro.response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+Astro.response.headers.set('Pragma', 'no-cache');
+Astro.response.headers.set('Expires', '0');
+
 // Redirect to chat if already logged in
 const session = getSession(Astro);
 if (session) {
