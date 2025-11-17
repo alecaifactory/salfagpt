@@ -780,3 +780,4 @@ function scoreRoadmapCard(card, domain) {
 **Remember:** Company intelligence enables strategic product decisions. The better we understand our customers' businesses, the better we can serve them with relevant features. 🎯🏢
 
 
+

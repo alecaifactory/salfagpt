@@ -430,3 +430,4 @@ https://console.firebase.google.com/project/salfagpt/firestore/indexes
 **ETA:** 5-10 minutos  
 **Próximo paso:** Monitorear construcción de índices
 
+

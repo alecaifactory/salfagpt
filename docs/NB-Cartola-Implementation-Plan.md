@@ -1637,3 +1637,4 @@ import { GoogleGenAI } from '@google/genai';
 **Security**: ✅ TLS 1.2+, AES-256, OAuth 2.0  
 **Compliance**: ✅ Ley 19.628
 
+

@@ -173,3 +173,4 @@ Could add visual separators:
 **Severity:** Low (cosmetic)  
 **Priority:** High (user-facing)
 
+

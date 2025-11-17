@@ -620,3 +620,4 @@ para que el equipo tenga visibilidad sobre esta necesidad...
 
 **¿Listo para commit? →** Testing manual primero para verificar mensaje con admin email
 
+

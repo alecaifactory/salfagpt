@@ -665,3 +665,4 @@ Toda la información está documentada en /docs/*.md
 **Toda la info necesaria:** ✅ Documentada
 
 
+

@@ -334,3 +334,4 @@ onClick={() => loadDomainSources(domainId)}
 **Próximo paso:** Usuario debe refresh y expandir la organización  
 **Performance:** 2.4s para 885 docs (aceptable, optimizable si necesario)
 
+

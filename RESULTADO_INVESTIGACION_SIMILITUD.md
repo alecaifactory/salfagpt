@@ -239,3 +239,4 @@ Mientras investigo el bug en `searchByAgent()`, puedo:
 
 **PRÓXIMO PASO:** Debug profundo de `searchByAgent()` y el endpoint.
 
+

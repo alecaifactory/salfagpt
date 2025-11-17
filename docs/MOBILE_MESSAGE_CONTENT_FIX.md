@@ -218,3 +218,4 @@ Transform data **immediately after loading**, not at render time:
 The transformation ensures compatibility with both legacy (string) and new (object) message formats.
 
 
+

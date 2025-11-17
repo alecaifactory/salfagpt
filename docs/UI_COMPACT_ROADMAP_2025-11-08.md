@@ -264,3 +264,4 @@ grid-cols-2 lg:grid-cols-4 gap-3
 **Impact:** Better UX, more data visible, scrolling works
 
 
+

@@ -571,3 +571,4 @@ GROUP BY diagnostic.likelyReason
 **Revisado por:** Pendiente  
 **Deployed:** Pendiente (tras migración de userId)
 
+

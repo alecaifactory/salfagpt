@@ -257,3 +257,4 @@ All new fields are **optional** (`field?: type`):
 **Version:** 1.0.0  
 **Questions:** Check main documentation or ask SuperAdmin
 
+

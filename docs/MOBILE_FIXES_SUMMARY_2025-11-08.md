@@ -263,3 +263,4 @@ typeof x === 'string' ? x : x?.text || fallback
 The mobile experience now matches desktop quality with proper filtering and data transformation.
 
 
+

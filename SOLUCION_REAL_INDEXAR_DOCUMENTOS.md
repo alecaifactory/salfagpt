@@ -372,3 +372,4 @@ Hacer la misma pregunta y ver similitud REAL.
 ---
 
 **¿Quieres que cree el script de indexación completo ahora?** Sin indexación, el sistema NUNCA podrá mostrar similitud real - siempre será fallback 50%.
+

@@ -336,3 +336,4 @@ c.archivedFolder === 'agents' || c.isAgent
 **Resolved:** November 17, 2025  
 **Time to Fix:** ~20 minutes
 
+
