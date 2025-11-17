@@ -309,9 +309,5 @@ export async function searchTimSessions(
 // EXPORTS
 // ============================================================================
 
-export {
-  createSessionEmbeddings,
-  searchTimSessions,
-  generateEmbedding
-};
+// Functions already exported above
 

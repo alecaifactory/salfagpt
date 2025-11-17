@@ -632,11 +632,6 @@ export async function getUserTestSessions(userId: string): Promise<TimTestSessio
 // UTILITY EXPORTS
 // ============================================================================
 
-export {
-  COMPLIANCE_THRESHOLD,
-  anonymizeEmail,
-  anonymizeName,
-  redactPII,
-  calculateComplianceScore
-};
+// Functions already exported above
+export { COMPLIANCE_THRESHOLD };
 
