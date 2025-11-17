@@ -557,3 +557,4 @@ Nuevo chat (+ Nuevo Chat botón morado)
 
 **Implementación completa. Ready para testing visual.**
 
+

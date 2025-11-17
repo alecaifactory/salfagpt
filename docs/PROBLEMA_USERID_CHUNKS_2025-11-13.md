@@ -318,3 +318,4 @@ npx tsx scripts/test-real-similarity.ts
 **CONCLUSIÓN:** El problema NO es el código del threshold 70%. El problema es que los chunks están indexados con el user ID viejo y el sistema busca con el nuevo. Una vez migrados, las similitudes REALES aparecerán.
 
 
+

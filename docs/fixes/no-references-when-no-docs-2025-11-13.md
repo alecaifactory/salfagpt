@@ -205,3 +205,4 @@ No encontramos el documento que buscabas...
 
 **Resumen:** Ahora cuando no hay documentos relevantes, el sistema NO muestra badges de referencias y el AI guía al usuario a usar el botón "Calificar" para reportar la falta de documentación. ✅
 
+

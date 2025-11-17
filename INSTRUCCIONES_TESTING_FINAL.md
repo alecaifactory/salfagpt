@@ -308,3 +308,4 @@ Query general debería mostrar warning
 
 Si aún ves 50% o 0 refs, hay un bug en `searchByAgent()` que necesito investigar más.
 
+

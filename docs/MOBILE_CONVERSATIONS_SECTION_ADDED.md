@@ -389,3 +389,4 @@ npm run build
 The mobile sidebar now shows your active conversations first (most useful), with agents available when you need to start fresh.
 
 
+

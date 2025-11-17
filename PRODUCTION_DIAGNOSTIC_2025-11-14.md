@@ -200,3 +200,4 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 - ✅ Todos los fixes aplicados hoy
 
 **¿Procedo con re-deploy?** 🎯
+

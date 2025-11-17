@@ -268,3 +268,4 @@ console.log(window.innerWidth); // Should be < 768
 Open `http://localhost:3000/chat` and resize browser to < 768px width to see mobile UI.
 
 
+

@@ -864,3 +864,4 @@ interface CartolaExtraction {
 **Estado:** 🚧 En Desarrollo  
 **Próxima Revisión:** 2025-11-17
 
+

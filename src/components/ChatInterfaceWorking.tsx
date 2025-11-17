@@ -49,6 +49,8 @@ import FeedbackSuccessToast from './FeedbackSuccessToast'; // ✅ Success notifi
 import NotificationBell from './NotificationBell'; // ✅ NEW: Changelog notifications
 import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW: Feature onboarding
 import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
+import APIPlaygroundModal from './APIPlaygroundModal'; // ✅ NEW: API testing playground
+import { APIManagementPanel } from './admin/APIManagementPanel'; // ✅ NEW: API management
 import FeedbackNotificationBell from './FeedbackNotificationBell'; // ✅ NEW: Feedback notifications
 import StellaConfigurationPanel from './StellaConfigurationPanel'; // ✅ NEW: Stella SuperAdmin config
 // ✅ FIXED: Expert review panels now use client-safe API wrappers
@@ -550,6 +552,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showDomainManagement, setShowDomainManagement] = useState(false);
   const [showProviderManagement, setShowProviderManagement] = useState(false);
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
+  const [showAllyConfig, setShowAllyConfig] = useState(false); // 🆕 ALLY: Configuration panel
   const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
   const [showOrganizations, setShowOrganizations] = useState(false); // NEW: Organizations settings panel (2025-11-10)
   
@@ -1900,14 +1903,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => [newConv, ...prev]);
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
+        setMessages([]); // Clear messages for new conversation
+        setIsLoadingMessages(false); // ✅ Stop loading state to show chat UI
         
-        // ✅ FIX: Load messages first (will be empty), then add user message
-        // This ensures empty state disappears before we send
-        setIsLoadingMessages(true);
-        await loadMessages(newConvId);
-        setIsLoadingMessages(false);
-        
-        console.log('✅ Conversation ready, empty state hidden');
+        console.log('✅ Ready to send message in new conversation');
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation:', error);
@@ -5539,6 +5538,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <span className="font-medium whitespace-nowrap">RAG</span>
                       </button>
                       
+                      {/* 🆕 ALLY Configuration */}
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          setShowAllyConfig(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Bot className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Ally</span>
+                        <span className="ml-auto px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-[9px] rounded-full font-bold">
+                          NEW
+                        </span>
+                      </button>
+                      
                       {/* Evaluation Options */}
                       {(userEmail.includes('expert') || userEmail.includes('agent_')) && (
                         <>
@@ -8684,6 +8698,35 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         />
       )}
 
+      {/* ✅ NEW: API Playground Modal - Test Vision API */}
+      {showAPIPlayground && (
+        <APIPlaygroundModal
+          isOpen={showAPIPlayground}
+          onClose={() => setShowAPIPlayground(false)}
+          userId={userId}
+        />
+      )}
+      
+      {/* ✅ NEW: API Management Modal - Invitations & Organizations */}
+      {showAPIManagement && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">API Management</h2>
+              <button
+                onClick={() => setShowAPIManagement(false)}
+                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <APIManagementPanel />
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Changelog Modal - In-app changelog */}
       <ChangelogModal
         isOpen={showChangelog}
