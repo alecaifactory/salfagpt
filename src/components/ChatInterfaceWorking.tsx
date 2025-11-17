@@ -6073,19 +6073,49 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   <button
                     key={idx}
                     onClick={async () => {
-                      // Auto-select Ally and set input
-                      if (allyConversationId) {
-                        setCurrentConversation(allyConversationId);
-                        setSelectedAgent(null);
+                      // 🆕 Create NEW Ally conversation (not reuse existing)
+                      try {
+                        console.log('🆕 Creating new Ally conversation from sample question...');
                         
-                        // Load messages first
-                        await loadMessages(allyConversationId);
+                        const response = await fetch('/api/conversations', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            userId,
+                            title: question.substring(0, 50), // First 50 chars as title
+                            isAlly: false,  // This is a conversation WITH Ally, not Ally itself
+                            agentId: allyConversationId, // Link to Ally as parent agent
+                          })
+                        });
                         
-                        // Then set input and focus
-                        setInput(question);
-                        setTimeout(() => {
-                          document.querySelector('textarea')?.focus();
-                        }, 100);
+                        if (response.ok) {
+                          const data = await response.json();
+                          const newConvId = data.conversation.id;
+                          
+                          console.log('✅ New Ally conversation created:', newConvId);
+                          
+                          // Add to conversations list
+                          const newConv = {
+                            id: newConvId,
+                            title: question.substring(0, 50),
+                            isAlly: false,
+                            agentId: allyConversationId,
+                            lastMessageAt: new Date(),
+                            messageCount: 0,
+                          };
+                          
+                          setConversations(prev => [newConv, ...prev]);
+                          setCurrentConversation(newConvId);
+                          setSelectedAgent(allyConversationId);
+                          
+                          // Set input and focus
+                          setInput(question);
+                          setTimeout(() => {
+                            document.querySelector('textarea')?.focus();
+                          }, 100);
+                        }
+                      } catch (error) {
+                        console.error('Failed to create Ally conversation:', error);
                       }
                     }}
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all text-left group"
