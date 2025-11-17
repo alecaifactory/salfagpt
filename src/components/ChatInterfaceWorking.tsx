@@ -1903,10 +1903,25 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => [newConv, ...prev]);
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
-        setMessages([]); // Clear messages for new conversation
-        setIsLoadingMessages(false); // ✅ Stop loading state to show chat UI
         
-        console.log('✅ Ready to send message in new conversation');
+        // ✅ FIX: Add optimistic user message immediately (hides empty state)
+        const optimisticMessage: Message = {
+          id: 'optimistic-user-msg',
+          conversationId: newConvId,
+          userId,
+          role: 'user',
+          content: {
+            type: 'text',
+            text: initialText,
+          },
+          timestamp: new Date(),
+          tokenCount: 0,
+        };
+        
+        setMessages([optimisticMessage]); // Show user message immediately
+        setIsLoadingMessages(false);
+        
+        console.log('✅ Conversation ready, optimistic message shown, empty state hidden');
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation:', error);
