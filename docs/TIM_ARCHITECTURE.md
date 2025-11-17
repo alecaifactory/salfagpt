@@ -948,7 +948,7 @@ Response:
 
 ### **3. User Ledger**
 ```typescript
-GET /api/tim/my-sessions?userId={userId}
+GET /api/what tim/my-sessions?userId={userId}
 
 Response:
 {

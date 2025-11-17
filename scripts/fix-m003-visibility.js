@@ -7,8 +7,8 @@
  * - Generar reporte de ANTES/DURANTE/DESPUÉS de la migración
  */
 
-const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const app = initializeApp({ projectId: 'salfagpt' });
 const firestore = getFirestore(app);
