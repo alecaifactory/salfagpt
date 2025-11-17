@@ -4772,10 +4772,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               <div className="px-2 pb-1 space-y-1">
                 {(() => {
                   // Filter chats based on selectedAgent AND exclude chats that are in folders
-                  // ✅ NEW: When no agent selected, show ALL chats (from all agents)
+                  // ✅ NEW: Include Ally conversations in Historial (but not the main pinned one)
+                  // ✅ Ally chats: isAlly=false but title starts with conversation content
                   const filteredChats = selectedAgent 
                     ? conversations.filter(c => c.agentId === selectedAgent && c.status !== 'archived' && !c.folderId)
-                    : conversations.filter(c => c.isAgent === false && c.status !== 'archived' && !c.folderId); // All chats not in folders
+                    : conversations.filter(c => 
+                        c.isAgent === false &&      // Not an agent template
+                        c.status !== 'archived' &&  // Not archived
+                        !c.folderId &&              // Not in folder
+                        c.id !== allyConversationId // Not the main pinned Ally
+                      );
                   
                   if (filteredChats.length === 0) {
                     return (
@@ -4830,8 +4836,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ) : (
                           <div className="flex flex-col gap-1.5">
-                            {/* Agent Tag - Always show for chats */}
-                            {chat.agentId && (
+                            {/* Tag - Show Ally tag OR Agent tag */}
+                            {chat.isAlly ? (
+                              <div className="flex items-center gap-1">
+                                <span className="px-2 py-0.5 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
+                                  <Bot className="w-2.5 h-2.5" />
+                                  Ally
+                                </span>
+                              </div>
+                            ) : chat.agentId && (
                               <div className="flex items-center gap-1">
                                 <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold flex items-center gap-1">
                                   <MessageSquare className="w-2.5 h-2.5" />
