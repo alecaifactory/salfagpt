@@ -7,7 +7,7 @@
  * Run: npx tsx scripts/fix-archived-userid-mapping.ts [--dry-run]
  */
 
-import { firestore } from '../src/lib/firestore';
+import { firestore } from '../src/lib/firestore.js';
 
 interface UserMapping {
   hashId: string; // usr_xxx (document ID)

@@ -7,7 +7,7 @@
  * Run: npx tsx scripts/migrate-archive-folders.ts [--dry-run] [--user=userId]
  */
 
-import { firestore } from '../src/lib/firestore';
+import { firestore } from '../src/lib/firestore.js';
 
 interface LegacyConversation {
   id: string;
@@ -15,7 +15,6 @@ interface LegacyConversation {
   title: string;
   status?: string;
   isAgent?: boolean;
-  isProject?: boolean;
   isAlly?: boolean;
   folderId?: string;
   archivedFolder?: string;
@@ -30,7 +29,7 @@ function detectArchiveCategory(conv: LegacyConversation): 'ally' | 'agents' | 'p
   if (conv.isAgent) {
     return 'agents';
   }
-  if (conv.folderId || conv.isProject) {
+  if (conv.folderId) {
     return 'projects';
   }
   return 'conversations';

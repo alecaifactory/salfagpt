@@ -580,7 +580,7 @@ function detectArchiveCategory(conversation: Conversation): 'ally' | 'agents' | 
   if (conversation.isAgent) {
     return 'agents';
   }
-  if (conversation.folderId || conversation.isProject) {
+  if (conversation.folderId) {
     return 'projects';
   }
   return 'conversations';
@@ -615,7 +615,7 @@ export async function getArchivedConversations(
   // 🔍 BACKWARD COMPATIBILITY: If no results and userId is hashId, try with googleUserId
   if (conversations.length === 0 && userId.startsWith('usr_')) {
     try {
-      const user = await getUser(userId);
+      const user = await getUserById(userId);
       const googleUserId = user?.googleUserId;
       
       if (googleUserId) {
@@ -1304,6 +1304,7 @@ export async function getUserById(userId: string): Promise<User | null> {
         id: doc.id,
         email: data.email,
         name: data.name,
+        googleUserId: data.googleUserId, // Include for backward compatibility
         role: data.role,
         roles: data.roles || [data.role],
         permissions: data.permissions,
@@ -1337,6 +1338,7 @@ export async function getUserById(userId: string): Promise<User | null> {
           id: foundDoc.id,
           email: data.email,
           name: data.name,
+          googleUserId: data.googleUserId, // Include for backward compatibility
           role: data.role,
           roles: data.roles || [data.role],
           permissions: data.permissions,
