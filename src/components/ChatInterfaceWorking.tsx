@@ -2004,7 +2004,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => [newConv, ...prev]);
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId);
-        setMessages([]);
+        
+        // ✅ FIX: Add optimistic message instead of clearing
+        const optimisticMsg: Message = {
+          id: 'opt-' + Date.now(),
+          conversationId: newConvId,
+          userId,
+          role: 'user',
+          content: { type: 'text', text: messageText },
+          timestamp: new Date(),
+          tokenCount: 0,
+        };
+        setMessages([optimisticMsg]); // Show user message immediately
         
         // ✅ AUTO-SEND: Now send the message
         console.log('📤 Auto-sending message to Ally...');
@@ -5663,7 +5674,72 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     </div>
                   )}
                   
-                  {/* COLUMN 4: Evaluaciones */}
+                  {/* COLUMN 4: APIs - SuperAdmin Only */}
+                  {userEmail === 'alec@getaifactory.com' && (
+                    <div className="space-y-2">
+                      <div className="px-3 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded border border-blue-200 dark:border-blue-700">
+                        <p className="text-xs font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wide flex items-center gap-1.5">
+                          <Code className="w-3 h-3" />
+                          APIs
+                          <span className="ml-auto px-1.5 py-0.5 bg-blue-600 text-white text-[9px] rounded-full font-bold">
+                            NEW
+                          </span>
+                        </p>
+                      </div>
+                      
+                      {/* Test Vision API */}
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors border border-transparent hover:border-blue-300 dark:hover:border-blue-700"
+                        onClick={() => {
+                          console.log('🎯 Opening API Playground...');
+                          setShowAPIPlayground(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <div className="flex-1 text-left">
+                          <div className="font-medium whitespace-nowrap">Test Vision API</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">Upload & Extract JSON</div>
+                        </div>
+                      </button>
+                      
+                      {/* API Management */}
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          console.log('🎯 Opening API Management...');
+                          setShowAPIManagement(true);
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Key className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                        <div className="flex-1 text-left">
+                          <div className="font-medium whitespace-nowrap">API Management</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">Invitations & Keys</div>
+                        </div>
+                      </button>
+                      
+                      {/* Developer Portal */}
+                      <button
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+                        onClick={() => {
+                          window.open('/api/portal', '_blank');
+                          setShowUserMenu(false);
+                        }}
+                      >
+                        <Globe className="w-3.5 h-3.5 text-green-600 dark:text-green-400 flex-shrink-0" />
+                        <div className="flex-1 text-left">
+                          <div className="font-medium whitespace-nowrap flex items-center gap-1">
+                            Developer Portal
+                            <ExternalLink className="w-3 h-3" />
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">Docs & Examples</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* COLUMN 5: Evaluaciones */}
                   {(['admin', 'expert', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
                     <div className="space-y-2">
                       <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
