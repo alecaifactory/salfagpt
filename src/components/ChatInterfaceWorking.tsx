@@ -1862,7 +1862,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         body: JSON.stringify({
           userId,
           title: personalizedTitle,
-          isAlly: false,  // This is a conversation WITH Ally
+          isAgent: false,             // ✅ This is a CHAT, not agent
+          isAlly: true,              // ✅ Tag as Ally conversation
           agentId: allyConversationId, // Link to Ally as parent
         })
       });
@@ -1877,7 +1878,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const newConv: Conversation = {
           id: newConvId,
           title: personalizedTitle,
-          isAlly: false,
+          isAgent: false,             // ✅ Chat, not agent
+          isAlly: true,              // ✅ Ally conversation
           agentId: allyConversationId,
           lastMessageAt: new Date(),
           messageCount: 0,
