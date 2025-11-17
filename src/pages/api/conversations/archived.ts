@@ -43,8 +43,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     const groupedByCategory = {
       ally: archived.filter(c => c.archivedFolder === 'ally' || c.isAlly),
       agents: archived.filter(c => c.archivedFolder === 'agents' || (c.isAgent && !c.isAlly)),
-      projects: archived.filter(c => c.archivedFolder === 'projects' || c.isProject),
-      conversations: archived.filter(c => c.archivedFolder === 'conversations' || (!c.isAlly && !c.isAgent && !c.isProject)),
+      projects: archived.filter(c => c.archivedFolder === 'projects' || c.folderId),
+      conversations: archived.filter(c => c.archivedFolder === 'conversations' || (!c.isAlly && !c.isAgent && !c.folderId)),
     };
     
     console.log(`✅ Archived items by category:`, {

@@ -52,6 +52,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  googleUserId?: string; // Legacy: Google OAuth numeric ID (for backward compatibility)
   
   // Role & Permissions
   role: UserRole;

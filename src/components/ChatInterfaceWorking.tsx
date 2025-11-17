@@ -3924,20 +3924,48 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const archiveConversation = async (conversationId: string) => {
     try {
-      // Update in Firestore
+      // Get conversation to detect category
+      const conversation = conversations.find(c => c.id === conversationId);
+      if (!conversation) {
+        console.error('❌ Conversation not found:', conversationId);
+        return;
+      }
+
+      // Auto-detect archive category
+      let category: 'ally' | 'agents' | 'projects' | 'conversations';
+      if (conversation.isAlly) {
+        category = 'ally';
+      } else if (conversation.isAgent) {
+        category = 'agents';
+      } else if (conversation.folderId) {
+        category = 'projects';
+      } else {
+        category = 'conversations';
+      }
+
+      // Update in Firestore with category
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' })
+        body: JSON.stringify({ 
+          status: 'archived',
+          archivedFolder: category,
+          archivedAt: new Date().toISOString(),
+        })
       });
 
       if (!response.ok) {
         throw new Error('Failed to archive conversation');
       }
 
-      // Update local state
+      // Update local state with category and timestamp
       setConversations(prev => prev.map(c => 
-        c.id === conversationId ? { ...c, status: 'archived' as const } : c
+        c.id === conversationId ? { 
+          ...c, 
+          status: 'archived' as const,
+          archivedFolder: category,
+          archivedAt: new Date(),
+        } : c
       ));
 
       // If we archived the current conversation, clear selection
@@ -3946,7 +3974,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setMessages([]);
       }
 
-      console.log('📦 Agente archivado:', conversationId);
+      console.log(`📦 Archivado → ${category}:`, conversationId);
     } catch (error) {
       console.error('❌ Error al archivar agente:', error);
     }
@@ -3954,20 +3982,29 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const unarchiveConversation = async (conversationId: string) => {
     try {
-      // Update in Firestore
+      // Update in Firestore - clear archive fields
       const response = await fetch(`/api/conversations/${conversationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'active' })
+        body: JSON.stringify({ 
+          status: 'active',
+          archivedFolder: null, // Clear category
+          archivedAt: null, // Clear timestamp
+        })
       });
 
       if (!response.ok) {
         throw new Error('Failed to unarchive conversation');
       }
 
-      // Update local state
+      // Update local state - clear archive fields
       setConversations(prev => prev.map(c => 
-        c.id === conversationId ? { ...c, status: 'active' as const } : c
+        c.id === conversationId ? { 
+          ...c, 
+          status: 'active' as const,
+          archivedFolder: undefined,
+          archivedAt: undefined,
+        } : c
       ));
 
       console.log('📂 Agente restaurado:', conversationId);
@@ -5076,7 +5113,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               )}
 
               {/* Projects Folder */}
-              {conversations.filter(c => c.status === 'archived' && (c.isProject || c.folderId)).length > 0 && (
+              {conversations.filter(c => c.status === 'archived' && c.folderId).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedProjects(!expandedArchivedProjects)}
@@ -5086,7 +5123,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-green-600" />
                       <span className="text-xs font-semibold text-slate-700">Proyectos</span>
                       <span className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && (c.isProject || c.folderId)).length}
+                        {conversations.filter(c => c.status === 'archived' && c.folderId).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedProjects ? 'rotate-180' : ''}`}>
@@ -5097,7 +5134,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {expandedArchivedProjects && (
                     <div className="p-1 space-y-1">
                       {conversations
-                        .filter(c => c.status === 'archived' && (c.isProject || c.folderId))
+                        .filter(c => c.status === 'archived' && c.folderId)
                         .slice(0, 3)
                         .map(conv => (
                           <div
@@ -5130,13 +5167,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ))}
                       
-                      {conversations.filter(c => c.status === 'archived' && (c.isProject || c.folderId)).length > 3 && (
+                      {conversations.filter(c => c.status === 'archived' && c.folderId).length > 3 && (
                         <div className="text-center pt-1">
                           <button
                             onClick={() => setShowArchivedConversations(true)}
                             className="text-[10px] text-green-600 hover:text-green-700"
                           >
-                            +{conversations.filter(c => c.status === 'archived' && (c.isProject || c.folderId)).length - 3} más
+                            +{conversations.filter(c => c.status === 'archived' && c.folderId).length - 3} más
                           </button>
                         </div>
                       )}
@@ -5146,7 +5183,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               )}
 
               {/* Conversaciones Folder */}
-              {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.isProject && !c.folderId).length > 0 && (
+              {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length > 0 && (
                 <div className="border border-slate-200 rounded-md overflow-hidden">
                   <button
                     onClick={() => setExpandedArchivedChats(!expandedArchivedChats)}
@@ -5156,7 +5193,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <Folder className="w-3.5 h-3.5 text-purple-600" />
                       <span className="text-xs font-semibold text-slate-700">Conversaciones</span>
                       <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded-full text-[10px] font-semibold">
-                        {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.isProject && !c.folderId).length}
+                        {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length}
                       </span>
                     </div>
                     <span className={`transform transition-transform text-slate-400 text-xs ${expandedArchivedChats ? 'rotate-180' : ''}`}>
@@ -5167,7 +5204,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   {expandedArchivedChats && (
                     <div className="p-1 space-y-1">
                       {conversations
-                        .filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.isProject && !c.folderId)
+                        .filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId)
                         .slice(0, 3)
                         .map(conv => (
                           <div
@@ -5200,13 +5237,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           </div>
                         ))}
                       
-                      {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.isProject && !c.folderId).length > 3 && (
+                      {conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length > 3 && (
                         <div className="text-center pt-1">
                           <button
                             onClick={() => setShowArchivedConversations(true)}
                             className="text-[10px] text-purple-600 hover:text-purple-700"
                           >
-                            +{conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.isProject && !c.folderId).length - 3} más
+                            +{conversations.filter(c => c.status === 'archived' && !c.isAgent && !c.isAlly && !c.folderId).length - 3} más
                           </button>
                         </div>
                       )}
@@ -6035,14 +6072,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 ].map((question, idx) => (
                   <button
                     key={idx}
-                    onClick={() => {
+                    onClick={async () => {
                       // Auto-select Ally and set input
                       if (allyConversationId) {
                         setCurrentConversation(allyConversationId);
                         setSelectedAgent(null);
-                        loadMessages(allyConversationId);
+                        
+                        // Load messages first
+                        await loadMessages(allyConversationId);
+                        
+                        // Then set input and focus
                         setInput(question);
-                        // Focus input after short delay
                         setTimeout(() => {
                           document.querySelector('textarea')?.focus();
                         }, 100);
