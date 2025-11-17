@@ -353,6 +353,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [currentThinkingSteps, setCurrentThinkingSteps] = useState<ThinkingStep[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false); // ✅ NEW: Prevent sample questions flash
   const [isCreatingConversation, setIsCreatingConversation] = useState(false); // ✅ NEW: Track conversation creation
+  const isSendingFirstMessage = useRef(false); // ✅ NEW: Prevent loadMessages while sending first auto-message
   const isTransitioningRef = useRef(false); // ✅ NEW: Track optimistic→real ID transition without causing re-render
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
@@ -1705,10 +1706,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       return;
     }
 
-    // ✅ FIX: Skip loading if we're in the middle of creating a conversation OR transitioning IDs
+    // ✅ FIX: Skip loading if we're in the middle of creating a conversation OR transitioning IDs OR sending first message
     // This prevents the flash when optimisticId → realId transition happens
-    if (isCreatingConversation || isTransitioningRef.current) {
-      console.log('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes para evitar flash');
+    if (isCreatingConversation || isTransitioningRef.current || isSendingFirstMessage.current) {
+      console.log('⏭️ Creando/transicionando conversación/enviando primer mensaje - omitiendo carga de mensajes para evitar flash');
       return;
     }
     
@@ -2011,30 +2012,26 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // ✅ FIX: Auto-expand Historial section when new conversation created
         setShowChatsSection(true);
         
-        // ✅ FIX: Show user message and start processing (like M001)
-        const optimisticUserMsg: Message = {
-          id: 'opt-user-' + Date.now(),
-          conversationId: newConvId,
-          userId,
-          role: 'user',
-          content: messageText,
-          timestamp: new Date(),
-          tokenCount: 0,
-        };
+        // ✅ FIX: Set flag to prevent loadMessages from clearing our messages
+        isSendingFirstMessage.current = true;
         
-        setMessages([optimisticUserMsg]);
-        
-        // ✅ FIX: Now call sendMessage with the text (it will show thinking steps)
+        // ✅ FIX: Set input first (for user to see in textbox)
         setInput(messageText);
         
-        // Small delay for state to settle
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // ✅ Wait for conversation state to fully settle after all re-renders
+        await new Promise(resolve => setTimeout(resolve, 300));
         
-        // Call sendMessage - this will show all thinking steps and stream the response
-        await sendMessage();
+        console.log('📤 Triggering auto-send after state settled');
+        console.log('📤 Will send to conversation:', newConvId);
+        console.log('📤 Message text:', messageText);
         
-        // Clear input
-        setInput('');
+        // ✅ Now trigger sendMessage with BOTH message and conversation overrides
+        await sendMessage(messageText, newConvId);
+        
+        console.log('✅ Auto-send completed successfully');
+        
+        // ✅ Clear flag after send completes
+        isSendingFirstMessage.current = false;
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation and send:', error);
@@ -2696,27 +2693,42 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || !currentConversation) return;
+  const sendMessage = async (messageOverride?: string, conversationOverride?: string) => {
+    const messageToSend = messageOverride !== undefined ? messageOverride : input;
+    const targetConversation = conversationOverride || currentConversation;
+    
+    console.log('🚀 [sendMessage] Called with:', {
+      messageOverride,
+      conversationOverride,
+      messageToSend: messageToSend.substring(0, 50),
+      targetConversation
+    });
+    
+    if (!messageToSend.trim() || !targetConversation) {
+      console.log('❌ [sendMessage] Aborted - missing message or conversation');
+      return;
+    }
 
     const requestStartTime = Date.now(); // Track request start time
     
     // ✅ NEW: Check if this is the first message
     const isFirstMessage = messages.length === 0;
-    const firstMessageText = input; // Save for title generation
+    const firstMessageText = messageToSend; // Save for title generation
     
     // ✅ FIX: Check if there's already an optimistic user message (from Ally conversation creation)
     const hasOptimisticMessage = messages.length > 0 && messages[messages.length - 1].id?.startsWith('opt-user-');
     
-    const messageToSend = input;
-    setInput('');
+    // Clear input only if not using override
+    if (messageOverride === undefined) {
+      setInput('');
+    }
 
     // ✅ FIX: Only add user message if not already present (avoid duplication)
     if (!hasOptimisticMessage) {
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
-        content: input,
+        content: messageToSend,
         timestamp: new Date()
       };
 
@@ -2733,7 +2745,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
     
     // ✅ NEW: Generate title immediately for first message (non-streaming - PROVEN)
-    if (isFirstMessage && !currentConversation?.startsWith('temp-')) {
+    if (isFirstMessage && !targetConversation?.startsWith('temp-')) {
       console.log('🏷️ First message - generating title...');
       
       // Use proven non-streaming API (streaming returned zero chunks)
@@ -2741,7 +2753,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversationId: currentConversation,
+          conversationId: targetConversation,
           message: firstMessageText,
         }),
       })
@@ -2751,7 +2763,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         // Update sidebar immediately
         setConversations(prev => prev.map(c => 
-          c.id === currentConversation 
+          c.id === targetConversation 
             ? { ...c, title: data.title }
             : c
         ));
@@ -2762,7 +2774,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
     
     // Track processing for this agent
-    const agentId = currentConversation;
+    const agentId = targetConversation;
     // Clear previous fragment mapping for new message
     fragmentMappingRef.current = null;
     
@@ -2862,7 +2874,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       });
       
       // Use streaming endpoint
-      const response = await fetch(`/api/conversations/${currentConversation}/messages-stream`, {
+      const response = await fetch(`/api/conversations/${targetConversation}/messages-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
