@@ -6204,7 +6204,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           className="flex-1 overflow-y-auto p-1.5"
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking messages
         >
-          {messages.length === 0 ? (
+          {messages.length === 0 && !isLoadingMessages && !currentConversation ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 px-6">
               <Bot className="w-16 h-16 mb-4 text-slate-300" />
               <p className="text-lg font-medium text-slate-600 mb-2">Comienza una conversación</p>
