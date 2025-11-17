@@ -30,24 +30,51 @@ const mainCss = cssFiles.find(f => f.includes('tailwind')) || cssFiles[0];
 const cssContent = fs.readFileSync(path.join(clientDir, mainCss));
 console.log('📄 Main CSS:', mainCss);
 
-// Find all manifest files
-const manifestFiles = fs.readdirSync(serverDir).filter(f => f.startsWith('manifest_'));
+// Find all page files in server/pages
+const pagesDir = path.join(serverDir, 'pages');
+const pageFiles = [];
 
-for (const manifestFile of manifestFiles) {
-  const manifestPath = path.join(serverDir, manifestFile);
-  const manifestContent = fs.readFileSync(manifestPath, 'utf8');
-  
-  // Find all CSS references in manifest
-  const cssReferences = manifestContent.match(/href="\/([^"]+\.css)"/g) || [];
-  
-  for (const ref of cssReferences) {
-    const cssFile = ref.match(/href="\/([^"]+\.css)"/)[1];
-    const targetPath = path.join(clientDir, cssFile);
-    
-    if (!fs.existsSync(targetPath)) {
-      console.log('✅ Creating missing CSS:', cssFile);
-      fs.writeFileSync(targetPath, cssContent);
+function walkDir(dir) {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      walkDir(filePath);
+    } else if (file.endsWith('.mjs')) {
+      pageFiles.push(filePath);
     }
+  }
+}
+
+if (fs.existsSync(pagesDir)) {
+  walkDir(pagesDir);
+}
+
+// Scan all page files for CSS references
+const cssReferencesFound = new Set();
+
+for (const pageFile of pageFiles) {
+  const content = fs.readFileSync(pageFile, 'utf8');
+  const matches = content.match(/href=\\"\/([^"\\]+\.css)\\"/g) || [];
+  
+  for (const match of matches) {
+    const cssFile = match.match(/href=\\"\/([^"\\]+\.css)\\"/)[1];
+    cssReferencesFound.add(cssFile);
+  }
+}
+
+console.log('🔍 CSS references found:', Array.from(cssReferencesFound));
+
+// Create missing CSS files
+for (const cssFile of cssReferencesFound) {
+  const targetPath = path.join(clientDir, cssFile);
+  
+  if (!fs.existsSync(targetPath)) {
+    console.log('✅ Creating missing CSS:', cssFile);
+    fs.writeFileSync(targetPath, cssContent);
+  } else {
+    console.log('ℹ️  Already exists:', cssFile);
   }
 }
 

@@ -36,7 +36,9 @@ export default defineConfig({
   },
   integrations: [
     react(),
-    tailwind(),
+    tailwind({
+      applyBaseStyles: true,
+    }),
   ],
   vite: {
     // Make all env vars available to server-side code
