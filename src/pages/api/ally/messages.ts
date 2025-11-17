@@ -166,14 +166,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       });
     }
     
-    // 7. Send message to Ally
-    const result = await sendAllyMessage(conversationId, userId, message, contextInputs);
+    // 7. Send message to Ally (with AI integration)
+    const result = await sendAllyMessage(conversationId, userId, message, session.email);
     
     console.log(`  ✅ Message sent successfully`);
     
     return new Response(JSON.stringify({
-      userMessage: result.userMessage,
-      allyResponse: result.allyResponse,
+      userMessageId: result.userMessageId,
+      allyMessageId: result.allyMessageId,
+      response: result.response,
       success: true,
     }), {
       status: 200,
