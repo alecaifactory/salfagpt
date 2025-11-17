@@ -143,6 +143,12 @@ export interface Conversation {
   isPinned?: boolean;                   // Pin to top of agent list
   
   // ========================================
+  // ARCHIVE FIELDS (2025-11-17) - ALL OPTIONAL
+  // ========================================
+  archivedFolder?: 'ally' | 'agents' | 'projects' | 'conversations'; // Archive category
+  archivedAt?: Date;                    // When archived
+  
+  // ========================================
   // MULTI-ORG FIELDS (2025-11-10) - ALL OPTIONAL
   // ========================================
   organizationId?: string;              // Organization this conversation belongs to
@@ -244,6 +250,8 @@ export interface Folder {
   conversationCount: number;
   parentFolderId?: string; // ✅ NEW: For hierarchical folders (subcarpetas)
   level?: number; // ✅ NEW: Folder depth (0=root, 1=nivel 1, 2=nivel 2) - Max 3 levels
+  isArchiveFolder?: boolean; // ✅ NEW (2025-11-17): True for archive root/subfolders
+  archiveCategory?: 'ally' | 'agents' | 'projects' | 'conversations'; // ✅ NEW: Archive category
 }
 
 export interface UserContext {
@@ -533,19 +541,117 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 }
 
 // Archive conversation (soft delete - keeps data but hides from main view)
-export async function archiveConversation(conversationId: string): Promise<void> {
+// Now with folder-based organization
+export async function archiveConversation(
+  conversationId: string,
+  archiveCategory?: 'ally' | 'agents' | 'projects' | 'conversations'
+): Promise<void> {
+  const conversation = await getConversation(conversationId);
+  if (!conversation) {
+    throw new Error(`Conversation not found: ${conversationId}`);
+  }
+  
+  // Auto-detect category if not provided
+  const category = archiveCategory || detectArchiveCategory(conversation);
+  
   await updateConversation(conversationId, {
     status: 'archived',
+    archivedFolder: category,
+    archivedAt: new Date(),
   });
-  console.log(`📦 Conversation archived: ${conversationId}`);
+  console.log(`📦 Conversation archived: ${conversationId} → ${category}`);
 }
 
 // Unarchive conversation (restore to active)
 export async function unarchiveConversation(conversationId: string): Promise<void> {
   await updateConversation(conversationId, {
     status: 'active',
+    archivedFolder: undefined,
+    archivedAt: undefined,
   });
   console.log(`📂 Conversation unarchived: ${conversationId}`);
+}
+
+// Helper: Detect archive category based on conversation properties
+function detectArchiveCategory(conversation: Conversation): 'ally' | 'agents' | 'projects' | 'conversations' {
+  if (conversation.isAlly) {
+    return 'ally';
+  }
+  if (conversation.isAgent) {
+    return 'agents';
+  }
+  if (conversation.folderId || conversation.isProject) {
+    return 'projects';
+  }
+  return 'conversations';
+}
+
+// Get archived conversations by category
+// Supports both hashId and googleUserId for backward compatibility
+export async function getArchivedConversations(
+  userId: string,
+  category?: 'ally' | 'agents' | 'projects' | 'conversations'
+): Promise<Conversation[]> {
+  // Try with current userId (hashId format: usr_xxx)
+  let query = firestore
+    .collection(COLLECTIONS.CONVERSATIONS)
+    .where('userId', '==', userId)
+    .where('status', '==', 'archived');
+  
+  if (category) {
+    query = query.where('archivedFolder', '==', category);
+  }
+  
+  const snapshot = await query.orderBy('archivedAt', 'desc').get();
+  
+  let conversations = snapshot.docs.map(doc => ({
+    ...doc.data(),
+    createdAt: doc.data().createdAt.toDate(),
+    updatedAt: doc.data().updatedAt.toDate(),
+    lastMessageAt: doc.data().lastMessageAt.toDate(),
+    archivedAt: doc.data().archivedAt?.toDate(),
+  })) as Conversation[];
+  
+  // 🔍 BACKWARD COMPATIBILITY: If no results and userId is hashId, try with googleUserId
+  if (conversations.length === 0 && userId.startsWith('usr_')) {
+    try {
+      const user = await getUser(userId);
+      const googleUserId = user?.googleUserId;
+      
+      if (googleUserId) {
+        console.log(`🔑 Trying googleUserId for archived items: ${userId} → ${googleUserId}`);
+        
+        let legacyQuery = firestore
+          .collection(COLLECTIONS.CONVERSATIONS)
+          .where('userId', '==', googleUserId)
+          .where('status', '==', 'archived');
+        
+        if (category) {
+          legacyQuery = legacyQuery.where('archivedFolder', '==', category);
+        }
+        
+        const legacySnapshot = await legacyQuery.orderBy('archivedAt', 'desc').get();
+        
+        const legacyConversations = legacySnapshot.docs.map(doc => ({
+          ...doc.data(),
+          createdAt: doc.data().createdAt.toDate(),
+          updatedAt: doc.data().updatedAt.toDate(),
+          lastMessageAt: doc.data().lastMessageAt.toDate(),
+          archivedAt: doc.data().archivedAt?.toDate(),
+        })) as Conversation[];
+        
+        if (legacyConversations.length > 0) {
+          console.log(`✅ Found ${legacyConversations.length} archived items with googleUserId`);
+          conversations = legacyConversations;
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not check googleUserId for archived items:', error);
+    }
+  }
+  
+  console.log(`📊 [getArchivedConversations] Category: ${category || 'all'}, Count: ${conversations.length}`);
+  return conversations;
 }
 
 // Message Operations
