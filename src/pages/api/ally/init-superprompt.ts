@@ -8,7 +8,7 @@
  */
 
 import type { APIRoute } from 'astro';
-import { initializeAllySuper Prompt } from '../../../lib/ally-init';
+import { initializeAllySuperPrompt } from '../../../lib/ally-init';
 import { verifyJWT } from '../../../lib/auth';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     console.log('  ✅ SuperAdmin verified:', session.email);
     
     // 3. Initialize SuperPrompt
-    const superPromptId = await initializeAllySuper Prompt(session.email);
+    const superPromptId = await initializeAllySuperPrompt(session.email);
     
     console.log('  ✅ SuperPrompt initialized:', superPromptId);
     

@@ -1,0 +1,731 @@
+# Tim Invocation Guide - How to Use Tim from Any Chat
+
+## 🎯 Purpose
+
+This rule explains how to invoke Tim (Digital Twin Testing Agent) from any conversation to test user issues, reproduce bugs, and generate comprehensive diagnostics.
+
+**Created:** 2025-11-17  
+**Version:** 2.0  
+**Status:** ✅ Production-Ready
+
+---
+
+## 🤖 **What is Tim?**
+
+**Tim (Together Imagine More)** is an automated testing agent that:
+- Creates privacy-safe digital twins of users
+- Reproduces reported issues via browser automation
+- Captures comprehensive diagnostics (screenshots, console, network, interactions)
+- Analyzes with AI (Gemini Pro)
+- Routes insights to appropriate agents and admins
+
+**Think of Tim as:** Your automated QA engineer who can test anything in 45 seconds.
+
+---
+
+## 🚀 **How to Invoke Tim**
+
+### **Method 1: From User Support Chat**
+
+**User says:** "The platform crashes when I click the sample question"
+
+**You (AI) say:**
+```
+"I'll test this with Tim right away. Creating digital twin..."
+
+[Then execute Tim test via MCP browser tools]
+```
+
+**Steps:**
+1. Extract issue details from conversation
+2. Create Tim digital twin
+3. Execute browser automation
+4. Capture diagnostics
+5. Analyze and report back
+
+---
+
+### **Method 2: Explicit Tim Invocation**
+
+**User says:** 
+- "Test this with Tim"
+- "Run Tim on this issue"
+- "Can Tim reproduce this?"
+- "Create a Tim digital twin for user X"
+
+**You (AI) respond:**
+```
+"Starting Tim test now..."
+
+[Execute Tim workflow]
+```
+
+---
+
+### **Method 3: Proactive Testing**
+
+**No user request needed - Tim tests automatically:**
+
+```typescript
+// Daily at 2:00 AM
+import { TimProactiveTester } from './src/lib/tim-proactive';
+
+const tester = new TimProactiveTester();
+await tester.scheduleProactiveTests();
+
+// Tests core features for all users
+// Creates tickets automatically if failures detected
+```
+
+---
+
+## 📋 **Tim Test Execution Protocol**
+
+### **Step-by-Step Process:**
+
+**1. Create Digital Twin**
+```typescript
+const twin = await createDigitalTwin({
+  userId: "user-123",
+  ticketId: "ticket-456",
+  ticketDetails: {
+    userAction: "Clicked Ally sample question",
+    expectedBehavior: "Input populates, no crash",
+    actualBehavior: "Platform crashes",
+    reproductionSteps: [
+      "Load /chat page",
+      "Wait for Ally sample questions to appear",
+      "Click '¿Por dónde empiezo?' button",
+      "Observe crash"
+    ]
+  }
+});
+
+// Returns: { digitalTwinId, complianceScore, sessionId }
+```
+
+**2. Execute Browser Automation**
+```typescript
+// AI assistant uses MCP browser tools:
+await browser_navigate({ url: 'http://localhost:3000/chat' });
+await browser_wait_for({ time: 2 });
+await browser_take_screenshot({ filename: 'step-1-loaded.png' });
+
+// Capture baseline
+const consoleBefore = await browser_console_messages();
+const networkBefore = await browser_network_requests();
+
+// Execute the action that causes crash
+await browser_click({ 
+  element: 'Sample question: ¿Por dónde empiezo?',
+  ref: '[ref]'
+});
+
+// Capture crash state
+await browser_wait_for({ time: 1 });
+const consoleAfter = await browser_console_messages();
+const networkAfter = await browser_network_requests();
+await browser_take_screenshot({ filename: 'step-2-crash.png' });
+
+// Look for errors
+const newErrors = consoleAfter.filter(log =>
+  !consoleBefore.includes(log) && log.level === 'error'
+);
+```
+
+**3. Capture Comprehensive Diagnostics**
+```typescript
+const diagnostics = {
+  screenshots: [...],      // Visual evidence
+  consoleLogs: [...],      // Error messages
+  networkRequests: [...],  // API failures
+  interactions: [...],     // User actions
+  stateTransitions: [...], // UI changes
+  performanceMetrics: {    // System health
+    memory: '...',
+    cpu: '...',
+    fps: '...'
+  }
+};
+```
+
+**4. AI Analysis**
+```typescript
+const analysis = await analyzeTestResults(sessionId, diagnostics, testScenario);
+
+// Returns:
+{
+  rootCause: "Precise technical explanation",
+  reproducible: true/false,
+  severity: "critical" | "high" | "medium" | "low",
+  recommendedFix: "Specific steps to fix",
+  estimatedEffort: "Time estimate"
+}
+```
+
+**5. Route Insights**
+```typescript
+await routeInsights(sessionId, analysis, twin);
+
+// Routes to:
+// - User (always)
+// - Ally (personal agent - always)
+// - Stella (if UX/bug/feature)
+// - Rudy (if high/critical)
+// - Admin (if org-wide)
+// - SuperAdmin (if platform-wide)
+```
+
+---
+
+## 🎯 **When to Use Tim**
+
+### **Use Tim When:**
+
+✅ **User reports a bug**
+- "Feature X is broken"
+- "Getting error when I do Y"
+- "Platform crashes when Z"
+
+✅ **Unclear issue description**
+- "Something's not working"
+- "It's slow"
+- "I can't do X" (but unclear why)
+
+✅ **Need to verify fix**
+- After deploying fix
+- To confirm issue resolved
+- To prevent regression
+
+✅ **Performance investigation**
+- "Why is page slow?"
+- "Memory leak suspected"
+- "API taking too long"
+
+✅ **Proactive quality assurance**
+- Daily core feature testing
+- Pre-deploy validation
+- Continuous monitoring
+
+---
+
+### **Don't Use Tim For:**
+
+❌ **Simple questions**
+- "How do I use feature X?" (just answer)
+- "What does this button do?" (explain)
+
+❌ **Feature requests**
+- "Can you add feature Y?" (route to Stella directly)
+
+❌ **Already clear issues**
+- "API key not set" (obvious fix)
+- "Typo in text" (just fix it)
+
+---
+
+## 📝 **Tim Invocation Templates**
+
+### **Template 1: User Reports Bug**
+
+**User:** "Platform crashes when I click sample question"
+
+**AI Response:**
+```
+"I'll test this immediately with Tim to reproduce and diagnose the issue.
+
+Creating digital twin for user: alec@getaifactory.com
+Compliance score: 99.2% ✅
+
+Testing now..."
+
+[Execute Tim test]
+
+"Test complete! Here's what Tim found:
+
+🔍 Root Cause: [AI diagnosis]
+⚡ Severity: [critical/high/medium/low]
+🔧 Recommended Fix: [specific steps]
+⏱️ Estimated Effort: [time]
+
+Full diagnostics available at: [session URL]
+
+I've routed this to:
+- Your personal agent Ally (for context)
+- Stella (product team - bug fix)
+- Platform team (for immediate action)
+
+Expected fix timeline: [estimate]"
+```
+
+---
+
+### **Template 2: Unclear Issue**
+
+**User:** "Something's wrong with sending messages"
+
+**AI Response:**
+```
+"Let me test the message sending flow with Tim to identify the exact issue.
+
+Testing:
+1. Navigate to your account
+2. Attempt to send message
+3. Capture all diagnostics
+4. Identify what's failing
+
+Starting test..."
+
+[Execute Tim]
+
+"Tim found the issue:
+
+The problem is: [specific diagnosis]
+Not: [what it's NOT]
+
+Evidence:
+- Screenshot showing: [state]
+- Console error: [exact error]
+- Network request: [which API call]
+
+Fix: [action needed]"
+```
+
+---
+
+### **Template 3: Proactive Testing**
+
+**No user request - scheduled:**
+
+**Every day at 2:00 AM:**
+```typescript
+// Tim tests core features for all users
+const tester = new TimProactiveTester();
+await tester.scheduleProactiveTests();
+
+// If failure detected:
+// 1. Creates ticket automatically
+// 2. Notifies platform team
+// 3. Links full diagnostics
+// 4. User never affected (fixed before they notice)
+```
+
+---
+
+## 🔐 **Privacy & Compliance**
+
+### **Tim ALWAYS:**
+
+✅ **Anonymizes user data**
+- Email: alec@getaifactory.com → a***@g***.com
+- Name: Alec Dickinson → A*** D***
+
+✅ **Encrypts sensitive data**
+- System prompts
+- Context source IDs
+- Personal messages
+
+✅ **Checks compliance** (≥98% required)
+- PII detection: 35%
+- Encryption: 30%
+- Access control: 25%
+- Audit trail: 10%
+
+✅ **Provides transparency**
+- User can view all Tim sessions
+- Download complete data
+- See who accessed what
+
+---
+
+## 📊 **What Tim Captures**
+
+### **Complete Diagnostic Suite:**
+
+**Screenshots:**
+- Every interaction (click, type)
+- Every state change (loading → complete)
+- Every error occurrence
+- Interval captures (every 5s when idle)
+
+**Console Logs:**
+- All errors (with stack traces)
+- All warnings
+- Key lifecycle events
+- Real-time streaming
+
+**Network Requests:**
+- All API calls (with timing)
+- Failed requests (status, error)
+- Slow requests (>3s)
+- Payload sizes
+
+**User Interactions:**
+- Every click (element, coordinates)
+- Every keystroke (value redacted if PII)
+- Every scroll (position)
+- Every hover (element, duration)
+
+**State Transitions:**
+- All UI state changes
+- Component lifecycle
+- Loading states
+- Error states
+
+**Performance:**
+- Memory usage (every 2s)
+- CPU utilization
+- Frame rate (FPS)
+- Render time
+
+**Total: 16+ diagnostic data sources**
+
+---
+
+## 🎯 **Example: Testing Current Crash Issue**
+
+### **What Tim Would Do:**
+
+```
+1. Create Digital Twin
+   ├─ User: alec@getaifactory.com → a***@g***.com
+   ├─ Compliance: 99.2% ✅
+   └─ Session: tim-crash-test-20251117
+
+2. Navigate to Platform
+   ├─ URL: http://localhost:3000/chat
+   ├─ Screenshot: Initial load
+   └─ Console: Baseline capture
+
+3. Wait for Sample Questions
+   ├─ Verify Ally questions visible
+   ├─ Screenshot: Questions displayed
+   └─ Console: No errors yet
+
+4. Click Sample Question
+   ├─ Element: "¿Por dónde empiezo?"
+   ├─ Screenshot: BEFORE click
+   ├─ Click executed
+   ├─ Screenshot: AFTER click (or crash state)
+   └─ Console: Capture errors
+
+5. Analyze Crash
+   ├─ Compare console before/after
+   ├─ Identify error: [exact message]
+   ├─ Stack trace: [component that crashed]
+   ├─ Network: [any failed requests]
+   └─ AI diagnosis: [root cause]
+
+6. Report Findings
+   ├─ Root cause: [technical explanation]
+   ├─ Severity: critical (crashes platform)
+   ├─ Fix: [specific code change needed]
+   ├─ Effort: [time estimate]
+   └─ Evidence: [links to screenshots, logs]
+```
+
+---
+
+## 💬 **How to Invoke Tim in This Chat**
+
+### **You Can Say:**
+
+**Reproduce an issue:**
+- "Test this crash with Tim"
+- "Run Tim on this bug"
+- "Create Tim digital twin for this issue"
+
+**Search previous tests:**
+- "Search Tim sessions for authentication errors"
+- "Find Tim tests where users couldn't upload"
+- "Show me all Tim sessions for user X"
+
+**View analytics:**
+- "Show Tim analytics"
+- "What has Tim found this week?"
+- "Tim proactive test results"
+
+**Configure testing:**
+- "Set up Tim proactive testing"
+- "Schedule Tim daily tests"
+- "Add feature X to Tim testing"
+
+---
+
+## 🔧 **For Developers**
+
+### **Programmatic Invocation:**
+
+```typescript
+// In your code
+import { createDigitalTwin } from '../lib/tim';
+
+async function testUserIssue(userId: string, issue: string) {
+  const twin = await createDigitalTwin({
+    userId,
+    ticketId: `manual-${Date.now()}`,
+    ticketDetails: {
+      userAction: issue,
+      expectedBehavior: "Should work correctly",
+      actualBehavior: "User experiencing issue",
+      reproductionSteps: [] // Tim will infer or AI will generate
+    }
+  });
+  
+  return twin.sessionId;
+}
+```
+
+### **From API:**
+
+```bash
+# Create Tim test
+curl -X POST http://localhost:3000/api/tim/create \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "usr_uhwqffaqag1wrryd82tw",
+    "ticketId": "ticket-crash-20251117",
+    "ticketDetails": {
+      "userAction": "Clicked Ally sample question",
+      "expectedBehavior": "Input populates, no crash",
+      "actualBehavior": "Platform crashes",
+      "reproductionSteps": [
+        "Load /chat",
+        "Wait for questions",
+        "Click sample question",
+        "Observe crash"
+      ]
+    }
+  }'
+
+# Get results
+curl http://localhost:3000/api/tim/sessions/{sessionId}
+```
+
+---
+
+## 🎓 **Best Practices**
+
+### **When User Reports Issue:**
+
+**DO:**
+1. ✅ Extract clear reproduction steps
+2. ✅ Identify expected vs actual behavior
+3. ✅ Create Tim digital twin
+4. ✅ Let Tim execute and diagnose
+5. ✅ Report findings to user
+6. ✅ Route to appropriate teams
+
+**DON'T:**
+1. ❌ Guess at the problem without testing
+2. ❌ Ask user for screenshots (Tim captures automatically)
+3. ❌ Manually debug for hours (Tim does it in 45s)
+4. ❌ Skip Tim if issue is unclear (Tim clarifies)
+
+---
+
+### **Response Time:**
+
+**Simple Issues:** Answer directly (30 seconds)  
+**Complex/Unclear:** Use Tim (45 seconds test + diagnosis)  
+**Critical Bugs:** Use Tim + notify admins immediately  
+
+**Total time with Tim: Usually faster than manual**
+
+---
+
+## 📊 **Tim Session Data Structure**
+
+### **What Gets Captured:**
+
+```json
+{
+  "sessionId": "tim-session-123",
+  "userId": "a***@g***.com",
+  "ticketId": "ticket-456",
+  
+  "capturedData": {
+    "screenshots": [
+      {
+        "filename": "step-1-loaded.png",
+        "trigger": "initial_load",
+        "uiState": "Chat page with Ally questions visible"
+      },
+      {
+        "filename": "step-2-crash.png",
+        "trigger": "interaction",
+        "uiState": "After clicking sample question - crash state"
+      }
+    ],
+    
+    "consoleLogs": [
+      {
+        "level": "error",
+        "message": "Uncaught TypeError: Cannot read property 'x' of undefined",
+        "stack": "at Component.tsx:123...",
+        "timestamp": "2025-11-17T03:45:30Z"
+      }
+    ],
+    
+    "networkRequests": [
+      {
+        "method": "POST",
+        "url": "/api/conversations/{id}/messages",
+        "status": 500,
+        "error": "Internal server error",
+        "duration": 2300
+      }
+    ],
+    
+    "interactions": [
+      {
+        "type": "click",
+        "element": "Sample question button",
+        "timestamp": "2025-11-17T03:45:29Z"
+      }
+    ]
+  },
+  
+  "aiAnalysis": {
+    "rootCause": "Null reference error when clicking sample question...",
+    "severity": "critical",
+    "recommendedFix": "Add null check before accessing property",
+    "estimatedEffort": "1 hour"
+  }
+}
+```
+
+---
+
+## 🔍 **Admin Access to Tim Data**
+
+### **Admin Queries:**
+
+**Search semantically:**
+```bash
+GET /api/admin/tim/sessions?q=crash+sample+question
+```
+
+**View specific user:**
+```bash
+GET /api/admin/tim/sessions?userId=usr_uhwqffaqag1wrryd82tw
+```
+
+**View analytics:**
+```bash
+GET /api/admin/tim/analytics
+```
+
+**Access is logged:**
+```json
+{
+  "adminAccess": {
+    "viewedBy": ["admin-123"],
+    "accessLog": [
+      {
+        "adminId": "admin-123",
+        "action": "viewed",
+        "timestamp": "2025-11-17T10:00:00Z",
+        "purpose": "Debugging crash issue"
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 🎯 **Quick Reference**
+
+### **AI Assistant Commands:**
+
+```
+"Test with Tim"          → Start Tim test
+"Run Tim test"           → Same as above
+"Create Tim twin"        → Create digital twin
+"Tim diagnosis"          → Analyze with Tim
+"Search Tim sessions"    → Semantic search (admin)
+"Tim analytics"          → View dashboard data
+"Schedule Tim tests"     → Set up proactive testing
+```
+
+### **Tim Response Time:**
+
+```
+Digital twin creation:    ~2 seconds
+Browser automation:       ~15-30 seconds
+AI analysis:              ~5-10 seconds
+Insight routing:          ~2 seconds
+TOTAL:                    ~25-45 seconds
+```
+
+### **Tim Data Access:**
+
+```
+Users:       Own sessions only
+Admins:      Organization sessions
+SuperAdmins: All sessions
+Privacy:     ≥98% compliance always
+```
+
+---
+
+## 🚨 **Emergency Test Protocol**
+
+### **When User Reports Critical Issue:**
+
+**1. Immediate Tim Invocation**
+```
+User: "Platform crashes!"
+AI: "Testing with Tim NOW..."
+```
+
+**2. Fast Track**
+```
+- Skip detailed questions
+- Create twin immediately
+- Execute test
+- Capture crash state
+- Get diagnosis
+- Report back
+```
+
+**3. Notify Admins**
+```
+If severity: critical
+→ Route to SuperAdmin immediately
+→ Create P0 ticket
+→ Page oncall if needed
+```
+
+---
+
+## 📚 **Related Documentation**
+
+- `docs/TIM_ARCHITECTURE.md` - Technical design
+- `docs/TIM_USAGE_GUIDE.md` - How to use
+- `docs/TIM_V2_COMPLETE.md` - Enhanced features
+- `.cursor/rules/tim-digital-twin.mdc` - Core Tim rule
+
+---
+
+## ✅ **Summary**
+
+**Tim Invocation is Simple:**
+1. User describes issue
+2. Say: "Testing with Tim..."
+3. Create digital twin
+4. Execute browser automation (via MCP tools)
+5. Analyze and report
+
+**Tim Response: 25-45 seconds**  
+**Manual debugging: 2-8 hours**  
+**Savings: 95-99%**
+
+**Always invoke Tim for unclear/complex issues - it's faster and more accurate than guessing!** 🤖✨
+
+---
+
+**Last Updated:** 2025-11-17  
+**Version:** 2.0  
+**Status:** ✅ Active

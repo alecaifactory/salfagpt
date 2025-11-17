@@ -1904,6 +1904,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
         
+        // ✅ FIX: Auto-expand Historial section when new conversation created
+        setShowChatsSection(true);
+        
         // ✅ FIX: Add optimistic user message immediately (hides empty state)
         const optimisticMessage: Message = {
           id: 'optimistic-user-msg',
@@ -2005,13 +2008,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId);
         
+        // ✅ FIX: Auto-expand Historial section when new conversation created
+        setShowChatsSection(true);
+        
         // ✅ FIX: Add optimistic message instead of clearing
         const optimisticMsg: Message = {
           id: 'opt-' + Date.now(),
           conversationId: newConvId,
           userId,
           role: 'user',
-          content: { type: 'text', text: messageText },
+          content: messageText, // ✅ FIX: Use string directly, not object
           timestamp: new Date(),
           tokenCount: 0,
         };
@@ -2585,6 +2591,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // Update references to use real ID
         setCurrentConversation(newConvId);
         setSelectedAgent(newConvId);
+        
+        // ✅ FIX: Auto-expand Historial section when new conversation created
+        setShowChatsSection(true);
 
         setCurrentAgentConfig({
           preferredModel: initialModel,
@@ -2643,7 +2652,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const createNewConversation = createNewAgent;
 
   // ===== SAMPLE QUESTIONS CAROUSEL HANDLERS =====
-  const handleSampleQuestionClick = (question: string) => {
+  const handleSampleQuestionClick = async (question: string) => {
+    // ✅ FIX: Validate session before allowing interaction
+    try {
+      const sessionCheck = await fetch('/api/auth/validate-session');
+      if (!sessionCheck.ok) {
+        // Session expired - show friendly message and redirect
+        alert('Tu sesión ha expirado. Serás redirigido al inicio de sesión.');
+        window.location.href = '/auth/login?redirect=/chat';
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Session validation failed:', error);
+      // Proceed anyway - let the actual API call fail with proper error handling
+    }
+    
     setInput(question);
     // Optionally auto-send the question
     // sendMessage();
@@ -2850,6 +2873,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       });
 
       if (!response.ok) {
+        // ✅ FIX: Handle 401 Unauthorized gracefully
+        if (response.status === 401) {
+          alert('Tu sesión ha expirado. Serás redirigido al inicio de sesión.');
+          window.location.href = '/auth/login?redirect=/chat';
+          return;
+        }
         throw new Error('Failed to send message');
       }
 
@@ -8847,7 +8876,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 onClick={() => setShowAPIManagement(false)}
                 className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
               >
-                <X className="w-5 h-5 text-slate-500" />
+                <XIcon className="w-5 h-5 text-slate-500" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto">
