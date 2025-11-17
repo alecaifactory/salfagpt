@@ -247,6 +247,84 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         userRole: ticketData.reportedByRole,
         domain: ticketData.userDomain,
       });
+      
+      // ✅ NEW: Create notification for all admins/superadmins
+      try {
+        const adminsSnapshot = await firestore
+          .collection('users')
+          .where('role', 'in', ['admin', 'superadmin'])
+          .get();
+        
+        const notificationPromises = adminsSnapshot.docs.map(adminDoc => {
+          return firestore.collection('feedback_notifications').add({
+            adminId: adminDoc.id, // ✅ Admin's hashId (usr_...)
+            ticketId: firestoreTicketId,
+            ticketNumber: ticketId,
+            category: feedbackCategory,
+            feedbackType: feedbackType,
+            submittedBy: userId, // ✅ User's hashId (usr_...)
+            submittedByEmail: userEmail,
+            submittedByName: userName,
+            submittedByRole: userRole,
+            title: ticketData.title,
+            isRead: false,
+            createdAt: new Date(),
+            source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
+          });
+        });
+        
+        await Promise.all(notificationPromises);
+        console.log('🔔 Notifications sent to', adminsSnapshot.size, 'admins');
+      } catch (notifError) {
+        console.warn('⚠️ Failed to create notifications (non-critical):', notifError);
+      }
+      
+      // ✅ NEW: Create backlog item for roadmap integration (ALL users)
+      try {
+        const backlogItem: any = {
+          title: ticketData.title,
+          description: ticketData.description,
+          type: feedbackCategory === 'bug' ? 'bug' : 
+                feedbackCategory === 'feature' ? 'feature' : 'improvement',
+          priority: ticketData.priority,
+          status: 'backlog',
+          lane: 'backlog', // Always starts in backlog
+          category: feedbackCategory,
+          source: 'chat-feedback',
+          feedbackTicketId: ticketId,
+          feedbackId: feedbackId,
+          messageId: messageId,
+          conversationId: conversationId,
+          
+          // User attribution with hashId
+          createdBy: userId, // ✅ Hash ID (usr_...)
+          createdByEmail: userEmail,
+          createdByName: userName,
+          createdByRole: userRole,
+          userDomain: userDomain,
+          
+          // Agent context
+          agentId: conversationId,
+          agentName: conversationTitle,
+          
+          // Metadata
+          metadata: {
+            feedbackType: feedbackType,
+            hasScreenshots: (screenshots && screenshots.length > 0) || false,
+            submittedViaChat: true,
+          },
+          
+          // Timestamps
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
+        };
+        
+        const backlogRef = await firestore.collection('backlog_items').add(backlogItem);
+        console.log('📋 Backlog item created:', backlogRef.id, '| Ticket:', ticketId);
+      } catch (backlogError) {
+        console.warn('⚠️ Failed to create backlog item (non-critical):', backlogError);
+      }
     } catch (error) {
       console.error('❌ Ticket creation failed (non-critical):', error);
       console.error('Failed with data:', {
