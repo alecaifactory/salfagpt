@@ -1899,6 +1899,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setCurrentConversation(newConvId);
         setSelectedAgent(allyConversationId); // Keep Ally selected in sidebar
         setMessages([]); // Clear messages for new conversation
+        setIsLoadingMessages(false); // ✅ Stop loading state to show chat UI
         
         console.log('✅ Ready to send message in new conversation');
       }
@@ -1928,7 +1929,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         body: JSON.stringify({
           userId,
           title: personalizedTitle,
-          isAlly: false,
+          isAgent: false,             // ✅ Chat, not agent
+          isAlly: true,              // ✅ Ally conversation
           agentId: allyConversationId,
         })
       });
@@ -1943,7 +1945,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const newConv: Conversation = {
           id: newConvId,
           title: personalizedTitle,
-          isAlly: false,
+          isAgent: false,             // ✅ Chat, not agent
+          isAlly: true,              // ✅ Ally conversation
           agentId: allyConversationId,
           lastMessageAt: new Date(),
           messageCount: 0,
