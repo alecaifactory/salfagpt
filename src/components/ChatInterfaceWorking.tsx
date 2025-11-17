@@ -61,6 +61,7 @@ import DomainQualityDashboard from './expert-review/DomainQualityDashboard';
 import AdminApprovalPanel from './expert-review/AdminApprovalPanel';
 import DomainConfigPanel from './expert-review/DomainConfigPanel';
 import SuperAdminDomainAssignment from './expert-review/SuperAdminDomainAssignment';
+import AllyConfigModal from './AllyConfigModal'; // ✅ NEW: Ally configuration
 import { combineDomainAndAgentPrompts } from '../lib/prompt-utils'; // ✅ FIXED: Client-safe utility
 import type { Workflow, SourceType, WorkflowConfig, ContextSource } from '../types/context';
 import { DEFAULT_WORKFLOWS } from '../types/context';
@@ -8986,6 +8987,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         onCreateFolder={(name) => createNewFolder(name, createFolderParentId)}
         parentFolderName={createFolderParentId ? folders.find(f => f.id === createFolderParentId)?.name : undefined}
         folderLevel={createFolderLevel}
+      />
+      
+      {/* ✅ NEW: Ally Configuration Modal */}
+      <AllyConfigModal
+        isOpen={showAllyConfig}
+        onClose={() => setShowAllyConfig(false)}
+        userId={userId}
+        userEmail={userEmail}
+        userRole={userRole}
       />
     </div>
   );
