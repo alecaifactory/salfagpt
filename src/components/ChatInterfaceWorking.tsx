@@ -1922,6 +1922,35 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setIsLoadingMessages(false);
         
         console.log('✅ Conversation ready, optimistic message shown, empty state hidden');
+        
+        // ✅ AUTO-SEND: Actually send the message now
+        console.log('📤 Auto-sending message:', initialText);
+        
+        // Wait a bit for state to settle, then send
+        setTimeout(async () => {
+          try {
+            const response = await fetch(`/api/conversations/${newConvId}/messages`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                message: initialText,
+                model: 'gemini-2.0-flash-exp',
+                systemPrompt: '', // Will use conversation's systemPrompt
+              }),
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log('✅ Message sent, reloading conversation');
+              
+              // Reload messages to get both user message and Ally response
+              await loadMessages(newConvId);
+            }
+          } catch (error) {
+            console.error('❌ Failed to auto-send message:', error);
+          }
+        }, 300); // 300ms delay to let conversation creation settle
       }
     } catch (error) {
       console.error('❌ Failed to create Ally conversation:', error);
@@ -5463,8 +5492,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </div>
                 
                 {/* Grid Layout with Columns */}
-                <div className="grid grid-cols-7 gap-6 p-6"
-                  style={{ gridTemplateColumns: 'repeat(7, minmax(140px, 1fr))' }}
+                <div className="grid gap-6 p-6"
+                  style={{ 
+                    gridTemplateColumns: userEmail === 'alec@getaifactory.com' 
+                      ? 'repeat(8, minmax(140px, 1fr))' // SuperAdmin: 8 columns (includes APIs)
+                      : 'repeat(7, minmax(140px, 1fr))' // Regular users: 7 columns
+                  }}
                 >
                   
                   {/* COLUMN 1: Gestión de Dominios */}
