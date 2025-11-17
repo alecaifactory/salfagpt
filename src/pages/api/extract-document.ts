@@ -42,6 +42,11 @@ export const POST: APIRoute = async ({ request }) => {
     const file = formData.get('file') as File;
     const model = formData.get('model') as string || 'gemini-2.5-flash';
     let extractionMethod = formData.get('extractionMethod') as string || 'vision-api'; // ✅ DEFAULT TO VISION API (using let to allow fallback)
+    
+    // ✅ NEW: Extract organization and domain context for multi-org support
+    const organizationId = formData.get('organizationId') as string || undefined;
+    const domainId = formData.get('domainId') as string || undefined;
+    const userId = formData.get('userId') as string || 'unknown';
 
     if (!file) {
       return new Response(
@@ -49,6 +54,12 @@ export const POST: APIRoute = async ({ request }) => {
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
+    
+    console.log(`📍 Upload context:`, {
+      organizationId: organizationId || 'none',
+      domainId: domainId || 'none',
+      userId,
+    });
 
     // Validate file type
     const validTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
@@ -140,7 +151,9 @@ export const POST: APIRoute = async ({ request }) => {
       {
         model,
         fileSize: file.size,
-        uploadedBy: formData.get('userId') || 'unknown',
+        uploadedBy: userId,
+        organizationId, // ✅ Pass organization context
+        domainId, // ✅ Pass domain context
       }
     );
     
@@ -259,8 +272,86 @@ export const POST: APIRoute = async ({ request }) => {
     }
     
     if (extractionMethod === 'gemini' || extractedText.trim().length < 100) {
+      // ✅ OPTION B: Try Gemini File API for large/corrupt PDFs (with feature flag)
+      const { shouldUseFileAPI, extractWithFileAPI } = await import('../../lib/gemini-file-upload.js');
+      
+      if (shouldUseFileAPI(fileSizeMB)) {
+        console.log('📤 [File API] Enabled for large/corrupt PDF (>10MB)');
+        console.log('   Using Gemini File Upload API instead of Vision/Chunked');
+        
+        pipelineLogs.push({
+          step: 'extract',
+          status: 'in_progress',
+          startTime: new Date(extractStepStart),
+          message: `Extrayendo con Gemini File API (${fileSizeMB.toFixed(1)} MB)...`,
+        });
+        
+        addLog('file-api', 'info', `Subiendo archivo (${fileSizeMB.toFixed(1)} MB) a Gemini...`);
+        
+        try {
+          const fileApiResult = await extractWithFileAPI(buffer, {
+            fileName: file.name,
+            model: model,
+            maxOutputTokens: 50000,
+          });
+          
+          extractedText = fileApiResult.text;
+          extractionTime = fileApiResult.extractionTime;
+          extractStepEnd = Date.now();
+          
+          inputTokens = fileApiResult.metadata.inputTokens;
+          outputTokens = fileApiResult.metadata.outputTokens;
+          totalTokens = fileApiResult.metadata.totalTokens;
+          
+          costBreakdown = {
+            inputCost: fileApiResult.metadata.cost * (inputTokens / totalTokens),
+            outputCost: fileApiResult.metadata.cost * (outputTokens / totalTokens),
+            totalCost: fileApiResult.metadata.cost,
+          };
+          
+          extractionMetadata = {
+            method: 'file-api',
+            fileUri: fileApiResult.metadata.fileUri,
+            model: model,
+            inputTokens,
+            outputTokens,
+            totalTokens,
+            cost: fileApiResult.metadata.cost,
+          };
+          
+          addLog('file-api', 'success', `Texto extraído: ${extractedText.length.toLocaleString()} caracteres`, {
+            time: `${(extractionTime / 1000).toFixed(1)}s`,
+            tokens: totalTokens.toLocaleString(),
+            cost: `$${fileApiResult.metadata.cost.toFixed(4)}`,
+          });
+          
+          console.log(`✅ [File API] Extraction complete!`);
+          console.log(`   Characters: ${extractedText.length.toLocaleString()}`);
+          console.log(`   Time: ${(extractionTime / 1000).toFixed(1)}s`);
+          console.log(`   Tokens: ${totalTokens.toLocaleString()}`);
+          console.log(`   Cost: $${fileApiResult.metadata.cost.toFixed(4)}`);
+          
+        } catch (fileApiError) {
+          // File API failed - fallback to chunked extraction
+          const errorMsg = fileApiError instanceof Error ? fileApiError.message : 'Unknown error';
+          console.warn('⚠️ [File API] Failed:', errorMsg);
+          console.warn('   ✅ Auto-falling back to chunked extraction...\n');
+          
+          addLog('file-api', 'warning', 'File API falló, usando chunked extraction', {
+            error: errorMsg,
+          });
+          
+          // Fall through to chunked extraction below
+          // extractionMethod stays as 'gemini'
+        }
+      }
+      
       // ✅ NEW: Check if file needs PDF section extraction (>20MB)
-      if (shouldUseChunkedExtraction(buffer.length)) {
+      // ⚠️ DISABLED for now - many PDFs have corrupt structure that pdf-lib can't parse
+      // These PDFs work fine with Gemini's direct multimodal API
+      const usePdfSectionExtraction = false; // TODO: Re-enable when we have better PDF repair
+      
+      if (usePdfSectionExtraction && shouldUseChunkedExtraction(buffer.length)) {
         console.log('📄 File >20MB - Using PDF SECTION extraction...');
         console.log(`   PDF will be split into ~15MB sections (by page ranges)`);
         console.log(`   Each section processed separately with ${model}`);
@@ -281,9 +372,11 @@ export const POST: APIRoute = async ({ request }) => {
           const chunkedResult = await extractTextChunked(buffer, {
             model: model,
             sectionSizeMB: 12, // ✅ OPTIMIZED: 12MB PDF sections (faster processing)
-            userId: formData.get('userId') as string, // ✅ NEW: For checkpointing
-            fileName: file.name, // ✅ NEW: For checkpointing
-            resumeFromCheckpoint: true, // ✅ NEW: Auto-resume if checkpoint exists
+            userId: userId, // ✅ For checkpointing
+            fileName: file.name, // ✅ For checkpointing
+            organizationId, // ✅ NEW: Pass organization context
+            domainId, // ✅ NEW: Pass domain context
+            resumeFromCheckpoint: true, // ✅ Auto-resume if checkpoint exists
             onProgress: (progress) => {
               // Log to terminal
               console.log(`  📄 PDF Section ${progress.section}/${progress.total}: ${progress.message} (${progress.percentage}%)`);
@@ -357,25 +450,55 @@ export const POST: APIRoute = async ({ request }) => {
     const client = getGeminiClient();
     const startTime = Date.now();
 
-    // ✅ UPDATED: Calculate dynamic maxOutputTokens for very large files (2025-11-02)
+    // ✅ CRITICAL FIX: For files >10MB, reject Flash and require Pro
+    // Gemini Flash inline API has ~10MB practical limit for PDFs
+    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+    const fileSizeNum = parseFloat(fileSizeMB);
+    
+    if (fileSizeNum > 10 && model === 'gemini-2.5-flash') {
+      console.warn(`🚫 File too large for Flash: ${fileSizeMB} MB (limit: 10MB)`);
+      console.warn(`   Gemini Flash inline API struggles with files >10MB`);
+      
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Archivo demasiado grande para modelo Flash',
+          details: `Este archivo de ${fileSizeMB} MB excede el límite de 10MB para gemini-2.5-flash`,
+          suggestions: [
+            '✅ Re-extrae con modelo Pro (recomendado para archivos >10MB)',
+            'Pro tiene 2M context window vs 1M de Flash',
+            'Pro maneja mejor PDFs grandes y complejos',
+          ],
+          metadata: {
+            fileName: file.name,
+            fileSize: file.size,
+            fileSizeMB: fileSizeMB,
+            attemptedModel: model,
+            requiredModel: 'gemini-2.5-pro',
+            flashLimit: '10MB',
+            proLimit: '50MB',
+          },
+          pipelineLogs,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ✅ UPDATED: Calculate dynamic maxOutputTokens for very large files
     const calculateMaxOutputTokens = (fileSizeBytes: number, modelName: string): number => {
       const fileSizeMB = fileSizeBytes / (1024 * 1024);
       
       if (modelName === 'gemini-2.5-pro') {
         // Pro has 2M context, can handle larger outputs
-        if (fileSizeMB > 100) return 65536; // ✅ NEW: Huge files (100-500MB) - max tokens
-        if (fileSizeMB > 50) return 65536; // Very large files (50-100MB)
-        if (fileSizeMB > 20) return 65536; // Large files (20-50MB)
-        if (fileSizeMB > 10) return 65536; // Medium-large files (10-20MB)
+        if (fileSizeMB > 100) return 65536; // Huge files
+        if (fileSizeMB > 50) return 65536; // Very large files  
+        if (fileSizeMB > 20) return 65536; // Large files
+        if (fileSizeMB > 10) return 65536; // Medium-large files
         if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
         return 8192;
       } else {
-        // Flash has 1M context
-        if (fileSizeMB > 100) return 65536; // ✅ NEW: Huge files need max tokens
-        if (fileSizeMB > 50) return 65536; // Very large files
-        if (fileSizeMB > 20) return 65536; // Large files
-        if (fileSizeMB > 10) return 32768; // Medium-large files
+        // Flash has 1M context - limited to 10MB files now
         if (fileSizeMB > 5) return 32768;
         if (fileSizeMB > 2) return 16384;
         if (fileSizeMB > 1) return 12288;
@@ -384,35 +507,32 @@ export const POST: APIRoute = async ({ request }) => {
     };
 
     maxOutputTokens = calculateMaxOutputTokens(file.size, model);
-    const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
 
     console.log(`🎯 File: ${file.name} (${fileSizeMB} MB)`);
+    console.log(`🎯 Model: ${model}`);
     console.log(`🎯 Using maxOutputTokens: ${maxOutputTokens.toLocaleString()}`);
 
-    // ✅ UPDATED: Recommend or enforce Pro for large files (2025-11-02)
-    if (file.size > 20 * 1024 * 1024 && model === 'gemini-2.5-flash') {
-      console.warn(`⚠️ Very large file (${fileSizeMB} MB) - Pro model STRONGLY recommended`);
-      console.warn(`   Flash may struggle with files >20MB`);
-      console.warn(`   Consider re-uploading with Pro model for better extraction quality`);
-    } else if (file.size > 5 * 1024 * 1024 && model === 'gemini-2.5-flash') {
-      console.warn(`💡 Large file (${fileSizeMB} MB) - Pro model recommended for better results`);
-    }
-
     // Use Gemini's native PDF/image processing
-    const result = await client.models.generateContent({
-      model: model,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data,
+    try {
+      console.log(`🚀 Calling Gemini ${model} for extraction...`);
+      console.log(`   Base64 data size: ${base64Data.length} bytes`);
+      console.log(`   Mime type: ${mimeType}`);
+      console.log(`   Max output tokens: ${maxOutputTokens}`);
+      
+      const result = await client.models.generateContent({
+        model: model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Data,
+                },
               },
-            },
-            {
-              text: `Extrae TODO el contenido de este documento con MÁXIMA FIDELIDAD usando formato markdown:
+              {
+                text: `Extrae TODO el contenido de este documento con MÁXIMA FIDELIDAD usando formato markdown:
 
 # REQUISITOS DE EXTRACCIÓN:
 
@@ -476,21 +596,25 @@ Ejemplo para diagrama de flujo:
 - Preserva TODA la información
 
 OBJETIVO: Crear representación de texto que capture el 100% de la información del documento original, incluyendo visual ASCII de todos los gráficos y diagramas.`,
-            },
-          ],
+              },
+            ],
+          },
+        ],
+        config: {
+          temperature: 0.1, // Low temperature for accurate extraction
+          maxOutputTokens: maxOutputTokens, // ✅ Dynamic based on file size
         },
-      ],
-      config: {
-        temperature: 0.1, // Low temperature for accurate extraction
-        maxOutputTokens: maxOutputTokens, // ✅ Dynamic based on file size
-      },
-    });
+      });
 
       extractStepEnd = Date.now(); // ✅ Track end time
       extractionTime = extractStepEnd - extractStepStart;
       extractedText = result.text || '';
       
-      // Calculate token usage
+      console.log(`✅ Gemini API call successful`);
+      console.log(`   Response received: ${extractedText ? extractedText.length : 0} characters`);
+      console.log(`   Extraction time: ${extractionTime}ms`);
+      
+      // Calculate token usage (only after successful extraction)
       outputTokens = estimateTokens(extractedText);
       inputTokens = estimateTokens(base64Data); // Approximate
       totalTokens = inputTokens + outputTokens;
@@ -510,6 +634,63 @@ OBJETIVO: Crear representación de texto que capture el 100% de la información 
         totalTokens,
         cost: costBreakdown.totalCost,
       };
+      
+    } catch (geminiError) {
+      extractStepEnd = Date.now();
+      extractionTime = extractStepEnd - extractStepStart;
+      
+      console.error('❌ Gemini API call failed:', geminiError);
+      console.error('   Error type:', geminiError instanceof Error ? geminiError.constructor.name : typeof geminiError);
+      console.error('   Error message:', geminiError instanceof Error ? geminiError.message : String(geminiError));
+      console.error('   File info:', { name: file.name, size: file.size, type: file.type });
+      console.error('   Model:', model);
+      console.error('   Max output tokens:', maxOutputTokens);
+      
+      // Add error to pipeline logs
+      addLog('gemini', 'error', `Error en llamada a Gemini: ${geminiError instanceof Error ? geminiError.message : 'Unknown'}`, {
+        model,
+        fileSize: `${fileSizeMB} MB`,
+        error: geminiError instanceof Error ? geminiError.message : String(geminiError),
+      });
+      
+      // Update extract step log with error
+      pipelineLogs[pipelineLogs.length - 1] = {
+        ...pipelineLogs[pipelineLogs.length - 1],
+        status: 'error',
+        endTime: new Date(extractStepEnd),
+        duration: extractionTime,
+        message: 'Error llamando a Gemini API',
+        details: {
+          error: geminiError instanceof Error ? geminiError.message : String(geminiError),
+          model,
+          fileSize: `${fileSizeMB} MB`,
+        }
+      };
+      
+      // Return error response with detailed diagnostics
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Error al llamar a Gemini API',
+          details: geminiError instanceof Error ? geminiError.message : 'Error desconocido al extraer documento',
+          suggestions: [
+            'Verifica que el archivo no esté corrupto',
+            'Intenta con un PDF más pequeño primero para validar la configuración',
+            'Revisa los logs del servidor para más detalles',
+            'Verifica que GOOGLE_AI_API_KEY esté configurada correctamente',
+          ],
+          metadata: {
+            fileName: file.name,
+            fileSize: file.size,
+            fileSizeMB: (file.size / 1024 / 1024).toFixed(2),
+            attemptedModel: model,
+            extractionTime,
+          },
+          pipelineLogs,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
       
         // ✅ Add detailed success logs
         addLog('gemini', 'success', `Extracción Gemini completada en ${(extractionTime / 1000).toFixed(1)}s`, {
