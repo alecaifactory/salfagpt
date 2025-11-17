@@ -30,7 +30,8 @@ export async function generateAllyResponse(
   userId: string,
   userMessage: string,
   effectivePrompt: string,
-  conversationHistory: Message[]
+  conversationHistory: Message[],
+  recentConversationsContext?: string // ✅ NEW: Context from last 3 conversations
 ): Promise<{
   response: string;
   tokensUsed: { input: number; output: number; total: number };
@@ -42,6 +43,7 @@ export async function generateAllyResponse(
   console.log(`  User message: ${userMessage.substring(0, 100)}...`);
   console.log(`  Effective prompt: ${effectivePrompt.length} chars`);
   console.log(`  History: ${conversationHistory.length} messages`);
+  console.log(`  Recent context: ${recentConversationsContext ? 'Yes ✅' : 'No'}`);
   
   // Fallback if no API key
   if (!genAI) {
@@ -57,8 +59,8 @@ export async function generateAllyResponse(
     // Build conversation contents for Gemini
     const contents = buildConversationContents(userMessage, conversationHistory);
     
-    // Build system instruction (effective prompt + Ally-specific instructions)
-    const systemInstruction = buildAllySystemInstruction(effectivePrompt);
+    // Build system instruction (effective prompt + Ally-specific instructions + recent context)
+    const systemInstruction = buildAllySystemInstruction(effectivePrompt, recentConversationsContext);
     
     // Generate response with Gemini
     const result = await genAI.models.generateContent({
@@ -147,9 +149,9 @@ function buildConversationContents(
  * 
  * Combines effective prompt with Ally-specific capabilities
  */
-function buildAllySystemInstruction(effectivePrompt: string): string {
+function buildAllySystemInstruction(effectivePrompt: string, recentConversationsContext?: string): string {
   
-  return `${effectivePrompt}
+  return `${effectivePrompt}${recentConversationsContext || ''}
 
 **ALLY-SPECIFIC CAPABILITIES:**
 

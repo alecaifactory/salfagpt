@@ -61,7 +61,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     }
 
     try {
-      const conversations = await getConversations(userId, folderId);
+      // ✅ Load ALL conversations INCLUDING archived (includeArchived: true)
+      const conversations = await getConversations(userId, folderId, true);
       const grouped = groupConversationsByTime(conversations);
 
       // Format for frontend
