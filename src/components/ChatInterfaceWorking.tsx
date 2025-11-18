@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio, Pin, Key, Code, ExternalLink, Upload } from 'lucide-react';
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
@@ -331,14 +331,16 @@ interface ChatInterfaceWorkingProps {
 }
 
 function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
-  // 🔍 DIAGNOSTIC: Log component mount (should only happen ONCE)
-  console.log('🎯 ChatInterfaceWorking MOUNTING:', {
-    userId,
-    userEmail,
-    userName,
-    userRole,
-    timestamp: new Date().toISOString()
-  });
+  // 🔍 DIAGNOSTIC: Log component mount (dev only - reduce console noise)
+  if (import.meta.env.DEV) {
+    console.log('🎯 ChatInterfaceWorking MOUNTING:', {
+      userId,
+      userEmail,
+      userName,
+      userRole,
+      timestamp: new Date().toISOString()
+    });
+  }
   
   // 🆕 ALLY: Ally conversation (pinned at top of agents)
   const [allyConversationId, setAllyConversationId] = useState<string | null>(null);
@@ -356,6 +358,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [isCreatingConversation, setIsCreatingConversation] = useState(false); // ✅ NEW: Track conversation creation
   const isSendingFirstMessage = useRef(false); // ✅ NEW: Prevent loadMessages while sending first auto-message
   const isTransitioningRef = useRef(false); // ✅ NEW: Track optimistic→real ID transition without causing re-render
+  const abortControllerRef = useRef<AbortController | null>(null); // ✅ NEW: Store abort controller for request cancellation
+  const isAbortedRef = useRef(false); // ✅ NEW: Track if request was aborted to prevent double cleanup
+  const previousConversationRef = useRef<string | null>(null); // ✅ NEW: Track previous conversation to detect actual changes
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null); // Track which message was copied
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
@@ -714,27 +719,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   }, [userId]);
 
-  // Load messages when conversation changes
-  // ✅ FIX: Check if messages are for CURRENT conversation, not just if messages exist
-  useEffect(() => {
-    if (currentConversation) {
-      // Check if we already have messages FOR THIS SPECIFIC conversation
-      const hasMessagesForThisConversation = messages.length > 0 && 
-        messages.some(msg => msg.conversationId === currentConversation && !msg.id?.startsWith('streaming-'));
-      
-      // Check if there's active streaming
-      const hasStreamingMessage = messages.some(msg => msg.isStreaming);
-      
-      // Only load if we don't have messages for THIS conversation AND not streaming
-      if (!hasMessagesForThisConversation && !hasStreamingMessage) {
-        console.log('📥 Loading messages for conversation:', currentConversation);
-        loadMessages(currentConversation);
-        loadContextForConversation(currentConversation);
-      } else {
-        console.log('⏭️ Skipping reload - messages already loaded for this conversation or streaming active');
-      }
-    }
-  }, [currentConversation]);
+  // ✅ REMOVED: Duplicate message loading useEffect
+  // This was causing conflicts with the main conversation change handler below (line 1698)
+  // All message loading now happens in the single useEffect at line 1698
 
   // AgentContextModal handles its own data loading with pagination
   // No need to pre-load context sources here
@@ -854,28 +841,108 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
+  // ⚡ OPTIMIZED: Two-phase loading for instant UI
+  // Phase 1: Load minimal data (id + title) for instant list display  
+  // Phase 2: Lazy load full data only when agent is clicked
   const loadConversations = async () => {
     try {
-      console.log('🔍 DIAGNOSTIC: loadConversations() CALLED');
-      console.log('📥 Cargando conversaciones desde Firestore...');
-      console.log('   userId:', userId);
-      console.log('   userEmail:', userEmail);
+      console.log('⚡ PHASE 1: Loading lightweight lists (id + title only)...');
+      console.time('⚡ Phase 1: Lightweight load');
       
-      const apiUrl = `/api/conversations?userId=${userId}`;
-      console.log('   API URL:', apiUrl);
-      console.log('   Making fetch request...');
+      // ✅ PHASE 1: Load ALL conversations with minimal data (both agents and chats)
+      const lightweightResponse = await fetch(`/api/conversations/list-lightweight?userId=${userId}&type=all`);
       
-      const response = await fetch(apiUrl);
-      console.log('   Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
+      if (lightweightResponse.ok) {
+        const lightweightData = await lightweightResponse.json();
+        const items = lightweightData.items || [];
+        
+        console.timeEnd('⚡ Phase 1: Lightweight load');
+        console.log(`⚡ ${items.length} items loaded (minimal data)`);
+        
+        // ✅ Create lightweight conversation objects for instant display
+        const lightweightConversations: Conversation[] = items.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          userId: userId,
+          isAgent: item.isAgent !== false, // From API
+          isPinned: item.isPinned || false,
+          isAlly: item.isAlly || false,
+          agentId: item.agentId, // For chats linked to agents
+          // Placeholder values (will be lazy-loaded on click)
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastMessageAt: new Date(),
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: 'gemini-2.0-flash-exp',
+          status: 'active' as const,
+        }));
+        
+        // ✅ INSTANT: Show both agents and chats immediately
+        setConversations(lightweightConversations);
+        
+        const agentCount = lightweightConversations.filter(c => c.isAgent !== false).length;
+        const chatCount = lightweightConversations.filter(c => c.isAgent === false).length;
+        console.log(`✅ Lists rendered instantly: ${agentCount} agents + ${chatCount} chats`);
+        
+        // ✅ PHASE 2: Load shared agents in background (non-blocking)
+        loadSharedAgentsBackground();
+      } else {
+        console.error('❌ Lightweight API failed, falling back to full load');
+        loadConversationsFull(); // Fallback to original implementation
+      }
+    } catch (error) {
+      console.error('❌ Error loading lightweight conversations:', error);
+      loadConversationsFull(); // Fallback
+    } finally {
+      setIsLoadingCounts(false);
+    }
+  };
+  
+  // ✅ Background: Load shared agents (non-blocking)
+  const loadSharedAgentsBackground = async () => {
+    try {
+      console.log('🔍 PHASE 2: Loading shared agents in background...');
+      const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
+      
+      if (sharedResponse.ok) {
+        const sharedData = await sharedResponse.json();
+        const sharedAgents = (sharedData.agents || []).map((agent: any) => ({
+          id: agent.id,
+          title: agent.title,
+          userId: agent.userId,
+          isShared: true,
+          isAgent: true,
+          isPinned: agent.isPinned || false,
+          isAlly: agent.isAlly || false,
+          // Minimal data
+          createdAt: new Date(agent.createdAt || Date.now()),
+          updatedAt: new Date(agent.updatedAt || Date.now()),
+          lastMessageAt: new Date(agent.lastMessageAt || agent.createdAt),
+          messageCount: 0,
+          contextWindowUsage: 0,
+          agentModel: 'gemini-2.0-flash-exp',
+          status: 'active' as const,
+        }));
+        
+        if (sharedAgents.length > 0) {
+          console.log(`✅ ${sharedAgents.length} shared agents loaded`);
+          setConversations(prev => [...prev, ...sharedAgents]);
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Could not load shared agents:', error);
+    }
+  };
+  
+  // ✅ FALLBACK: Original full load (if lightweight fails)
+  const loadConversationsFull = async () => {
+    try {
+      console.log('📥 Full conversation load (fallback)...');
+      const response = await fetch(`/api/conversations?userId=${userId}`);
       
       if (response.ok) {
         const data = await response.json();
-        
-        // Flatten all groups into a single conversation list
         const allConversations: Conversation[] = [];
         
         if (data.groups && data.groups.length > 0) {
@@ -903,80 +970,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               });
             });
           });
-          
-          console.log(`✅ ${allConversations.length} conversaciones propias cargadas desde Firestore`);
-        } else {
-          console.log('ℹ️ No hay conversaciones propias guardadas');
         }
         
-        // ✅ ALWAYS load shared agents (even if user has no own conversations)
-        try {
-          console.log('🔍 Loading shared agents for userId:', userId, 'email:', userEmail);
-          // ✅ Pass userEmail for backward compatibility with both ID formats
-          const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
-          console.log('   Response status:', sharedResponse.status);
-          
-          if (sharedResponse.ok) {
-            const sharedData = await sharedResponse.json();
-            console.log('   Shared agents data:', sharedData);
-            
-            const sharedAgents = (sharedData.agents || []).map((conv: any) => ({
-              ...conv,
-              isShared: true,
-              hasBeenRenamed: conv.hasBeenRenamed || false,
-              createdAt: new Date(conv.createdAt || Date.now()),
-              updatedAt: new Date(conv.updatedAt || Date.now()),
-              lastMessageAt: new Date(conv.lastMessageAt || conv.createdAt),
-              status: conv.status || 'active',
-              archivedFolder: conv.archivedFolder,
-              archivedAt: conv.archivedAt ? new Date(conv.archivedAt) : undefined,
-            }));
-            
-            console.log('   Processed shared agents:', sharedAgents.length);
-            sharedAgents.forEach((agent: any) => {
-              console.log('     - ', agent.title, '(id:', agent.id, ')');
-            });
-            
-            // Combine own agents with shared agents
-            const combinedConversations = [...allConversations, ...sharedAgents];
-            setConversations(combinedConversations);
-            console.log(`✅ ${allConversations.length} propios + ${sharedAgents.length} compartidos = ${combinedConversations.length} total`);
-            
-            // ✅ Summary logs
-            console.log(`📋 Agentes: ${combinedConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
-            console.log(`📋 Chats: ${combinedConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-            console.log(`📦 Archivados: ${combinedConversations.filter(c => c.status === 'archived').length}`);
-          } else {
-            const errorText = await sharedResponse.text();
-            console.warn('   Shared agents API failed:', errorText);
-            setConversations(allConversations);
-            
-            // ✅ Summary logs
-            console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
-            console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-            console.log(`📦 Archivados: ${allConversations.filter(c => c.status === 'archived').length}`);
-          }
-        } catch (sharedError) {
-          console.error('Could not load shared agents:', sharedError);
-          setConversations(allConversations);
-          
-          // ✅ Summary logs
-          console.log(`📋 Agentes: ${allConversations.filter(c => c.isAgent !== false && c.status !== 'archived').length}`);
-          console.log(`📋 Chats: ${allConversations.filter(c => c.isAgent === false && c.status !== 'archived').length}`);
-          console.log(`📦 Archivados: ${allConversations.filter(c => c.status === 'archived').length}`);
-        }
-        
-        if (data.warning) {
-          console.warn('⚠️', data.warning);
-        }
-      } else {
-        console.error('❌ Error al cargar conversaciones:', response.statusText);
+        setConversations(allConversations);
+        console.log(`✅ ${allConversations.length} conversations loaded (full data)`);
       }
     } catch (error) {
-      console.error('❌ Error al cargar conversaciones:', error);
-    } finally {
-      // ✅ Clear loading state when all data is loaded
-      setIsLoadingCounts(false);
+      console.error('❌ Error in full load:', error);
     }
   };
 
@@ -1692,10 +1692,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   // Effect: Handle conversation change - load messages and context
   useEffect(() => {
+    // No conversation selected - clear everything
     if (!currentConversation) {
       setMessages([]);
       setContextLogs([]);
-      setIsLoadingMessages(false); // ✅ Clear loading state
+      setIsLoadingMessages(false);
+      previousConversationRef.current = null;
       return;
     }
 
@@ -1704,25 +1706,48 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       console.log('⏭️ Conversación temporal - no cargando mensajes de Firestore');
       setMessages([]);
       setContextLogs([]);
-      setIsLoadingMessages(false); // ✅ Clear loading state
+      setIsLoadingMessages(false);
+      previousConversationRef.current = currentConversation;
       return;
     }
 
-    // ✅ FIX: Skip loading if we're in the middle of creating a conversation OR transitioning IDs OR sending first message
-    // This prevents the flash when optimisticId → realId transition happens
-    if (isCreatingConversation || isTransitioningRef.current || isSendingFirstMessage.current) {
-      console.log('⏭️ Creando/transicionando conversación/enviando primer mensaje - omitiendo carga de mensajes para evitar flash');
+    // ✅ CRITICAL FIX: Only reload if conversation ACTUALLY CHANGED
+    // This prevents reloading when messages are added or title updates
+    const conversationChanged = previousConversationRef.current !== currentConversation;
+    
+    if (!conversationChanged) {
+      console.log('⏭️ Misma conversación - no recargar mensajes');
       return;
     }
     
-    // 🚨 CRITICAL FIX: Skip if we have messages already (avoid clearing during title update)
-    // Only reload if we're actually switching conversations
-    if (messages.length > 0) {
-      console.log('⏭️ Ya hay mensajes cargados - no recargar para evitar flash');
+    console.log('🔄 Conversación cambió:', {
+      from: previousConversationRef.current,
+      to: currentConversation
+    });
+    
+    // Update previous conversation tracking
+    previousConversationRef.current = currentConversation;
+
+    // ✅ Skip loading if we're in the middle of creating/transitioning
+    if (isCreatingConversation || isTransitioningRef.current || isSendingFirstMessage.current) {
+      console.log('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes');
+      return;
+    }
+    
+    // 🚨 Skip if there's an active streaming message (prevents overwriting during streaming)
+    const hasStreamingMessage = messages.some(msg => msg.isStreaming);
+    if (hasStreamingMessage) {
+      console.log('⏭️ Hay un mensaje en streaming - no recargar');
+      return;
+    }
+    
+    // 🚨 Skip if agent is processing (prevents overwriting during streaming)
+    if (agentProcessing[currentConversation]?.isProcessing) {
+      console.log('⏭️ Agente está procesando - no recargar');
       return;
     }
 
-    console.log('🔄 Cambiando a conversación:', currentConversation);
+    console.log('✅ Loading messages for new conversation:', currentConversation);
     
     // ✅ FIX: Set loading state BEFORE clearing messages
     // This prevents sample questions from flashing during async load
@@ -1737,22 +1762,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     loadMessages(currentConversation);
     
     // Load context configuration for this conversation
-    // If this is a chat (has agentId), load parent agent's context instead
-    const currentConv = conversations.find(c => c.id === currentConversation);
-    if (currentConv?.agentId) {
-      console.log(`🔗 Este es un chat del agente ${currentConv.agentId}, cargando contexto del agente padre`);
-      
-      // ✅ OPTIMIZED: Load parent agent's context (uses cache if available)
-      loadContextForConversation(currentConv.agentId);
-      
-      // ✅ REMOVED: Auto-fix loop that assigned sources one by one (caused 90s delay)
-      // New architecture: Chat inherits sources via agentId link in backend
-      // Backend's context-sources-metadata endpoint uses effectiveAgentId = conv.agentId || convId
-      // This means chat automatically sees parent agent's sources WITHOUT needing assignments
-    } else {
-      // Agent (no parent) - load own context
-      loadContextForConversation(currentConversation);
-    }
+    // ✅ OPTIMIZATION: Use ref to avoid dependency on conversations array
+    // We look up via API call instead
+    loadContextForConversation(currentConversation);
     
     // NEW: Load agent config for this conversation
     loadAgentConfig(currentConversation);
@@ -1760,7 +1772,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // Reset input
     setInput('');
     
-  }, [currentConversation, conversations]); // Need conversations for currentConv lookup, but isTransitioningRef prevents re-trigger
+  }, [currentConversation]); // ✅ CRITICAL: Only depend on currentConversation, NOT conversations
+  // conversations is used for currentConv lookup, but we don't want to re-trigger when it updates
+  // (e.g., during title updates). The previousConversationRef check ensures we only load on actual switches.
 
   // Helper: Play notification sound
   const playNotificationSound = () => {
@@ -2024,10 +2038,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         console.log('📤 Will send to conversation:', newConvId);
         console.log('📤 Message text:', messageText);
         
-        // ✅ Now trigger sendMessage with BOTH message and conversation overrides
-        await sendMessage(messageText, newConvId);
+        // ✅ CRITICAL: Pass isAlly=true explicitly so first message uses Ally thinking steps
+        // Without this, first message uses generic steps because newConv not in array yet
+        await sendMessage(messageText, newConvId, true); // isAllyOverride = true
         
-        console.log('✅ Auto-send completed successfully');
+        console.log('✅ Auto-send completed successfully (Ally conversation with isAlly=true)');
         
         // ✅ Clear flag after send completes
         isSendingFirstMessage.current = false;
@@ -2692,7 +2707,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     }
   };
 
-  const sendMessage = async (messageOverride?: string, conversationOverride?: string) => {
+  const sendMessage = async (
+    messageOverride?: string, 
+    conversationOverride?: string,
+    isAllyOverride?: boolean // ✅ NEW: Explicit Ally flag for when conversation not in array yet
+  ) => {
     const messageToSend = messageOverride !== undefined ? messageOverride : input;
     const targetConversation = conversationOverride || currentConversation;
     
@@ -2786,13 +2805,66 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
     }));
 
+    // ✅ ALLY-SPECIFIC: Detect if this is an Ally conversation
+    // Method 1: Use explicit override (when conversation just created, not in array yet)
+    let isAllyConversation = isAllyOverride === true;
+    
+    // Method 2: Check if conversation is in array and has Ally flags
+    if (!isAllyConversation) {
+      const currentConv = conversations.find(c => c.id === targetConversation);
+      isAllyConversation = currentConv?.agentId === allyConversationId || currentConv?.isAlly === true;
+    }
+    
+    // Method 3: If not found in array, check if targetConversation IS the Ally agent itself
+    if (!isAllyConversation && targetConversation === allyConversationId) {
+      console.log('🤖 [ALLY] Target IS Ally agent itself');
+      isAllyConversation = true;
+    }
+    
+    const currentConv = conversations.find(c => c.id === targetConversation);
+    
+    // 🔍 DEBUG: Log Ally detection
+    console.log('🤖 [ALLY DETECTION] ==================');
+    console.log('  isAllyOverride (passed param):', isAllyOverride);
+    console.log('  targetConversation:', targetConversation);
+    console.log('  allyConversationId:', allyConversationId);
+    console.log('  Is target Ally agent itself?', targetConversation === allyConversationId);
+    console.log('  currentConv found in array?', !!currentConv);
+    if (currentConv) {
+      console.log('  currentConv.id:', currentConv.id);
+      console.log('  currentConv.title:', currentConv.title);
+      console.log('  currentConv.agentId:', currentConv.agentId);
+      console.log('  currentConv.isAlly:', currentConv.isAlly);
+      console.log('  Match agentId?', currentConv.agentId === allyConversationId);
+      console.log('  Match isAlly flag?', currentConv.isAlly === true);
+    }
+    console.log('  ✅ FINAL isAllyConversation:', isAllyConversation);
+    console.log('  Detection method:', 
+      isAllyOverride ? 'EXPLICIT_OVERRIDE (first message)' :
+      currentConv?.agentId === allyConversationId ? 'AGENT_ID_MATCH' :
+      currentConv?.isAlly === true ? 'IS_ALLY_FLAG' :
+      targetConversation === allyConversationId ? 'IS_ALLY_AGENT_ITSELF' :
+      'NOT_ALLY'
+    );
+    console.log('==================');
+
     // ✅ FIX: Initialize thinking steps FIRST so message is visible immediately
-    const stepLabels = {
+    // Customize labels for Ally vs regular agents
+    console.log('🎨 [THINKING STEPS] Using', isAllyConversation ? 'ALLY' : 'REGULAR', 'labels');
+    
+    const stepLabels = isAllyConversation ? {
+      thinking: 'Ally está revisando tus memorias...',
+      searching: 'Revisando conversaciones pasadas...',
+      selecting: 'Alineando con Organization y Domain prompts...',
+      generating: 'Generando Respuesta...'
+    } : {
       thinking: 'Pensando...',
       searching: 'Buscando Contexto Relevante...',
       selecting: 'Seleccionando Chunks...',
       generating: 'Generando Respuesta...'
     };
+    
+    console.log('🎨 [THINKING STEPS] Labels:', stepLabels);
 
     const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
       id: key,
@@ -2868,19 +2940,28 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         finalLength: finalSystemPrompt.length
       });
       
+      // ✅ NEW: Create AbortController for request cancellation
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      isAbortedRef.current = false; // ✅ Reset abort flag for new request
+      
       // Use streaming endpoint
       const response = await fetch(`/api/conversations/${targetConversation}/messages-stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortController.signal, // ✅ NEW: Allow cancellation
         body: JSON.stringify({
           userId,
           userEmail, // ✅ NEW: For admin contact lookup when no relevant docs found
           message: messageToSend,
           model: currentAgentConfig?.preferredModel || globalUserSettings.preferredModel,
           systemPrompt: finalSystemPrompt, // ✅ UPDATED: Use combined prompt
-          useAgentSearch: true, // ✅ OPTIMAL: Backend queries BigQuery by agentId!
-          activeSourceIds: activeSourceIds, // ✅ FIX: Send for reference creation & legacy fallback
-          ragEnabled: true,
+          // ✅ ALLY-SPECIFIC: Use conversation history instead of RAG chunks
+          isAllyConversation: isAllyConversation,
+          useConversationHistory: isAllyConversation, // Use last 10 messages for Ally
+          useAgentSearch: !isAllyConversation, // Regular agents use BigQuery search, Ally uses history
+          activeSourceIds: isAllyConversation ? [] : activeSourceIds, // No source chunks for Ally
+          ragEnabled: !isAllyConversation, // Disable RAG for Ally (uses history instead)
           ragTopK: ragTopK,
           ragMinSimilarity: ragMinSimilarity
         })
@@ -2915,13 +2996,30 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // }, 500);
 
         while (true) {
-          const { done, value } = await reader.read();
+          let done: boolean;
+          let value: Uint8Array | undefined;
           
-          if (done) {
-            // clearInterval(dotsInterval); // Already commented out
-            break;
+          try {
+            const result = await reader.read();
+            done = result.done;
+            value = result.value;
+            
+            if (done) {
+              // clearInterval(dotsInterval); // Already commented out
+              break;
+            }
+          } catch (readError) {
+            // ✅ Handle abort or read errors gracefully
+            if (readError instanceof Error && (readError.name === 'AbortError' || isAbortedRef.current)) {
+              console.log('🛑 Stream reading aborted');
+              break; // Exit loop cleanly
+            }
+            throw readError; // Re-throw unexpected errors
           }
 
+          // ✅ Process chunk only if we have a value
+          if (!value) continue;
+          
           const chunk = decoder.decode(value);
           const lines = chunk.split('\n');
 
@@ -3206,6 +3304,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         }
       }
     } catch (error) {
+      // ✅ NEW: Don't show error if user cancelled the request
+      if (error instanceof Error && (error.name === 'AbortError' || isAbortedRef.current)) {
+        console.log('🛑 Request cancelled by user');
+        // Only remove streaming message if stopProcessing hasn't already handled it
+        if (!isAbortedRef.current) {
+          setMessages(prev => prev.filter(msg => msg.id !== streamingId));
+        }
+        return; // Exit early - no error message needed
+      }
+      
       console.error('Error sending message:', error);
       
       // Remove streaming message
@@ -3228,11 +3336,25 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      // ✅ NEW: Clean up abort controller and reset flags
+      abortControllerRef.current = null;
+      isAbortedRef.current = false;
     }
   };
 
   const stopProcessing = () => {
     if (!currentConversation) return;
+    
+    // ✅ NEW: Mark as aborted to prevent double cleanup
+    isAbortedRef.current = true;
+    
+    // ✅ NEW: Abort the ongoing fetch request
+    if (abortControllerRef.current) {
+      console.log('🛑 Aborting ongoing request...');
+      abortControllerRef.current.abort();
+      // Don't set to null here - let finally block handle cleanup
+    }
     
     // Cancel processing for current agent
     setAgentProcessing(prev => ({
@@ -3243,14 +3365,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
     }));
     
-    // Add cancelled message
-    const cancelledMessage: Message = {
-      id: `cancelled-${Date.now()}`,
-      role: 'assistant',
-      content: '_Procesamiento detenido por el usuario._',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, cancelledMessage]);
+    // ✅ FIX: Remove streaming message instead of adding a new one
+    setMessages(prev => {
+      const filtered = prev.filter(msg => !msg.isStreaming);
+      // Only add cancelled message if there was actually a streaming message
+      if (prev.some(msg => msg.isStreaming)) {
+        const cancelledMessage: Message = {
+          id: `cancelled-${Date.now()}`,
+          role: 'assistant',
+          content: '_Procesamiento detenido por el usuario._',
+          timestamp: new Date()
+        };
+        return [...filtered, cancelledMessage];
+      }
+      return filtered;
+    });
     
     console.log('⏹️ Procesamiento detenido para agente:', currentConversation);
   };
@@ -6394,6 +6523,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           className="flex-1 overflow-y-auto p-1.5"
           onClick={(e) => e.stopPropagation()} // ✅ Prevent deselecting when clicking messages
         >
+          {/* ✅ CRITICAL FIX: Only show sample questions if:
+              1. No messages
+              2. Not loading messages (prevents flash during load)
+              3. No current conversation (true empty state)
+              This ensures smooth transition without flicker */}
           {messages.length === 0 && !isLoadingMessages && !currentConversation ? (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 px-6">
               <Bot className="w-16 h-16 mb-4 text-slate-300" />

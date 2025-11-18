@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Queue Processor - Context Management</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    .header h1 { font-size: 32px; margin-bottom: 10px; }
+    .header p { opacity: 0.9; font-size: 16px; }
+    .content { padding: 30px; }
+    .config-section {
+      background: #f8fafc;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      border: 2px solid #e2e8f0;
+    }
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+    .config-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .config-item label {
+      font-weight: 600;
+      color: #475569;
+      font-size: 14px;
+    }
+    .config-item input, .config-item select {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .folder-list {
+      display: grid;
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .folder-card {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .folder-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .folder-header {
+      background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+      color: white;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .folder-header h3 { font-size: 20px; }
+    .folder-stats {
+      display: flex;
+      gap: 15px;
+      font-size: 14px;
+    }
+    .stat-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .folder-body { padding: 20px; }
+    .file-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .file-table th {
+      background: #f1f5f9;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #475569;
+      border-bottom: 2px solid #cbd5e1;
+    }
+    .file-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .file-table tr:hover { background: #f8fafc; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-queued { background: #f1f5f9; color: #64748b; }
+    .status-uploading { background: #dbeafe; color: #1e40af; }
+    .status-extracting { background: #fef3c7; color: #92400e; }
+    .status-chunking { background: #e0e7ff; color: #4338ca; }
+    .status-embedding { background: #ddd6fe; color: #5b21b6; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-failed { background: #fee2e2; color: #991b1b; }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+      transition: width 0.3s;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      margin: 30px 0;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+    }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .log-section {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 30px;
+    }
+    .log-line { margin: 5px 0; }
+    .log-info { color: #60a5fa; }
+    .log-success { color: #34d399; }
+    .log-error { color: #f87171; }
+    .log-warning { color: #fbbf24; }
+    .summary-section {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 30px 0;
+    }
+    .summary-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .summary-card h4 { font-size: 14px; opacity: 0.9; margin-bottom: 10px; }
+    .summary-card .number { font-size: 36px; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📤 Upload Queue Processor</h1>
+      <p>Process PDF files from upload-queue folders to Context Management</p>
+    </div>
+
+    <div class="content">
+      <!-- Configuration Section -->
+      <div class="config-section">
+        <h2 style="margin-bottom: 15px; color: #1e293b;">⚙️ Configuration</h2>
+        <div class="config-grid">
+          <div class="config-item">
+            <label>Organization:</label>
+            <input type="text" id="organization" value="salfa-corp" readonly />
+          </div>
+          <div class="config-item">
+            <label>Domain:</label>
+            <input type="text" id="domain" value="maqsa.cl" readonly />
+          </div>
+          <div class="config-item">
+            <label>Model:</label>
+            <select id="model">
+              <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash</option>
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+            </select>
+          </div>
+          <div class="config-item">
+            <label>Batch Size:</label>
+            <input type="number" id="batchSize" value="3" min="1" max="10" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="startBtn" onclick="startProcessing()">
+          ▶️ Start Processing S001-20251118
+        </button>
+        <button class="btn btn-secondary" onclick="clearLogs()">
+          🗑️ Clear Logs
+        </button>
+      </div>
+
+      <!-- Summary Stats -->
+      <div class="summary-section" id="summary" style="display: none;">
+        <div class="summary-card">
+          <h4>Total Files</h4>
+          <div class="number" id="totalFiles">0</div>
+        </div>
+        <div class="summary-card">
+          <h4>Completed</h4>
+          <div class="number" id="completedFiles">0</div>
+        </div>
+        <div class="summary-card">
+          <h4>Failed</h4>
+          <div class="number" id="failedFiles">0</div>
+        </div>
+        <div class="summary-card">
+          <h4>Success Rate</h4>
+          <div class="number" id="successRate">0%</div>
+        </div>
+      </div>
+
+      <!-- Folder List (will be populated by JavaScript) -->
+      <div class="folder-list" id="folderList">
+        <!-- Folders will be rendered here -->
+      </div>
+
+      <!-- Log Section -->
+      <div class="log-section" id="logSection">
+        <div class="log-line log-info">💡 Ready to process files. Click "Start Processing" to begin.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock data structure (in real implementation, this would come from file system)
+    const uploadQueue = {
+      'S001-20251118': {
+        tag: 'S001-20251118',
+        files: [
+          // Root files
+          { name: 'MAQ-LOG-CBO-P-001 Gestión de Bodegas de Obras Rev.08.pdf', path: '.', size: 1024000, status: 'queued', progress: 0 },
+          // Files in DOCUMENTOS folder
+          ...Array(68).fill(null).map((_, i) => ({
+            name: `Document_${i + 1}.pdf`,
+            path: 'DOCUMENTOS',
+            size: Math.floor(Math.random() * 5000000) + 100000,
+            status: 'queued',
+            progress: 0
+          }))
+        ]
+      }
+    };
+
+    let isProcessing = false;
+
+    function renderFolders() {
+      const folderList = document.getElementById('folderList');
+      folderList.innerHTML = '';
+
+      for (const [folderName, folderData] of Object.entries(uploadQueue)) {
+        const stats = calculateFolderStats(folderData.files);
+        
+        const card = document.createElement('div');
+        card.className = 'folder-card';
+        card.innerHTML = `
+          <div class="folder-header">
+            <div>
+              <h3>📁 ${folderName}</h3>
+              <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">Tag: ${folderData.tag}</div>
+            </div>
+            <div class="folder-stats">
+              <div class="stat-badge">📄 ${stats.total} files</div>
+              <div class="stat-badge">✅ ${stats.completed}</div>
+              <div class="stat-badge">❌ ${stats.failed}</div>
+            </div>
+          </div>
+          <div class="folder-body">
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th style="width: 40%;">File Name</th>
+                  <th style="width: 20%;">Subfolder</th>
+                  <th style="width: 10%;">Size</th>
+                  <th style="width: 20%;">Status</th>
+                  <th style="width: 10%;">Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${folderData.files.slice(0, 10).map(file => `
+                  <tr>
+                    <td title="${file.name}">${file.name.length > 50 ? file.name.substring(0, 47) + '...' : file.name}</td>
+                    <td>${file.path === '.' ? '(root)' : file.path}</td>
+                    <td>${formatSize(file.size)}</td>
+                    <td><span class="status-badge status-${file.status}">${getStatusIcon(file.status)} ${file.status}</span></td>
+                    <td>
+                      <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${file.progress}%"></div>
+                      </div>
+                      ${file.progress}%
+                    </td>
+                  </tr>
+                `).join('')}
+                ${folderData.files.length > 10 ? `
+                  <tr>
+                    <td colspan="5" style="text-align: center; color: #64748b; font-style: italic;">
+                      ... and ${folderData.files.length - 10} more files
+                    </td>
+                  </tr>
+                ` : ''}
+              </tbody>
+            </table>
+          </div>
+        `;
+        folderList.appendChild(card);
+      }
+    }
+
+    function calculateFolderStats(files) {
+      return {
+        total: files.length,
+        queued: files.filter(f => f.status === 'queued').length,
+        uploading: files.filter(f => f.status === 'uploading').length,
+        extracting: files.filter(f => f.status === 'extracting').length,
+        chunking: files.filter(f => f.status === 'chunking').length,
+        embedding: files.filter(f => f.status === 'embedding').length,
+        completed: files.filter(f => f.status === 'completed').length,
+        failed: files.filter(f => f.status === 'failed').length,
+      };
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function getStatusIcon(status) {
+      const icons = {
+        queued: '⏸',
+        uploading: '⬆️',
+        extracting: '📝',
+        chunking: '🔨',
+        embedding: '⚡',
+        completed: '✅',
+        failed: '❌',
+      };
+      return icons[status] || '❓';
+    }
+
+    function log(message, type = 'info') {
+      const logSection = document.getElementById('logSection');
+      const line = document.createElement('div');
+      line.className = `log-line log-${type}`;
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logSection.appendChild(line);
+      logSection.scrollTop = logSection.scrollHeight;
+    }
+
+    function clearLogs() {
+      document.getElementById('logSection').innerHTML = '';
+      log('Logs cleared', 'info');
+    }
+
+    function updateSummary() {
+      const allFiles = Object.values(uploadQueue).flatMap(f => f.files);
+      const stats = calculateFolderStats(allFiles);
+      
+      document.getElementById('totalFiles').textContent = stats.total;
+      document.getElementById('completedFiles').textContent = stats.completed;
+      document.getElementById('failedFiles').textContent = stats.failed;
+      document.getElementById('successRate').textContent = 
+        stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) + '%' : '0%';
+      
+      document.getElementById('summary').style.display = 'grid';
+    }
+
+    async function startProcessing() {
+      if (isProcessing) return;
+      
+      isProcessing = true;
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('startBtn').textContent = '⏳ Processing...';
+      
+      log('🚀 Starting upload processing for S001-20251118', 'info');
+      log(`📊 Configuration: Organization=salfa-corp, Domain=maqsa.cl`, 'info');
+      log(`📁 Found ${uploadQueue['S001-20251118'].files.length} PDF files`, 'info');
+      
+      const files = uploadQueue['S001-20251118'].files;
+      const batchSize = parseInt(document.getElementById('batchSize').value);
+      
+      for (let i = 0; i < files.length; i += batchSize) {
+        const batch = files.slice(i, i + batchSize);
+        log(`📤 Processing batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(files.length / batchSize)} (${batch.length} files)`, 'info');
+        
+        // Simulate upload process
+        await processBatch(batch);
+        renderFolders();
+        updateSummary();
+      }
+      
+      log('✅ All files processed!', 'success');
+      log(`📊 Final stats: ${calculateFolderStats(files).completed} completed, ${calculateFolderStats(files).failed} failed`, 'success');
+      
+      isProcessing = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('startBtn').textContent = '✅ Processing Complete';
+    }
+
+    async function processBatch(batch) {
+      for (const file of batch) {
+        await processFile(file);
+      }
+    }
+
+    async function processFile(file) {
+      const stages = ['uploading', 'extracting', 'chunking', 'embedding', 'completed'];
+      
+      for (let i = 0; i < stages.length; i++) {
+        file.status = stages[i];
+        file.progress = ((i + 1) / stages.length) * 100;
+        
+        log(`${getStatusIcon(file.status)} ${file.name}: ${file.status}`, 'info');
+        
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000));
+        
+        renderFolders();
+      }
+      
+      log(`✅ ${file.name}: completed`, 'success');
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      renderFolders();
+      log('🎯 Upload Queue Processor initialized', 'info');
+      log(`📁 Loaded folder: S001-20251118 with ${uploadQueue['S001-20251118'].files.length} files`, 'info');
+    });
+  </script>
+</body>
+</html>
+

@@ -63,12 +63,11 @@ export interface SenderAccount {
 export interface NuboxMovement {
   id: string;                           // Internal ID for DB (mov_xxxxx)
   type: MovementType;                   // Movement type
-  amount: number;                       // Amount: positive=ABONO (incoming), negative=CARGO (outgoing), NO separators
+  amount: number;                       // Amount: positive=credit, negative=debit, NO separators
   pending: boolean;                     // Confirmation status
   currency: 'CLP' | null;               // CLP or null if not CLP (changed from '0' string)
   post_date: string;                    // ISO 8601 date
   description: string;                  // Movement description
-  balance: number;                      // Balance after this movement (from SALDO column)
   sender_account?: SenderAccount;       // Optional sender/receiver info
   insights: MovementInsights;           // Quality metrics (REQUIRED)
 }
@@ -91,16 +90,6 @@ export interface NuboxCartola {
   
   movements: NuboxMovement[];
   
-  balance_validation: {
-    saldo_inicial: number;
-    total_abonos: number;
-    total_cargos: number;
-    saldo_calculado: number;
-    saldo_final_documento: number;
-    coincide: boolean;
-    diferencia: number;
-  };
-  
   metadata: {
     total_pages: number;
     total_movements: number;
@@ -116,8 +105,6 @@ export interface NuboxCartola {
     balance_matches: boolean;
     confidence_score: number;
     recommendation: string;
-    average_extraction_proximity_pct: number;  // Average proximity across all movements
-    extraction_bank: string;                    // Bank that yielded this extraction
   };
 }
 
@@ -276,7 +263,6 @@ FORMATO DE SALIDA EXACTO:
       "currency": "CLP",
       "post_date": "2024-04-24T00:00:00Z",
       "description": "77.352.453-K Transf. FERRETERI",
-      "balance": 2345678,
       "sender_account": {
         "holder_id": "77352453k",
         "dv": "k",
@@ -291,16 +277,6 @@ FORMATO DE SALIDA EXACTO:
     }
   ],
   
-  "balance_validation": {
-    "saldo_inicial": 1500000,
-    "total_abonos": 5000000,
-    "total_cargos": 4154321,
-    "saldo_calculado": 2345679,
-    "saldo_final_documento": 2345678,
-    "coincide": true,
-    "diferencia": 0
-  },
-  
   "metadata": {
     "total_pages": 3,
     "confidence": 0.98
@@ -310,50 +286,26 @@ FORMATO DE SALIDA EXACTO:
 REGLAS CRÍTICAS:
 
 1. ID: Generar único "mov_" + random para cada movimiento
-
 2. Type: Solo usar: "transfer", "deposit", "withdrawal", "payment", "fee", "other"
-
-3. Amount (MUY IMPORTANTE - USA LAS COLUMNAS CORRECTAMENTE):
-   - Busca 3 columnas en el documento: ABONOS/CRÉDITOS (incoming), CARGOS/DÉBITOS (outgoing), SALDO/BALANCE
-   - Si el valor está en la columna "ABONOS" o "CRÉDITOS": amount = POSITIVO (+)
-   - Si el valor está en la columna "CARGOS" o "DÉBITOS": amount = NEGATIVO (-)
+3. Amount: 
    - Número SIN separadores (ni puntos ni comas)
-   - Ejemplo: Si hay 50.000 en columna ABONOS → amount: 50000
-   - Ejemplo: Si hay 757.864 en columna CARGOS → amount: -757864
-
-4. Balance (NUEVO CAMPO OBLIGATORIO):
-   - Incluir el SALDO después de cada movimiento
-   - Viene de la columna "SALDO" o "BALANCE"
-   - Número sin separadores
-   - Ejemplo: Si SALDO muestra 1.237.952 → balance: 1237952
-
-5. Currency: "CLP" si es moneda chilena, null si no
-
-6. Post_date: ISO 8601 formato "YYYY-MM-DDTHH:mm:ssZ"
-
-7. Description: Texto completo, mantener RUT si aparece
-
-8. Sender_account.holder_id: RUT SIN puntos pero CON dígito verificador: "77352453k"
-
-9. Insights (OBLIGATORIO en cada movimiento):
+   - Positivo = ABONO/CRÉDITO
+   - Negativo = CARGO/DÉBITO
+4. Currency: "CLP" si es moneda chilena, null si no
+5. Post_date: ISO 8601 formato "YYYY-MM-DDTHH:mm:ssZ"
+6. Description: Texto completo, mantener RUT si aparece
+7. Sender_account.holder_id: RUT SIN puntos pero CON dígito verificador: "77352453k"
+8. Insights (OBLIGATORIO en cada movimiento):
    - errores: array de strings (vacío [] si no hay errores)
    - calidad: "alta", "media", o "baja"
    - banco: nombre del banco detectado
    - extraction_proximity_pct: número 0-100
-
-10. Balance_validation (NUEVO - AL FINAL DEL JSON):
-    - Calcular: saldo_calculado = saldo_inicial + total_abonos - total_cargos
-    - Comparar con saldo_final_documento
-    - coincide: true si son iguales (tolerancia de ±1 por redondeo)
-    - diferencia: diferencia absoluta
 
 VALIDACIONES:
 - opening_balance + total_credits - total_debits = closing_balance
 - Todos los montos son números válidos sin separadores
 - Todas las fechas en formato ISO 8601
 - TODOS los movimientos tienen campo "insights"
-- TODOS los movimientos tienen campo "balance"
-- El balance_validation debe estar presente y validar correctamente
 
 Responde ÚNICAMENTE con el JSON (sin markdown, sin explicaciones).`;
 }
@@ -481,9 +433,6 @@ export async function extractNuboxCartola(
         extraction_proximity_pct: mov.insights?.extraction_proximity_pct || extractionProximity,
       };
       
-      // Parse balance (from SALDO column)
-      const normalizedBalance = parseChileanAmount(mov.balance);
-      
       return {
         id: mov.id || generateMovementId(),
         type: (mov.type as MovementType) || 'other',
@@ -492,30 +441,10 @@ export async function extractNuboxCartola(
         currency: normalizedCurrency,
         post_date: mov.post_date || new Date().toISOString(),
         description: mov.description || '',
-        balance: normalizedBalance,
         sender_account: senderAccount,
         insights: insights,
       };
     });
-    
-    // Calculate balance validation
-    const totalAbonos = normalizedMovements
-      .filter(m => m.amount > 0)
-      .reduce((sum, m) => sum + m.amount, 0);
-    
-    const totalCargos = Math.abs(normalizedMovements
-      .filter(m => m.amount < 0)
-      .reduce((sum, m) => sum + m.amount, 0));
-    
-    const saldoCalculado = (parsed.opening_balance || 0) + totalAbonos - totalCargos;
-    const saldoFinalDocumento = parsed.closing_balance || 0;
-    const diferencia = Math.abs(saldoCalculado - saldoFinalDocumento);
-    const coincide = diferencia <= 1; // Tolerance of ±1 for rounding
-    
-    // Calculate average extraction proximity percentage
-    const avgExtractionProximity = normalizedMovements.length > 0
-      ? normalizedMovements.reduce((sum, m) => sum + m.insights.extraction_proximity_pct, 0) / normalizedMovements.length
-      : 0;
     
     // Build final result
     const nuboxCartola: NuboxCartola = {
@@ -532,15 +461,6 @@ export async function extractNuboxCartola(
       total_credits: parsed.total_credits || 0,
       total_debits: parsed.total_debits || 0,
       movements: normalizedMovements,
-      balance_validation: {
-        saldo_inicial: parsed.opening_balance || 0,
-        total_abonos: totalAbonos,
-        total_cargos: totalCargos,
-        saldo_calculado: saldoCalculado,
-        saldo_final_documento: saldoFinalDocumento,
-        coincide: coincide,
-        diferencia: diferencia,
-      },
       metadata: {
         total_pages: parsed.metadata?.total_pages || 1,
         total_movements: normalizedMovements.length,
@@ -558,27 +478,21 @@ export async function extractNuboxCartola(
           parsed.closing_balance !== undefined
         ),
         movements_complete: normalizedMovements.length > 0,
-        balance_matches: coincide,
+        balance_matches: Math.abs(
+          (parsed.opening_balance || 0) + 
+          (parsed.total_credits || 0) - 
+          (parsed.total_debits || 0) - 
+          (parsed.closing_balance || 0)
+        ) < 1,
         confidence_score: parsed.metadata?.confidence || 0.95,
-        recommendation: normalizedMovements.length > 0 && coincide ? '✅ Lista para Nubox' : '⚠️ Revisar extracción',
-        average_extraction_proximity_pct: Math.round(avgExtractionProximity),
-        extraction_bank: bankName,
+        recommendation: normalizedMovements.length > 0 ? '✅ Lista para Nubox' : '⚠️ Revisar extracción',
       },
     };
     
     console.log(`✅ [Nubox Cartola] Extraction complete!`);
-    console.log(`   Bank: ${nuboxCartola.quality.extraction_bank}`);
     console.log(`   Movements: ${nuboxCartola.movements.length}`);
     console.log(`   Confidence: ${(nuboxCartola.metadata.confidence * 100).toFixed(1)}%`);
-    console.log(`   Avg Extraction Proximity: ${nuboxCartola.quality.average_extraction_proximity_pct}%`);
     console.log(`   Cost: $${cost.toFixed(4)}`);
-    console.log(`   Balance Validation:`);
-    console.log(`      Saldo Inicial: $${nuboxCartola.balance_validation.saldo_inicial.toLocaleString()}`);
-    console.log(`      Total Abonos: +$${nuboxCartola.balance_validation.total_abonos.toLocaleString()}`);
-    console.log(`      Total Cargos: -$${nuboxCartola.balance_validation.total_cargos.toLocaleString()}`);
-    console.log(`      Saldo Calculado: $${nuboxCartola.balance_validation.saldo_calculado.toLocaleString()}`);
-    console.log(`      Saldo Final (Doc): $${nuboxCartola.balance_validation.saldo_final_documento.toLocaleString()}`);
-    console.log(`      ${nuboxCartola.balance_validation.coincide ? '✅' : '❌'} Balance ${nuboxCartola.balance_validation.coincide ? 'CORRECTO' : 'INCORRECTO'} (diff: ${nuboxCartola.balance_validation.diferencia})`);
     
     return nuboxCartola;
     

@@ -272,29 +272,33 @@ export const GET: APIRoute = async ({ request, cookies }) => {
           }
         });
 
-        // Convert to array format
-        const domains = Array.from(domainGroups.entries()).map(([domainName, sources]) => ({
-          domainId: domainName,
-          domainName: domainName,
-          sourceCount: sources.length,
-          sources: sources.map((s: any) => ({
-            // Return minimal metadata (no extractedData for performance)
-            id: s.id,
-            name: s.name,
-            type: s.type,
-            status: s.status,
-            labels: s.labels,
-            addedAt: s.addedAt,
-            userId: s.userId, // Include userId for tracking
-            metadata: {
-              originalFileName: s.metadata?.originalFileName,
-              pageCount: s.metadata?.pageCount,
-              validated: s.metadata?.validated,
-              validatedBy: s.metadata?.validatedBy,
-              uploaderEmail: userEmailMap.get(s.userId) || s.metadata?.uploaderEmail,
-            }
-          }))
-        }));
+        // ✅ FIX: Create entries for ALL organization domains, not just ones with sources
+        // This ensures SuperAdmin sees all domains in dropdown even if no sources yet
+        const domains = org.domains.map((domainName: string) => {
+          const sourcesInDomain = domainGroups.get(domainName) || [];
+          return {
+            domainId: domainName,
+            domainName: domainName,
+            sourceCount: sourcesInDomain.length,
+            sources: sourcesInDomain.map((s: any) => ({
+              // Return minimal metadata (no extractedData for performance)
+              id: s.id,
+              name: s.name,
+              type: s.type,
+              status: s.status,
+              labels: s.labels,
+              addedAt: s.addedAt,
+              userId: s.userId, // Include userId for tracking
+              metadata: {
+                originalFileName: s.metadata?.originalFileName,
+                pageCount: s.metadata?.pageCount,
+                validated: s.metadata?.validated,
+                validatedBy: s.metadata?.validatedBy,
+                uploaderEmail: userEmailMap.get(s.userId) || s.metadata?.uploaderEmail,
+              }
+            }))
+          };
+        });
 
         return {
           id: org.id,
@@ -349,10 +353,12 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
     return new Response(
       JSON.stringify({ 
-        organizations: orgsWithSources,
+        organizations: orgsWithSources, // Organizations with sources (for display)
+        allOrganizations: organizationsWithContext, // ✅ NEW: ALL organizations (for dropdowns)
         tagStructure, // ✅ NEW: Tag counts for consistent badge display
         metadata: {
           totalOrganizations: orgsWithSources.length,
+          totalOrganizationsIncludingEmpty: organizationsWithContext.length,
           totalSources: orgsWithSources.reduce((sum, org) => sum + org.totalSources, 0),
           loadedBy: isSuperAdmin ? 'superadmin' : 'admin',
           durationMs: duration

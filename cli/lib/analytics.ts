@@ -279,13 +279,13 @@ export async function trackUploadSession(data: {
   folderPath: string;
   agentId?: string;
   startedAt: Date;
-  endedAt: Date;
+  endedAt?: Date;
   filesProcessed: number;
-  filesSucceeded: number;
-  filesFailed: number;
-  totalDuration: number;
+  filesSucceeded?: number;
+  filesFailed?: number;
+  totalDuration?: number;
   totalCost?: number;
-  success: boolean;
+  success?: boolean;
 }): Promise<void> {
   const user = getCLIUser();
   

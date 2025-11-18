@@ -23,6 +23,32 @@ import {
   logNoRelevantDocuments 
 } from '../../../../lib/rag-helper-messages';
 
+/**
+ * Detect if a message is a simple greeting that doesn't need conversation history
+ * Returns true for greetings like "Hi", "Hola", "Hello", "How are you?"
+ */
+function isSimpleGreeting(message: string): boolean {
+  const lowercaseMsg = message.toLowerCase().trim();
+  
+  // Common greetings in Spanish and English
+  const greetings = [
+    'hola', 'hi', 'hello', 'hey', 'buenas', 'buenos días', 'buenas tardes', 'buenas noches',
+    'good morning', 'good afternoon', 'good evening', 'good night',
+    'qué tal', 'cómo estás', 'como estas', 'how are you', 'what\'s up',
+    'saludos', 'greetings'
+  ];
+  
+  // Check if message is just a greeting (with optional punctuation)
+  const messageWords = lowercaseMsg.replace(/[¿?!¡.,;:]/g, '').trim();
+  
+  return greetings.some(greeting => {
+    // Exact match or greeting + optional words
+    return messageWords === greeting || 
+           messageWords.startsWith(greeting + ' ') ||
+           messageWords === greeting.replace(/ /g, ''); // Handle "buenos dias" vs "buenosdias"
+  });
+}
+
 export const POST: APIRoute = async ({ params, request }) => {
   try {
     const conversationId = params.id;
@@ -39,39 +65,51 @@ export const POST: APIRoute = async ({ params, request }) => {
     // 🔑 CRITICAL: Determine effective agent ID (for chats, use parent agent)
     let effectiveAgentId = conversationId;
     let isChat = false;
+    let isAlly = false;
     
     if (!conversationId.startsWith('temp-')) {
       const conversation = await getConversation(conversationId);
       if (conversation?.agentId) {
         effectiveAgentId = conversation.agentId;
         isChat = true;
+        isAlly = conversation.isAlly === true; // ✅ NEW: Detect Ally conversations
         console.log(`🔗 Chat detected (${conversationId}) - using parent agent ${effectiveAgentId} for context`);
+        if (isAlly) {
+          console.log(`🤖 Ally conversation detected - will use conversation history instead of RAG chunks`);
+        }
       }
     }
 
-    // ✅ BACKWARD COMPATIBLE: Support three formats
-    // Format 1 (NEW - OPTIMAL): agentId only - BigQuery queries by agent
-    // Format 2 (OPTIMIZED): activeSourceIds = ['id1', 'id2', ...] (just IDs)
-    // Format 3 (OLD): contextSources = [{id, name, type, content}] (with full text)
-    const useAgentSearch = body.useAgentSearch !== false; // Default: true
-    const agentId = effectiveAgentId; // ✅ Use effective agent ID
-    const activeSourceIds = body.activeSourceIds || 
-      (body.contextSources && body.contextSources.map((s: any) => s.id).filter(Boolean)) || 
-      [];
+    // ✅ ALLY-SPECIFIC: For Ally, we use conversation history, not RAG chunks
+    const isAllyConversation = body.isAllyConversation || isAlly;
     
-    console.log(`📋 RAG Configuration:`, {
+    // ✅ BACKWARD COMPATIBLE: Support three formats
+    // Format 1 (NEW - ALLY): Conversation history for Ally
+    // Format 2 (NEW - OPTIMAL): agentId only - BigQuery queries by agent
+    // Format 3 (OPTIMIZED): activeSourceIds = ['id1', 'id2', ...] (just IDs)
+    // Format 4 (OLD): contextSources = [{id, name, type, content}] (with full text)
+    const useAgentSearch = !isAllyConversation && (body.useAgentSearch !== false); // Disable for Ally
+    const useConversationHistory = isAllyConversation; // ✅ NEW: Use history for Ally
+    const agentId = effectiveAgentId; // ✅ Use effective agent ID
+    const activeSourceIds = isAllyConversation ? [] : (
+      body.activeSourceIds || 
+      (body.contextSources && body.contextSources.map((s: any) => s.id).filter(Boolean)) || 
+      []
+    );
+    
+    console.log(`📋 Context Strategy:`, {
       conversationId,
       isChat,
+      isAlly: isAllyConversation,
       effectiveAgentId,
-      useAgentSearch,
-      activeSourceIdsCount: activeSourceIds.length,
-      approach: useAgentSearch ? 'AGENT_SEARCH (optimal)' : 'SOURCE_IDS (legacy)'
+      strategy: isAllyConversation ? 'CONVERSATION_HISTORY' : (useAgentSearch ? 'AGENT_SEARCH' : 'SOURCE_IDS'),
+      activeSourceIdsCount: activeSourceIds.length
     });
 
-    // RAG configuration (RAG is now the ONLY option) - optimized for technical documents like SSOMA
+    // RAG configuration - disabled for Ally, enabled for regular agents
     const ragTopK = body.ragTopK || 10;
-    const ragMinSimilarity = body.ragMinSimilarity || 0.5; // 50% minimum - allow more references (was 0.7)
-    const ragEnabled = true; // HARDCODED: RAG is now the ONLY option (was: body.ragEnabled !== false)
+    const ragMinSimilarity = body.ragMinSimilarity || 0.5;
+    const ragEnabled = !isAllyConversation; // ✅ Disable RAG for Ally conversations
 
     // Get conversation history for temp conversations (can do this early)
     let conversationHistory: Array<{ role: string; content: string }> = [];
@@ -120,9 +158,52 @@ export const POST: APIRoute = async ({ params, request }) => {
           let systemPromptToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.'; // Can be modified if no relevant docs found
           let shouldShowNoDocsMessage = false; // ✅ FIX: Declare at function scope for global access
 
-          // Step 2: Buscando Contexto Relevante... (includes search time, min 3s total)
-          // Try agent-based search first if enabled (OPTIMAL - no source loading needed!)
-          if (useAgentSearch || (activeSourceIds && activeSourceIds.length > 0)) {
+          // Step 2: Context building - different strategies for Ally vs regular agents
+          
+          // ✅ ALLY-SPECIFIC: Use conversation history instead of RAG chunks
+          if (isAllyConversation) {
+            console.log('🤖 [ALLY FLOW] Ally conversation detected!');
+            console.log('🤖 [ALLY FLOW] Message:', message);
+            
+            sendStatus('searching', 'active');
+            
+            // ✅ SMART MEMORY: Only use history if the question needs it
+            const needsMemory = !isSimpleGreeting(message);
+            console.log('🤖 [ALLY FLOW] Needs memory?', needsMemory);
+            console.log('🤖 [ALLY FLOW] Is simple greeting?', isSimpleGreeting(message));
+            
+            if (needsMemory) {
+              console.log('🧠 [ALLY FLOW] Using conversation history (question needs context)...');
+              
+              // Use last 10 messages from THIS conversation as context
+              if (conversationHistory.length > 0) {
+                const historyContext = conversationHistory
+                  .slice(-10) // Last 10 messages
+                  .map(msg => `${msg.role === 'user' ? 'Usuario' : 'Ally'}: ${msg.content}`)
+                  .join('\n\n');
+                
+                additionalContext = `
+===== CONVERSACIONES PREVIAS CON ALLY =====
+${historyContext}
+===========================================
+
+Usa estas conversaciones para proporcionar contexto y continuidad.
+`;
+                console.log(`✅ [ALLY FLOW] Ally context: ${conversationHistory.length} previous messages (${additionalContext.length} chars)`);
+              } else {
+                console.log('ℹ️ [ALLY FLOW] Primera conversación de Ally, sin historial previo');
+              }
+            } else {
+              console.log('⚡ [ALLY FLOW] Saludo simple detectado - respondiendo directamente (sin cargar historial)');
+              console.log('⚡ [ALLY FLOW] Respuesta será RÁPIDA (<2s)');
+            }
+            
+            // Complete search step immediately (no RAG search needed for Ally)
+            console.log('✅ [ALLY FLOW] Completando búsqueda (sin RAG)');
+            sendStatus('searching', 'complete');
+          }
+          // Regular agent: Use RAG chunks from documents
+          else if (useAgentSearch || (activeSourceIds && activeSourceIds.length > 0)) {
             sendStatus('searching', 'active');
             const searchStartTime = Date.now();
             

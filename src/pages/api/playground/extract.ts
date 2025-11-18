@@ -84,39 +84,39 @@ export const POST: APIRoute = async ({ request }) => {
         console.log(`   Quality: ${result.quality.recommendation}`);
         
       } else {
-        // Generic structured format
-        console.log('🧠 [Playground] Using generic structured extraction...');
+        // Generic structured format - NOT IMPLEMENTED YET
+        console.log('⚠️ [Playground] Generic structured extraction not available, falling back to Nubox format...');
         
-        const { extractStructuredDocument } = await import('../../../lib/document-intelligence.js');
+        // Use Nubox format as fallback
+        const { extractNuboxCartola } = await import('../../../lib/nubox-cartola-extraction.js');
         
-        const result = await extractStructuredDocument(buffer, {
+        const result = await extractNuboxCartola(buffer, {
           fileName: file.name,
-          documentType: documentType as any,
-          bank: bank as any,
+          bank: bank === 'auto' ? undefined : bank,
           model: model as any,
+          currency: 'CLP',
         });
-      
-      structuredResult = result;
-      extractedText = result.fullText;
-      extractionMethod = 'document-intelligence';
-      extractionMetadata = {
-        method: 'document-intelligence',
-        model: result.metadata.model,
-        extractionTime: result.metadata.extractionTime,
-        totalFields: result.metadata.totalFields,
-        avgConfidence: result.metadata.avgConfidence,
-        category: result.category.type,
-        bank: result.category.bank,
-        inputTokens: result.metadata.tokens.input,
-        outputTokens: result.metadata.tokens.output,
-        totalTokens: result.metadata.tokens.total,
-        cost: result.metadata.cost,
-      };
-      
-      console.log(`✅ [Playground] Structured extraction complete!`);
-      console.log(`   Category: ${result.category.type} (${result.category.subtype || 'generic'})`);
-      console.log(`   Fields: ${result.fields.length}`);
-      console.log(`   Quality: ${result.quality.recommendation}`);
+        
+        structuredResult = result;
+        extractedText = `Nubox cartola: ${result.movements.length} movements extracted`;
+        extractionMethod = 'nubox-format';
+        extractionMetadata = {
+          method: 'nubox-format',
+          model: result.metadata.model,
+          extractionTime: result.metadata.extraction_time,
+          totalMovements: result.movements.length,
+          avgConfidence: result.metadata.confidence,
+          bank: result.bank_name,
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          cost: result.metadata.cost,
+        };
+        
+        console.log(`✅ [Playground] Nubox extraction complete (fallback)!`);
+        console.log(`   Bank: ${result.bank_name}`);
+        console.log(`   Movements: ${result.movements.length}`);
+        console.log(`   Quality: ${result.quality.recommendation}`);
       }
       
       // Skip text extraction methods when structured mode is used
