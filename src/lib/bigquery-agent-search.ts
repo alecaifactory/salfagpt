@@ -20,6 +20,8 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { generateEmbedding } from './embeddings';
 import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from './firestore';
 import { CURRENT_PROJECT_ID } from './firestore';
+import { getCachedAgentSources } from './agent-sources-cache';
+import { getCachedEmbedding } from './embedding-cache';
 
 const PROJECT_ID = CURRENT_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
 
@@ -79,132 +81,30 @@ export async function searchByAgent(
     
     const startTime = Date.now();
 
-    // 🔑 CRITICAL: Get effective owner (original owner if shared, else current user)
-    const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
-    console.log(`  🔑 Effective owner for context: ${effectiveUserId}${effectiveUserId !== userId ? ' (shared agent)' : ' (own agent)'}`);
-    console.log(`     Current user ID: ${userId}`);
-
-    // 1. Generate query embedding
-    console.log('  1/4 Generating query embedding...');
-    const startEmbed = Date.now();
-    const queryEmbedding = await generateEmbedding(query);
-    console.log(`  ✓ Query embedding generated (${Date.now() - startEmbed}ms)`);
-
-    // 2. Get source IDs assigned to this agent
-    // Try BigQuery first (faster), fallback to Firestore
-    console.log('  2/4 Getting sources assigned to agent...');
-    const startSources = Date.now();
+    // ⚡ OPTIMIZATION: Run embedding + sources lookup in PARALLEL (saves 100-300ms)
+    console.log('  🚀 Running parallel operations: embedding + sources lookup...');
+    const parallelStart = Date.now();
     
-    let assignedSourceIds: string[] = [];
+    const [queryEmbedding, cachedSources] = await Promise.all([
+      getCachedEmbedding(query), // 0-300ms (cached: 0ms!)
+      getCachedAgentSources(agentId, userId) // 0-500ms (cached: 0ms!)
+    ]);
     
-    // Try BigQuery assignments table first (if in production)
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const query = `
-          SELECT DISTINCT sourceId
-          FROM \`${PROJECT_ID}.${DATASET_ID}.agent_source_assignments\`
-          WHERE agentId = @agentId
-            AND userId = @effectiveUserId
-            AND isActive = true
-          ORDER BY assignedAt DESC
-        `;
-        
-        const [rows] = await bigquery.query({
-          query,
-          params: { agentId, effectiveUserId }
-        });
-        
-        assignedSourceIds = rows.map((row: any) => row.sourceId);
-        console.log(`  ✓ Found ${assignedSourceIds.length} sources from BigQuery assignments table (${Date.now() - startSources}ms)`);
-      } catch (error) {
-        console.warn('  ⚠️ BigQuery assignments query failed, falling back to Firestore:', error);
-      }
-    }
+    const { sourceIds: assignedSourceIds, sourceNames } = cachedSources;
     
-    // Fallback to Firestore (always for dev, or if BigQuery failed)
-    if (assignedSourceIds.length === 0) {
-      console.log(`  🔍 Searching Firestore for sources assigned to agent ${agentId}...`);
-      console.log(`     Step 1: Querying by assignedToAgents, then filtering by userId`);
-      
-      // ✅ WORKAROUND: Query by assignedToAgents only (avoids composite index requirement)
-      // Then filter by userId in memory (small result set, very fast)
-      let sourcesSnapshot = await firestore
-        .collection(COLLECTIONS.CONTEXT_SOURCES)
-        .where('assignedToAgents', 'array-contains', agentId) // Single-field index
-        .select('userId', '__name__') // Get userId for filtering + IDs
-        .get();
-      
-      console.log(`     Query result: ${sourcesSnapshot.size} sources found (before userId filter)`);
-      
-      // Filter by userId in memory
-      const matchingDocs = sourcesSnapshot.docs.filter(doc => doc.data().userId === effectiveUserId);
-      console.log(`     After userId filter: ${matchingDocs.length} sources match effectiveUserId`);
-      
-      // Create a new snapshot-like object with filtered docs
-      sourcesSnapshot = { 
-        docs: matchingDocs, 
-        size: matchingDocs.length,
-        empty: matchingDocs.length === 0 
-      } as any;
-      
-      console.log(`     Step 1 result: ${sourcesSnapshot.size} sources found`);
-      
-      // If no sources found with effectiveUserId, try with agent's original owner
-      // This handles cases where agent is not explicitly shared but users should still see references
-      if (sourcesSnapshot.empty) {
-        console.log(`     Step 2: No sources found with effectiveUserId, checking agent owner...`);
-        
-        const { getConversation } = await import('./firestore');
-        const agent = await getConversation(agentId);
-        
-        if (agent) {
-          console.log(`     Agent found: owner userId = ${agent.userId}`);
-          console.log(`     Comparing: effectiveUserId (${effectiveUserId}) vs agent.userId (${agent.userId})`);
-          console.log(`     Are they different? ${agent.userId !== effectiveUserId}`);
-          
-          if (agent.userId !== effectiveUserId) {
-            console.log(`  📚 Trying agent owner's sources: ${agent.userId}`);
-            console.log(`     (This allows references to work even if agent is not explicitly shared)`);
-            
-            sourcesSnapshot = await firestore
-              .collection(COLLECTIONS.CONTEXT_SOURCES)
-              .where('userId', '==', agent.userId) // ✅ Use agent owner's userId
-              .where('assignedToAgents', 'array-contains', agentId)
-              .select('__name__')
-              .get();
-            
-            console.log(`     Step 2 result: ${sourcesSnapshot.size} sources found from owner`);
-            
-            if (sourcesSnapshot.size > 0) {
-              console.log(`  ✅ SUCCESS! Found ${sourcesSnapshot.size} sources from agent owner - references will be generated`);
-            } else {
-              console.log(`  ⚠️ PROBLEM: No sources found even from agent owner`);
-              console.log(`     Possible causes:`);
-              console.log(`       1. Agent has no context sources assigned (assignedToAgents field)`);
-              console.log(`       2. Sources exist but assignedToAgents doesn't include this agentId`);
-              console.log(`       3. Database query issue`);
-            }
-          } else {
-            console.log(`     Same user - not trying owner lookup (would be redundant)`);
-          }
-        } else {
-          console.log(`     ⚠️ Agent not found in database: ${agentId}`);
-        }
-      } else {
-        console.log(`     ✅ SUCCESS! Found ${sourcesSnapshot.size} sources with effectiveUserId`);
-      }
-      
-      assignedSourceIds = sourcesSnapshot.docs.map(doc => doc.id);
-      console.log(`  📊 FINAL RESULT: ${assignedSourceIds.length} sources will be used for RAG search`);
-      if (assignedSourceIds.length > 0) {
-        console.log(`     Source IDs: ${assignedSourceIds.slice(0, 3).join(', ')}${assignedSourceIds.length > 3 ? '...' : ''}`);
-      }
-    }
+    console.log(`  ⚡ Parallel ops complete (${Date.now() - parallelStart}ms)`);
+    console.log(`     - Embedding: Ready`);
+    console.log(`     - Sources: ${assignedSourceIds.length} found`);
 
+    // ✅ OPTIMIZATION: Sources already fetched in parallel above!
     if (assignedSourceIds.length === 0) {
       console.warn('  ⚠️ No sources assigned to this agent');
       return [];
     }
+    
+    // Get effective owner for BigQuery query
+    const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
+    console.log(`  🔑 Effective owner: ${effectiveUserId}${effectiveUserId !== userId ? ' (shared)' : ''}`);
 
     // 3. Vector search in BigQuery (filtered by assigned sources)
     console.log('  3/4 Performing vector search in BigQuery...');
@@ -266,28 +166,14 @@ export async function searchByAgent(
       return [];
     }
 
-    // 5. Load source names for results (only for chunks found)
-    console.log('  5/5 Loading source names...');
-    const startNames = Date.now();
-    
-    const uniqueSourceIds = Array.from(new Set(rows.map((r: any) => r.source_id)));
-    const sourceNamesSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('__name__', 'in', uniqueSourceIds)
-      .select('name') // Only get names, not full documents
-      .get();
-    
-    const sourcesMap = new Map(
-      sourceNamesSnapshot.docs.map(doc => [doc.id, doc.data().name || 'Unknown'])
-    );
-    
-    console.log(`  ✓ Loaded ${uniqueSourceIds.length} source names (${Date.now() - startNames}ms)`);
+    // ⚡ OPTIMIZATION: Source names already loaded in cache above!
+    console.log('  4/4 Applying cached source names...');
 
-    // 5. Parse results
+    // 5. Parse results (using cached source names)
     const results: AgentVectorSearchResult[] = rows.map((row: any) => ({
       chunk_id: row.chunk_id,
       source_id: row.source_id,
-      source_name: sourcesMap.get(row.source_id) || 'Unknown Source',
+      source_name: sourceNames.get(row.source_id) || 'Unknown Source', // ✅ From cache!
       chunk_index: row.chunk_index,
       text: row.full_text,
       similarity: row.similarity,

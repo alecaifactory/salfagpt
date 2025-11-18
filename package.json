@@ -39,6 +39,7 @@
     "fix:folders:execute": "tsx scripts/fix-folders-userid.mjs --execute",
     "test:mcp": "tsx scripts/test-mcp-server.ts",
     "test:tim": "tsx scripts/test-tim-digital-twin.ts",
+    "test:cache": "tsx scripts/test-cache-performance.ts",
     "seed:changelog": "tsx scripts/seed-changelog.ts",
     "seed:changelog:enhanced": "tsx scripts/seed-changelog-enhanced.ts",
     "roadmap:add-changelog": "tsx scripts/add-changelog-to-roadmap.ts",
