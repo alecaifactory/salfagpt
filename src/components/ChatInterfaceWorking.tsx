@@ -715,22 +715,23 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   }, [userId]);
 
   // Load messages when conversation changes
-  // ✅ FIX: Don't reload if messages already loaded for this conversation
+  // ✅ FIX: Check if messages are for CURRENT conversation, not just if messages exist
   useEffect(() => {
     if (currentConversation) {
-      // Check if we already have messages for this conversation
-      const hasMessagesForConversation = messages.length > 0 && 
-        messages.some(msg => !msg.id?.startsWith('streaming-'));
+      // Check if we already have messages FOR THIS SPECIFIC conversation
+      const hasMessagesForThisConversation = messages.length > 0 && 
+        messages.some(msg => msg.conversationId === currentConversation && !msg.id?.startsWith('streaming-'));
       
       // Check if there's active streaming
       const hasStreamingMessage = messages.some(msg => msg.isStreaming);
       
-      // Only load if we don't have messages AND not streaming
-      if (!hasMessagesForConversation && !hasStreamingMessage) {
+      // Only load if we don't have messages for THIS conversation AND not streaming
+      if (!hasMessagesForThisConversation && !hasStreamingMessage) {
+        console.log('📥 Loading messages for conversation:', currentConversation);
         loadMessages(currentConversation);
         loadContextForConversation(currentConversation);
       } else {
-        console.log('⏭️ Skipping reload - messages already loaded or streaming active');
+        console.log('⏭️ Skipping reload - messages already loaded for this conversation or streaming active');
       }
     }
   }, [currentConversation]);
@@ -4624,7 +4625,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           ? 'bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-700'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-700'
                       }`}
-                      onClick={() => setCurrentConversation(chat.id)}
+                      onClick={() => {
+                        // ✅ FIX: Clear messages first so useEffect loads new ones
+                        setMessages([]);
+                        setCurrentConversation(chat.id);
+                      }}
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData('chatId', chat.id);
@@ -5151,7 +5156,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                             {/* Chat info - clickable area */}
                             <div className="flex items-center justify-between">
                               <div
-                                onClick={() => setCurrentConversation(chat.id)}
+                                onClick={() => {
+                                  // ✅ FIX: Clear messages first so useEffect loads new ones
+                                  setMessages([]);
+                                  setCurrentConversation(chat.id);
+                                }}
                                 className="flex-1 text-left cursor-pointer"
                                 style={{ maxWidth: '90%' }}
                               >
@@ -5256,7 +5265,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           >
                             <div className="flex items-center gap-1.5 group">
                               <button
-                                onClick={() => setCurrentConversation(conv.id)}
+                                onClick={() => {
+                                  // ✅ FIX: Clear messages first so useEffect loads new ones
+                                  setMessages([]);
+                                  setCurrentConversation(conv.id);
+                                }}
                                 className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-indigo-600" />
@@ -5326,7 +5339,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           >
                             <div className="flex items-center gap-1.5 group">
                               <button
-                                onClick={() => setCurrentConversation(conv.id)}
+                                onClick={() => {
+                                  // ✅ FIX: Clear messages first so useEffect loads new ones
+                                  setMessages([]);
+                                  setCurrentConversation(conv.id);
+                                }}
                                 className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-blue-600" />
@@ -5396,7 +5413,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           >
                             <div className="flex items-center gap-1.5 group">
                               <button
-                                onClick={() => setCurrentConversation(conv.id)}
+                                onClick={() => {
+                                  // ✅ FIX: Clear messages first so useEffect loads new ones
+                                  setMessages([]);
+                                  setCurrentConversation(conv.id);
+                                }}
                                 className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-green-600" />
@@ -5466,7 +5487,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                           >
                             <div className="flex items-center gap-1.5 group">
                               <button
-                                onClick={() => setCurrentConversation(conv.id)}
+                                onClick={() => {
+                                  // ✅ FIX: Clear messages first so useEffect loads new ones
+                                  setMessages([]);
+                                  setCurrentConversation(conv.id);
+                                }}
                                 className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 text-purple-500" />
