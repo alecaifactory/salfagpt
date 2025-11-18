@@ -73,40 +73,54 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // ✅ UPDATED: Smart file size limits with >100MB exception (2025-11-02)
-    // Vision API: Best for <50MB
-    // Gemini API: Better for 50-500MB (with user approval for >100MB)
-    const maxVisionSize = 50 * 1024 * 1024; // 50MB
-    const recommendedMaxSize = 100 * 1024 * 1024; // 100MB recommended limit
-    const absoluteMaxSize = 500 * 1024 * 1024; // 500MB absolute limit (prevent crashes)
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    // ✅ UPDATED: Centralized validation with upload-limits (2025-11-18)
+    // Import from centralized limits configuration
+    const { validateFile, FILE_SIZE_LIMITS } = await import('../../../lib/upload-limits');
     
-    // ✅ Absolute limit: Reject files >500MB (prevent system crashes)
-    if (file.size > absoluteMaxSize) {
+    // Validate file
+    const validation = validateFile(file);
+    
+    if (!validation.valid) {
+      console.error('❌ File validation failed:', validation.error);
+      
       return new Response(
         JSON.stringify({ 
-          error: `File too large: ${fileSizeMB} MB. Absolute maximum: 500MB`,
-          suggestion: 'File is too large to process. Please compress or split the PDF.',
+          error: validation.error,
+          errorCode: validation.errorCode,
+          suggestions: validation.warnings || [],
           fileSize: file.size,
-          maxSize: absoluteMaxSize
+          fileName: file.name,
         }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+        { 
+          status: 400, 
+          headers: { 'Content-Type': 'application/json' },
+        }
       );
     }
     
-    // ✅ Warn about files >100MB (user must approve in frontend)
-    if (file.size > recommendedMaxSize) {
-      console.warn(`🚨 EXCESSIVE FILE SIZE: ${fileSizeMB} MB (>100MB)`);
-      console.warn(`   User must have approved this in frontend`);
-      console.warn(`   Processing time: 5-15 minutes estimated`);
-      console.warn(`   Using Gemini extraction with maximum output tokens`);
+    // Log warnings if any
+    if (validation.warnings && validation.warnings.length > 0) {
+      console.warn(`⚠️ File validation warnings for ${file.name}:`);
+      validation.warnings.forEach(w => console.warn(`   - ${w}`));
     }
     
-    // ✅ Auto-route based on file size
-    if (file.size > maxVisionSize && extractionMethod === 'vision-api') {
-      console.warn(`⚠️ File size ${fileSizeMB} MB exceeds Vision API limit (50MB)`);
-      console.warn(`   Auto-switching to Gemini extraction for better large file handling`);
-      extractionMethod = 'gemini'; // Override to Gemini for large files
+    // Log processing estimate
+    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    console.log(`📊 File validation passed:`, {
+      name: file.name,
+      size: `${fileSizeMB} MB`,
+      estimatedTime: validation.estimatedProcessingTime 
+        ? `${validation.estimatedProcessingTime}s` 
+        : 'unknown',
+      recommendedMethod: validation.recommendedMethod,
+    });
+    
+    // ✅ Auto-route based on recommendation
+    if (validation.recommendedMethod && extractionMethod === 'vision-api') {
+      if (validation.recommendedMethod !== 'vision-api') {
+        console.warn(`⚠️ Auto-switching to ${validation.recommendedMethod} for better handling`);
+        extractionMethod = validation.recommendedMethod;
+      }
     }
 
     console.log(`📄 Extracting text from: ${file.name} (${file.type}, ${file.size} bytes) using ${model}`);

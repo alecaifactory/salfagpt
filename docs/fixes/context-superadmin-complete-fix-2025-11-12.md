@@ -335,3 +335,6 @@ onClick={() => loadDomainSources(domainId)}
 **Performance:** 2.4s para 885 docs (aceptable, optimizable si necesario)
 
 
+
+
+

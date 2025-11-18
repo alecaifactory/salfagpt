@@ -2041,6 +2041,9 @@ export async function createContextSource(
     status: data.status || 'active',
     addedAt: new Date(),
     source: getEnvironmentSource(),
+    // ✅ CRITICAL: Multi-org support - save organization and domain context
+    organizationId: data.organizationId || undefined,
+    domainId: data.domainId || undefined,
   };
 
   // ✅ CRITICAL FIX: Handle large extractedData (>500KB = Firestore limit approaching)

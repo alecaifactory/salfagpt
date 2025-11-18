@@ -431,3 +431,6 @@ https://console.firebase.google.com/project/salfagpt/firestore/indexes
 **Próximo paso:** Monitorear construcción de índices
 
 
+
+
+

@@ -272,3 +272,6 @@ Open: http://localhost:3000/chat
 **Confidence level:** 95% this solves the hydration issue
 
 
+
+
+

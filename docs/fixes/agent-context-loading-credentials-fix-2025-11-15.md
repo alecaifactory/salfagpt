@@ -138,3 +138,6 @@ This is similar to other authentication fixes documented in:
 **Lesson Learned:** When adding new API calls, always include `credentials: 'include'` for authenticated endpoints. Consider adding this to linting rules or component templates.
 
 
+
+
+

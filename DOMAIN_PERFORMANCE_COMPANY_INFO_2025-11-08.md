@@ -781,3 +781,6 @@ function scoreRoadmapCard(card, domain) {
 
 
 
+
+
+

@@ -126,13 +126,15 @@ export const GET: APIRoute = async ({ request, cookies }) => {
         }
 
         // Query context sources for this organization
-        // PERFORMANCE OPTIMIZED: 
-        // - Uses index: organizationId + addedAt DESC (CICAgNi47oMK)
-        // - Excludes extractedData to avoid transferring 4.4MB+ of data
-        // - Only loads minimal metadata needed for listing
+        // STRATEGY:
+        // 1. Query by organizationId (new sources after 2025-11-17)
+        // 2. Query by userId IN orgUserIds (legacy sources without organizationId)
+        // 3. Combine and deduplicate
         const allOrgSources: any[] = [];
+        const seenSourceIds = new Set<string>();
         
-        const sourcesSnapshot = await firestore
+        // Query 1: Sources with organizationId field (post-migration)
+        const newSourcesSnapshot = await firestore
           .collection(COLLECTIONS.CONTEXT_SOURCES)
           .where('organizationId', '==', org.id)
           .orderBy('addedAt', 'desc')
@@ -145,21 +147,73 @@ export const GET: APIRoute = async ({ request, cookies }) => {
             'addedAt',
             'assignedToAgents',
             'ragEnabled',
-            'metadata'
+            'metadata',
+            'domainId',
+            'organizationId'
             // ✅ Excludes: extractedData, ragMetadata.chunks (huge fields)
           )
           .get();
         
-        sourcesSnapshot.docs.forEach(doc => {
+        newSourcesSnapshot.docs.forEach(doc => {
           const data = doc.data();
           allOrgSources.push({
             id: doc.id,
             ...data,
             addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
           });
+          seenSourceIds.add(doc.id);
         });
+        
+        console.log(`      📊 Found ${newSourcesSnapshot.size} NEW sources (with organizationId)`);
+        
+        // Query 2: Sources by userId (legacy sources without organizationId)
+        // ✅ CRITICAL: Firestore 'in' operator has limit of 10 values
+        // So we need to batch if orgUserIds > 10
+        if (orgUserIds.length > 0) {
+          const batchSize = 10;
+          for (let i = 0; i < orgUserIds.length; i += batchSize) {
+            const userIdBatch = orgUserIds.slice(i, i + batchSize);
+            
+            const legacySnapshot = await firestore
+              .collection(COLLECTIONS.CONTEXT_SOURCES)
+              .where('userId', 'in', userIdBatch)
+              .orderBy('addedAt', 'desc')
+              .select(
+                'name',
+                'type', 
+                'status',
+                'labels',
+                'userId',
+                'addedAt',
+                'assignedToAgents',
+                'ragEnabled',
+                'metadata',
+                'domainId',
+                'organizationId'
+              )
+              .get();
+            
+            legacySnapshot.docs.forEach(doc => {
+              // Skip if already added (has organizationId)
+              if (!seenSourceIds.has(doc.id)) {
+                const data = doc.data();
+                allOrgSources.push({
+                  id: doc.id,
+                  ...data,
+                  addedAt: data.addedAt?.toDate?.() || new Date(data.addedAt),
+                  // ✅ Tag as legacy (no organizationId)
+                  _legacy: !data.organizationId
+                });
+                seenSourceIds.add(doc.id);
+              }
+            });
+          }
+          
+          const legacyCount = allOrgSources.filter(s => s._legacy).length;
+          console.log(`      📊 Found ${legacyCount} LEGACY sources (by userId, no organizationId)`);
+        }
 
-        console.log(`      ✅ Found ${allOrgSources.length} sources for ${org.name}`);
+        console.log(`      ✅ Total ${allOrgSources.length} sources for ${org.name}`);
 
         // Group sources by domain
         // STRATEGY: For CLI-uploaded sources (no user in users collection)
@@ -256,13 +310,47 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     // Filter out organizations with no context sources
     const orgsWithSources = organizationsWithContext.filter(org => org.totalSources > 0);
 
+    // ✅ Calculate tag counts across all sources (for consistent tag badges)
+    const tagCounts = new Map<string, number>();
+    let totalSourcesCount = 0;
+    
+    orgsWithSources.forEach(org => {
+      org.domains.forEach((domain: any) => {
+        domain.sources?.forEach((source: any) => {
+          totalSourcesCount++;
+          const labels = source.labels || [];
+          
+          if (labels.length === 0) {
+            // No tags → General folder
+            tagCounts.set('General', (tagCounts.get('General') || 0) + 1);
+          } else {
+            // Add to each tag's count
+            labels.forEach((tag: string) => {
+              tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+            });
+          }
+        });
+      });
+    });
+
+    // Sort tags: General first, then alphabetically
+    const sortedTags = Array.from(tagCounts.entries()).sort(([a], [b]) => {
+      if (a === 'General') return -1;
+      if (b === 'General') return 1;
+      return a.localeCompare(b);
+    });
+
+    const tagStructure = sortedTags.map(([name, count]) => ({ name, count }));
+
     const duration = Date.now() - startTime;
     console.log(`✅ Loaded context for ${orgsWithSources.length} organizations in ${duration}ms`);
-    console.log(`   Total sources: ${orgsWithSources.reduce((sum, org) => sum + org.totalSources, 0)}`);
+    console.log(`   Total sources: ${totalSourcesCount}`);
+    console.log(`   Unique tags: ${tagStructure.length}`);
 
     return new Response(
       JSON.stringify({ 
         organizations: orgsWithSources,
+        tagStructure, // ✅ NEW: Tag counts for consistent badge display
         metadata: {
           totalOrganizations: orgsWithSources.length,
           totalSources: orgsWithSources.reduce((sum, org) => sum + org.totalSources, 0),

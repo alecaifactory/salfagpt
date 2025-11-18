@@ -325,3 +325,6 @@ BigQuery document_embeddings:
 **¿Quieres que hagamos login como Admin o User para verificar visualmente que también ven similitudes reales?**
 
 
+
+
+

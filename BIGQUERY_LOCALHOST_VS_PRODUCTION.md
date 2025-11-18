@@ -545,3 +545,6 @@ gcloud run services update cr-salfagpt-ai-ft-prod \
 **¿Quieres que active GREEN en producción ahora?** 🎯✨
 
 
+
+
+

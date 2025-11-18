@@ -63,6 +63,8 @@ export async function extractTextChunked(
     sectionSizeMB?: number; // ✅ RENAMED: Target size per PDF section
     userId?: string; // For checkpointing
     fileName?: string; // For checkpointing
+    organizationId?: string; // ✅ NEW: Organization context for multi-org
+    domainId?: string; // ✅ NEW: Domain context for multi-org
     resumeFromCheckpoint?: boolean; // Whether to try resuming
     onProgress?: (progress: { 
       section: number; // ✅ RENAMED: PDF section number
@@ -78,6 +80,8 @@ export async function extractTextChunked(
   const onProgress = options.onProgress || (() => {});
   const userId = options.userId;
   const fileName = options.fileName;
+  const organizationId = options.organizationId; // ✅ NEW: Organization context
+  const domainId = options.domainId; // ✅ NEW: Domain context
   const resumeFromCheckpoint = options.resumeFromCheckpoint !== false; // Default: true
   
   const fileSizeBytes = pdfBuffer.length;
@@ -89,6 +93,8 @@ export async function extractTextChunked(
   console.log(`📄 PDF size: ${fileSizeMB} MB`);
   console.log(`🔪 Target section size: ${targetSectionSizeMB} MB`);
   console.log(`🤖 Model: ${model}`);
+  console.log(`📍 Organization: ${organizationId || 'none'}`);
+  console.log(`📍 Domain: ${domainId || 'none'}`);
   console.log(`🔄 Method: Split into PDF sections → Extract → Combine`);
   console.log(`⏱️  Started: ${new Date().toLocaleTimeString()}\n`);
   
@@ -125,7 +131,12 @@ export async function extractTextChunked(
     // Import pdf-lib dynamically (install if needed: npm install pdf-lib)
     const { PDFDocument } = await import('pdf-lib');
     
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    // ✅ CRITICAL FIX: Ignore encryption to handle password-protected PDFs
+    // Many Scania manuals have encryption even without passwords
+    const pdfDoc = await PDFDocument.load(pdfBuffer, { 
+      ignoreEncryption: true, // ✅ Handle encrypted PDFs
+      throwOnInvalidObject: false // ✅ Handle PDFs with invalid object references
+    });
     const totalPages = pdfDoc.getPageCount();
     
     console.log(`📄 Total pages: ${totalPages}`);
@@ -462,9 +473,16 @@ function estimateSectionExtractionCost(sections: number, model: string): number 
 
 /**
  * Check if file should use PDF section extraction (vs single request)
+ * 
+ * IMPORTANT: Base64 encoding increases size by ~33%!
+ * - 10MB PDF → 13.3MB base64 (safe for Gemini)
+ * - 13MB PDF → 17.3MB base64 (may fail!)
+ * - 15MB PDF → 20MB base64 (will fail!)
  */
 export function shouldUseChunkedExtraction(fileSizeBytes: number): boolean {
-  const geminiInlineLimit = 20 * 1024 * 1024; // 20MB Gemini inline limit
-  return fileSizeBytes > geminiInlineLimit;
+  // ✅ FIXED: Lower threshold to account for base64 inflation
+  // Gemini inline limit is ~15MB base64, so we need to chunk files >11MB raw
+  const safeInlineLimit = 11 * 1024 * 1024; // 11MB raw → ~14.6MB base64 (safe)
+  return fileSizeBytes > safeInlineLimit;
 }
 

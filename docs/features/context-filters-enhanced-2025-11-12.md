@@ -782,3 +782,6 @@ RAG Pipeline: 10-30s (if enabled)
 **Backward Compatible:** ✅ Yes (all new fields optional)
 
 
+
+
+
