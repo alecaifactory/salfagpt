@@ -715,22 +715,23 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   }, [userId]);
 
   // Load messages when conversation changes
-  // ✅ FIX: Don't reload if messages already loaded for this conversation
+  // ✅ FIX: Check if messages are for CURRENT conversation, not just if messages exist
   useEffect(() => {
     if (currentConversation) {
-      // Check if we already have messages for this conversation
-      const hasMessagesForConversation = messages.length > 0 && 
-        messages.some(msg => !msg.id?.startsWith('streaming-'));
+      // Check if we already have messages FOR THIS SPECIFIC conversation
+      const hasMessagesForThisConversation = messages.length > 0 && 
+        messages.some(msg => msg.conversationId === currentConversation && !msg.id?.startsWith('streaming-'));
       
       // Check if there's active streaming
       const hasStreamingMessage = messages.some(msg => msg.isStreaming);
       
-      // Only load if we don't have messages AND not streaming
-      if (!hasMessagesForConversation && !hasStreamingMessage) {
+      // Only load if we don't have messages for THIS conversation AND not streaming
+      if (!hasMessagesForThisConversation && !hasStreamingMessage) {
+        console.log('📥 Loading messages for conversation:', currentConversation);
         loadMessages(currentConversation);
         loadContextForConversation(currentConversation);
       } else {
-        console.log('⏭️ Skipping reload - messages already loaded or streaming active');
+        console.log('⏭️ Skipping reload - messages already loaded for this conversation or streaming active');
       }
     }
   }, [currentConversation]);
