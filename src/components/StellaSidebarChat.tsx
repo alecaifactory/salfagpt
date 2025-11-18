@@ -125,6 +125,32 @@ export default function StellaSidebarChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentSession?.messages]);
+
+  // ✨ STELLA MAGIC MODE: Check for initial prompt and screenshot (2025-11-18)
+  useEffect(() => {
+    if (isOpen) {
+      const initialPrompt = sessionStorage.getItem('stella-initial-prompt');
+      const screenshot = sessionStorage.getItem('stella-pending-screenshot');
+      
+      if (initialPrompt || screenshot) {
+        // Auto-create a session if we have initial data
+        if (!currentSessionId) {
+          // Infer category from prompt or default to 'improvement'
+          const category = 'improvement'; // Could be smarter based on prompt keywords
+          startNewFeedback(category);
+        }
+        
+        // Set the input text
+        if (initialPrompt) {
+          setInputText(initialPrompt);
+          sessionStorage.removeItem('stella-initial-prompt');
+        }
+        
+        // Screenshot is already in pendingAttachmentsFromParent via parent component
+        // Just ensure it's attached to the session
+      }
+    }
+  }, [isOpen]);
   
   // Create new feedback session
   function startNewFeedback(category: FeedbackCategory) {
