@@ -1916,10 +1916,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           conversationId: newConvId,
           userId,
           role: 'user',
-          content: {
-            type: 'text',
-            text: initialText,
-          },
+          content: initialText, // ✅ FIX: Must be string, not object
           timestamp: new Date(),
           tokenCount: 0,
         };
