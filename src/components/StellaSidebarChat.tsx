@@ -154,7 +154,7 @@ export default function StellaSidebarChat({
   
   // Create new feedback session
   function startNewFeedback(category: FeedbackCategory) {
-    const newSession: FeedbackSession = {
+    const newSession: StellaFeedbackSession = {
       id: `feedback-${Date.now()}`,
       category,
       messages: [
@@ -232,7 +232,7 @@ export default function StellaSidebarChat({
     
     try {
       // Add user message
-      const userMessage: Message = {
+      const userMessage: StellaMessage = {
         id: `msg-${Date.now()}`,
         role: 'user',
         content: inputText.trim() || '📸 Captura de pantalla adjunta',
@@ -265,7 +265,7 @@ export default function StellaSidebarChat({
     }
   }
   
-  async function generateStellaResponse(userMessage: Message, session: FeedbackSession): Promise<Message> {
+  async function generateStellaResponse(userMessage: StellaMessage, session: StellaFeedbackSession): Promise<StellaMessage> {
     // Call Stella AI
     const response = await fetch('/api/stella/chat', {
       method: 'POST',
