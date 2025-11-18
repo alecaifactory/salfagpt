@@ -114,6 +114,7 @@ export default function ContextManagementDashboard({
   const [sources, setSources] = useState<EnrichedContextSource[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [documentsLoaded, setDocumentsLoaded] = useState(false); // ✅ NEW: Track if actual documents have been loaded
   
   // Organization-scoped data (for admins and superadmins)
   const [organizationsData, setOrganizationsData] = useState<any[]>([]);
@@ -177,10 +178,16 @@ export default function ContextManagementDashboard({
   // Drag & Drop visual state
   const [isDragging, setIsDragging] = useState(false);
 
-  // Load first page of context sources
+  // ✅ OPTIMIZED: Load ONLY counts on open (fast), documents loaded on user request
   useEffect(() => {
     if (isOpen) {
-      loadFirstPage();
+      loadCountsOnly(); // Fast - just counts, no documents
+      loadOrganizationsForUpload(); // For upload dropdown
+    } else {
+      // Reset state when closing
+      setDocumentsLoaded(false);
+      setSources([]);
+      setTotalCount(0);
     }
   }, [isOpen]);
 
@@ -249,6 +256,63 @@ export default function ContextManagementDashboard({
       loadOrganizationsForUpload();
     }
   }, [isOpen, isSuperAdmin, loadOrganizationsForUpload]);
+
+  // ✅ NEW: Load only counts (FAST!) - no actual document data
+  const loadCountsOnly = async () => {
+    console.log('📊 Loading document counts only (fast mode)...');
+    
+    try {
+      if (isOrgScoped) {
+        // SuperAdmin/Admin: Load counts by organization
+        const response = await fetch('/api/context-sources/count-by-organization', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setOrganizationsData(data.organizations || []);
+          setTotalCount(data.metadata?.totalSources || 0);
+          
+          console.log('✅ Counts loaded:', {
+            organizations: data.organizations?.length || 0,
+            totalSources: data.metadata?.totalSources || 0,
+            duration: data.metadata?.durationMs + 'ms'
+          });
+          
+          // Auto-expand first organization for better UX
+          if (data.organizations && data.organizations.length > 0) {
+            setExpandedOrgs(new Set([data.organizations[0].id]));
+          }
+        } else {
+          console.error('❌ Failed to load counts:', response.status);
+        }
+      } else {
+        // Regular user: Load folder structure with counts
+        const response = await fetch('/api/context-sources/folder-structure', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFolderStructure(data.folders || []);
+          setTotalCount(data.totalCount || 0);
+          
+          const tagsSet = new Set<string>();
+          data.folders?.forEach((folder: any) => {
+            if (folder.name) tagsSet.add(folder.name);
+          });
+          setAllTags(Array.from(tagsSet).sort());
+          
+          console.log('✅ User counts loaded:', {
+            folders: data.folders?.length || 0,
+            totalCount: data.totalCount || 0
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading counts:', error);
+    }
+  };
 
   // ✅ NEW: Filtered and sorted organizations data
   const filteredOrganizationsData = useMemo(() => {
@@ -382,16 +446,18 @@ export default function ContextManagementDashboard({
     }
   }, [selectedSourceIds, sources, conversations]);
 
+  // ✅ CHANGED: loadFirstPage now loads ACTUAL documents (called by user action)
   const loadFirstPage = async () => {
     setLoading(true);
     setSources([]);
-    setOrganizationsData([]);
     setCurrentPage(0);
     
     try {
-      // Check if we should load organization-scoped data
+      // ✅ User explicitly requested to load documents - now load the full data
+      console.log('📥 Loading actual documents (user requested)...');
+      
       if (isOrgScoped) {
-        console.log('🏢 Loading organization-scoped context sources...');
+        // SuperAdmin/Admin: Load full organization context with documents
         const response = await fetch('/api/context-sources/by-organization', {
           credentials: 'include',
         });
@@ -399,145 +465,78 @@ export default function ContextManagementDashboard({
         if (response.ok) {
           const data = await response.json();
           const orgsWithContext = data.organizations || [];
-          setTotalCount(data.metadata?.totalSources || 0);
+          const allOrgs = data.allOrganizations || orgsWithContext;
           
-          console.log('✅ Loaded context for', orgsWithContext.length, 'organizations');
-          console.log('📊 Total sources:', data.metadata?.totalSources || 0);
-          
-          // ✅ FIX: Merge with existing organizationsData instead of overwriting
-          // This preserves the full org list loaded from /api/organizations
-          setOrganizationsData(prevData => {
-            // If prevData is empty (first load), use orgsWithContext
-            if (prevData.length === 0) {
-              console.log('🔄 First load - using context organizations');
-              return orgsWithContext;
-            }
-            
-            // Merge: Update orgs that have context, preserve others without context
-            console.log(`🔄 Merging context data: ${orgsWithContext.length} orgs with context + ${prevData.length} total orgs`);
-            return prevData.map(existingOrg => {
-              const orgWithContext = orgsWithContext.find((o: any) => o.id === existingOrg.id);
-              // If this org has context data, use it; otherwise keep basic structure
-              return orgWithContext || existingOrg;
-            });
-          });
-          
-          // ✅ Use tagStructure from backend for ACCURATE counts
-          if (data.tagStructure && Array.isArray(data.tagStructure)) {
-            setFolderStructure(data.tagStructure);
-            const tagsSet = new Set<string>();
-            data.tagStructure.forEach((folder: any) => {
-              if (folder.name) tagsSet.add(folder.name);
-            });
-            setAllTags(Array.from(tagsSet).sort());
-            console.log('🏷️ Found', data.tagStructure.length, 'tags with counts:', data.tagStructure);
-          } else {
-            // ⚠️ FALLBACK: Extract all unique tags from sources across all orgs
-            console.warn('⚠️ No tagStructure in response, calculating from loaded sources (may be inaccurate)');
-            const tagsSet = new Set<string>();
-            data.organizations?.forEach((org: any) => {
-              org.domains?.forEach((domain: any) => {
-                domain.sources?.forEach((source: any) => {
-                  if (source.labels && Array.isArray(source.labels)) {
-                    source.labels.forEach((tag: string) => tagsSet.add(tag));
-                  }
+          // Flatten all sources from all orgs/domains
+          const allSources: any[] = [];
+          orgsWithContext.forEach((org: any) => {
+            org.domains?.forEach((domain: any) => {
+              domain.sources?.forEach((source: any) => {
+                allSources.push({
+                  ...source,
+                  organizationId: org.id,
+                  organizationName: org.name,
+                  domainId: domain.domainId,
+                  domainName: domain.domainName
                 });
               });
             });
-            setAllTags(Array.from(tagsSet).sort());
-            console.log('🏷️ Found', tagsSet.size, 'unique tags (fallback, no counts)');
-          }
+          });
           
-          // Auto-expand first organization for better UX
-          if (data.organizations && data.organizations.length > 0) {
-            setExpandedOrgs(new Set([data.organizations[0].id]));
+          setSources(allSources);
+          setOrganizationsData(allOrgs);
+          setTotalCount(data.metadata?.totalSources || allSources.length);
+          setDocumentsLoaded(true); // ✅ Mark as loaded
+          
+          console.log('✅ Documents loaded:', {
+            sources: allSources.length,
+            organizations: allOrgs.length,
+            duration: data.metadata?.durationMs + 'ms'
+          });
+          
+          // Set tag structure
+          if (data.tagStructure) {
+            setFolderStructure(data.tagStructure);
+            setAllTags(data.tagStructure.map((t: any) => t.name));
           }
         } else {
           console.error('❌ Failed to load organization context:', response.status);
         }
       } else {
-        // Regular user: Load their own context sources
-        console.log('👤 Loading user context sources...');
+        // Regular user: Load their documents with lightweight endpoint
+        const url = new URL('/api/context-sources/lightweight-list', window.location.origin);
+        url.searchParams.set('page', '0');
+        url.searchParams.set('pageSize', '50');
         
-        // Load folder structure
-        const structureResponse = await fetch('/api/context-sources/folder-structure', {
-          credentials: 'include',
-        });
+        // Apply filters
+        if (filterByTag) url.searchParams.set('tag', filterByTag);
+        if (sortBy) url.searchParams.set('sort', sortBy);
         
-        let foldersLoaded = false;
-        if (structureResponse.ok) {
-          const data = await structureResponse.json();
-          setFolderStructure(data.folders || []);
-          setTotalCount(data.totalCount || 0);
-          
-          // Extract all unique tags from folder structure
-          const tagsSet = new Set<string>();
-          data.folders?.forEach((folder: any) => {
-            if (folder.name) tagsSet.add(folder.name);
-          });
-          setAllTags(Array.from(tagsSet).sort());
-          foldersLoaded = true;
-          console.log('✅ Loaded folder structure:', data.folders?.length, 'folders,', data.totalCount, 'total sources');
-        } else {
-          console.error('❌ Failed to load folder structure:', structureResponse.status);
-          console.warn('   📊 Will calculate folder structure from loaded sources');
-        }
+        const response = await fetch(url, { credentials: 'include' });
         
-        // Load first 10 documents
-        const response = await fetch('/api/context-sources/paginated?page=0&limit=10', {
-          credentials: 'include',
-        });
         if (response.ok) {
           const data = await response.json();
           setSources(data.sources || []);
-          setHasMore(data.hasMore);
-          setCurrentPage(0);
+          setTotalCount(data.totalCount || 0);
+          setHasMore(data.hasMore || false);
+          setDocumentsLoaded(true); // ✅ Mark as loaded
           
-          console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
-          console.log('📊 Total count:', data.totalCount || 0);
-          console.log('📁 Folders:', data.folders?.length || 0);
-          
-          // ✅ FALLBACK: If folder structure failed to load, calculate from sources
-          if (!foldersLoaded && data.sources && data.sources.length > 0) {
-            console.log('📊 Calculating folder structure from loaded sources (fallback)...');
-            
-            const folderCounts = new Map<string, number>();
-            const tagsSet = new Set<string>();
-            
-            data.sources.forEach((source: any) => {
-              const labels = source.labels || [];
-              
-              if (labels.length === 0) {
-                folderCounts.set('General', (folderCounts.get('General') || 0) + 1);
-                tagsSet.add('General');
-              } else {
-                labels.forEach((tag: string) => {
-                  folderCounts.set(tag, (folderCounts.get(tag) || 0) + 1);
-                  tagsSet.add(tag);
-                });
-              }
-            });
-            
-            const folders = Array.from(folderCounts.entries())
-              .sort(([a], [b]) => {
-                if (a === 'General') return -1;
-                if (b === 'General') return 1;
-                return a.localeCompare(b);
-              })
-              .map(([name, count]) => ({ name, count }));
-            
-            setFolderStructure(folders);
-            setAllTags(Array.from(tagsSet).sort());
-            setTotalCount(data.totalCount || data.sources.length);
-            
-            console.log('✅ Fallback folder structure calculated:', folders.length, 'folders');
+          if (data.tags) {
+            setFolderStructure(data.tags);
+            setAllTags(data.tags.map((t: any) => t.name));
           }
+          
+          console.log('✅ User documents loaded:', {
+            sources: data.sources?.length || 0,
+            total: data.totalCount,
+            duration: data.metadata?.durationMs
+          });
         } else {
           console.error('❌ Failed to load sources:', response.status);
         }
       }
     } catch (error) {
-      console.error('Error loading context sources:', error);
+      console.error('❌ Error loading documents:', error);
     } finally {
       setLoading(false);
     }
@@ -550,21 +549,34 @@ export default function ContextManagementDashboard({
     const nextPage = currentPage + 1;
     
     try {
-      const response = await fetch(`/api/context-sources/paginated?page=${nextPage}&limit=10`, {
-        credentials: 'include', // ✅ FIX: Include cookies for authentication
-      });
+      // ✅ OPTIMIZED: Use lightweight list endpoint with pagination
+      const url = new URL('/api/context-sources/lightweight-list', window.location.origin);
+      url.searchParams.set('page', nextPage.toString());
+      url.searchParams.set('pageSize', '50');
+      
+      // Apply same filters as first page
+      if (filterByOrg) url.searchParams.set('organizationId', filterByOrg);
+      if (filterByDomain) url.searchParams.set('domainId', filterByDomain);
+      if (filterByTag) url.searchParams.set('tag', filterByTag);
+      if (sortBy) url.searchParams.set('sort', sortBy);
+      
+      const response = await fetch(url, { credentials: 'include' });
+      
       if (response.ok) {
         const data = await response.json();
         setSources(prev => [...prev, ...(data.sources || [])]);
-        setHasMore(data.hasMore);
+        setHasMore(data.hasMore || false);
         setCurrentPage(nextPage);
         
-        console.log('✅ Loaded page', nextPage, ':', data.sources?.length || 0, 'sources');
+        console.log(`✅ Loaded page ${nextPage}:`, {
+          sources: data.sources?.length || 0,
+          duration: data.metadata?.durationMs
+        });
       } else {
         console.error('❌ Failed to load page:', response.status);
       }
     } catch (error) {
-      console.error('Error loading next page:', error);
+      console.error('❌ Error loading next page:', error);
     } finally {
       setLoadingMore(false);
     }
@@ -2567,16 +2579,18 @@ export default function ContextManagementDashboard({
                           // Debug: Log what we found
                           if (!org) {
                             console.warn('⚠️ Organization not found in dropdown:', selectedOrgForUpload);
-                            console.log('   Available orgs:', organizationsData.map(o => ({ id: o.id, domains: o.domains?.length })));
+                            console.log('   Available orgs:', organizationsData.map(o => ({ id: o.id, name: o.name, domains: o.domains?.length })));
                             return null;
                           }
                           
                           const domains = org?.domains || [];
                           console.log(`🔍 Domain dropdown for ${org.name}:`, {
                             orgId: org.id,
+                            orgName: org.name,
                             totalDomains: domains.length,
-                            firstDomains: domains.slice(0, 3),
-                            domainTypes: domains.map((d: any) => typeof d)
+                            allDomains: domains,
+                            domainTypes: domains.map((d: any) => typeof d),
+                            firstThreeDomains: domains.slice(0, 3)
                           });
                           
                           if (domains.length === 0) {
@@ -3323,20 +3337,53 @@ export default function ContextManagementDashboard({
                 </div>
               </div>
 
-              {loading && (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-gray-600 animate-spin" />
+              {/* ✅ NEW: Show "Load Documents" button before loading actual documents */}
+              {!documentsLoaded && !loading && (
+                <div className="text-center py-12">
+                  <Database className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <p className="text-base text-slate-700 mb-2 font-medium">
+                    {totalCount > 0 ? (
+                      <>
+                        <span className="font-bold text-blue-600 text-2xl">{totalCount}</span>
+                        <span className="text-slate-600 ml-2">documento{totalCount !== 1 ? 's' : ''} disponible{totalCount !== 1 ? 's' : ''}</span>
+                      </>
+                    ) : (
+                      'Documentos disponibles'
+                    )}
+                  </p>
+                  <button
+                    onClick={loadFirstPage}
+                    className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-3 mx-auto transition-all shadow-md hover:shadow-lg text-base"
+                  >
+                    <Download className="w-5 h-5" />
+                    Cargar Documentos
+                    {totalCount > 0 && (
+                      <span className="ml-1 px-2.5 py-1 bg-blue-500 rounded-full text-sm">
+                        {totalCount}
+                      </span>
+                    )}
+                  </button>
+                  <p className="text-xs text-slate-500 mt-4">
+                    Los documentos se cargarán solo cuando los necesites
+                  </p>
                 </div>
               )}
 
-              {!loading && sources.length === 0 && !isOrgScoped && (
+              {loading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-gray-600 animate-spin" />
+                  <p className="ml-3 text-sm text-gray-600">Cargando documentos...</p>
+                </div>
+              )}
+
+              {!loading && documentsLoaded && sources.length === 0 && !isOrgScoped && (
                 <div className="text-center py-12 text-gray-500">
                   <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No context sources found</p>
                 </div>
               )}
               
-              {!loading && isOrgScoped && organizationsData.length === 0 && (
+              {!loading && documentsLoaded && isOrgScoped && organizationsData.length === 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No organizations found</p>
@@ -3344,7 +3391,7 @@ export default function ContextManagementDashboard({
                 </div>
               )}
 
-              {!loading && filteredSources.length === 0 && sources.length > 0 && (
+              {!loading && documentsLoaded && filteredSources.length === 0 && sources.length > 0 && (
                 <div className="text-center py-12 text-gray-500">
                   <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">No sources match the selected tags</p>
@@ -3357,8 +3404,8 @@ export default function ContextManagementDashboard({
                 </div>
               )}
 
-              {/* Organization-Scoped View (SuperAdmins & Admins) */}
-              {!loading && isOrgScoped && filteredOrganizationsData.length > 0 && (
+              {/* Organization-Scoped View (SuperAdmins & Admins) - Only show when documents loaded */}
+              {!loading && documentsLoaded && isOrgScoped && filteredOrganizationsData.length > 0 && (
                 <div className="space-y-4">
                   <div className="px-1 py-2 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800 font-medium">
