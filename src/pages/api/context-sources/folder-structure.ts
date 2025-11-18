@@ -9,7 +9,11 @@ import { firestore, COLLECTIONS } from '../../../lib/firestore';
  * PERFORMANCE: Returns only TAG names and document counts per folder
  * This allows UI to render folders immediately while documents load progressively
  * 
- * Security: Only accessible by alec@getaifactory.com
+ * Security: 
+ * - SuperAdmin: Sees ALL sources across all organizations
+ * - Admin: Sees only sources in their organization (org-filtered)
+ * 
+ * ✅ CONSISTENT SYSTEM: Tag counts are ALWAYS accurate (from Firestore total count)
  */
 export const GET: APIRoute = async (context) => {
   const startTime = Date.now();
@@ -24,29 +28,55 @@ export const GET: APIRoute = async (context) => {
       );
     }
 
-    // 2. SECURITY: Only superadmin can access
-    if (session.email !== 'alec@getaifactory.com') {
+    // 2. Get user to check role and org
+    const { getUserById, getUserOrganization } = await import('../../../lib/firestore.js');
+    const user = await getUserById(session.id);
+    
+    if (!user) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden - Superadmin access only' }),
+        JSON.stringify({ error: 'User not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const isSuperAdmin = user.role === 'superadmin';
+    const isAdmin = user.role === 'admin';
+    
+    // ✅ Allow Admin AND SuperAdmin access
+    if (!isSuperAdmin && !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - Admin access required' }),
         { status: 403, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('📊 Fetching folder structure for superadmin:', session.email);
+    console.log('📊 Fetching folder structure for:', session.email, `(${user.role})`);
 
-    // 3. Get total count (fast - just count)
-    const totalCountSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .count()
-      .get();
+    // 3. Build query with org-scoped filtering
+    let query: any = firestore.collection(COLLECTIONS.CONTEXT_SOURCES);
     
+    // ✅ CRITICAL: Filter by organization for Admins
+    if (isAdmin && !isSuperAdmin) {
+      const userOrg = await getUserOrganization(session.id);
+      if (userOrg) {
+        console.log(`   📁 Filtering by organization: ${userOrg.id}`);
+        query = query.where('organizationId', '==', userOrg.id);
+      } else {
+        console.warn('   ⚠️ Admin without org - showing no sources');
+        return new Response(
+          JSON.stringify({ folders: [], totalCount: 0, responseTime: 0 }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    // SuperAdmin sees ALL sources (no filter)
+
+    // 4. Get total count (fast - just count)
+    const totalCountSnapshot = await query.count().get();
     const totalCount = totalCountSnapshot.data().count;
 
-    // 4. Fetch only minimal data: id and labels (SUPER FAST)
-    const sourcesSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .select('labels') // ⚡ Only fetch labels field
-      .get();
+    // 5. Fetch only minimal data: id and labels (SUPER FAST)
+    const sourcesSnapshot = await query.select('labels').get();
 
     // 5. Build folder structure with counts
     const folderCounts = new Map<string, number>();

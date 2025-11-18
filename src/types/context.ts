@@ -79,6 +79,10 @@ export interface ContextSource {
   metadata?: ExtractionMetadata;
   extractedData?: string;
   
+  // ✅ Multi-organization support
+  organizationId?: string; // Organization this source belongs to
+  domainId?: string; // Specific domain within organization (e.g., 'maqsa.cl')
+  
   // ✅ NEW: For large extractions (>500KB)
   extractedDataUrl?: string; // Cloud Storage URL (gs://bucket/path)
   extractedDataSize?: number; // Size in bytes

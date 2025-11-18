@@ -422,19 +422,31 @@ export default function ContextManagementDashboard({
             });
           });
           
-          // Extract all unique tags from sources across all orgs
-          const tagsSet = new Set<string>();
-          data.organizations?.forEach((org: any) => {
-            org.domains?.forEach((domain: any) => {
-              domain.sources?.forEach((source: any) => {
-                if (source.labels && Array.isArray(source.labels)) {
-                  source.labels.forEach((tag: string) => tagsSet.add(tag));
-                }
+          // ✅ Use tagStructure from backend for ACCURATE counts
+          if (data.tagStructure && Array.isArray(data.tagStructure)) {
+            setFolderStructure(data.tagStructure);
+            const tagsSet = new Set<string>();
+            data.tagStructure.forEach((folder: any) => {
+              if (folder.name) tagsSet.add(folder.name);
+            });
+            setAllTags(Array.from(tagsSet).sort());
+            console.log('🏷️ Found', data.tagStructure.length, 'tags with counts:', data.tagStructure);
+          } else {
+            // ⚠️ FALLBACK: Extract all unique tags from sources across all orgs
+            console.warn('⚠️ No tagStructure in response, calculating from loaded sources (may be inaccurate)');
+            const tagsSet = new Set<string>();
+            data.organizations?.forEach((org: any) => {
+              org.domains?.forEach((domain: any) => {
+                domain.sources?.forEach((source: any) => {
+                  if (source.labels && Array.isArray(source.labels)) {
+                    source.labels.forEach((tag: string) => tagsSet.add(tag));
+                  }
+                });
               });
             });
-          });
-          setAllTags(Array.from(tagsSet).sort());
-          console.log('🏷️ Found', tagsSet.size, 'unique tags across all organizations');
+            setAllTags(Array.from(tagsSet).sort());
+            console.log('🏷️ Found', tagsSet.size, 'unique tags (fallback, no counts)');
+          }
           
           // Auto-expand first organization for better UX
           if (data.organizations && data.organizations.length > 0) {
@@ -451,6 +463,8 @@ export default function ContextManagementDashboard({
         const structureResponse = await fetch('/api/context-sources/folder-structure', {
           credentials: 'include',
         });
+        
+        let foldersLoaded = false;
         if (structureResponse.ok) {
           const data = await structureResponse.json();
           setFolderStructure(data.folders || []);
@@ -462,8 +476,11 @@ export default function ContextManagementDashboard({
             if (folder.name) tagsSet.add(folder.name);
           });
           setAllTags(Array.from(tagsSet).sort());
+          foldersLoaded = true;
+          console.log('✅ Loaded folder structure:', data.folders?.length, 'folders,', data.totalCount, 'total sources');
         } else {
           console.error('❌ Failed to load folder structure:', structureResponse.status);
+          console.warn('   📊 Will calculate folder structure from loaded sources');
         }
         
         // Load first 10 documents
@@ -479,6 +496,42 @@ export default function ContextManagementDashboard({
           console.log('✅ Loaded first page:', data.sources?.length || 0, 'sources');
           console.log('📊 Total count:', data.totalCount || 0);
           console.log('📁 Folders:', data.folders?.length || 0);
+          
+          // ✅ FALLBACK: If folder structure failed to load, calculate from sources
+          if (!foldersLoaded && data.sources && data.sources.length > 0) {
+            console.log('📊 Calculating folder structure from loaded sources (fallback)...');
+            
+            const folderCounts = new Map<string, number>();
+            const tagsSet = new Set<string>();
+            
+            data.sources.forEach((source: any) => {
+              const labels = source.labels || [];
+              
+              if (labels.length === 0) {
+                folderCounts.set('General', (folderCounts.get('General') || 0) + 1);
+                tagsSet.add('General');
+              } else {
+                labels.forEach((tag: string) => {
+                  folderCounts.set(tag, (folderCounts.get(tag) || 0) + 1);
+                  tagsSet.add(tag);
+                });
+              }
+            });
+            
+            const folders = Array.from(folderCounts.entries())
+              .sort(([a], [b]) => {
+                if (a === 'General') return -1;
+                if (b === 'General') return 1;
+                return a.localeCompare(b);
+              })
+              .map(([name, count]) => ({ name, count }));
+            
+            setFolderStructure(folders);
+            setAllTags(Array.from(tagsSet).sort());
+            setTotalCount(data.totalCount || data.sources.length);
+            
+            console.log('✅ Fallback folder structure calculated:', folders.length, 'folders');
+          }
         } else {
           console.error('❌ Failed to load sources:', response.status);
         }
@@ -784,52 +837,115 @@ export default function ContextManagementDashboard({
       return; // Exit early
     }
     
-    // ✅ Check file sizes with smart limits
-    const largeFiles = filesArray.filter(f => f.size > 50 * 1024 * 1024); // >50MB
-    const hugeFiles = filesArray.filter(f => f.size > 100 * 1024 * 1024); // >100MB (require approval)
-    const excessiveFiles = filesArray.filter(f => f.size > 500 * 1024 * 1024); // >500MB (absolute reject)
+    // ✅ NEW: Use centralized validation system (2025-11-18)
+    const { validateFile, validateBatch, formatFileSize, formatEstimatedTime } = await import('../lib/upload-limits');
     
-    // ✅ Absolute reject: Files >500MB
-    if (excessiveFiles.length > 0) {
-      const fileList = excessiveFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-      alert(`🚫 ${excessiveFiles.length} file(s) exceed 500MB absolute limit:\n\n${fileList}\n\nThese files are too large to process. Please compress or split them.\n\nRecommended: Compress to <100MB for optimal performance.`);
+    // Validate batch first
+    const batchValidation = validateBatch(filesArray);
+    
+    if (!batchValidation.valid) {
+      const errorMessage = [
+        `🚫 ${batchValidation.error}`,
+        '',
+        ...(batchValidation.warnings || []),
+      ].join('\n');
       
-      // Filter out excessive files
-      const validFiles = filesArray.filter(f => f.size <= 500 * 1024 * 1024);
-      if (validFiles.length === 0) return; // All files too large
-      
-      // Continue with remaining files
-      return handleFileSelect(validFiles as any); // Recursive call with valid files
+      alert(errorMessage);
+      return;
     }
     
-    // ✅ Double approval: Files >100MB but <=500MB
+    // Show warnings if any
+    if (batchValidation.warnings && batchValidation.warnings.length > 0) {
+      console.warn('⚠️ Batch validation warnings:');
+      batchValidation.warnings.forEach(w => console.warn(`   - ${w}`));
+    }
+    
+    // Validate each file and categorize
+    const invalidFiles: Array<{ file: File; reason: string }> = [];
+    const largeFiles: File[] = [];
+    const hugeFiles: File[] = [];
+    
+    for (const file of filesArray) {
+      const validation = validateFile(file);
+      
+      if (!validation.valid) {
+        invalidFiles.push({
+          file,
+          reason: validation.error || 'Error desconocido',
+        });
+        continue;
+      }
+      
+      // Categorize by size
+      if (file.size > 100 * 1024 * 1024) {
+        hugeFiles.push(file);
+      } else if (file.size > 40 * 1024 * 1024) {
+        largeFiles.push(file);
+      }
+    }
+    
+    // Handle invalid files
+    if (invalidFiles.length > 0) {
+      const fileList = invalidFiles
+        .map(({ file, reason }) => `  • ${file.name}: ${reason}`)
+        .join('\n');
+      
+      const validCount = filesArray.length - invalidFiles.length;
+      
+      if (validCount === 0) {
+        alert(`🚫 Todos los archivos tienen errores:\n\n${fileList}`);
+        return;
+      }
+      
+      const proceed = confirm(
+        `⚠️ ${invalidFiles.length} archivo(s) no válido(s):\n\n${fileList}\n\n` +
+        `¿Continuar con ${validCount} archivo(s) válido(s)?`
+      );
+      
+      if (!proceed) return;
+      
+      // Filter out invalid files
+      filesArray = filesArray.filter(f => 
+        !invalidFiles.some(inv => inv.file.name === f.name)
+      );
+    }
+    
+    // Handle huge files (>100MB) - require explicit approval
     if (hugeFiles.length > 0) {
       const approved = await handleHugeFileApproval(hugeFiles);
       
       if (!approved) {
         // User declined - filter out huge files
         const validFiles = filesArray.filter(f => f.size <= 100 * 1024 * 1024);
-        if (validFiles.length === 0) return; // All files too large, nothing to upload
+        if (validFiles.length === 0) {
+          console.log('ℹ️ User declined all large files - nothing to upload');
+          return;
+        }
         
         console.log(`⚠️ User declined ${hugeFiles.length} files >100MB`);
-        console.log(`✅ Proceeding with ${validFiles.length} files <=100MB`);
-        setStagedFiles(validFiles);
+        console.log(`✅ Proceeding with ${validFiles.length} files ≤100MB`);
+        filesArray = validFiles;
       } else {
-        // User approved - allow all files including huge ones
         console.log(`✅ User approved processing ${hugeFiles.length} files >100MB`);
-        console.log(`⚠️ This may take significant time and resources`);
-        setStagedFiles(filesArray);
+        console.log(`⏱️ Estimated processing time: ${formatEstimatedTime(batchValidation.estimatedProcessingTime || 0)}`);
       }
-    } else if (largeFiles.length > 0) {
-      const fileList = largeFiles.map(f => `  • ${f.name} (${(f.size / (1024 * 1024)).toFixed(1)} MB)`).join('\n');
-      console.warn(`💡 ${largeFiles.length} large file(s) detected (>50MB):\n${fileList}`);
-      console.warn('   These will use Gemini extraction (slower but more robust for large files)');
-      console.warn('   Tip: Consider using Pro model for better quality');
-      setStagedFiles(filesArray);
-    } else {
-      setStagedFiles(filesArray);
     }
     
+    // Log large files info (40-100MB)
+    if (largeFiles.length > 0) {
+      const fileList = largeFiles
+        .map(f => `  • ${f.name} (${formatFileSize(f.size)})`)
+        .join('\n');
+      
+      console.warn(`💡 ${largeFiles.length} archivo(s) grande(s) detectado(s):\n${fileList}`);
+      console.warn('   Se usará extracción Gemini para mejor manejo');
+    }
+    
+    // Final validation passed
+    console.log(`✅ Validation complete: ${filesArray.length} archivos válidos`);
+    console.log(`⏱️ Tiempo estimado total: ${formatEstimatedTime(batchValidation.estimatedProcessingTime || 0)}`);
+    
+    setStagedFiles(filesArray);
     setShowUploadStaging(true);
     setStagedTags([]);
     setUploadTags(''); // Clear input for fresh tags
@@ -2263,6 +2379,25 @@ export default function ContextManagementDashboard({
                       <span className="text-gray-400 text-xs">•</span>
                       <span className="text-[10px] text-gray-600">Pipeline automático</span>
                     </div>
+                    
+                    {/* ✅ NEW: Upload limits info */}
+                    <div className="mt-4 text-left">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div className="text-blue-800">
+                            <p className="font-semibold mb-1">Límites de Carga</p>
+                            <ul className="space-y-0.5 text-blue-700">
+                              <li>• Tamaño máximo por archivo: <strong>500 MB</strong></li>
+                              <li>• Recomendado: <strong>≤100 MB</strong> (procesamiento rápido)</li>
+                              <li>• Máximo por lote: <strong>20 archivos</strong> o <strong>2 GB</strong> total</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <input
                     ref={fileInputRef}
@@ -2428,7 +2563,28 @@ export default function ContextManagementDashboard({
                         <option value="">Auto-assign by uploader email</option>
                         {(() => {
                           const org = organizationsData.find(o => o.id === selectedOrgForUpload);
+                          
+                          // Debug: Log what we found
+                          if (!org) {
+                            console.warn('⚠️ Organization not found in dropdown:', selectedOrgForUpload);
+                            console.log('   Available orgs:', organizationsData.map(o => ({ id: o.id, domains: o.domains?.length })));
+                            return null;
+                          }
+                          
                           const domains = org?.domains || [];
+                          console.log(`🔍 Domain dropdown for ${org.name}:`, {
+                            orgId: org.id,
+                            totalDomains: domains.length,
+                            firstDomains: domains.slice(0, 3),
+                            domainTypes: domains.map((d: any) => typeof d)
+                          });
+                          
+                          if (domains.length === 0) {
+                            console.warn('⚠️ No domains in organization data!');
+                            return (
+                              <option disabled>No domains available</option>
+                            );
+                          }
                           
                           // ✅ Handle both formats:
                           // - Basic org data: domains = ["domain1", "domain2"] (string array)

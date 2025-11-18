@@ -66,3 +66,6 @@ echo "   gsutil ls ${BUCKET_NAME}/${BACKUP_NAME}/"
 echo ""
 
 
+
+
+

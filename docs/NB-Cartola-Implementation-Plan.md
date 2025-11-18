@@ -1638,3 +1638,6 @@ import { GoogleGenAI } from '@google/genai';
 **Compliance**: ✅ Ley 19.628
 
 
+
+
+

@@ -38,6 +38,7 @@
     "fix:folders": "tsx scripts/fix-folders-userid.mjs",
     "fix:folders:execute": "tsx scripts/fix-folders-userid.mjs --execute",
     "test:mcp": "tsx scripts/test-mcp-server.ts",
+    "test:tim": "tsx scripts/test-tim-digital-twin.ts",
     "seed:changelog": "tsx scripts/seed-changelog.ts",
     "seed:changelog:enhanced": "tsx scripts/seed-changelog-enhanced.ts",
     "roadmap:add-changelog": "tsx scripts/add-changelog-to-roadmap.ts",
@@ -54,7 +55,10 @@
     "qa:status": "bash scripts/status.sh",
     "prod:deploy": "bash scripts/deploy-to-production.sh",
     "prod:rollback": "bash scripts/rollback-production.sh",
-    "deploy:track": "bash scripts/track-deployment.sh"
+    "deploy:track": "bash scripts/track-deployment.sh",
+    "audit:performance": "tsx scripts/performance-audit.ts",
+    "audit:performance:watch": "tsx scripts/performance-audit.ts --watch",
+    "audit:dashboard": "open http://localhost:3000/performance-dashboard.html"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",

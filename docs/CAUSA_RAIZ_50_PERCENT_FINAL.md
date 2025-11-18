@@ -257,3 +257,6 @@ AI mensaje:
 **¿Listo para commit?** → Esperar testing en navegador primero
 
 
+
+
+

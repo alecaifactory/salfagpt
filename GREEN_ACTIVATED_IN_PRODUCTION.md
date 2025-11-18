@@ -189,3 +189,6 @@ Prueba con ambos usuarios (owner + shared) en:
 
 **GREEN está activo. Producción ahora debe funcionar igual que localhost!** 🎉✨
 
+
+
+

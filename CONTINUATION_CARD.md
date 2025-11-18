@@ -29,3 +29,6 @@ O pega el prompt completo de: `docs/TIM_CONTEXT_TRANSFER_PROMPT.md`
 
 **Estado:** ✅ Ready para deploy o continuar pendientes
 
+
+
+

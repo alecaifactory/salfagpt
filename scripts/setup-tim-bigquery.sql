@@ -170,3 +170,6 @@ LIMIT 50;
 
 SELECT 'Tim BigQuery setup complete! ✅' as status;
 
+
+
+

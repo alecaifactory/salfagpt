@@ -201,3 +201,6 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 
 **¿Procedo con re-deploy?** 🎯
 
+
+
+
