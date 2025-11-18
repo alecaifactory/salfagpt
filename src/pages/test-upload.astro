@@ -1,0 +1,160 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Test Upload" description="Simple test">
+  <div class="min-h-screen bg-slate-50 p-8">
+    <div class="max-w-2xl mx-auto">
+      <h1 class="text-2xl font-bold mb-6">🧪 Simple Upload Test</h1>
+      
+      <form id="uploadForm" class="bg-white p-6 rounded-lg shadow">
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Upload PDF:</label>
+          <input 
+            type="file" 
+            id="fileInput" 
+            accept="application/pdf"
+            class="block w-full"
+          />
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">Webhook URL (optional):</label>
+          <input 
+            type="url" 
+            id="webhookInput" 
+            placeholder="https://your-app.com/webhook"
+            class="block w-full px-3 py-2 border border-slate-300 rounded"
+          />
+          <p class="text-xs text-slate-600 mt-1">We'll POST results here when complete (simulated for now)</p>
+        </div>
+        
+        <button 
+          type="submit"
+          class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+        >
+          Upload & Extract
+        </button>
+      </form>
+      
+      <div id="status" class="mt-4 p-4 bg-gray-100 rounded hidden">
+        <h3 class="font-bold mb-2">Status:</h3>
+        <div id="statusText"></div>
+      </div>
+      
+      <div id="webhookNotification" class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded hidden">
+        <h3 class="font-bold mb-2">📨 Webhook Notification (Simulated)</h3>
+        <pre id="webhookText" class="text-xs overflow-auto bg-blue-900 text-blue-100 p-3 rounded"></pre>
+        <p class="text-xs text-blue-700 mt-2">This would be POSTed to your webhook URL</p>
+      </div>
+      
+      <div id="result" class="mt-4 p-4 bg-green-50 rounded hidden">
+        <h3 class="font-bold mb-2">✅ Extraction Result:</h3>
+        <pre id="resultText" class="text-xs overflow-auto max-h-96"></pre>
+      </div>
+      
+      <div id="error" class="mt-4 p-4 bg-red-50 rounded hidden">
+        <h3 class="font-bold mb-2">❌ Error:</h3>
+        <div id="errorText"></div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  console.log('✅ Script loaded');
+  
+  const form = document.getElementById('uploadForm');
+  const status = document.getElementById('status');
+  const statusText = document.getElementById('statusText');
+  const result = document.getElementById('result');
+  const resultText = document.getElementById('resultText');
+  const error = document.getElementById('error');
+  const errorText = document.getElementById('errorText');
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    console.log('📤 Form submitted');
+    
+    const file = document.getElementById('fileInput').files[0];
+    if (!file) {
+      alert('Please select a file');
+      return;
+    }
+    
+    console.log('📄 File selected:', file.name, file.size);
+    
+    // Show status
+    status.classList.remove('hidden');
+    result.classList.add('hidden');
+    error.classList.add('hidden');
+    statusText.textContent = 'Uploading...';
+    
+    try {
+      const webhook = document.getElementById('webhookInput').value;
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('model', 'gemini-2.5-flash');
+      formData.append('extractionMethod', 'auto');
+      formData.append('structured', 'true');
+      formData.append('outputFormat', 'nubox');
+      if (webhook) {
+        formData.append('webhook', webhook);
+        console.log('📨 Webhook configured:', webhook);
+      }
+      
+      console.log('🚀 Sending request...');
+      statusText.textContent = 'Processing...';
+      
+      const response = await fetch('/api/playground/extract', {
+        method: 'POST',
+        body: formData
+      });
+      
+      console.log('📥 Response received:', response.status);
+      statusText.textContent = 'Parsing response...';
+      
+      const data = await response.json();
+      console.log('📊 Data:', data);
+      
+      if (data.result) {
+        console.log('✅ Success! Result:', data.result);
+        resultText.textContent = JSON.stringify(data.result, null, 2);
+        result.classList.remove('hidden');
+        status.classList.add('hidden');
+        
+        // Show webhook simulation if webhook was configured
+        const webhookUrl = document.getElementById('webhookInput').value;
+        if (webhookUrl && data.result.document_id) {
+          console.log('📨 Showing webhook simulation...');
+          
+          const webhookPayload = {
+            document_id: data.result.document_id,
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+            message: 'Archivo procesado correctamente',
+            result_url: `https://flow.getaifactory.com/api/results/${data.result.document_id}`,
+          };
+          
+          document.getElementById('webhookText').textContent = JSON.stringify(webhookPayload, null, 2);
+          document.getElementById('webhookNotification').classList.remove('hidden');
+          
+          console.log('📨 Webhook notification (simulated):', webhookPayload);
+          console.log(`📨 Would POST to: ${webhookUrl}`);
+        }
+      } else {
+        throw new Error(data.error || 'No result returned');
+      }
+      
+    } catch (err) {
+      console.error('❌ Error:', err);
+      errorText.textContent = err.message;
+      error.classList.remove('hidden');
+      status.classList.add('hidden');
+    }
+  });
+  
+  console.log('✅ Event listener attached');
+</script>
+

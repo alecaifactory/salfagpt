@@ -81,6 +81,17 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     // 6. Get or create Ally
     const allyId = await getOrCreateAlly(userId, userEmail, userDomain, organizationId);
     
+    // ✅ FIX: Validate allyId before calling getAllyConversation
+    if (!allyId || typeof allyId !== 'string' || allyId.trim() === '') {
+      console.error('Failed to get Ally conversation: Invalid allyId:', allyId);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to create or retrieve Ally' 
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     // 7. Check if newly created
     const allyConversation = await getAllyConversation(allyId);
     const isNew = allyConversation ? (allyConversation.messageCount <= 1) : false;

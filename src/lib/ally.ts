@@ -475,6 +475,12 @@ async function getTopAgents(userDomain: string, limit: number): Promise<Array<{
  */
 export async function getAllyConversation(allyId: string): Promise<AllyConversation | null> {
   try {
+    // ✅ FIX: Validate allyId is not empty
+    if (!allyId || typeof allyId !== 'string' || allyId.trim() === '') {
+      console.error('getAllyConversation: Invalid allyId provided:', allyId);
+      return null;
+    }
+    
     const doc = await firestore.collection(COLLECTIONS.ALLY_CONVERSATIONS).doc(allyId).get();
     
     if (!doc.exists) {

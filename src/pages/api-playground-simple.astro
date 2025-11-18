@@ -1,0 +1,397 @@
+---
+/**
+ * API Playground - Simple Version (Testing)
+ */
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout 
+  title="API Playground" 
+  description="Document extraction testing"
+>
+  <div class="min-h-screen bg-slate-50 p-8">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-3xl font-bold text-slate-800 mb-8">
+        📄 Document Processing API Playground
+      </h1>
+      
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <h2 class="text-xl font-bold text-slate-800 mb-4">
+          🚀 Quick Start
+        </h2>
+        
+        <div class="space-y-4">
+          <div>
+            <h3 class="font-semibold text-slate-700 mb-2">Upload Document</h3>
+            <input 
+              type="file" 
+              accept="application/pdf"
+              id="fileInput"
+              class="block w-full text-sm text-slate-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+            />
+          </div>
+          
+          <div>
+            <h3 class="font-semibold text-slate-700 mb-2">Output Format</h3>
+            <select id="outputFormat" class="px-4 py-2 border border-slate-300 rounded-lg w-full mb-2">
+              <option value="nubox">🏦 Nubox Format (movements + balances)</option>
+              <option value="generic">🧠 Generic Structured (fields + locations)</option>
+              <option value="text">📝 Plain Text Only</option>
+            </select>
+            <p class="text-xs text-slate-600">
+              Nubox: Compatible with Nubox accounting system (movements in standard format)
+            </p>
+          </div>
+          
+          <div>
+            <h3 class="font-semibold text-slate-700 mb-2">Model</h3>
+            <select id="modelSelect" class="px-4 py-2 border border-slate-300 rounded-lg w-full">
+              <option value="flash">⚡ Flash (Fast & Economical)</option>
+              <option value="pro">💎 Pro (High Quality)</option>
+            </select>
+          </div>
+          
+          <button 
+            id="processBtn"
+            class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+          >
+            Process Document
+          </button>
+        </div>
+      </div>
+      
+      <div id="progressSection" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-slate-800">Processing Document</h3>
+          <span id="progressPercent" class="text-lg font-bold text-blue-600">0%</span>
+        </div>
+        
+        <div class="w-full bg-slate-200 rounded-full h-3 mb-3">
+          <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+        </div>
+        
+        <div id="currentStage" class="text-sm font-medium text-slate-700 mb-3">
+          <span id="stageIcon">📤</span>
+          <span id="stageText">Preparing to upload...</span>
+        </div>
+        
+        <div class="space-y-2">
+          <div id="stage1" class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-5">⏳</span>
+            <span>1. Uploading file to server</span>
+          </div>
+          <div id="stage2" class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-5">⏳</span>
+            <span>2. Processing with Gemini File API</span>
+          </div>
+          <div id="stage3" class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-5">⏳</span>
+            <span>3. Extracting structured data</span>
+          </div>
+          <div id="stage4" class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-5">⏳</span>
+            <span>4. Parsing movements and fields</span>
+          </div>
+          <div id="stage5" class="flex items-center gap-2 text-xs text-slate-500">
+            <span class="w-5">⏳</span>
+            <span>5. Validating and formatting JSON</span>
+          </div>
+        </div>
+        
+        <div id="processingDetails" class="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-600">
+          <div class="flex justify-between">
+            <span>Elapsed time:</span>
+            <span id="elapsedTime" class="font-mono font-semibold">0.0s</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="resultSection" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-slate-800">✅ Extraction Complete</h3>
+          <div id="qualityBadge" class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold"></div>
+        </div>
+        
+        <div id="summaryStats" class="grid grid-cols-3 gap-3 mb-4">
+          <!-- Will be populated by JS -->
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="text-sm font-semibold text-slate-700 mb-2">📊 Extracted Data Preview</h4>
+          <div id="dataPreview" class="bg-slate-50 p-3 rounded-lg text-xs space-y-2 max-h-60 overflow-y-auto">
+            <!-- Will be populated by JS -->
+          </div>
+        </div>
+        
+        <div class="mb-4">
+          <h4 class="text-sm font-semibold text-slate-700 mb-2">🔍 Complete JSON Output</h4>
+          <pre id="resultJson" class="bg-slate-900 text-green-400 p-4 rounded-lg overflow-x-auto text-xs max-h-96 overflow-y-auto"></pre>
+        </div>
+        
+        <div class="flex gap-2">
+          <button id="downloadBtn" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+            📥 Download JSON
+          </button>
+          <button id="copyBtn" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+            📋 Copy JSON
+          </button>
+        </div>
+      </div>
+      
+      <div id="errorSection" class="hidden bg-red-50 border border-red-200 rounded-xl p-6">
+        <h3 class="font-semibold text-red-800 mb-2">❌ Error</h3>
+        <p id="errorText" class="text-sm text-red-700"></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const processBtn = document.getElementById('processBtn');
+    const fileInput = document.getElementById('fileInput');
+    const outputFormat = document.getElementById('outputFormat');
+    const modelSelect = document.getElementById('modelSelect');
+    const progressSection = document.getElementById('progressSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const resultSection = document.getElementById('resultSection');
+    const resultJson = document.getElementById('resultJson');
+    const errorSection = document.getElementById('errorSection');
+    const errorText = document.getElementById('errorText');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    
+    let lastResult = null;
+    
+    processBtn?.addEventListener('click', async () => {
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        alert('Please select a file');
+        return;
+      }
+      
+      // Hide previous results
+      resultSection?.classList.add('hidden');
+      errorSection?.classList.add('hidden');
+      progressSection?.classList.remove('hidden');
+      
+      // Reset progress
+      progressBar.style.width = '0%';
+      document.getElementById('progressPercent').textContent = '0%';
+      
+      // Start timer
+      const startTime = Date.now();
+      const timerInterval = setInterval(() => {
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        document.getElementById('elapsedTime').textContent = `${elapsed}s`;
+      }, 100);
+      
+      // Helper function to update stage
+      function updateStage(stageNum, icon, text, percent) {
+        // Update progress bar
+        progressBar.style.width = percent + '%';
+        document.getElementById('progressPercent').textContent = percent + '%';
+        
+        // Update current stage
+        document.getElementById('stageIcon').textContent = icon;
+        document.getElementById('stageText').textContent = text;
+        
+        // Update stage indicators
+        for (let i = 1; i <= 5; i++) {
+          const stageEl = document.getElementById(`stage${i}`);
+          const iconSpan = stageEl.querySelector('span:first-child');
+          const textSpan = stageEl.querySelector('span:last-child');
+          
+          if (i < stageNum) {
+            // Completed
+            iconSpan.textContent = '✅';
+            textSpan.className = 'text-green-600 font-medium';
+          } else if (i === stageNum) {
+            // Current
+            iconSpan.textContent = '⚙️';
+            textSpan.className = 'text-blue-600 font-semibold';
+          } else {
+            // Pending
+            iconSpan.textContent = '⏳';
+            textSpan.className = '';
+          }
+        }
+      }
+      
+      try {
+        const format = outputFormat?.value || 'nubox';
+        const isStructured = format !== 'text';
+        
+        // Stage 1: Preparing upload (0-10%)
+        updateStage(1, '📤', 'Preparing upload...', 5);
+        await new Promise(r => setTimeout(r, 300));
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        const modelValue = modelSelect?.value || 'flash';
+        const fullModelName = modelValue === 'pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+        formData.append('model', fullModelName);
+        formData.append('extractionMethod', 'auto');
+        formData.append('structured', isStructured ? 'true' : 'false');
+        formData.append('outputFormat', format);
+        formData.append('documentType', 'auto');
+        formData.append('bank', 'auto');
+        
+        updateStage(1, '📤', `Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)...`, 15);
+        
+        const response = await fetch('/api/playground/extract', {
+          method: 'POST',
+          body: formData
+        });
+        
+        // Stage 2: File uploaded, processing (30%)
+        updateStage(2, '🔄', 'File uploaded - Processing with Gemini...', 30);
+        await new Promise(r => setTimeout(r, 500));
+        
+        // Stage 3: Extracting (50%)
+        updateStage(3, '🧠', `Extracting ${format === 'nubox' ? 'movements' : 'structured data'}...`, 50);
+        await new Promise(r => setTimeout(r, 300));
+        
+        const data = await response.json();
+        
+        // Stage 4: Parsing (70%)
+        updateStage(4, '📊', 'Parsing and validating data...', 70);
+        await new Promise(r => setTimeout(r, 300));
+        
+        // Stage 5: Finalizing (90%)
+        updateStage(5, '✨', 'Formatting JSON output...', 90);
+        await new Promise(r => setTimeout(r, 200));
+        
+        // Complete (100%)
+        updateStage(5, '✅', 'Extraction complete!', 100);
+        clearInterval(timerInterval);
+        
+        if (data.success && data.result) {
+          lastResult = data.result;
+          
+          // Show JSON
+          resultJson.textContent = JSON.stringify(data.result, null, 2);
+          
+          // Show quality badge
+          const quality = data.result.quality;
+          if (quality) {
+            const badge = document.getElementById('qualityBadge');
+            if (quality.confidence_score > 0.9) {
+              badge.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold';
+              badge.textContent = `${(quality.confidence_score * 100).toFixed(0)}% Confidence - High Quality`;
+            } else if (quality.confidence_score > 0.7) {
+              badge.className = 'px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold';
+              badge.textContent = `${(quality.confidence_score * 100).toFixed(0)}% Confidence - Good`;
+            } else {
+              badge.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold';
+              badge.textContent = `${(quality.confidence_score * 100).toFixed(0)}% Confidence - Review Needed`;
+            }
+          }
+          
+          // Show summary stats
+          const stats = document.getElementById('summaryStats');
+          if (data.result.movements) {
+            // Nubox format
+            stats.innerHTML = `
+              <div class="bg-blue-50 p-3 rounded-lg">
+                <div class="text-xs text-blue-600">Movements</div>
+                <div class="text-lg font-bold text-blue-900">${data.result.movements.length}</div>
+              </div>
+              <div class="bg-green-50 p-3 rounded-lg">
+                <div class="text-xs text-green-600">Time</div>
+                <div class="text-lg font-bold text-green-900">${(data.result.metadata.extraction_time / 1000).toFixed(1)}s</div>
+              </div>
+              <div class="bg-purple-50 p-3 rounded-lg">
+                <div class="text-xs text-purple-600">Cost</div>
+                <div class="text-lg font-bold text-purple-900">$${data.result.metadata.cost.toFixed(4)}</div>
+              </div>
+            `;
+          } else if (data.result.fields) {
+            // Generic structured format
+            stats.innerHTML = `
+              <div class="bg-blue-50 p-3 rounded-lg">
+                <div class="text-xs text-blue-600">Fields</div>
+                <div class="text-lg font-bold text-blue-900">${data.result.fields.length}</div>
+              </div>
+              <div class="bg-green-50 p-3 rounded-lg">
+                <div class="text-xs text-green-600">Time</div>
+                <div class="text-lg font-bold text-green-900">${(data.result.metadata.extractionTime / 1000).toFixed(1)}s</div>
+              </div>
+              <div class="bg-purple-50 p-3 rounded-lg">
+                <div class="text-xs text-purple-600">Cost</div>
+                <div class="text-lg font-bold text-purple-900">$${data.result.metadata.cost.total.toFixed(4)}</div>
+              </div>
+            `;
+          }
+          
+          // Show data preview
+          const preview = document.getElementById('dataPreview');
+          if (data.result.movements) {
+            // Nubox format - show first 5 movements
+            const movements = data.result.movements.slice(0, 5);
+            preview.innerHTML = movements.map(m => `
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="flex justify-between items-start mb-1">
+                  <span class="font-semibold text-slate-800">${m.description}</span>
+                  <span class="font-mono font-bold ${m.amount > 0 ? 'text-green-600' : 'text-red-600'}">
+                    $${Math.abs(m.amount).toLocaleString('es-CL')}
+                  </span>
+                </div>
+                <div class="flex gap-3 text-[10px] text-slate-600">
+                  <span>Type: ${m.type}</span>
+                  <span>Date: ${m.post_date.substring(0, 10)}</span>
+                  ${m.sender_account?.holder_id ? `<span>RUT: ${m.sender_account.holder_id}</span>` : ''}
+                </div>
+              </div>
+            `).join('') + (data.result.movements.length > 5 ? `<div class="text-center text-slate-500 text-xs">... y ${data.result.movements.length - 5} movimientos más</div>` : '');
+          } else if (data.result.fields) {
+            // Generic format - show first 5 fields
+            const fields = data.result.fields.slice(0, 5);
+            preview.innerHTML = fields.map(f => `
+              <div class="bg-white p-2 rounded border border-slate-200">
+                <div class="flex justify-between items-start mb-1">
+                  <span class="font-semibold text-slate-800">${f.label}</span>
+                  <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">${(f.confidence * 100).toFixed(0)}%</span>
+                </div>
+                <div class="font-mono text-sm text-slate-900">${f.interpretation?.formatted || f.value}</div>
+                ${f.location ? `<div class="text-[10px] text-slate-600 mt-1">📍 Page ${f.location.page}</div>` : ''}
+              </div>
+            `).join('');
+          }
+          
+          resultSection?.classList.remove('hidden');
+          progressSection?.classList.add('hidden');
+        } else {
+          throw new Error(data.error || 'Extraction failed');
+        }
+        
+      } catch (error) {
+        clearInterval(timerInterval);
+        progressSection?.classList.add('hidden');
+        errorSection?.classList.remove('hidden');
+        errorText.textContent = error.message;
+      }
+    });
+    
+    downloadBtn?.addEventListener('click', () => {
+      if (!lastResult) return;
+      const blob = new Blob([JSON.stringify(lastResult, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'extracted-data.json';
+      a.click();
+    });
+    
+    copyBtn?.addEventListener('click', () => {
+      if (!lastResult) return;
+      navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
+      alert('JSON copied to clipboard!');
+    });
+  </script>
+</Layout>
+

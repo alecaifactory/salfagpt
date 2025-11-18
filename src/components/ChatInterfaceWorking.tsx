@@ -2786,14 +2786,31 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
     }));
 
-    // Create streaming message (empty, will fill progressively)
+    // ✅ FIX: Initialize thinking steps FIRST so message is visible immediately
+    const stepLabels = {
+      thinking: 'Pensando...',
+      searching: 'Buscando Contexto Relevante...',
+      selecting: 'Seleccionando Chunks...',
+      generating: 'Generando Respuesta...'
+    };
+
+    const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
+      id: key,
+      label,
+      status: key === 'thinking' ? 'active' as const : 'pending' as const,
+      timestamp: new Date(),
+      dots: 0
+    }));
+
+    // Create streaming message WITH thinking steps immediately (so it's visible right away)
     const streamingId = `streaming-${Date.now()}`;
     const streamingMessage: Message = {
       id: streamingId,
       role: 'assistant',
-      content: '',
+      content: '', // Will be filled as chunks arrive
       timestamp: new Date(),
-      isStreaming: true
+      isStreaming: true,
+      thinkingSteps: initialSteps // ✅ FIX: Add thinking steps immediately so message is visible
     };
 
     console.log('🤖 [AI MSG] Adding streaming message to state');
@@ -2806,31 +2823,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       return updated;
     });
 
+    // ✅ FIX: Set thinking steps state for animation
+    setCurrentThinkingSteps(initialSteps);
+
     try {
-      // ✅ SHOW STATUS IMMEDIATELY: Initialize thinking steps BEFORE heavy operations
-      const stepLabels = {
-        thinking: 'Pensando...',
-        searching: 'Buscando Contexto Relevante...',
-        selecting: 'Seleccionando Chunks...',
-        generating: 'Generando Respuesta...'
-      };
-
-      const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
-        id: key,
-        label,
-        status: key === 'thinking' ? 'active' as const : 'pending' as const,
-        timestamp: new Date(),
-        dots: 0
-      }));
-
-      setCurrentThinkingSteps(initialSteps);
-      
-      // Update streaming message with initial thinking steps
-      setMessages(prev => prev.map(msg => 
-        msg.id === streamingId 
-          ? { ...msg, thinkingSteps: initialSteps }
-          : msg
-      ));
       
       // ✅ OPTIMAL: Use agent-based search - NO need to load or send source IDs!
       // BigQuery queries by agentId directly and finds relevant chunks
@@ -3168,17 +3164,26 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   });
 
                   // ✅ SIMPLIFIED: If first message, reload conversation to get updated title
-                  if (isFirstMessage) {
+                  if (isFirstMessage && currentConversation) { // ✅ Validate not null
                     console.log('🏷️ First message completed - reloading conversation for title...');
+                    
+                    // Capture conversationId in closure to avoid race conditions
+                    const convId = currentConversation;
                     
                     // Wait a bit for backend to save title
                     setTimeout(async () => {
                       try {
-                        const response = await fetch(`/api/conversations/${currentConversation}`);
+                        // ✅ FIX: Validate convId is not null/undefined before making API call
+                        if (!convId || convId === 'null' || convId === 'undefined') {
+                          console.warn('⚠️ Skipping title reload - invalid conversationId:', convId);
+                          return;
+                        }
+                        
+                        const response = await fetch(`/api/conversations/${convId}`);
                         if (response.ok) {
                           const updatedConv = await response.json();
                           setConversations(prev => prev.map(c => 
-                            c.id === currentConversation 
+                            c.id === convId 
                               ? { ...c, title: updatedConv.title }
                               : c
                           ));
@@ -5021,7 +5026,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             
             {showProjectsSection && (
               <div className="px-2 pb-1 space-y-1">
-                {buildFolderHierarchy(folders).map(folder => renderFolderWithChildren(folder, 0))}
+                {buildFolderHierarchy(folders).map(folder => {
+                  const rendered = renderFolderWithChildren(folder, 0);
+                  // ✅ FIX: Ensure key is on the top-level element returned from map
+                  return React.isValidElement(rendered) && rendered.key 
+                    ? rendered 
+                    : <div key={folder.id}>{rendered}</div>;
+                })}
                 {folders.length === 0 && (
                   <div className="px-2 py-1 text-center text-xs text-slate-500">
                     No hay carpetas creadas
@@ -6551,44 +6562,53 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                             contentLength: msg.content?.length || 0
                           })}
                           
-                          <MessageRenderer 
-                            content={msg.content}
-                            contextSources={contextSources
-                              .filter(s => s.enabled)
-                              .map(s => ({
-                                id: s.id,
-                                name: s.name,
-                                validated: s.metadata?.validated || false,
-                              }))
-                            }
-                            references={msg.references} // Pass references for this message
-                            isLoadingReferences={msg.isStreaming && (!msg.references || msg.references.length === 0)} // Show loading while streaming and no references yet
-                            onReferenceClick={async (reference) => {
-                              console.log('🔍 Opening document viewer for reference:', reference);
-                              
-                              // Load full source for document viewer
-                              const fullSource = await loadFullContextSource(reference.sourceId);
-                              
-                              if (fullSource) {
-                                setDocumentViewerSource(fullSource);
-                                setShowDocumentViewer(true);
-                                setSelectedReference(reference); // Also set for context
-                              } else {
-                                console.error('❌ Could not load source for reference');
-                                alert('No se pudo cargar el documento. Por favor, intenta nuevamente.');
-                              }
-                            }}
-                            onSourceClick={(sourceId) => {
-                              const source = contextSources.find(s => s.id === sourceId);
-                              if (source) {
-                                setSettingsSource(source);
-                              }
-                            }}
-                          />
-                          {/* Streaming cursor indicator */}
-                          {msg.isStreaming && (
-                            <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse" 
-                                  style={{ animation: 'blink 1s step-end infinite' }} />
+                          {/* ✅ FIX: Show placeholder if streaming and no content yet */}
+                          {msg.isStreaming && (!msg.content || msg.content.trim() === '') ? (
+                            <div className="text-slate-500 dark:text-slate-400 text-sm italic animate-pulse">
+                              Escribiendo...
+                            </div>
+                          ) : (
+                            <>
+                              <MessageRenderer 
+                                content={msg.content || ''}
+                                contextSources={contextSources
+                                  .filter(s => s.enabled)
+                                  .map(s => ({
+                                    id: s.id,
+                                    name: s.name,
+                                    validated: s.metadata?.validated || false,
+                                  }))
+                                }
+                                references={msg.references} // Pass references for this message
+                                isLoadingReferences={msg.isStreaming && (!msg.references || msg.references.length === 0)} // Show loading while streaming and no references yet
+                                onReferenceClick={async (reference) => {
+                                  console.log('🔍 Opening document viewer for reference:', reference);
+                                  
+                                  // Load full source for document viewer
+                                  const fullSource = await loadFullContextSource(reference.sourceId);
+                                  
+                                  if (fullSource) {
+                                    setDocumentViewerSource(fullSource);
+                                    setShowDocumentViewer(true);
+                                    setSelectedReference(reference); // Also set for context
+                                  } else {
+                                    console.error('❌ Could not load source for reference');
+                                    alert('No se pudo cargar el documento. Por favor, intenta nuevamente.');
+                                  }
+                                }}
+                                onSourceClick={(sourceId) => {
+                                  const source = contextSources.find(s => s.id === sourceId);
+                                  if (source) {
+                                    setSettingsSource(source);
+                                  }
+                                }}
+                              />
+                              {/* Streaming cursor indicator */}
+                              {msg.isStreaming && (
+                                <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse" 
+                                      style={{ animation: 'blink 1s step-end infinite' }} />
+                              )}
+                            </>
                           )}
                           
                           {/* Feedback Buttons - Only for assistant messages that are not streaming */}
