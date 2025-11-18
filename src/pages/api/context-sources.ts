@@ -7,6 +7,7 @@ import {
 } from '../../lib/firestore';
 import { getSession } from '../../lib/auth';
 import { syncAgentAssignments } from '../../lib/bigquery-agent-sync';
+import { invalidateAgentSourcesCache } from '../../lib/agent-sources-cache';
 
 // GET /api/context-sources - List user's context sources
 export const GET: APIRoute = async ({ request, cookies }) => {
@@ -91,9 +92,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       source.assignedToAgents.forEach(agentId => {
         syncAgentAssignments(agentId, [source.id], userId, 'assign')
           .catch(err => console.warn(`⚠️ Failed to sync assignment to BigQuery:`, err));
+        
+        // ⚡ Invalidate cache for this agent (so next search will reflect new source)
+        invalidateAgentSourcesCache(agentId, userId);
       });
       
       console.log(`🔗 Syncing source ${source.id} to ${source.assignedToAgents.length} agents in BigQuery`);
+      console.log(`⚡ Invalidated agent sources cache for ${source.assignedToAgents.length} agents`);
     }
 
     return new Response(

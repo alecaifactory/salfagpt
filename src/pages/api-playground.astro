@@ -1,0 +1,21 @@
+---
+/**
+ * API Playground Page
+ * 
+ * Purpose: Visual testing UI for enterprise developers
+ * Features: Test extraction, get API key, export code
+ * 
+ * Created: 2025-11-17
+ */
+
+import BaseLayout from '../layouts/BaseLayout.astro';
+import APIPlayground from '../components/APIPlayground';
+---
+
+<BaseLayout 
+  title="API Playground - Document Processing" 
+  description="Test document extraction methods and get integration code"
+>
+  <APIPlayground client:load />
+</BaseLayout>
+

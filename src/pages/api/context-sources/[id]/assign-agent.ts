@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../lib/auth';
 import { firestore, COLLECTIONS } from '../../../../lib/firestore';
+import { invalidateAgentSourcesCache } from '../../../../lib/agent-sources-cache';
 
 /**
  * POST /api/context-sources/:id/assign-agent
@@ -77,8 +78,12 @@ export const POST: APIRoute = async (context) => {
         updatedAt: new Date(),
       });
 
+      // ⚡ Invalidate cache for this agent (so next search will reflect new source)
+      invalidateAgentSourcesCache(agentId, session.id);
+
       console.log(`✅ Agent ${agentId} assigned to source ${sourceId}`);
       console.log(`   Total agents: ${updatedAssignments.length}`);
+      console.log(`⚡ Invalidated agent sources cache for agent ${agentId}`);
 
       return new Response(
         JSON.stringify({

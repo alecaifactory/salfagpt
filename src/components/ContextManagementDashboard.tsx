@@ -2345,37 +2345,56 @@ export default function ContextManagementDashboard({
           {/* Left: Sources List with Scrollable Pipeline */}
           <div className="w-1/2 border-r border-gray-200 flex flex-col overflow-hidden">
             {/* Upload Zone - Fixed at top */}
-            <div className="flex-shrink-0 px-3 py-2 border-b border-gray-200">
+            <div className="flex-shrink-0 p-3 border-b border-gray-200">
               {!showUploadStaging ? (
                 // File selection zone
                 <div>
-                  <div className="flex gap-2">
-                    {/* Compact dropzone on the left */}
-                    <div
-                      ref={dropZoneRef}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      className={`flex-1 border-2 border-dashed rounded-lg p-3 text-center transition-all cursor-pointer ${
-                        isDragging 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                      }`}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <div className="flex items-center justify-center gap-3">
-                        <Upload className={`w-6 h-6 transition-all ${
-                          isDragging ? 'text-blue-600' : 'text-gray-600'
-                        }`} />
-                        <div className="text-left">
-                          <p className={`text-xs font-semibold ${
-                            isDragging ? 'text-blue-900' : 'text-gray-900'
-                          }`}>
-                            {isDragging ? '¡Suelta aquí!' : 'Arrastra PDFs o haz click'}
-                          </p>
-                          <p className="text-[10px] text-gray-500">
-                            Auto: Extract → Chunk → Embed • Max: 500MB/file
-                          </p>
+                  <div
+                    ref={dropZoneRef}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-lg p-4 text-center transition-all cursor-pointer ${
+                      isDragging 
+                        ? 'border-blue-500 bg-blue-50 scale-105 shadow-lg' 
+                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                    }`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className={`w-8 h-8 mx-auto mb-2 transition-all ${
+                      isDragging ? 'text-blue-600 scale-110' : 'text-gray-600'
+                    }`} />
+                    <p className={`text-sm font-semibold mb-0.5 ${
+                      isDragging ? 'text-blue-900' : 'text-gray-900'
+                    }`}>
+                      {isDragging ? '¡Suelta los archivos aquí!' : 'Arrastra PDFs aquí o haz click'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Múltiples archivos • Automático: Extract → Chunk → Embed
+                    </p>
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded-full">
+                        ⚡ Flash
+                      </span>
+                      <span className="text-gray-400 text-xs">•</span>
+                      <span className="text-[10px] text-gray-600">Pipeline automático</span>
+                    </div>
+                    
+                    {/* ✅ NEW: Upload limits info - COMPACT */}
+                    <div className="mt-2.5 text-left">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs">
+                        <div className="flex items-start gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <div className="text-blue-800">
+                            <p className="font-semibold mb-0.5 text-[10px]">Límites de Carga</p>
+                            <ul className="space-y-0 text-blue-700 text-[10px]">
+                              <li>• Tamaño máximo por archivo: <strong>500 MB</strong></li>
+                              <li>• Recomendado: <strong>≤100 MB</strong> (procesamiento rápido)</li>
+                              <li>• Máximo por lote: <strong>20 archivos</strong> o <strong>2 GB</strong> total</li>
+                            </ul>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2399,21 +2418,21 @@ export default function ContextManagementDashboard({
                     onChange={handleFolderSelect}
                   />
                   
-                  {/* Select buttons - inline with dropzone */}
-                  <div className="flex gap-1.5 mt-2">
+                  {/* ✅ NEW: Folder upload button */}
+                  <div className="flex gap-2 mt-2">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 transition-all text-[10px] font-medium text-gray-700 flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-1.5 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-xs font-medium text-gray-700 flex items-center justify-center gap-1.5"
                     >
-                      <FileText className="w-3 h-3" />
-                      Files
+                      <FileText className="w-3.5 h-3.5" />
+                      Select Files
                     </button>
                     <button
                       onClick={() => folderInputRef.current?.click()}
-                      className="flex-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-all text-[10px] font-medium flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs font-medium flex items-center justify-center gap-1.5"
                     >
-                      <Folder className="w-3 h-3" />
-                      Folder
+                      <Folder className="w-3.5 h-3.5" />
+                      Select Folder
                     </button>
                   </div>
                 </div>
@@ -3115,19 +3134,19 @@ export default function ContextManagementDashboard({
 
             {/* Tag Filter Section */}
             {allTags.length > 0 && (
-              <div className="px-3 py-1.5 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-1">
-                  <h4 className="text-[10px] font-semibold text-gray-900 uppercase tracking-wide text-gray-500">Tags</h4>
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-sm font-semibold text-gray-900">Filter by Tags</h4>
                   {selectedTags.length > 0 && (
                     <button
                       onClick={() => setSelectedTags([])}
-                      className="text-[9px] text-blue-600 hover:text-blue-800 transition-colors font-medium"
+                      className="text-xs text-gray-600 hover:text-gray-900 transition-colors"
                     >
-                      Clear
+                      Clear filters
                     </button>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-2">
                   {allTags.map(tag => {
                     const isSelected = selectedTags.includes(tag);
                     // ✅ Get ACTUAL count from folderStructure (from Firestore total count)
@@ -3137,13 +3156,13 @@ export default function ContextManagementDashboard({
                       <button
                         key={tag}
                         onClick={() => toggleTagFilter(tag)}
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
                           isSelected
-                            ? 'bg-gray-900 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-gray-900 text-white border-gray-900'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
                       >
-                        {tag} <span className="opacity-60">({totalCount})</span>
+                        {tag} ({totalCount})
                       </button>
                     );
                   })}
@@ -3153,19 +3172,19 @@ export default function ContextManagementDashboard({
 
             {/* Filters Bar (SuperAdmin & Admin) */}
             {isOrgScoped && organizationsData.length > 0 && (
-              <div className="border-b border-gray-200 bg-gray-50 px-3 py-1.5">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
                   {/* Organization Filter (SuperAdmin only) */}
                   {isSuperAdmin && (
-                    <div className="flex items-center gap-1">
-                      <label className="text-[10px] font-medium text-gray-600">Org:</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-700">Org:</label>
                       <select
                         value={filterByOrg}
                         onChange={(e) => {
                           setFilterByOrg(e.target.value);
                           setFilterByDomain(''); // Reset domain when org changes
                         }}
-                        className="px-1.5 py-0.5 border border-gray-300 rounded text-[10px] bg-white focus:ring-1 focus:ring-blue-600"
+                        className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-blue-600"
                       >
                         <option value="">All Organizations</option>
                         {organizationsData.map(org => (
@@ -3179,12 +3198,12 @@ export default function ContextManagementDashboard({
                   
                   {/* Domain Filter (appears when org selected or for Admins) */}
                   {(filterByOrg || isAdmin) && (
-                    <div className="flex items-center gap-1">
-                      <label className="text-[10px] font-medium text-gray-600">Domain:</label>
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-medium text-gray-700">Domain:</label>
                       <select
                         value={filterByDomain}
                         onChange={(e) => setFilterByDomain(e.target.value)}
-                        className="px-1.5 py-0.5 border border-gray-300 rounded text-[10px] bg-white focus:ring-1 focus:ring-gray-600"
+                        className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-gray-600"
                       >
                         <option value="">All Domains</option>
                         {(() => {
@@ -3201,12 +3220,12 @@ export default function ContextManagementDashboard({
                   )}
                   
                   {/* Tag Filter */}
-                  <div className="flex items-center gap-1">
-                    <label className="text-[10px] font-medium text-gray-600">Tag:</label>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-medium text-gray-700">Tag:</label>
                     <select
                       value={filterByTag}
                       onChange={(e) => setFilterByTag(e.target.value)}
-                      className="px-1.5 py-0.5 border border-gray-300 rounded text-[10px] bg-white focus:ring-1 focus:ring-green-600"
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:ring-1 focus:ring-green-600"
                     >
                       <option value="">All Tags</option>
                       {allTags.map(tag => (
@@ -3216,20 +3235,20 @@ export default function ContextManagementDashboard({
                   </div>
                   
                   {/* Sort By */}
-                  <div className="flex items-center gap-1 ml-auto">
-                    <label className="text-[10px] font-medium text-gray-600">Sort:</label>
+                  <div className="flex items-center gap-2 ml-auto">
+                    <label className="text-xs font-medium text-gray-700">Sort:</label>
                     <select
                       value={sortBy}
                       onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'size')}
-                      className="px-1.5 py-0.5 border border-gray-300 rounded text-[10px] bg-white"
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white"
                     >
-                      <option value="date">Date</option>
+                      <option value="date">Upload Date</option>
                       <option value="name">Name</option>
-                      <option value="size">Size</option>
+                      <option value="size">File Size</option>
                     </select>
                     <button
                       onClick={() => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
-                      className="px-1.5 py-0.5 border border-gray-300 rounded text-[10px] bg-white hover:bg-gray-50 transition-colors"
+                      className="px-2 py-1 border border-gray-300 rounded text-xs bg-white hover:bg-gray-50 transition-colors"
                       title={sortDirection === 'asc' ? 'Ascending' : 'Descending'}
                     >
                       {sortDirection === 'asc' ? '↑' : '↓'}
@@ -4135,13 +4154,13 @@ export default function ContextManagementDashboard({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-2.5 border-t border-gray-200 flex justify-between items-center bg-gray-50">
-          <div className="text-xs text-gray-600">
+        <div className="p-6 border-t border-gray-200 flex justify-between items-center bg-gray-50">
+          <div className="text-sm text-gray-600">
             {sources.length} total sources • {uploadQueue.filter(i => i.status === 'complete').length} uploads completed
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
           >
             Close
           </button>
