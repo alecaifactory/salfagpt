@@ -7604,19 +7604,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);
-                  
-                  // ✅ AUTO-CREATE: When user starts typing and no conversation selected, create Ally conversation
-                  if (e.target.value.trim() && !currentConversation && allyConversationId) {
-                    console.log('🆕 User started typing - auto-creating Ally conversation...');
-                    handleCreateAllyConversation(e.target.value);
-                  }
+                  // ✅ REMOVED AUTO-CREATE on typing - only create when sending to avoid race conditions
                 }}
                 onKeyPress={(e) => {
                   const currentAgentLoading = currentConversation && agentProcessing[currentConversation]?.isProcessing;
                   if (e.key === 'Enter' && !e.shiftKey && !currentAgentLoading && input.trim()) {
                     e.preventDefault();
                     
-                    // ✅ AUTO-CREATE: If no conversation, create Ally conversation first
+                    // ✅ CREATE ONLY HERE: When user actually sends the message
                     if (!currentConversation && allyConversationId) {
                       console.log('🆕 Enter pressed - creating Ally conversation and sending...');
                       handleCreateAllyConversationAndSend(input);
@@ -7640,7 +7635,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 </button>
               ) : (
                 <button
-                  onClick={sendMessage}
+                  onClick={() => {
+                    // ✅ SAME LOGIC: Create conversation first if needed
+                    if (!currentConversation && allyConversationId && input.trim()) {
+                      console.log('🆕 Send button clicked - creating Ally conversation and sending...');
+                      handleCreateAllyConversationAndSend(input);
+                    } else if (input.trim()) {
+                      sendMessage();
+                    }
+                  }}
                   disabled={!input.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 font-medium"
                 >
