@@ -25,10 +25,26 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     console.log('🤖 [API] GET /api/ally');
     
     // 1. Verify authentication
-    const cookieName = process.env.SESSION_COOKIE_NAME || 'flow_session';
-    const session = verifyJWT(cookies.get(cookieName)?.value);
+    // CRITICAL: Must match the cookie name used in src/lib/auth.ts (flow_session)
+    const cookieName = 'flow_session';
+    console.log('🍪 [ALLY] Looking for cookie:', cookieName);
+    
+    const cookieValue = cookies.get(cookieName)?.value;
+    console.log('🍪 [ALLY] Cookie value present:', !!cookieValue);
+    
+    if (!cookieValue) {
+      console.warn('  ❌ No authentication session found');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const session = verifyJWT(cookieValue);
+    console.log('🔐 [ALLY] Session verified:', !!session);
+    
     if (!session) {
-      console.warn('  ❌ No authentication');
+      console.warn('  ❌ Invalid or expired session token');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }

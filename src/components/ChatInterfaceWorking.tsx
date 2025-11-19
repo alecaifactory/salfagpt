@@ -374,10 +374,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   async function loadAllyConversation() {
     try {
       console.log('🤖 [ALLY] Loading Ally conversation for:', userEmail);
+      console.log('🤖 [ALLY] userId:', userId);
       
       const response = await fetch(
         `/api/ally?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}&userDomain=${userEmail?.split('@')[1] || 'unknown'}`
       );
+      
+      console.log('🤖 [ALLY] API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
@@ -388,9 +391,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // DON'T auto-select Ally - let user click sample question or select manually
         // This prevents Ally from showing on every refresh
         console.log('ℹ️ [ALLY] Ally available but not auto-selected (user can click sample question)');
+      } else {
+        console.error('❌ [ALLY] Failed to load Ally - API returned status:', response.status);
+        const errorText = await response.text();
+        console.error('❌ [ALLY] Error response:', errorText);
       }
     } catch (error) {
-      console.error('❌ [ALLY] Failed to load Ally:', error);
+      console.error('❌ [ALLY] Exception while loading Ally:', error);
     }
   }
   
@@ -2089,12 +2096,27 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   // ✅ NEW: Create Ally conversation AND send message (when Enter pressed)
   const handleCreateAllyConversationAndSend = async (messageText: string) => {
-    if (!messageText.trim() || !allyConversationId) return;
+    console.log('🎯 [ALLY] handleCreateAllyConversationAndSend called');
+    console.log('📝 [ALLY] Message text:', messageText);
+    console.log('🆔 [ALLY] allyConversationId:', allyConversationId);
     
+    if (!messageText.trim()) {
+      console.error('❌ [ALLY] No message text provided');
+      return;
+    }
+    
+    if (!allyConversationId) {
+      console.error('❌ [ALLY] Ally conversation ID not loaded. This should not happen!');
+      console.error('❌ [ALLY] Check if /api/ally endpoint is working');
+      alert('⚠️ Ally no está disponible en este momento. Por favor, recarga la página.');
+      return;
+    }
+    
+    console.log('✅ [ALLY] All validations passed. Creating conversation...');
     setIsCreatingConversation(true);
     
     try {
-      console.log('🆕 Creating new Ally conversation and sending message...');
+      console.log('🆕 [ALLY] Creating new Ally conversation and sending message...');
       
       // Generate personalized title from message
       const personalizedTitle = messageText.substring(0, 50) + (messageText.length > 50 ? '...' : '');
@@ -2151,15 +2173,22 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         // ✅ CRITICAL: Pass isAlly=true explicitly so first message uses Ally thinking steps
         // Without this, first message uses generic steps because newConv not in array yet
+        console.log('📤 [ALLY] Calling sendMessage with:', { messageText, newConvId, isAlly: true });
         await sendMessage(messageText, newConvId, true); // isAllyOverride = true
         
-        console.log('✅ Auto-send completed successfully (Ally conversation with isAlly=true)');
+        console.log('✅ [ALLY] Auto-send completed successfully (Ally conversation with isAlly=true)');
         
         // ✅ Clear flag after send completes
         isSendingFirstMessage.current = false;
+      } else {
+        console.error('❌ [ALLY] Failed to create conversation - API returned non-OK response');
+        const errorText = await response.text();
+        console.error('❌ [ALLY] Error response:', errorText);
+        alert('⚠️ Error al crear conversación con Ally. Por favor, intenta nuevamente.');
       }
     } catch (error) {
-      console.error('❌ Failed to create Ally conversation and send:', error);
+      console.error('❌ [ALLY] Failed to create Ally conversation and send:', error);
+      alert('⚠️ Error inesperado. Por favor, recarga la página e intenta nuevamente.');
     } finally {
       setIsCreatingConversation(false);
     }
@@ -6664,6 +6693,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   <button
                     key={idx}
                     onClick={async () => {
+                      console.log('🔵 [ALLY] Sample question clicked:', question);
                       // ✅ Use the new helper function
                       setInput(question);
                       await handleCreateAllyConversationAndSend(question);
