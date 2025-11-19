@@ -126,6 +126,7 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
       allLoadedSources = [...allLoadedSources, ...batchSources];
       
       // Filter this batch for assigned sources
+      // Note: We'll check agent_sources collection separately below
       const batchAssigned = batchSources.filter((source: any) => {
         const hasPublicTag = source.labels?.includes('PUBLIC') || source.labels?.includes('public');
         const isAssignedToAgent = source.assignedToAgents?.includes(effectiveAgentId);
@@ -145,6 +146,30 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
 
     const queryTime = Date.now() - startTime;
     console.log(`📊 Query complete: ${assignedSources.length} assigned sources from ${allLoadedSources.length} total (${queryTime}ms, ${batchNumber} batches)`);
+
+    // 4.5. ALSO check agent_sources collection for assignments
+    const agentSourcesStartTime = Date.now();
+    const agentSourcesSnapshot = await firestore
+      .collection('agent_sources')
+      .where('agentId', '==', effectiveAgentId)
+      .get();
+    
+    const assignedSourceIdsFromAgentSources = new Set(
+      agentSourcesSnapshot.docs.map(doc => doc.data().sourceId)
+    );
+    
+    console.log(`📊 agent_sources: ${assignedSourceIdsFromAgentSources.size} assignments (${Date.now() - agentSourcesStartTime}ms)`);
+    
+    // Add sources from agent_sources that aren't already in assignedSources
+    const additionalAssignedSources = allLoadedSources.filter((source: any) => 
+      assignedSourceIdsFromAgentSources.has(source.id) && 
+      !assignedSources.some((s: any) => s.id === source.id)
+    );
+    
+    if (additionalAssignedSources.length > 0) {
+      assignedSources = [...assignedSources, ...additionalAssignedSources];
+      console.log(`📦 Added ${additionalAssignedSources.length} sources from agent_sources collection`);
+    }
 
     // 5. Get toggle state (activeContextSourceIds)
     const toggleStartTime = Date.now();

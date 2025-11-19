@@ -606,8 +606,22 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [isImpersonating, setIsImpersonating] = useState(false);
   const [impersonatedUser, setImpersonatedUser] = useState<UserType | null>(null);
   const [originalUserId, setOriginalUserId] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<UserType | null>(null);
-  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([]);
+  // ✅ FIXED: Initialize currentUser from props immediately (prevents sharing modal from not appearing)
+  const [currentUser, setCurrentUser] = useState<UserType | null>(() => {
+    // Create initial user object from props to prevent modal rendering issues
+    return {
+      id: userId,
+      email: userEmail,
+      name: userName,
+      role: userRole,
+      roles: [userRole],
+      company: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isActive: true,
+    } as UserType;
+  });
+  const [currentUserRoles, setCurrentUserRoles] = useState<string[]>([userRole]);
   
   // Edit conversation state
   const [editingConversationId, setEditingConversationId] = useState<string | null>(null);
@@ -1576,11 +1590,42 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             setCurrentUser(foundUser);
             setCurrentUserRoles(foundUser.roles || [foundUser.role]);
             console.log('👤 Current user roles:', foundUser.roles);
+          } else {
+            // Fallback: Create user object from props if not found in API
+            console.warn('⚠️ User not found in API, using props as fallback');
+            setCurrentUser({
+              id: userId,
+              email: userEmail,
+              name: userName,
+              role: userRole,
+              roles: [userRole],
+              company: '',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              isActive: true,
+            } as UserType);
+            setCurrentUserRoles([userRole]);
           }
         })
-        .catch(err => console.error('Error loading user roles:', err));
+        .catch(err => {
+          console.error('Error loading user roles:', err);
+          // Fallback: Create user object from props on error
+          console.warn('⚠️ API error, using props as fallback for currentUser');
+          setCurrentUser({
+            id: userId,
+            email: userEmail,
+            name: userName,
+            role: userRole,
+            roles: [userRole],
+            company: '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            isActive: true,
+          } as UserType);
+          setCurrentUserRoles([userRole]);
+        });
     }
-  }, [userEmail]);
+  }, [userEmail, userId, userName, userRole]);
 
   // Close model selector dropdown when clicking outside
   useEffect(() => {

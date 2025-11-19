@@ -77,66 +77,66 @@ Por favor extrae el contenido de manera fiel y completa.`;
     let lastError: any;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        // Call Gemini AI
-        const result = await genAI.models.generateContent({
-          model: model,
-          contents: [
+    // Call Gemini AI
+    const result = await genAI.models.generateContent({
+      model: model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
             {
-              role: 'user',
-              parts: [
-                { text: prompt },
-                {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64Data,
-                  },
-                },
-              ],
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data,
+              },
             },
           ],
-          config: {
-            temperature: 0.1, // Low temperature for factual extraction
-            maxOutputTokens: 20000,
-          },
-        });
-        
+        },
+      ],
+      config: {
+        temperature: 0.1, // Low temperature for factual extraction
+        maxOutputTokens: 20000,
+      },
+    });
+    
         // Success! Process the result
-        const extractedText = result.text || '';
-        const duration = Date.now() - startTime;
-        
-        // Estimate tokens (rough: 1 token ≈ 4 characters)
-        const tokensEstimate = Math.ceil(extractedText.length / 4);
-        
-        // Estimate input tokens (prompt + image tokens)
-        const inputTokens = Math.ceil(
-          (prompt.length / 4) + (fileBuffer.length / 1000) // Rough estimate
-        );
-        
-        // Output tokens
-        const outputTokens = tokensEstimate;
-        
-        // Calculate cost
-        const estimatedCost = calculateCost(model, inputTokens, outputTokens);
-        
-        console.log(`   ✅ Extracción completa en ${(duration / 1000).toFixed(1)}s`);
-        console.log(`   📝 ${extractedText.length.toLocaleString()} caracteres extraídos`);
-        console.log(`   🎯 ~${tokensEstimate.toLocaleString()} tokens estimados`);
-        console.log(`   💰 Costo estimado: $${estimatedCost.toFixed(6)}`);
-        
-        // Display first 200 characters as preview
-        console.log(`   👁️  Preview: ${extractedText.substring(0, 200)}...`);
-        
-        return {
-          success: true,
-          extractedText,
-          charactersExtracted: extractedText.length,
-          tokensEstimate,
-          model,
-          inputTokens,
-          outputTokens,
-          duration,
-          estimatedCost,
-        };
+    const extractedText = result.text || '';
+    const duration = Date.now() - startTime;
+    
+    // Estimate tokens (rough: 1 token ≈ 4 characters)
+    const tokensEstimate = Math.ceil(extractedText.length / 4);
+    
+    // Estimate input tokens (prompt + image tokens)
+    const inputTokens = Math.ceil(
+      (prompt.length / 4) + (fileBuffer.length / 1000) // Rough estimate
+    );
+    
+    // Output tokens
+    const outputTokens = tokensEstimate;
+    
+    // Calculate cost
+    const estimatedCost = calculateCost(model, inputTokens, outputTokens);
+    
+    console.log(`   ✅ Extracción completa en ${(duration / 1000).toFixed(1)}s`);
+    console.log(`   📝 ${extractedText.length.toLocaleString()} caracteres extraídos`);
+    console.log(`   🎯 ~${tokensEstimate.toLocaleString()} tokens estimados`);
+    console.log(`   💰 Costo estimado: $${estimatedCost.toFixed(6)}`);
+    
+    // Display first 200 characters as preview
+    console.log(`   👁️  Preview: ${extractedText.substring(0, 200)}...`);
+    
+    return {
+      success: true,
+      extractedText,
+      charactersExtracted: extractedText.length,
+      tokensEstimate,
+      model,
+      inputTokens,
+      outputTokens,
+      duration,
+      estimatedCost,
+    };
         
       } catch (apiError: any) {
         lastError = apiError;
