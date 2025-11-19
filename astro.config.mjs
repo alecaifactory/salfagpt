@@ -70,6 +70,7 @@ export default defineConfig({
         '@google-cloud/storage',
         '@google-cloud/logging',
         '@google-cloud/error-reporting',
+        '@google/generative-ai',
       ],
       // Handle whatwg-url ESM issues
       noExternal: ['whatwg-url', 'tr46', 'webidl-conversions'],
