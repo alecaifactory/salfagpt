@@ -124,7 +124,7 @@ export function validateFile(file: File): FileValidationResult {
   const warnings: string[] = [];
   
   // 1. Check file type
-  if (!ALL_SUPPORTED_MIME_TYPES.includes(file.type)) {
+  if (!ALL_SUPPORTED_MIME_TYPES.includes(file.type as any)) {
     const supportedNames = Object.values(SUPPORTED_FILE_TYPES)
       .map(t => t.displayName)
       .join(', ');
@@ -324,7 +324,7 @@ export function getTimeoutForFile(fileSizeBytes: number): number {
  * Check if file type is supported
  */
 export function isFileTypeSupported(mimeType: string): boolean {
-  return ALL_SUPPORTED_MIME_TYPES.includes(mimeType);
+  return ALL_SUPPORTED_MIME_TYPES.includes(mimeType as any);
 }
 
 /**
@@ -332,7 +332,7 @@ export function isFileTypeSupported(mimeType: string): boolean {
  */
 export function getFileTypeInfo(mimeType: string) {
   for (const [key, type] of Object.entries(SUPPORTED_FILE_TYPES)) {
-    if (type.mimeTypes.includes(mimeType)) {
+    if (type.mimeTypes.includes(mimeType as any)) {
       return type;
     }
   }
