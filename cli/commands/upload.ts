@@ -36,10 +36,11 @@ interface UploadConfig {
   folderPath: string;
   tag: string;
   agentId: string;
-  userId: string;
+  userId: string;  // Hash ID (e.g., usr_uhwqffaqag1wrryd82tw) - PRIMARY
   userEmail: string;
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   testQuery?: string;
+  googleUserId?: string;  // Optional: Google OAuth numeric ID for reference
 }
 
 interface FileUploadResult {
@@ -314,7 +315,7 @@ async function uploadSingleFile(
     const firestoreStart = Date.now();
     
     const sourceDoc = await firestore.collection('context_sources').add({
-      userId: config.userId,
+      userId: config.userId, // ✅ HASH ID - PRIMARY (e.g., usr_uhwqffaqag1wrryd82tw)
       name: fileName,
       type: 'pdf',
       enabled: true,
@@ -324,6 +325,7 @@ async function uploadSingleFile(
       originalFileUrl: uploadResult.gcsPath,
       tags: [config.tag],
       assignedToAgents: [config.agentId],
+      ...(config.googleUserId && { googleUserId: config.googleUserId }), // ✅ Optional: Google OAuth ID for reference
       metadata: {
         originalFileName: fileName,
         originalFileSize: uploadResult.fileSize,
@@ -694,7 +696,9 @@ async function main() {
     } else if (arg.startsWith('--agent=')) {
       config.agentId = arg.split('=')[1];
     } else if (arg.startsWith('--user=')) {
-      config.userId = arg.split('=')[1];
+      config.userId = arg.split('=')[1]; // HASH ID (primary)
+    } else if (arg.startsWith('--google-user=')) {
+      config.googleUserId = arg.split('=')[1]; // Optional: Google OAuth numeric ID
     } else if (arg.startsWith('--email=')) {
       config.userEmail = arg.split('=')[1];
     } else if (arg.startsWith('--model=')) {
@@ -712,7 +716,7 @@ async function main() {
     console.error('    --folder=/path/to/folder \\');
     console.error('    --tag=TAG-NAME \\');
     console.error('    --agent=AGENT_ID \\');
-    console.error('    --user=USER_ID \\');
+    console.error('    --user=USER_HASH_ID \\');
     console.error('    --email=user@example.com \\');
     console.error('    --model=gemini-2.5-flash \\  (optional, default: flash)');
     console.error('    --test="Your question here"  (optional)\n');
@@ -721,9 +725,10 @@ async function main() {
     console.error('    --folder=/Users/alec/salfagpt/upload-queue/salfacorp/S001-20251118 \\');
     console.error('    --tag=S001-20251118-1545 \\');
     console.error('    --agent=TestApiUpload_S001 \\');
-    console.error('    --user=114671162830729001607 \\');
+    console.error('    --user=usr_uhwqffaqag1wrryd82tw \\');
     console.error('    --email=alec@getaifactory.com \\');
     console.error('    --test="¿Cuáles son los requisitos de seguridad?"\n');
+    console.error('\n💡 Note: USER_HASH_ID should be the hash ID (e.g., usr_xxx), not the Google numeric ID');
     process.exit(1);
   }
   

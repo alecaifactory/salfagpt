@@ -52,20 +52,13 @@ export const GET: APIRoute = async (context) => {
     console.log(`   🔑 Effective owner for context: ${effectiveUserId}${effectiveUserId !== session.id ? ' (shared agent)' : ' (own agent)'}`);
     console.log('   Query: assignedToAgents array-contains', agentId);
 
-    // 🔑 CRITICAL FIX: Get user's Google OAuth ID for legacy context sources
-    // Context sources were created with numeric Google ID, but users now use hash format
-    const { getUserById } = await import('../../../../lib/firestore.js');
-    const ownerUser = await getUserById(effectiveUserId);
-    const googleUserId = ownerUser?.googleUserId || effectiveUserId;
-    
-    if (googleUserId !== effectiveUserId) {
-      console.log(`   🔑 Using Google ID for legacy sources: ${effectiveUserId} → ${googleUserId}`);
-    }
+    // ✅ Use hash ID as primary identifier (all documents have been migrated)
+    console.log(`   🔑 Querying with hash ID: ${effectiveUserId}`);
 
-    // 2. Query sources assigned to this agent (using owner's sources) - use Google ID for backward compatibility
+    // 2. Query sources assigned to this agent (using owner's hash ID)
     let query: any = firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
-      .where('userId', '==', googleUserId) // ✅ Use Google ID for legacy compatibility
+      .where('userId', '==', effectiveUserId) // ✅ Use hash ID (primary)
       .where('assignedToAgents', 'array-contains', agentId)
       .orderBy('addedAt', 'desc');
 
@@ -91,12 +84,12 @@ export const GET: APIRoute = async (context) => {
         console.log('📊 Counting total sources for agent...');
         const countSnapshot = await firestore
           .collection(COLLECTIONS.CONTEXT_SOURCES)
-          .where('userId', '==', googleUserId) // ✅ Use Google ID for legacy compatibility
+          .where('userId', '==', effectiveUserId) // ✅ Use hash ID (primary)
           .where('assignedToAgents', 'array-contains', agentId)
           .select('name', 'assignedToAgents') // Fetch minimal fields for verification
           .get();
         totalCount = countSnapshot.size;
-        console.log(`📊 Total sources for agent ${agentId}: ${totalCount} (using googleUserId)`);
+        console.log(`📊 Total sources for agent ${agentId}: ${totalCount} (using hash ID: ${effectiveUserId})`);
         
         // Sample to verify data structure
         if (countSnapshot.size > 0) {

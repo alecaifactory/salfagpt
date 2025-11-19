@@ -25,7 +25,8 @@ echo ""
 FOLDER="/Users/alec/salfagpt/upload-queue/salfacorp/S001-20251118"
 TAG="S001-20251118-1545"
 AGENT="TestApiUpload_S001"
-USER_ID="114671162830729001607"
+USER_ID="usr_uhwqffaqag1wrryd82tw"  # Hash ID (primary)
+GOOGLE_USER_ID="114671162830729001607"  # Google OAuth numeric ID (optional, for reference)
 USER_EMAIL="alec@getaifactory.com"
 MODEL="gemini-2.5-flash"
 TEST_QUERY="¿Cuáles son los requisitos de seguridad?"
@@ -96,6 +97,7 @@ npx tsx cli/commands/upload.ts \
   --tag="$TAG" \
   --agent="$AGENT" \
   --user="$USER_ID" \
+  --google-user="$GOOGLE_USER_ID" \
   --email="$USER_EMAIL" \
   --model="$MODEL" \
   --test="$TEST_QUERY"
