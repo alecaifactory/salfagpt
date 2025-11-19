@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
 import { firestore, COLLECTIONS } from '../../../lib/firestore';
-import { extractFromUrl } from '../../../lib/extractors';
 
 /**
  * POST /api/context/refresh-all
