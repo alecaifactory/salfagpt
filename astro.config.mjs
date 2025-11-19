@@ -56,9 +56,14 @@ export default defineConfig({
       rollupOptions: {
         external: [
           '@google/generative-ai',
+          '@google/genai',
           '@google-cloud/firestore',
           '@google-cloud/bigquery',
           '@google-cloud/storage',
+          '@google-cloud/logging',
+          '@google-cloud/error-reporting',
+          'stripe',
+          'crypto',
         ],
         output: {
           // Add version hash to filenames to bust browser cache
