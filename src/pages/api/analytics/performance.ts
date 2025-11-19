@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { db } from '../../../lib/firestore';
+import { firestore } from '../../../lib/firestore';
 
 /**
  * POST /api/analytics/performance
@@ -36,7 +36,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
     
     // Store performance metrics in Firestore
-    const metricsRef = db.collection('performance_metrics');
+    const metricsRef = firestore.collection('performance_metrics');
     
     await metricsRef.add({
       userId,
@@ -82,7 +82,7 @@ export const GET: APIRoute = async ({ url }) => {
     const endDate = url.searchParams.get('endDate');
     const userId = url.searchParams.get('userId');
     
-    let query = db.collection('performance_metrics').orderBy('timestamp', 'desc');
+    let query = firestore.collection('performance_metrics').orderBy('timestamp', 'desc');
     
     // Filter by date range
     if (startDate) {

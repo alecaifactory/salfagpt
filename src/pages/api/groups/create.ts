@@ -12,7 +12,7 @@
 import type { APIRoute } from 'astro';
 import { createCommunityGroup } from '../../../lib/subscriptions.js';
 import { getSession } from '../../../lib/auth.js';
-import { getUser } from '../../../lib/firestore.js';
+import { getUserById } from '../../../lib/firestore.js';
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
@@ -40,7 +40,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
 
     // 3. Get user details
-    const user = await getUser(session.id);
+    const user = await getUserById(session.id);
     if (!user) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
