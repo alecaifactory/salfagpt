@@ -14,8 +14,13 @@ import type { FeatureFlags, UserFeatureAccess } from '../types/ally';
 /**
  * Get feature flags for a specific user
  * 
- * Checks both environment variables and user-specific settings.
- * SuperAdmin (alec@getaifactory.com) always has access to beta features.
+ * ✅ NEW: Ally is now ENABLED BY DEFAULT for all users.
+ * 
+ * Can be disabled:
+ * - Globally: Set ENABLE_ALLY_BETA=false in environment
+ * - Per user: Set user.allyBetaAccess.enabled = false in Firestore
+ * 
+ * SuperAdmin (alec@getaifactory.com) always has access regardless.
  */
 export async function getUserFeatureFlags(
   userId: string,
@@ -25,22 +30,29 @@ export async function getUserFeatureFlags(
   console.log('🚩 [FEATURE FLAGS] Checking for:', userEmail);
   
   try {
-    // Check environment variable (global override)
-    const envEnabled = process.env.ENABLE_ALLY_BETA === 'true';
-    console.log(`  Environment ENABLE_ALLY_BETA: ${envEnabled}`);
+    // ✅ NEW: Default to TRUE for all users (Ally is now generally available)
+    // Environment variable can DISABLE if needed (ENABLE_ALLY_BETA=false)
+    const envDisabled = process.env.ENABLE_ALLY_BETA === 'false';
+    
+    if (envDisabled) {
+      console.log('  ⚠️ Ally DISABLED via environment variable');
+      return {
+        allyBetaAccess: false,
+      };
+    }
     
     // SuperAdmin override (alec@getaifactory.com always has access)
     const isSuperAdmin = userEmail === 'alec@getaifactory.com';
     
     if (isSuperAdmin) {
-      console.log('  ✅ SuperAdmin detected - granting Ally beta access');
+      console.log('  ✅ SuperAdmin detected - granting Ally access');
       return {
         allyBetaAccess: true,
       };
     }
     
-    // Check user-specific access
-    let userEnabled = false;
+    // Check user-specific disable (allow blocking individual users)
+    let userDisabled = false;
     try {
       const userDoc = await firestore
         .collection('users')
@@ -49,17 +61,17 @@ export async function getUserFeatureFlags(
       
       if (userDoc.exists) {
         const userData = userDoc.data();
-        userEnabled = userData?.allyBetaAccess?.enabled || false;
-        console.log(`  User-specific allyBetaAccess: ${userEnabled}`);
+        userDisabled = userData?.allyBetaAccess?.enabled === false;
+        console.log(`  User-specific allyBetaAccess disabled: ${userDisabled}`);
       }
     } catch (error) {
       console.warn('  Failed to load user-specific flags:', error);
     }
     
-    // Combine: environment AND (superadmin OR user-specific)
-    const allyAccess = envEnabled && (isSuperAdmin || userEnabled);
+    // ✅ NEW LOGIC: Default TRUE, unless explicitly disabled
+    const allyAccess = !userDisabled;
     
-    console.log(`  Final allyBetaAccess: ${allyAccess}`);
+    console.log(`  Final allyBetaAccess: ${allyAccess} (default: enabled for all users)`);
     
     return {
       allyBetaAccess: allyAccess,
