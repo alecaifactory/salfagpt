@@ -55,25 +55,27 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       console.log(`  🔗 Chat detected - inheriting from parent agent: ${effectiveAgentId}`);
     }
 
-    // 3. Count sources assigned to the effective agent (fast count query)
-    const assignedCountSnapshot = await firestore
-      .collection(COLLECTIONS.CONTEXT_SOURCES)
+    // 3. Count sources assigned to the effective agent via agent_sources collection
+    const agentSourcesSnapshot = await firestore
+      .collection('agent_sources')
+      .where('agentId', '==', effectiveAgentId)
       .where('userId', '==', session.id)
-      .where('assignedToAgents', 'array-contains', effectiveAgentId)
       .count()
       .get();
 
-    const totalCount = assignedCountSnapshot.data().count;
+    const totalCount = agentSourcesSnapshot.data().count;
+    
+    console.log(`📊 Found ${totalCount} sources assigned via agent_sources collection`);
 
-    // 4. Get active source IDs from conversation_context (tiny document)
+    // 4. Get active source IDs from conversations collection (directly on agent)
     // For chats, check parent agent's context
-    const contextDoc = await firestore
-      .collection('conversation_context')
+    const agentDoc = await firestore
+      .collection(COLLECTIONS.CONVERSATIONS)
       .doc(effectiveAgentId)
       .get();
 
-    const activeContextSourceIds = contextDoc.exists 
-      ? (contextDoc.data()?.activeContextSourceIds || [])
+    const activeContextSourceIds = agentDoc.exists 
+      ? (agentDoc.data()?.activeContextSourceIds || [])
       : [];
 
     const activeCount = activeContextSourceIds.length;
