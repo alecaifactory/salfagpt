@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import type { ContextSource } from '../types/context';
+import ContextSourceSettingsModalSimple from './ContextSourceSettingsModalSimple';
 
 interface AgentContextModalProps {
   isOpen: boolean;
@@ -43,6 +44,10 @@ export default function AgentContextModal({
   // Selected document for detail view
   const [selectedDocument, setSelectedDocument] = useState<ContextSource | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  
+  // ✅ NEW: Full details modal state
+  const [showFullDetailsModal, setShowFullDetailsModal] = useState(false);
+  const [documentForFullDetails, setDocumentForFullDetails] = useState<ContextSource | null>(null);
 
   // 🔑 Hook para cerrar con ESC y click fuera
   const modalRef = useModalClose(isOpen, onClose, true, true, true);
@@ -212,6 +217,7 @@ export default function AgentContextModal({
   if (!isOpen) return null;
   
   return (
+    <>
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div ref={modalRef} className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
         {/* Header */}
@@ -473,8 +479,9 @@ export default function AgentContextModal({
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
-                        // TODO: Open full source settings modal
-                        console.log('Open settings for:', selectedDocument.id);
+                        console.log('Opening full details for:', selectedDocument.id);
+                        setDocumentForFullDetails(selectedDocument);
+                        setShowFullDetailsModal(true);
                       }}
                       className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
                     >
@@ -514,6 +521,20 @@ export default function AgentContextModal({
         </div>
       </div>
     </div>
+
+    {/* ✅ Full Details Modal */}
+    {showFullDetailsModal && documentForFullDetails && (
+      <ContextSourceSettingsModalSimple
+        source={documentForFullDetails}
+        isOpen={showFullDetailsModal}
+        onClose={() => {
+          setShowFullDetailsModal(false);
+          setDocumentForFullDetails(null);
+        }}
+        userId={userId}
+      />
+    )}
+    </>
   );
 }
 

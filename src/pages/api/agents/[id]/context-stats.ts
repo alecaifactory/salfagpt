@@ -15,7 +15,7 @@
 
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../lib/auth';
-import { firestore, COLLECTIONS } from '../../../../lib/firestore';
+import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from '../../../../lib/firestore';
 
 export const GET: APIRoute = async ({ params, cookies }) => {
   const startTime = Date.now();
@@ -55,11 +55,16 @@ export const GET: APIRoute = async ({ params, cookies }) => {
       console.log(`  🔗 Chat detected - inheriting from parent agent: ${effectiveAgentId}`);
     }
 
+    // 🔑 CRITICAL: Get effective owner (handles shared agents - uses OWNER's documents, not current user's)
+    const effectiveUserId = await getEffectiveOwnerForContext(effectiveAgentId, session.id);
+    console.log(`  🔑 Effective owner: ${effectiveUserId} (session user: ${session.id})`);
+
     // 3. Count sources assigned to the effective agent via agent_sources collection
+    // ✅ Use effectiveUserId (owner's ID) not session.id (current user's ID)
     const agentSourcesSnapshot = await firestore
       .collection('agent_sources')
       .where('agentId', '==', effectiveAgentId)
-      .where('userId', '==', session.id)
+      .where('userId', '==', effectiveUserId)  // ✅ Use OWNER's userId for shared agents
       .count()
       .get();
 

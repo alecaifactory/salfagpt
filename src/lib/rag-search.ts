@@ -50,8 +50,8 @@ export async function searchRelevantChunks(
 
     // 🔑 CRITICAL FIX: Resolve userId to Google format for chunk queries
     // Chunks were indexed with Google user ID (numeric), not hashed ID (usr_xxx)
-    const { getUserByIdOrEmail } = await import('./firestore.js');
-    const userDoc = await getUserByIdOrEmail(userId);
+    const { getUserById } = await import('./firestore.js');
+    const userDoc = await getUserById(userId);
     const googleUserId = userDoc?.googleUserId || userId;
     
     if (googleUserId !== userId) {

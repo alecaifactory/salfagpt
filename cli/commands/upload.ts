@@ -41,6 +41,7 @@ interface UploadConfig {
   model?: 'gemini-2.5-flash' | 'gemini-2.5-pro';
   testQuery?: string;
   googleUserId?: string;  // Optional: Google OAuth numeric ID for reference
+  skipExisting?: boolean;  // Skip files already uploaded
 }
 
 interface FileUploadResult {
@@ -62,6 +63,26 @@ interface UploadSummary {
   totalDuration: number;
   totalCost: number;
   results: FileUploadResult[];
+}
+
+/**
+ * Get list of already uploaded files for an agent
+ */
+async function getUploadedFiles(agentId: string): Promise<Set<string>> {
+  const snapshot = await firestore
+    .collection('context_sources')
+    .where('assignedToAgents', 'array-contains', agentId)
+    .get();
+  
+  const uploadedFiles = new Set<string>();
+  snapshot.docs.forEach(doc => {
+    const data = doc.data();
+    if (data.name) {
+      uploadedFiles.add(data.name);
+    }
+  });
+  
+  return uploadedFiles;
 }
 
 /**
@@ -91,11 +112,25 @@ async function uploadCommand(config: UploadConfig): Promise<UploadSummary> {
   
   // Get all PDF files from folder
   console.log('📂 Scanning folder for PDFs...');
-  const files = await getPDFFiles(config.folderPath);
+  let files = await getPDFFiles(config.folderPath);
   console.log(`✅ Found ${files.length} PDF files\n`);
   
+  // Skip already uploaded files if requested
+  if (config.skipExisting) {
+    console.log('🔍 Checking for already uploaded files...');
+    const uploadedFiles = await getUploadedFiles(config.agentId);
+    const initialCount = files.length;
+    files = files.filter(filePath => {
+      const fileName = basename(filePath);
+      return !uploadedFiles.has(fileName);
+    });
+    const skipped = initialCount - files.length;
+    console.log(`✅ Skipping ${skipped} already uploaded files`);
+    console.log(`⏳ ${files.length} files remaining to upload\n`);
+  }
+  
   if (files.length === 0) {
-    console.log('⚠️  No PDF files found in folder');
+    console.log('⚠️  No PDF files found in folder or all already uploaded');
     return {
       totalFiles: 0,
       succeeded: 0,
@@ -705,6 +740,8 @@ async function main() {
       config.model = arg.split('=')[1] as 'gemini-2.5-flash' | 'gemini-2.5-pro';
     } else if (arg.startsWith('--test=')) {
       config.testQuery = arg.split('=')[1].replace(/"/g, '');
+    } else if (arg === '--skip-existing') {
+      config.skipExisting = true;
     }
   }
   

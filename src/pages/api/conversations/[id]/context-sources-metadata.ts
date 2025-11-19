@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getSession } from '../../../../lib/auth';
-import { firestore, COLLECTIONS } from '../../../../lib/firestore';
+import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from '../../../../lib/firestore';
 
 /**
  * GET /api/conversations/:id/context-sources-metadata
@@ -60,6 +60,10 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
     if (isChat) {
       console.log(`🔗 Chat detected - using parent agent ${effectiveAgentId} for context`);
     }
+
+    // 🔑 CRITICAL: Get effective owner (handles shared agents - uses OWNER's documents, not current user's)
+    const effectiveUserId = await getEffectiveOwnerForContext(effectiveAgentId, session.id);
+    console.log(`  🔑 Effective owner: ${effectiveUserId} (session user: ${session.id})`);
     
     // 4. OPTIMIZED: Load sources in batches, stop early when we have enough
     const startTime = Date.now();
@@ -77,7 +81,7 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
       
       let query = firestore
         .collection(COLLECTIONS.CONTEXT_SOURCES)
-        .where('userId', '==', session.id)
+        .where('userId', '==', effectiveUserId)  // ✅ Use OWNER's userId for shared agents
         .orderBy('addedAt', 'desc')
         .limit(BATCH_SIZE);
       
@@ -152,6 +156,7 @@ export const GET: APIRoute = async ({ params, request, cookies }) => {
     const agentSourcesSnapshot = await firestore
       .collection('agent_sources')
       .where('agentId', '==', effectiveAgentId)
+      .where('userId', '==', effectiveUserId)  // ✅ Use OWNER's userId for shared agents
       .get();
     
     const assignedSourceIdsFromAgentSources = new Set(
