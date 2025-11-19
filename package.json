@@ -40,6 +40,8 @@
     "test:mcp": "tsx scripts/test-mcp-server.ts",
     "test:tim": "tsx scripts/test-tim-digital-twin.ts",
     "test:cache": "tsx scripts/test-cache-performance.ts",
+    "benchmark": "tsx scripts/benchmark-performance.ts",
+    "benchmark:ci": "tsx scripts/benchmark-performance.ts --ci",
     "seed:changelog": "tsx scripts/seed-changelog.ts",
     "seed:changelog:enhanced": "tsx scripts/seed-changelog-enhanced.ts",
     "roadmap:add-changelog": "tsx scripts/add-changelog-to-roadmap.ts",

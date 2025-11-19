@@ -2336,19 +2336,19 @@ export default function ContextManagementDashboard({
     >
       <div 
         ref={modalRef}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[92vh] flex flex-col"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-2.5 border-b border-gray-200">
-          <div className="flex items-center gap-2.5">
-            <Database className="w-5 h-5 text-gray-700" />
-            <h2 className="text-xl font-bold text-gray-900">Context Management</h2>
+        {/* Header - Compact */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4 text-gray-700" />
+            <h2 className="text-lg font-bold text-gray-900">Context Management</h2>
           </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -2357,7 +2357,7 @@ export default function ContextManagementDashboard({
           {/* Left: Sources List with Scrollable Pipeline */}
           <div className="w-1/2 border-r border-gray-200 flex flex-col overflow-hidden">
             {/* Upload Zone - Fixed at top */}
-            <div className="flex-shrink-0 p-3 border-b border-gray-200">
+            <div className="flex-shrink-0 p-2 border-b border-gray-200">
               {!showUploadStaging ? (
                 // File selection zone
                 <div>
@@ -2366,49 +2366,34 @@ export default function ContextManagementDashboard({
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-lg p-4 text-center transition-all cursor-pointer ${
+                    className={`border-2 border-dashed rounded-lg p-2 text-center transition-all cursor-pointer ${
                       isDragging 
                         ? 'border-blue-500 bg-blue-50 scale-105 shadow-lg' 
                         : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                     }`}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <Upload className={`w-8 h-8 mx-auto mb-2 transition-all ${
+                    <Upload className={`w-5 h-5 mx-auto mb-1 transition-all ${
                       isDragging ? 'text-blue-600 scale-110' : 'text-gray-600'
                     }`} />
-                    <p className={`text-sm font-semibold mb-0.5 ${
+                    <p className={`text-[11px] font-semibold ${
                       isDragging ? 'text-blue-900' : 'text-gray-900'
                     }`}>
-                      {isDragging ? '¡Suelta los archivos aquí!' : 'Arrastra PDFs aquí o haz click'}
+                      {isDragging ? '¡Suelta aquí!' : 'Arrastra PDFs o haz click'}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      Múltiples archivos • Automático: Extract → Chunk → Embed
-                    </p>
-                    <div className="mt-2 flex items-center justify-center gap-2">
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-semibold rounded-full">
+                    <div className="mt-1 flex items-center justify-center gap-1">
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[8px] font-semibold rounded-full">
                         ⚡ Flash
                       </span>
-                      <span className="text-gray-400 text-xs">•</span>
-                      <span className="text-[10px] text-gray-600">Pipeline automático</span>
-                    </div>
-                    
-                    {/* ✅ NEW: Upload limits info - COMPACT */}
-                    <div className="mt-2.5 text-left">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 text-xs">
-                        <div className="flex items-start gap-1.5">
-                          <svg className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <div className="text-blue-800">
-                            <p className="font-semibold mb-0.5 text-[10px]">Límites de Carga</p>
-                            <ul className="space-y-0 text-blue-700 text-[10px]">
-                              <li>• Tamaño máximo por archivo: <strong>500 MB</strong></li>
-                              <li>• Recomendado: <strong>≤100 MB</strong> (procesamiento rápido)</li>
-                              <li>• Máximo por lote: <strong>20 archivos</strong> o <strong>2 GB</strong> total</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
+                      <span className="text-gray-400 text-[9px]">•</span>
+                      <span className="text-[8px] text-gray-600">Extract→Chunk→Embed</span>
+                      <span className="text-gray-400 text-[9px]">•</span>
+                      <button 
+                        className="text-[8px] text-blue-600 hover:text-blue-700 font-medium"
+                        title="Max 500MB/archivo • ≤100MB recomendado • Max 20 archivos o 2GB/lote"
+                      >
+                        ℹ️ Límites
+                      </button>
                     </div>
                   </div>
                   <input
@@ -2431,20 +2416,20 @@ export default function ContextManagementDashboard({
                   />
                   
                   {/* ✅ NEW: Folder upload button */}
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-1.5 mt-1.5">
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex-1 px-3 py-1.5 bg-white border-2 border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-xs font-medium text-gray-700 flex items-center justify-center gap-1.5"
+                      className="flex-1 px-2 py-1 bg-white border border-gray-300 rounded hover:border-blue-500 hover:bg-blue-50 transition-all text-[10px] font-medium text-gray-700 flex items-center justify-center gap-1"
                     >
-                      <FileText className="w-3.5 h-3.5" />
-                      Select Files
+                      <FileText className="w-3 h-3" />
+                      Files
                     </button>
                     <button
                       onClick={() => folderInputRef.current?.click()}
-                      className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all text-xs font-medium flex items-center justify-center gap-1.5"
+                      className="flex-1 px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-all text-[10px] font-medium flex items-center justify-center gap-1"
                     >
-                      <Folder className="w-3.5 h-3.5" />
-                      Select Folder
+                      <Folder className="w-3 h-3" />
+                      Folder
                     </button>
                   </div>
                 </div>
@@ -3148,8 +3133,8 @@ export default function ContextManagementDashboard({
 
             {/* Tag Filter Section */}
             {allTags.length > 0 && (
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-2">
+              <div className="p-3 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-1.5">
                   <h4 className="text-sm font-semibold text-gray-900">Filter by Tags</h4>
                   {selectedTags.length > 0 && (
                     <button
@@ -3186,7 +3171,7 @@ export default function ContextManagementDashboard({
 
             {/* Filters Bar (SuperAdmin & Admin) */}
             {isOrgScoped && organizationsData.length > 0 && (
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="border-b border-gray-200 bg-gray-50 px-3 py-2">
                 <div className="flex flex-wrap items-center gap-3">
                   {/* Organization Filter (SuperAdmin only) */}
                   {isSuperAdmin && (
@@ -3287,7 +3272,7 @@ export default function ContextManagementDashboard({
             )}
 
             {/* Sources List - Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 min-h-0">
+            <div className="flex-1 overflow-y-auto p-3 min-h-0">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <h3 className="text-lg font-semibold text-gray-900">
@@ -3339,12 +3324,12 @@ export default function ContextManagementDashboard({
 
               {/* ✅ NEW: Show "Load Documents" button before loading actual documents */}
               {!documentsLoaded && !loading && (
-                <div className="text-center py-12">
-                  <Database className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <p className="text-base text-slate-700 mb-2 font-medium">
+                <div className="text-center py-8">
+                  <Database className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm text-slate-700 mb-2 font-medium">
                     {totalCount > 0 ? (
                       <>
-                        <span className="font-bold text-blue-600 text-2xl">{totalCount}</span>
+                        <span className="font-bold text-blue-600 text-xl">{totalCount}</span>
                         <span className="text-slate-600 ml-2">documento{totalCount !== 1 ? 's' : ''} disponible{totalCount !== 1 ? 's' : ''}</span>
                       </>
                     ) : (
@@ -3353,51 +3338,51 @@ export default function ContextManagementDashboard({
                   </p>
                   <button
                     onClick={loadFirstPage}
-                    className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-3 mx-auto transition-all shadow-md hover:shadow-lg text-base"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2 mx-auto transition-all shadow-md hover:shadow-lg text-sm"
                   >
-                    <Download className="w-5 h-5" />
+                    <Download className="w-4 h-4" />
                     Cargar Documentos
                     {totalCount > 0 && (
-                      <span className="ml-1 px-2.5 py-1 bg-blue-500 rounded-full text-sm">
+                      <span className="ml-1 px-2 py-0.5 bg-blue-500 rounded-full text-xs">
                         {totalCount}
                       </span>
                     )}
                   </button>
-                  <p className="text-xs text-slate-500 mt-4">
+                  <p className="text-[10px] text-slate-500 mt-2">
                     Los documentos se cargarán solo cuando los necesites
                   </p>
                 </div>
               )}
 
               {loading && (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 text-gray-600 animate-spin" />
-                  <p className="ml-3 text-sm text-gray-600">Cargando documentos...</p>
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-gray-600 animate-spin" />
+                  <p className="ml-2 text-xs text-gray-600">Cargando documentos...</p>
                 </div>
               )}
 
               {!loading && documentsLoaded && sources.length === 0 && !isOrgScoped && (
-                <div className="text-center py-12 text-gray-500">
-                  <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No context sources found</p>
+                <div className="text-center py-8 text-gray-500">
+                  <Database className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No context sources found</p>
                 </div>
               )}
               
               {!loading && documentsLoaded && isOrgScoped && organizationsData.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No organizations found</p>
-                  <p className="text-xs text-gray-400 mt-2">Contact system administrator</p>
+                <div className="text-center py-8 text-gray-500">
+                  <Database className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No organizations found</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Contact system administrator</p>
                 </div>
               )}
 
               {!loading && documentsLoaded && filteredSources.length === 0 && sources.length > 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Database className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p className="text-sm">No sources match the selected tags</p>
+                <div className="text-center py-8 text-gray-500">
+                  <Database className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No sources match the selected tags</p>
                   <button
                     onClick={() => setSelectedTags([])}
-                    className="text-xs text-gray-700 hover:text-gray-900 mt-2 transition-colors"
+                    className="text-[10px] text-gray-700 hover:text-gray-900 mt-1 transition-colors"
                   >
                     Clear filters
                   </button>
@@ -3406,9 +3391,9 @@ export default function ContextManagementDashboard({
 
               {/* Organization-Scoped View (SuperAdmins & Admins) - Only show when documents loaded */}
               {!loading && documentsLoaded && isOrgScoped && filteredOrganizationsData.length > 0 && (
-                <div className="space-y-4">
-                  <div className="px-1 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-xs text-blue-800 font-medium">
+                <div className="space-y-2">
+                  <div className="px-2 py-1 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-[10px] text-blue-800 font-medium">
                       🏢 {isSuperAdmin ? 'SuperAdmin' : 'Admin'} View - Showing {filteredOrganizationsData.length} of {organizationsData.length} organization(s)
                       {(filterByOrg || filterByDomain || filterByTag) && (
                         <span className="ml-2 text-blue-600">
@@ -3422,7 +3407,7 @@ export default function ContextManagementDashboard({
                     const isOrgExpanded = expandedOrgs.has(org.id);
                     
                     return (
-                      <div key={org.id} className="border-2 border-blue-300 rounded-lg overflow-hidden">
+                      <div key={org.id} className="border border-blue-300 rounded-lg overflow-hidden">
                         {/* Organization Header - Enhanced with Details */}
                         <div
                           onClick={() => {
@@ -3434,7 +3419,7 @@ export default function ContextManagementDashboard({
                             }
                             setExpandedOrgs(newExpanded);
                           }}
-                          className="bg-blue-50 hover:bg-blue-100 px-4 py-3 cursor-pointer transition-colors"
+                          className="bg-blue-50 hover:bg-blue-100 px-3 py-2 cursor-pointer transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
@@ -3648,11 +3633,11 @@ export default function ContextManagementDashboard({
                     const totalCountInFolder = folderStructure.find(f => f.name === folderName)?.count || folderSources.length;
                     
                     return (
-                      <div key={folderName} className="border border-gray-200 rounded-lg overflow-hidden">
+                      <div key={folderName} className="border border-gray-200 rounded overflow-hidden">
                         {/* Folder Header */}
                         <div
                           onClick={() => toggleFolder(folderName)}
-                          className="bg-gray-50 hover:bg-gray-100 px-4 py-3 cursor-pointer transition-colors"
+                          className="bg-gray-50 hover:bg-gray-100 px-3 py-2 cursor-pointer transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 flex-1">
@@ -3681,7 +3666,7 @@ export default function ContextManagementDashboard({
 
                         {/* Folder Content */}
                         <div className={`${isExpanded ? 'max-h-96 overflow-y-auto' : ''}`}>
-                          <div className="p-3 space-y-2">
+                          <div className="p-2 space-y-1">
                             {sourcesToShow.map(source => {
                               const isSelected = selectedSourceIds.includes(source.id);
                               
@@ -3689,14 +3674,14 @@ export default function ContextManagementDashboard({
                                 <div
                                   key={source.id}
                                   onClick={() => toggleSourceSelection(source.id)}
-                                  className={`w-full text-left border rounded-lg p-3 transition-all cursor-pointer ${
+                                  className={`w-full text-left border rounded p-2 transition-all cursor-pointer ${
                                     isSelected
                                       ? 'border-gray-900 bg-gray-50 shadow-sm'
                                       : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                                   }`}
                                 >
-                                  <div className="flex items-start justify-between mb-2">
-                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <div className="flex items-start justify-between mb-1">
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                       <input
                                         type="checkbox"
                                         checked={isSelected}
@@ -3704,28 +3689,28 @@ export default function ContextManagementDashboard({
                                         onClick={(e) => e.stopPropagation()}
                                         className="rounded border-gray-300 text-gray-900 focus:ring-gray-900 flex-shrink-0"
                                       />
-                                      <FileText className="w-4 h-4 text-gray-700 flex-shrink-0" />
-                                      <span className="text-sm font-semibold text-gray-900 truncate">
+                                      <FileText className="w-3.5 h-3.5 text-gray-700 flex-shrink-0" />
+                                      <span className="text-xs font-semibold text-gray-900 truncate">
                                         {source.name}
                                       </span>
                                       {(source.labels?.includes('PUBLIC') || source.labels?.includes('public')) && (
-                                        <span className="px-2 py-0.5 bg-gray-900 text-white text-xs rounded-full flex-shrink-0">
+                                        <span className="px-1.5 py-0.5 bg-gray-900 text-white text-[9px] rounded-full flex-shrink-0">
                                           🌐 PUBLIC
                                         </span>
                                       )}
                                       {source.metadata?.validated && (
-                                        <span className="px-2 py-0.5 bg-gray-800 text-white text-xs rounded-full flex-shrink-0">
-                                          ✓ Validado
+                                        <span className="px-1.5 py-0.5 bg-gray-800 text-white text-[9px] rounded-full flex-shrink-0">
+                                          ✓
                                         </span>
                                       )}
                                     </div>
-                                    {source.status === 'active' && <CheckCircle className="w-4 h-4 text-gray-600 flex-shrink-0" />}
-                                    {source.status === 'error' && <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />}
-                                    {source.status === 'processing' && <Loader2 className="w-4 h-4 text-gray-600 animate-spin flex-shrink-0" />}
+                                    {source.status === 'active' && <CheckCircle className="w-3.5 h-3.5 text-gray-600 flex-shrink-0" />}
+                                    {source.status === 'error' && <XCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0" />}
+                                    {source.status === 'processing' && <Loader2 className="w-3.5 h-3.5 text-gray-600 animate-spin flex-shrink-0" />}
                                   </div>
 
                                   {/* Compact metadata */}
-                                  <div className="flex items-center gap-3 text-xs text-gray-600 mt-2">
+                                  <div className="flex items-center gap-2 text-[10px] text-gray-600 mt-1">
                                     {source.metadata?.pageCount && (
                                       <span className="flex items-center gap-1">
                                         <FileText className="w-3 h-3" />
@@ -3747,11 +3732,11 @@ export default function ContextManagementDashboard({
 
                                   {/* Tags */}
                                   {source.labels && source.labels.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-1">
+                                    <div className="mt-1 flex flex-wrap gap-1">
                                       {source.labels.map(tag => (
                                         <span
                                           key={tag}
-                                          className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[10px] font-medium"
+                                          className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-[9px] font-medium"
                                         >
                                           {tag}
                                         </span>
@@ -3768,9 +3753,9 @@ export default function ContextManagementDashboard({
                         {!isExpanded && hasMore && (
                           <div
                             onClick={() => toggleFolder(folderName)}
-                            className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                            className="px-2 py-1 bg-gray-50 border-t border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
                           >
-                            <span className="text-xs text-gray-600 hover:text-gray-900">
+                            <span className="text-[10px] text-gray-600 hover:text-gray-900">
                               + {folderSources.length - 3} más documento{folderSources.length - 3 !== 1 ? 's' : ''}
                             </span>
                           </div>
@@ -3781,15 +3766,15 @@ export default function ContextManagementDashboard({
 
                   {/* Load More Button */}
                   {hasMore && (
-                    <div className="text-center pt-2">
+                    <div className="text-center pt-1">
                       <button
                         onClick={loadNextPage}
                         disabled={loadingMore}
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors text-sm font-medium inline-flex items-center gap-2"
+                        className="px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:bg-gray-400 transition-colors text-xs font-medium inline-flex items-center gap-1.5"
                       >
                         {loadingMore ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
                             Cargando...
                           </>
                         ) : (
@@ -3937,7 +3922,7 @@ export default function ContextManagementDashboard({
                     </button>
                   </div>
                   
-                  <div className="max-h-32 overflow-y-auto space-y-1">
+                  <div className="max-h-64 overflow-y-auto space-y-1">
                     {(() => {
                       // Filter to only show active agents (not chats, not archived)
                       const activeAgents = conversations.filter(conv => {
@@ -4017,7 +4002,7 @@ export default function ContextManagementDashboard({
                 </div>
 
                 {/* Selected Sources Summary */}
-                <div className="p-6 border-b border-gray-200 max-h-64 overflow-y-auto">
+                <div className="p-6 border-b border-gray-200 max-h-80 overflow-y-auto">
                   <h4 className="text-sm font-semibold text-gray-900 mb-3">Selected Sources</h4>
                   <div className="space-y-2">
                     {sources.filter(s => selectedSourceIds.includes(s.id)).map(source => (
@@ -4077,7 +4062,7 @@ export default function ContextManagementDashboard({
                     </div>
                   </div>
                   
-                  <div className="max-h-48 overflow-y-auto space-y-2">
+                  <div className="max-h-96 overflow-y-auto space-y-2">
                     {(() => {
                       // Filter to only show active agents (not chats, not archived)
                       const activeAgents = conversations.filter(conv => {
@@ -4200,14 +4185,14 @@ export default function ContextManagementDashboard({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-gray-200 flex justify-between items-center bg-gray-50">
-          <div className="text-sm text-gray-600">
+        {/* Footer - Compact */}
+        <div className="px-4 py-2 border-t border-gray-200 flex justify-between items-center bg-gray-50">
+          <div className="text-xs text-gray-600">
             {sources.length} total sources • {uploadQueue.filter(i => i.status === 'complete').length} uploads completed
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+            className="px-4 py-1.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
           >
             Close
           </button>

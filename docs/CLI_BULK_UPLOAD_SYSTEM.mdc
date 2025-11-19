@@ -1,0 +1,948 @@
+---
+title: CLI Bulk Upload System
+description: Complete guide for programmatic bulk document uploads with RAG processing
+icon: 'lucide:upload-cloud'
+---
+
+# CLI Bulk Upload System
+
+::alert{type="info"}
+This system provides automated bulk upload, extraction, and RAG processing for large document volumes. Documents are automatically chunked, embedded, and assigned to agents.
+::
+
+## Quick Start
+
+:::code-group
+
+```bash [Test Upload (2 files)]
+npx tsx scripts/test-new-agent-upload.ts
+```
+
+```bash [Bulk Upload (Custom)]
+npx tsx cli/commands/upload.ts \
+  --agent-name="My Agent" \
+  --folder="/path/to/docs" \
+  --tag="batch-2025-11" \
+  --user="usr_xxxxx" \
+  --email="user@company.com"
+```
+
+```bash [Future: NPX Package]
+npx @salfagpt/bulk-upload \
+  --agent="My Agent" \
+  --folder="./documents"
+```
+
+:::
+
+---
+
+## Prerequisites Checklist
+
+::checklist
+- [ ] Node.js v18+ installed
+- [ ] Google Cloud SDK configured
+- [ ] Run `gcloud auth application-default login`
+- [ ] Valid user hash ID (format: `usr_xxxxx`)
+- [ ] Agent exists with required fields
+- [ ] `.env` file configured
+- [ ] Firestore database active
+- [ ] Gemini API enabled
+::
+
+---
+
+## System Architecture
+
+```mermaid
+graph TD
+    A[PDF Files] -->|Scan Folder| B[File Discovery]
+    B -->|Upload| C[Google Cloud Storage]
+    C -->|Extract| D[Gemini AI]
+    D -->|Parse| E[Firestore: context_sources]
+    E -->|Process| F[RAG Pipeline]
+    F -->|Chunk| G[Text Chunks]
+    G -->|Embed| H[Embeddings]
+    H -->|Store| I[document_chunks]
+    I -->|Link| J[Agent Context]
+    J -->|Sync| K[activeContextSourceIds]
+    K -->|Display| L[UI: Documents Visible]
+```
+
+---
+
+## Agent Requirements
+
+::alert{type="warning"}
+**Critical**: Agents MUST have all required fields, or documents won't appear in the UI!
+::
+
+### Required Fields
+
+:::code-group
+
+```typescript [Agent Structure]
+{
+  // ✅ REQUIRED - Document ID
+  id: string,
+  
+  // ✅ REQUIRED - User identification
+  userId: string, // Hash ID (e.g., usr_uhwqffaqag1wrryd82tw)
+  
+  // ✅ REQUIRED - Agent flag
+  isAgent: true,
+  
+  // ✅ REQUIRED - Display fields
+  name: string,
+  agentName: string,
+  title: string,
+  
+  // ✅ REQUIRED - Multi-tenant
+  organizationId: string,
+  
+  // ✅ REQUIRED - Metadata
+  messageCount: number,
+  version: number,
+  source: 'cli' | 'webapp' | 'api',
+  
+  // ✅ REQUIRED - Context
+  activeContextSourceIds: string[],
+  
+  // ✅ REQUIRED - Timestamps
+  createdAt: Timestamp,
+  updatedAt: Timestamp
+}
+```
+
+```bash [Create Agent]
+npx tsx scripts/create-test-agent.ts
+```
+
+```bash [Fix Existing Agent]
+npx tsx scripts/fix-test-agent-structure.ts
+```
+
+:::
+
+### Agent Discovery
+
+::alert{type="info"}
+The system finds agents by **NAME**, not ID. The agent's display name may differ from its Firestore document ID.
+::
+
+```typescript
+// ✅ CORRECT: Find by name, get ID
+const agent = await findAgentByName('TestApiUpload_S001');
+const agentId = agent.id; // 'rzEqb17ZwSjk99bZHbTv'
+
+// ❌ WRONG: Assume name = ID
+const agentId = 'TestApiUpload_S001'; // May not be the doc ID!
+```
+
+---
+
+## Upload Process Flow
+
+### Step 1: Agent Discovery & Validation
+
+:::steps
+
+### Find Agent
+```bash
+npx tsx scripts/list-all-user-agents.ts
+```
+
+### Validate Structure
+```bash
+npx tsx scripts/compare-agents.ts
+```
+
+### Fix if Needed
+```bash
+npx tsx scripts/fix-test-agent-structure.ts
+```
+
+:::
+
+### Step 2: File Discovery
+
+::code-block{label="Recursive PDF Scan"}
+```typescript
+async function findPDFs(folder: string): Promise<string[]> {
+  const files: string[] = [];
+  
+  async function scan(dir: string) {
+    const entries = await readdir(dir, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      
+      if (entry.isDirectory()) {
+        await scan(fullPath); // Recurse
+      } else if (entry.name.endsWith('.pdf')) {
+        files.push(fullPath);
+      }
+    }
+  }
+  
+  await scan(folder);
+  return files.sort();
+}
+```
+::
+
+### Step 3: Document Processing
+
+:::card-grid
+::card{title="Upload" icon="lucide:upload-cloud"}
+Upload original PDF to Google Cloud Storage with progress tracking
+::
+
+::card{title="Extract" icon="lucide:file-text"}
+Extract text, tables, and images using Gemini AI
+::
+
+::card{title="Store" icon="lucide:database"}
+Save document metadata and content to Firestore
+::
+
+::card{title="Chunk" icon="lucide:scissors"}
+Split text into 1000-token chunks with overlap
+::
+
+::card{title="Embed" icon="lucide:brain-circuit"}
+Generate 768-dim embeddings for each chunk
+::
+
+::card{title="Index" icon="lucide:search"}
+Store embeddings in vector database
+::
+:::
+
+### Step 4: Agent Assignment
+
+::alert{type="success"}
+Documents are assigned to the agent using its **document ID** (not display name).
+::
+
+```typescript
+// ✅ CORRECT: Use discovered agent ID
+await firestore.collection('context_sources').add({
+  userId: 'usr_uhwqffaqag1wrryd82tw',
+  assignedToAgents: [agentId], // e.g., 'rzEqb17ZwSjk99bZHbTv'
+  // ... other fields
+});
+```
+
+### Step 5: Context Synchronization
+
+::alert{type="warning"}
+**Critical Step**: Update `activeContextSourceIds` or documents won't appear in UI!
+::
+
+```typescript
+// Get all documents assigned to agent
+const docs = await firestore
+  .collection('context_sources')
+  .where('userId', '==', userId)
+  .where('assignedToAgents', 'array-contains', agentId)
+  .get();
+
+const docIds = docs.docs.map(doc => doc.id);
+
+// Sync to agent
+await firestore
+  .collection('conversations')
+  .doc(agentId)
+  .update({
+    activeContextSourceIds: docIds,
+    updatedAt: new Date()
+  });
+```
+
+---
+
+## Configuration
+
+### Basic Configuration
+
+```typescript
+interface UploadConfig {
+  // Required
+  agentName: string;           // Display name
+  userId: string;              // Hash ID (PRIMARY)
+  userEmail: string;
+  folderPath: string;
+  tag: string;
+  
+  // Optional
+  googleUserId?: string;       // OAuth numeric ID
+  maxFiles?: number;           // Limit processing
+  model?: string;              // Default: gemini-2.5-flash
+  chunkSize?: number;          // Default: 1000 tokens
+  verbose?: boolean;           // Detailed logs
+}
+```
+
+### Example Configurations
+
+:::tabs
+
+== Minimal
+```typescript
+{
+  agentName: 'My Agent',
+  userId: 'usr_xxxxxxxxxxxxxxxxxxxxx',
+  userEmail: 'user@company.com',
+  folderPath: '/path/to/documents',
+  tag: 'upload-2025-11-19'
+}
+```
+
+== Standard
+```typescript
+{
+  agentName: 'TestApiUpload_S001',
+  userId: 'usr_uhwqffaqag1wrryd82tw',
+  userEmail: 'alec@getaifactory.com',
+  folderPath: '/Users/alec/salfagpt/upload-queue/salfacorp/S001',
+  tag: 'S001-2025-11-19',
+  maxFiles: 50,
+  verbose: true
+}
+```
+
+== Advanced
+```typescript
+{
+  agentName: 'TestApiUpload_S001',
+  userId: 'usr_uhwqffaqag1wrryd82tw',
+  userEmail: 'alec@getaifactory.com',
+  googleUserId: '114671162830729001607',
+  folderPath: '/Users/alec/salfagpt/upload-queue/salfacorp/S001',
+  filePattern: /\.pdf$/i,
+  recursive: true,
+  maxFiles: 100,
+  tag: 'S001-bulk-2025-11-19',
+  model: 'gemini-2.5-flash',
+  chunkSize: 1000,
+  embeddingModel: 'text-embedding-004',
+  skipExisting: true,
+  continueOnError: true,
+  verbose: true,
+  concurrency: 3,
+  retryAttempts: 3
+}
+```
+
+:::
+
+---
+
+## Usage Methods
+
+### Current: Direct Script
+
+::code-block{label="Test Upload Script"}
+```bash
+npx tsx scripts/test-new-agent-upload.ts
+```
+::
+
+**Features**:
+- ✅ Finds agent by name automatically
+- ✅ Fixes missing agent fields
+- ✅ Uploads 2 test documents
+- ✅ Full RAG processing
+- ✅ Verifies UI compatibility
+
+### Recommended: CLI Command
+
+::code-block{label="Flexible CLI"}
+```bash
+npx tsx cli/commands/upload.ts \
+  --agent-name="TestApiUpload_S001" \
+  --folder="/path/to/documents" \
+  --tag="batch-2025-11" \
+  --user="usr_uhwqffaqag1wrryd82tw" \
+  --email="alec@getaifactory.com" \
+  --max-files=100 \
+  --verbose
+```
+::
+
+### Future: NPX Package
+
+::alert{type="info"}
+Coming soon: No installation required, always up-to-date
+::
+
+```bash
+npx @salfagpt/bulk-upload \
+  --agent="My Agent Name" \
+  --folder="./documents" \
+  --config="./upload-config.json"
+```
+
+### Future: NPM Global
+
+```bash
+npm install -g @salfagpt/bulk-upload
+
+salfagpt-upload --agent="My Agent" --folder="./docs"
+```
+
+### Future: REST API
+
+:::code-group
+
+```bash [cURL]
+curl -X POST https://api.salfagpt.com/v1/bulk-upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agentName": "My Agent",
+    "files": ["https://example.com/doc1.pdf"],
+    "tags": ["api-upload"]
+  }'
+```
+
+```typescript [TypeScript SDK]
+import { SalfaGPT } from '@salfagpt/sdk';
+
+const client = new SalfaGPT({ apiKey: process.env.API_KEY });
+
+await client.bulkUpload({
+  agentName: 'My Agent',
+  files: ['https://example.com/doc1.pdf'],
+  tags: ['sdk-upload']
+});
+```
+
+```python [Python SDK]
+from salfagpt import SalfaGPT
+
+client = SalfaGPT(api_key=os.environ['API_KEY'])
+
+client.bulk_upload(
+    agent_name='My Agent',
+    files=['https://example.com/doc1.pdf'],
+    tags=['python-upload']
+)
+```
+
+:::
+
+### Future: MCP Server
+
+::alert{type="info"}
+Model Context Protocol integration for AI assistants (Claude Desktop, etc.)
+::
+
+```json
+{
+  "mcpServers": {
+    "salfagpt": {
+      "command": "npx",
+      "args": ["-y", "@salfagpt/mcp-server"],
+      "env": {
+        "SALFAGPT_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+**Usage in Claude Desktop**:
+```
+Can you upload all PDFs in ~/Documents/reports to my "Sales Reports" agent?
+```
+
+---
+
+## Error Handling
+
+### Common Issues
+
+:::card-grid
+
+::card{title="Agent Not Found" icon="lucide:user-x"}
+**Error**: `Agent "${name}" not found`
+
+**Solution**:
+```bash
+npx tsx scripts/list-all-user-agents.ts
+npx tsx scripts/create-test-agent.ts
+```
+::
+
+::card{title="Missing Fields" icon="lucide:alert-triangle"}
+**Error**: `Missing critical fields`
+
+**Solution**:
+```bash
+npx tsx scripts/fix-test-agent-structure.ts
+```
+::
+
+::card{title="Documents Not Visible" icon="lucide:eye-off"}
+**Error**: UI shows 0 documents
+
+**Solution**:
+```bash
+npx tsx scripts/fix-agent-context.ts
+```
+::
+
+::card{title="Extraction Failed" icon="lucide:file-x"}
+**Error**: `No text extracted`
+
+**Causes**:
+- Scanned PDF (image-only)
+- Corrupted file
+- Unsupported format
+::
+
+:::
+
+### Diagnostic Scripts
+
+```bash
+# Check agent structure
+npx tsx scripts/compare-agents.ts
+
+# List all agents
+npx tsx scripts/list-all-user-agents.ts
+
+# Check document assignments
+npx tsx scripts/check-document-assignments.ts
+
+# Verify embeddings
+npx tsx scripts/check-embeddings-simple.ts
+
+# Fix agent context
+npx tsx scripts/fix-agent-context.ts
+```
+
+---
+
+## Cost Estimates
+
+### Gemini AI Pricing
+
+| Model | Input (per 1M tokens) | Output (per 1M tokens) |
+|-------|----------------------|------------------------|
+| gemini-2.5-flash | $0.075 | $0.30 |
+| gemini-1.5-flash | $0.075 | $0.30 |
+| gemini-1.5-pro | $1.25 | $5.00 |
+
+### Embedding Pricing
+
+| Model | Cost (per 1M tokens) |
+|-------|---------------------|
+| text-embedding-004 | $0.00025 |
+
+### Typical Document Costs
+
+:::card-grid
+
+::card{title="Small PDF" icon="lucide:file"}
+**1-5 pages**  
+~$0.001 - $0.005
+::
+
+::card{title="Medium PDF" icon="lucide:file-text"}
+**10-50 pages**  
+~$0.01 - $0.05
+::
+
+::card{title="Large PDF" icon="lucide:files"}
+**100+ pages**  
+~$0.10 - $0.50
+::
+
+::card{title="Batch (100 docs)" icon="lucide:folder"}
+**Mixed sizes**  
+~$2.00 - $10.00
+::
+
+:::
+
+### Cost Optimization Tips
+
+::list{type="success"}
+- Use `gemini-2.5-flash` instead of `pro`
+- Batch process during off-peak hours
+- Skip re-extraction for unchanged files
+- Cache extraction results
+- Set `maxFiles` limit for testing
+::
+
+---
+
+## Best Practices
+
+### File Organization
+
+::list{type="success"}
+- ✅ Use consistent folder structure
+- ✅ Name files descriptively
+- ✅ Group related documents
+- ✅ Use subfolders for categories
+- ✅ Keep file names under 255 characters
+::
+
+::list{type="danger"}
+- ❌ Don't mix unrelated documents
+- ❌ Avoid special characters
+- ❌ Don't create deep hierarchies (>10 levels)
+- ❌ No non-document files in upload folders
+::
+
+### Recommended Folder Structure
+
+```
+upload-queue/
+├── organization/
+│   ├── project-batch-date/
+│   │   ├── category-1/
+│   │   │   ├── document-1.pdf
+│   │   │   └── document-2.pdf
+│   │   └── category-2/
+│   │       └── document-3.pdf
+```
+
+### Batch Size Guidelines
+
+| Documents | Recommendation | Method |
+|-----------|----------------|--------|
+| 1-10 | Single batch | Synchronous |
+| 10-100 | Single batch | Progress tracking |
+| 100-1000 | Multiple batches | Checkpoint saves |
+| 1000+ | Distributed | Queue system |
+
+### Tagging Strategy
+
+Use hierarchical tags for easy management:
+
+```
+organization-project-date-batch
+↓
+salfacorp-S001-20251118-batch01
+```
+
+**Benefits**:
+- Easy filtering
+- Batch identification
+- Rollback capability
+- Audit trails
+
+---
+
+## Monitoring & Analytics
+
+### Tracked Events
+
+:::card-grid
+
+::card{title="Upload Session" icon="lucide:activity"}
+- Session ID
+- Total files
+- Success/failure counts
+- Total duration
+- Total cost
+::
+
+::card{title="File Upload" icon="lucide:upload"}
+- File name & size
+- GCS path
+- Upload duration
+- Success status
+::
+
+::card{title="Content Extraction" icon="lucide:file-text"}
+- Model used
+- Tokens processed
+- Characters extracted
+- Extraction cost
+::
+
+::card{title="RAG Processing" icon="lucide:brain-circuit"}
+- Chunks created
+- Embeddings generated
+- Processing time
+- Embedding cost
+::
+
+:::
+
+### Viewing Analytics
+
+```bash
+# Query Firestore collection: cli_analytics
+# Filter by: sessionId, userId, agentId, eventType
+```
+
+---
+
+## Security Requirements
+
+::alert{type="danger"}
+**Critical**: Follow all security guidelines to protect data and credentials
+::
+
+### Required Security Measures
+
+::list{type="success"}
+- ✅ Use service account authentication
+- ✅ Rotate API keys regularly (every 90 days)
+- ✅ Enable audit logging
+- ✅ Restrict GCS bucket access
+- ✅ Validate user permissions
+- ✅ Use encrypted connections
+::
+
+### Forbidden Practices
+
+::list{type="danger"}
+- ❌ Never commit API keys to git
+- ❌ Never share service account keys
+- ❌ Never use admin credentials for uploads
+- ❌ Never store sensitive data in tags
+- ❌ Never bypass authentication
+- ❌ Never log sensitive information
+::
+
+---
+
+## Troubleshooting Guide
+
+### Debug Checklist
+
+::checklist
+- [ ] Agent exists in Firestore
+- [ ] Agent has all required fields
+- [ ] User hash ID is correct
+- [ ] Files are valid PDFs
+- [ ] Folder path is correct and accessible
+- [ ] GCS bucket is accessible
+- [ ] Gemini API key is valid
+- [ ] Firestore has write permissions
+- [ ] Documents assigned to correct agent ID
+- [ ] activeContextSourceIds is synced
+::
+
+### Step-by-Step Debugging
+
+:::steps
+
+### Verify Agent
+```bash
+npx tsx scripts/list-all-user-agents.ts
+```
+
+### Check Agent Structure
+```bash
+npx tsx scripts/compare-agents.ts
+```
+
+### Test Single File Upload
+```bash
+# Edit script to upload just 1 file
+npx tsx scripts/test-new-agent-upload.ts
+```
+
+### Check Firestore Data
+Visit: https://console.firebase.google.com/project/YOUR-PROJECT/firestore
+
+### Verify Embeddings
+```bash
+npx tsx scripts/check-embeddings-simple.ts
+```
+
+### Sync Agent Context
+```bash
+npx tsx scripts/fix-agent-context.ts
+```
+
+:::
+
+---
+
+## Firestore Collections
+
+### context_sources
+
+::code-block{label="Document Schema"}
+```typescript
+{
+  userId: string;              // Hash ID (PRIMARY)
+  googleUserId?: string;       // Optional: OAuth ID
+  name: string;
+  type: 'pdf' | 'doc' | 'image';
+  enabled: boolean;
+  status: 'active' | 'inactive';
+  addedAt: Timestamp;
+  extractedData: string;       // Full text
+  originalFileUrl: string;     // GCS path
+  tags: string[];
+  assignedToAgents: string[];  // Agent doc IDs
+  ragEnabled: boolean;
+  ragMetadata?: {
+    chunkCount: number;
+    avgChunkSize: number;
+    indexedAt: Timestamp;
+    embeddingModel: string;
+  };
+  useRAGMode: boolean;
+  metadata: {
+    originalFileName: string;
+    originalFileSize: number;
+    extractionDate: Timestamp;
+    model: string;
+    charactersExtracted: number;
+    tokensEstimate: number;
+    uploadedVia: 'cli' | 'webapp' | 'api';
+    uploadedBy: string;
+  };
+}
+```
+::
+
+### document_chunks
+
+::code-block{label="Chunk Schema"}
+```typescript
+{
+  sourceId: string;       // Reference to context_sources
+  userId: string;         // Hash ID
+  agentId: string;        // Agent document ID
+  chunkIndex: number;     // Sequential number
+  text: string;           // Chunk content
+  embedding: number[];    // 768-dim vector
+  tokens: number;         // Token count
+  metadata: {
+    fileName: string;
+    chunkSize: number;
+    overlap: number;
+  };
+  createdAt: Timestamp;
+}
+```
+::
+
+### Required Firestore Indexes
+
+```javascript
+// context_sources
+- userId ASC, assignedToAgents ARRAY, addedAt DESC
+- userId ASC, tags ARRAY, addedAt DESC
+
+// document_chunks
+- sourceId ASC, chunkIndex ASC
+- userId ASC, agentId ASC, createdAt DESC
+
+// conversations
+- userId ASC, isAgent ASC, createdAt DESC
+```
+
+---
+
+## Roadmap
+
+### Current (v1.0) ✅
+
+::list{type="success"}
+- ✅ Direct TypeScript script execution
+- ✅ Recursive folder scanning
+- ✅ Gemini AI extraction
+- ✅ RAG processing with embeddings
+- ✅ Agent discovery by name
+- ✅ Automatic agent field validation
+- ✅ Progress tracking & analytics
+- ✅ Error handling & recovery
+::
+
+### Planned (v1.1) 🚧
+
+::list{type="info"}
+- 🔜 CLI with command-line arguments
+- 🔜 Configuration file support
+- 🔜 Concurrent uploads
+- 🔜 Resume interrupted uploads
+- 🔜 Dry-run mode
+- 🔜 Better error messages
+::
+
+### Future (v2.0+) 💭
+
+::list{type="primary"}
+- 📋 NPX package (no install required)
+- 📋 NPM global install
+- 📋 REST API endpoints
+- 📋 MCP Server integration
+- 📋 Python SDK
+- 📋 TypeScript SDK
+- 📋 Web dashboard
+- 📋 Scheduled uploads
+- 📋 Webhook notifications
+::
+
+---
+
+## Related Documentation
+
+::card-grid
+
+::card{title="Agent Architecture" icon="lucide:bot" to="/docs/AGENT_VS_CONVERSATION_ARCHITECTURE_2025-10-21.md"}
+Learn about agent vs conversation structure
+::
+
+::card{title="Context Management" icon="lucide:layers" to="/docs/CONTEXT_MANAGEMENT.md"}
+How context sources work
+::
+
+::card{title="RAG Pipeline" icon="lucide:brain-circuit" to="/docs/RAG_PIPELINE.md"}
+Retrieval-Augmented Generation details
+::
+
+::card{title="API Documentation" icon="lucide:code" to="/docs/API.md"}
+REST API reference (future)
+::
+
+:::
+
+---
+
+## Support & Contact
+
+::alert{type="info"}
+For questions, issues, or feature requests, contact the development team.
+::
+
+### Getting Help
+
+1. **Check this documentation** - Most common issues covered here
+2. **Run diagnostic scripts** - Automated troubleshooting
+3. **Check Firestore console** - Verify data directly
+4. **Review logs** - Console output shows detailed errors
+5. **Test incrementally** - Upload 1 file first
+
+---
+
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0.0 | 2025-11-19 | Initial release with core functionality |
+| 1.1.0 | TBD | CLI arguments, config files |
+| 1.2.0 | TBD | NPX package, MCP server |
+| 2.0.0 | TBD | REST API, SDKs, web dashboard |
+
+---
+
+::alert{type="success"}
+**Status**: Production Ready ✅  
+**Last Updated**: 2025-11-19  
+**Maintained By**: AI Factory LLC
+::

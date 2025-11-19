@@ -98,6 +98,14 @@ export const COLLECTIONS = {
   GROUPS: 'groups',
   CONTEXT_ACCESS_RULES: 'context_access_rules',
   CONTEXT_SOURCES: 'context_sources',
+  
+  // Monetization & Community (2025-11-18)
+  SUBSCRIPTIONS: 'subscriptions',
+  SUPPORT_TICKETS: 'support_tickets',
+  COMMUNITY_GROUPS: 'community_groups',
+  GROUP_INVITATIONS: 'group_invitations',
+  BILLING_INVOICES: 'billing_invoices',
+  PAYMENT_METHODS: 'payment_methods',
   USER_SETTINGS: 'user_settings',              // NEW: User global settings
   AGENT_CONFIGS: 'agent_configs',              // NEW: Per-agent configurations
   WORKFLOW_CONFIGS: 'workflow_configs',        // NEW: Workflow configurations

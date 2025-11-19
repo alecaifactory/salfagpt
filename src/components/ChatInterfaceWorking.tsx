@@ -561,6 +561,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [showRAGConfig, setShowRAGConfig] = useState(false); // NEW: RAG configuration panel
   const [showAllyConfig, setShowAllyConfig] = useState(false); // 🆕 ALLY: Configuration panel
   const [showStellaSidebar, setShowStellaSidebar] = useState(false); // NEW: Stella sidebar chat
+  const [stellaMagicMode, setStellaMagicMode] = useState(false); // NEW: Magic wand cursor mode (2025-11-18)
+  const [stellaClickCoords, setStellaClickCoords] = useState<{x: number, y: number} | null>(null); // NEW: Click coordinates (2025-11-18)
+  const [showStellaPrompt, setShowStellaPrompt] = useState(false); // NEW: Show prompt modal after click (2025-11-18)
+  const [stellaResolutionTimer, setStellaResolutionTimer] = useState<number>(0); // NEW: Instant resolution timer (2025-11-18)
   const [showOrganizations, setShowOrganizations] = useState(false); // NEW: Organizations settings panel (2025-11-10)
   
   // Business Management modals (SuperAdmin only - 2025-11-10)
@@ -813,6 +817,34 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     };
   }, [isResizingLeft, isResizingRight]);
 
+  // ✨ STELLA: Handle magic cursor tracking and timer updates (2025-11-18)
+  useEffect(() => {
+    if (stellaMagicMode) {
+      const handleMouseMove = (e: MouseEvent) => {
+        const cursor = document.querySelector('.stella-magic-cursor') as HTMLElement;
+        if (cursor) {
+          cursor.style.setProperty('--mouse-x', `${e.clientX - 12}px`);
+          cursor.style.setProperty('--mouse-y', `${e.clientY - 12}px`);
+        }
+      };
+      
+      document.addEventListener('mousemove', handleMouseMove);
+      return () => document.removeEventListener('mousemove', handleMouseMove);
+    }
+  }, [stellaMagicMode]);
+
+  // ✨ STELLA: Update resolution timer every 100ms for smooth display
+  useEffect(() => {
+    if (stellaResolutionTimer > 0 && showStellaPrompt) {
+      const interval = setInterval(() => {
+        // Force re-render to update timer display
+        setStellaResolutionTimer(stellaResolutionTimer);
+      }, 100);
+      
+      return () => clearInterval(interval);
+    }
+  }, [stellaResolutionTimer, showStellaPrompt]);
+
   // NEW: Load folders from Firestore
   const loadFolders = async () => {
     try {
@@ -838,6 +870,85 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     } catch (error) {
       console.error('❌ Error loading folders:', error);
       setFolders([]);
+    }
+  };
+
+  // ✨ STELLA MAGIC MODE: Handle Stella activation (2025-11-18)
+  const handleStellaActivate = () => {
+    setStellaMagicMode(true);
+    document.body.style.cursor = 'none'; // Hide default cursor
+  };
+
+  // Handle click in magic mode
+  const handleMagicClick = async (e: React.MouseEvent) => {
+    if (!stellaMagicMode) return;
+    
+    // Capture click coordinates
+    const coords = {
+      x: e.clientX,
+      y: e.clientY
+    };
+    setStellaClickCoords(coords);
+    
+    // Start resolution timer
+    const startTime = Date.now();
+    setStellaResolutionTimer(startTime);
+    
+    // Deactivate magic mode
+    setStellaMagicMode(false);
+    document.body.style.cursor = '';
+    
+    // Capture screenshot with coordinates embedded
+    await captureScreenshotWithMetadata(coords);
+    
+    // Show prompt modal
+    setShowStellaPrompt(true);
+  };
+
+  // Capture screenshot with click coordinates metadata
+  const captureScreenshotWithMetadata = async (coords: {x: number, y: number}) => {
+    try {
+      // Import html2canvas dynamically
+      const html2canvas = (await import('html2canvas')).default;
+      
+      // Capture the entire page
+      const canvas = await html2canvas(document.body, {
+        scale: 2, // High quality
+        useCORS: true,
+        logging: false,
+        ignoreElements: (element) => {
+          // Ignore Stella UI elements and the magic cursor
+          return element.hasAttribute('data-stella-ui') || 
+                 element.classList.contains('stella-magic-cursor');
+        }
+      });
+      
+      // Convert to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], `stella-capture-${Date.now()}.png`, { type: 'image/png' });
+          
+          // Store screenshot with metadata
+          const attachment: StellaAttachment = {
+            id: `attach-${Date.now()}`,
+            type: 'screenshot',
+            dataUrl: URL.createObjectURL(blob),
+            metadata: {
+              clickCoordinates: coords,
+              timestamp: new Date().toISOString(),
+              pageUrl: window.location.href,
+              agentId: currentConversation || undefined,
+              userAgent: navigator.userAgent
+            }
+          };
+          
+          // Store for Stella modal
+          sessionStorage.setItem('stella-pending-screenshot', JSON.stringify(attachment));
+        }
+      });
+      
+    } catch (error) {
+      console.error('Failed to capture screenshot:', error);
     }
   };
 
@@ -4835,7 +4946,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-900">
+    <div 
+      className="flex h-screen bg-slate-50 dark:bg-slate-900 relative"
+      onClick={stellaMagicMode ? handleMagicClick : undefined}
+    >
       {/* Left Sidebar - Conversations */}
       <div 
         className="bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col relative"
@@ -6507,13 +6621,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </button>
             )}
             
-            {/* Abrir Stella Button - Opens sidebar */}
+            {/* Stella ✨ Button - Activates magic wand mode */}
             <button
-              onClick={() => setShowStellaSidebar(true)}
+              onClick={handleStellaActivate}
               className="px-2 py-1.5 text-xs bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-md transition-all flex items-center gap-1.5 font-semibold shadow-sm"
             >
-              <Wand2 className="w-3.5 h-3.5" />
-              Abrir Stella
+              Stella ✨
             </button>
           </div>
         </div>
@@ -9154,6 +9267,231 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         userEmail={userEmail}
         userRole={userRole}
       />
+
+      {/* ✨ STELLA MAGIC CURSOR: Follows mouse when in magic mode (2025-11-18) */}
+      {stellaMagicMode && (
+        <div 
+          className="stella-magic-cursor fixed pointer-events-none z-[10000]"
+          style={{
+            left: '0px',
+            top: '0px',
+            transform: 'translate(var(--mouse-x, 0px), var(--mouse-y, 0px))',
+          }}
+          onMouseMove={(e) => {
+            const cursor = e.currentTarget;
+            cursor.style.setProperty('--mouse-x', `${e.clientX - 12}px`);
+            cursor.style.setProperty('--mouse-y', `${e.clientY - 12}px`);
+          }}
+        >
+          {/* Wand icon with sparkle trail */}
+          <div className="relative">
+            {/* Main wand */}
+            <Wand2 className="w-6 h-6 text-violet-600 drop-shadow-lg" />
+            
+            {/* Sparkle trail */}
+            <div className="absolute -right-2 -top-2 animate-ping">
+              <span className="text-yellow-400 text-xl">✨</span>
+            </div>
+            <div className="absolute -right-4 top-1 animate-pulse" style={{ animationDelay: '0.2s' }}>
+              <span className="text-violet-400 text-sm opacity-70">✨</span>
+            </div>
+            <div className="absolute -right-6 -top-1 animate-bounce" style={{ animationDelay: '0.4s' }}>
+              <span className="text-purple-400 text-xs opacity-50">✨</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✨ STELLA PROMPT MODAL: Appears after clicking in magic mode (2025-11-18) */}
+      {showStellaPrompt && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl">
+                  <Wand2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+                    Stella ✨
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    ¿Qué necesitas? Explícame con detalle...
+                  </p>
+                </div>
+              </div>
+              
+              {/* Resolution Timer - Instant Resolution Target: <2s */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                    Tiempo de Respuesta
+                  </p>
+                  <p className="text-lg font-mono font-bold text-violet-600">
+                    {stellaResolutionTimer > 0 ? `${((Date.now() - stellaResolutionTimer) / 1000).toFixed(1)}s` : '0.0s'}
+                  </p>
+                  <p className="text-[9px] text-slate-400">
+                    Objetivo: &lt;2s para NPS 100
+                  </p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setShowStellaPrompt(false);
+                    setStellaClickCoords(null);
+                    setStellaResolutionTimer(0);
+                    sessionStorage.removeItem('stella-pending-screenshot');
+                  }}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Screenshot Preview with Click Marker */}
+              {stellaClickCoords && (() => {
+                const screenshot = sessionStorage.getItem('stella-pending-screenshot');
+                if (screenshot) {
+                  const attachment = JSON.parse(screenshot);
+                  return (
+                    <div className="relative">
+                      <div className="rounded-xl overflow-hidden border-2 border-violet-200 dark:border-violet-700 shadow-lg">
+                        <img 
+                          src={attachment.dataUrl} 
+                          alt="Screenshot"
+                          className="w-full"
+                        />
+                        {/* Click position marker */}
+                        <div 
+                          className="absolute w-8 h-8 -ml-4 -mt-4 pointer-events-none animate-pulse"
+                          style={{
+                            left: `${(stellaClickCoords.x / window.innerWidth) * 100}%`,
+                            top: `${(stellaClickCoords.y / window.innerHeight) * 100}%`
+                          }}
+                        >
+                          <div className="relative">
+                            <div className="absolute inset-0 bg-violet-500 rounded-full opacity-30 animate-ping" />
+                            <div className="w-8 h-8 bg-violet-600 rounded-full border-4 border-white shadow-xl flex items-center justify-center">
+                              <Wand2 className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Metadata */}
+                      <div className="mt-2 px-3 py-2 bg-violet-50 dark:bg-violet-900/20 rounded-lg text-xs">
+                        <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
+                          <span className="font-mono">📍 ({stellaClickCoords.x}, {stellaClickCoords.y})</span>
+                          <span>⏱️ {new Date().toLocaleTimeString()}</span>
+                          {currentConversation && (
+                            <span className="truncate">🤖 {conversations.find(c => c.id === currentConversation)?.title}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Prompt Input */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  Tu Solicitud
+                </label>
+                <textarea
+                  id="stella-prompt-input"
+                  placeholder="Describe lo que necesitas... Stella capturó el contexto visual y la ubicación exacta de tu click. ✨"
+                  className="w-full h-32 px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none bg-white dark:bg-slate-900 text-slate-800 dark:text-white placeholder-slate-400"
+                  autoFocus
+                />
+                
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
+                  <span>Stella analizará tu captura y click para entender el contexto completo</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  setShowStellaPrompt(false);
+                  setStellaClickCoords(null);
+                  setStellaResolutionTimer(0);
+                  sessionStorage.removeItem('stella-pending-screenshot');
+                }}
+                className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                onClick={async () => {
+                  const inputElement = document.getElementById('stella-prompt-input') as HTMLTextAreaElement;
+                  const userPrompt = inputElement?.value || '';
+                  
+                  if (!userPrompt.trim()) {
+                    alert('Por favor describe qué necesitas');
+                    return;
+                  }
+                  
+                  // Get screenshot attachment
+                  const screenshot = sessionStorage.getItem('stella-pending-screenshot');
+                  let attachment: StellaAttachment | undefined;
+                  if (screenshot) {
+                    attachment = JSON.parse(screenshot);
+                  }
+                  
+                  // Close prompt modal
+                  setShowStellaPrompt(false);
+                  
+                  // Open Stella sidebar with attachment and user prompt
+                  setShowStellaSidebar(true);
+                  
+                  // Pass the prompt and attachment to Stella
+                  // This will be handled by StellaSidebarChat component
+                  if (attachment) {
+                    // Store both prompt and attachment for Stella to pick up
+                    sessionStorage.setItem('stella-initial-prompt', userPrompt);
+                    sessionStorage.setItem('stella-pending-screenshot', JSON.stringify(attachment));
+                  }
+                  
+                  // Clear local state
+                  setStellaClickCoords(null);
+                }}
+                className="px-6 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg flex items-center gap-2"
+              >
+                <Wand2 className="w-4 h-4" />
+                Abrir Stella
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Magic Cursor Overlay - Shows wand cursor when in magic mode */}
+      {stellaMagicMode && (
+        <div 
+          className="fixed inset-0 z-[9998] pointer-events-none"
+          style={{
+            cursor: 'none'
+          }}
+        >
+          {/* Instruction overlay */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-violet-600 to-purple-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-bounce">
+            <Wand2 className="w-5 h-5" />
+            <span className="font-semibold">
+              Click anywhere to capture context and open Stella ✨
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -75,7 +75,7 @@ export const POST: APIRoute = async ({ request }) => {
 
     // ✅ UPDATED: Centralized validation with upload-limits (2025-11-18)
     // Import from centralized limits configuration
-    const { validateFile, FILE_SIZE_LIMITS } = await import('../../../lib/upload-limits');
+    const { validateFile, FILE_SIZE_LIMITS } = await import('../../lib/upload-limits');
     
     // Validate file
     const validation = validateFile(file);
