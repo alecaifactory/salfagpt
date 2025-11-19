@@ -32,3 +32,4 @@ gcp-service-account-key.json
 
 # VSCode
 .vscode/
+upload-queue/
