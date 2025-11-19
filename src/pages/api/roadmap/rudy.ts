@@ -62,7 +62,7 @@ Ejemplos de análisis:
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     // 1. Verify authentication
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     
     if (!token) {
       return new Response(

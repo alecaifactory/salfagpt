@@ -10,7 +10,7 @@ import { firestore } from '../../../lib/firestore';
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     // TODO: Add admin authentication check
-    // const session = await verifyJWT(cookies.get('flow_session')?.value);
+    // const session = await verifyJWT(cookies.get(cookieName)?.value);
     // if (!session || session.role !== 'admin') {
     //   return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     // }

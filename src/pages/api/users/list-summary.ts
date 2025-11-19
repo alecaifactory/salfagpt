@@ -16,7 +16,7 @@ import { getUserByEmail } from '../../../lib/firestore';
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
     // 1. Verify session
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

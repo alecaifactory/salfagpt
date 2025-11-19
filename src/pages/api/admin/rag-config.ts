@@ -13,7 +13,7 @@ const RAG_CONFIG_DOC_ID = 'system_rag_config';
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
     // TODO: Add admin authentication check
-    // const session = await verifyJWT(cookies.get('flow_session')?.value);
+    // const session = await verifyJWT(cookies.get(cookieName)?.value);
     // if (!session || session.role !== 'admin') {
     //   return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     // }
@@ -66,7 +66,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     // TODO: Add admin authentication check
-    // const session = await verifyJWT(cookies.get('flow_session')?.value);
+    // const session = await verifyJWT(cookies.get(cookieName)?.value);
     // if (!session || session.role !== 'admin') {
     //   return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
     // }

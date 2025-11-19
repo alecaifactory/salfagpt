@@ -30,7 +30,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     console.log('🔍 Organizations API - Session check:', {
       hasSession: !!session,
       sessionData: session ? { id: session.id, email: session.email, role: session.role } : null,
-      cookies: cookies.get('flow_session') ? 'present' : 'missing'
+      cookies: cookies.get(cookieName) ? 'present' : 'missing'
     });
     
     if (!session) {

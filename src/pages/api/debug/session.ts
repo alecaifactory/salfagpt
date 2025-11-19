@@ -12,7 +12,7 @@ export const GET: APIRoute = async ({ cookies }) => {
     if (!session) {
       return new Response(JSON.stringify({ 
         error: 'No session found',
-        hasCookie: !!cookies.get('flow_session')
+        hasCookie: !!cookies.get(cookieName)
       }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }

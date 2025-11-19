@@ -5,7 +5,7 @@ import { getAllUsers, createUser, getUserByEmail, firestore, COLLECTIONS } from 
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
     // Get current user from session
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -140,7 +140,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }
     
     // Regular creation requires auth
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

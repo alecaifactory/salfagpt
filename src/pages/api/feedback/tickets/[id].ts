@@ -28,7 +28,7 @@ const LANE_TO_STATUS: Record<Lane, string> = {
 export const PATCH: APIRoute = async ({ params, request, cookies }) => {
   try {
     // 1. Verify authentication
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     
     if (!token) {
       return new Response(
@@ -127,7 +127,7 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
 export const GET: APIRoute = async ({ params, cookies }) => {
   try {
     // 1. Verify authentication
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     
     if (!token) {
       return new Response(

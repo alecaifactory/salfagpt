@@ -7,7 +7,7 @@ import type { UserRole } from '../../../../types/user';
 // PUT /api/users/:id/role - Update user role (admin only)
 export const PUT: APIRoute = async ({ params, request, cookies }) => {
   try {
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     if (!token) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

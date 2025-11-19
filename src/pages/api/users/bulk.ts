@@ -6,7 +6,7 @@ import type { UserRole } from '../../../types/users';
 // POST /api/users/bulk - Create multiple users from CSV (SuperAdmin only)
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

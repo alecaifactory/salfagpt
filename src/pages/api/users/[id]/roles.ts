@@ -5,7 +5,7 @@ import { getUserByEmail } from '../../../../lib/firestore';
 // PUT /api/users/:id/roles - Update user roles (SuperAdmin only)
 export const PUT: APIRoute = async ({ params, request, cookies }) => {
   try {
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

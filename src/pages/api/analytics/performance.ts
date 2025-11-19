@@ -19,7 +19,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const data = await request.json();
     
     // Get user info from session (optional)
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     let userId = 'anonymous';
     
     if (sessionCookie) {

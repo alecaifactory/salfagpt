@@ -19,7 +19,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     console.log('📨 [API] GET /api/ally/messages');
     
     // 1. Verify authentication
-    const session = verifyJWT(cookies.get('flow_session')?.value);
+  const cookieName = process.env.SESSION_COOKIE_NAME || 'flow_session';
+    const session = verifyJWT(cookies.get(cookieName)?.value);
     if (!session) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -108,7 +109,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     console.log('📨 [API] POST /api/ally/messages');
     
     // 1. Verify authentication
-    const session = verifyJWT(cookies.get('flow_session')?.value);
+  const cookieName = process.env.SESSION_COOKIE_NAME || 'flow_session';
+    const session = verifyJWT(cookies.get(cookieName)?.value);
     if (!session) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

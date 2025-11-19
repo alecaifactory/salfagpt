@@ -88,7 +88,7 @@ export const PATCH: APIRoute = async ({ params, request, cookies }) => {
 // DELETE /api/users/:id - Delete user (SuperAdmin only)
 export const DELETE: APIRoute = async ({ params, request, cookies }) => {
   try {
-    const sessionCookie = cookies.get('flow_session');
+    const sessionCookie = cookies.get(cookieName);
     if (!sessionCookie) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

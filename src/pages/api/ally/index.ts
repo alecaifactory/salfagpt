@@ -25,7 +25,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
     console.log('🤖 [API] GET /api/ally');
     
     // 1. Verify authentication
-    const session = verifyJWT(cookies.get('flow_session')?.value);
+    const cookieName = process.env.SESSION_COOKIE_NAME || 'flow_session';
+    const session = verifyJWT(cookies.get(cookieName)?.value);
     if (!session) {
       console.warn('  ❌ No authentication');
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {

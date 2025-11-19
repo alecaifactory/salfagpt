@@ -20,7 +20,7 @@ import type { MCPServer } from '../../../types/mcp';
 export const GET: APIRoute = async ({ request, cookies }) => {
   try {
     // 1. Verify authentication
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     
     if (!token) {
       return new Response(
@@ -97,7 +97,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 export const POST: APIRoute = async ({ request, cookies }) => {
   try {
     // 1. Verify authentication
-    const token = cookies.get('flow_session')?.value;
+    const token = cookies.get(cookieName)?.value;
     
     if (!token) {
       return new Response(
