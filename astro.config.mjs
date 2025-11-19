@@ -54,6 +54,12 @@ export default defineConfig({
     build: {
       cssCodeSplit: false, // Prevent CSS splitting that causes phantom files - use single CSS bundle
       rollupOptions: {
+        external: [
+          '@google/generative-ai',
+          '@google-cloud/firestore',
+          '@google-cloud/bigquery',
+          '@google-cloud/storage',
+        ],
         output: {
           // Add version hash to filenames to bust browser cache
           entryFileNames: '[name].[hash].js',
