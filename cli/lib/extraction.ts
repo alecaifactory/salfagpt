@@ -36,11 +36,19 @@ export interface ExtractionResult {
 }
 
 /**
- * Extract text from document using Gemini AI
+ * Sleep utility for retry delays
+ */
+async function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Extract text from document using Gemini AI with retry logic
  */
 export async function extractDocument(
   filePath: string,
-  model: 'gemini-2.5-flash' | 'gemini-2.5-pro' = 'gemini-2.5-flash'
+  model: 'gemini-2.5-flash' | 'gemini-2.5-pro' = 'gemini-2.5-flash',
+  maxRetries: number = 3
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
   
@@ -65,65 +73,98 @@ export async function extractDocument(
 
 Por favor extrae el contenido de manera fiel y completa.`;
     
-    // Call Gemini AI
-    const result = await genAI.models.generateContent({
-      model: model,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: prompt },
+    // Retry logic for API calls
+    let lastError: any;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Call Gemini AI
+        const result = await genAI.models.generateContent({
+          model: model,
+          contents: [
             {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data,
-              },
+              role: 'user',
+              parts: [
+                { text: prompt },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data,
+                  },
+                },
+              ],
             },
           ],
-        },
-      ],
-      config: {
-        temperature: 0.1, // Low temperature for factual extraction
-        maxOutputTokens: 20000,
-      },
-    });
+          config: {
+            temperature: 0.1, // Low temperature for factual extraction
+            maxOutputTokens: 20000,
+          },
+        });
+        
+        // Success! Process the result
+        const extractedText = result.text || '';
+        const duration = Date.now() - startTime;
+        
+        // Estimate tokens (rough: 1 token ≈ 4 characters)
+        const tokensEstimate = Math.ceil(extractedText.length / 4);
+        
+        // Estimate input tokens (prompt + image tokens)
+        const inputTokens = Math.ceil(
+          (prompt.length / 4) + (fileBuffer.length / 1000) // Rough estimate
+        );
+        
+        // Output tokens
+        const outputTokens = tokensEstimate;
+        
+        // Calculate cost
+        const estimatedCost = calculateCost(model, inputTokens, outputTokens);
+        
+        console.log(`   ✅ Extracción completa en ${(duration / 1000).toFixed(1)}s`);
+        console.log(`   📝 ${extractedText.length.toLocaleString()} caracteres extraídos`);
+        console.log(`   🎯 ~${tokensEstimate.toLocaleString()} tokens estimados`);
+        console.log(`   💰 Costo estimado: $${estimatedCost.toFixed(6)}`);
+        
+        // Display first 200 characters as preview
+        console.log(`   👁️  Preview: ${extractedText.substring(0, 200)}...`);
+        
+        return {
+          success: true,
+          extractedText,
+          charactersExtracted: extractedText.length,
+          tokensEstimate,
+          model,
+          inputTokens,
+          outputTokens,
+          duration,
+          estimatedCost,
+        };
+        
+      } catch (apiError: any) {
+        lastError = apiError;
+        const errorMessage = apiError.message || JSON.stringify(apiError);
+        
+        // Check if it's a retryable error (503, 429, or network errors)
+        const isRetryable = errorMessage.includes('503') || 
+                          errorMessage.includes('UNAVAILABLE') ||
+                          errorMessage.includes('429') ||
+                          errorMessage.includes('RESOURCE_EXHAUSTED') ||
+                          errorMessage.includes('network') ||
+                          errorMessage.includes('timeout');
+        
+        if (isRetryable && attempt < maxRetries) {
+          const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff, max 10s
+          console.log(`   ⚠️  Intento ${attempt}/${maxRetries} falló (${errorMessage.substring(0, 50)}...)`);
+          console.log(`   ⏳ Reintentando en ${(delayMs / 1000).toFixed(1)}s...`);
+          await sleep(delayMs);
+          continue;
+        }
+        
+        // Non-retryable error or max retries reached
+        throw apiError;
+      }
+    }
     
-    const extractedText = result.text || '';
-    const duration = Date.now() - startTime;
-    
-    // Estimate tokens (rough: 1 token ≈ 4 characters)
-    const tokensEstimate = Math.ceil(extractedText.length / 4);
-    
-    // Estimate input tokens (prompt + image tokens)
-    const inputTokens = Math.ceil(
-      (prompt.length / 4) + (fileBuffer.length / 1000) // Rough estimate
-    );
-    
-    // Output tokens
-    const outputTokens = tokensEstimate;
-    
-    // Calculate cost
-    const estimatedCost = calculateCost(model, inputTokens, outputTokens);
-    
-    console.log(`   ✅ Extracción completa en ${(duration / 1000).toFixed(1)}s`);
-    console.log(`   📝 ${extractedText.length.toLocaleString()} caracteres extraídos`);
-    console.log(`   🎯 ~${tokensEstimate.toLocaleString()} tokens estimados`);
-    console.log(`   💰 Costo estimado: $${estimatedCost.toFixed(6)}`);
-    
-    // Display first 200 characters as preview
-    console.log(`   👁️  Preview: ${extractedText.substring(0, 200)}...`);
-    
-    return {
-      success: true,
-      extractedText,
-      charactersExtracted: extractedText.length,
-      tokensEstimate,
-      model,
-      inputTokens,
-      outputTokens,
-      duration,
-      estimatedCost,
-    };
+    // If we get here, all retries failed
+    throw lastError;
     
   } catch (error) {
     const duration = Date.now() - startTime;
