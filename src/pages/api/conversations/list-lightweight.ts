@@ -68,7 +68,7 @@ export const GET: APIRoute = async ({ request, cookies }) => {
 
       const snapshot = await query
         .orderBy('lastMessageAt', 'desc')
-        .select('title', 'isAgent', 'isPinned', 'isAlly', 'status', 'agentId') // ✅ CRITICAL: Only select needed fields
+        .select('title', 'isAgent', 'isPinned', 'isAlly', 'status', 'agentId', 'messageCount', 'agentModel') // ✅ CRITICAL: Only select needed fields
         .get();
 
       console.timeEnd('⚡ Lightweight conversations query');
@@ -86,6 +86,8 @@ export const GET: APIRoute = async ({ request, cookies }) => {
           isAgent: data.isAgent !== false, // Default to true for backward compat
           status: data.status || 'active',
           agentId: data.agentId, // For chats linked to agents
+          messageCount: data.messageCount || 0,
+          agentModel: data.agentModel || 'gemini-2.5-flash',
         };
       });
 

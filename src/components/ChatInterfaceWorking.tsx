@@ -1000,13 +1000,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           isPinned: item.isPinned || false,
           isAlly: item.isAlly || false,
           agentId: item.agentId, // For chats linked to agents
+          // Real values from API (not placeholders anymore)
+          messageCount: item.messageCount || 0,
+          agentModel: item.agentModel || 'gemini-2.5-flash',
           // Placeholder values (will be lazy-loaded on click)
           createdAt: new Date(),
           updatedAt: new Date(),
           lastMessageAt: new Date(),
-          messageCount: 0,
           contextWindowUsage: 0,
-          agentModel: 'gemini-2.0-flash-exp',
           status: 'active' as const,
         }));
         
@@ -4419,6 +4420,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const saveConversationTitle = async (conversationId: string, newTitle: string, isManualRename: boolean = true) => {
     if (!newTitle.trim()) {
+      cancelEditingConversation();
+      return;
+    }
+
+    // 🚨 CRITICAL: Prevent editing agent titles
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation?.isAgent === true) {
+      console.warn('⚠️ Cannot edit agent title - only conversation titles can be edited');
+      alert('No puedes editar el nombre del agente. Solo se pueden renombrar conversaciones derivadas del agente.');
       cancelEditingConversation();
       return;
     }
