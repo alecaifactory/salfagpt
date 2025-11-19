@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getContextSource, getExtractedData } from '../../../../lib/firestore';
+import { getContextSource, getExtractedData, getUserById } from '../../../../lib/firestore';
 import { getSession } from '../../../../lib/auth';
 import { downloadFile } from '../../../../lib/storage';
 
@@ -51,14 +51,31 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     console.log('📋 Source loaded:', source.name, 'User:', source.userId);
 
-    // 3. SECURITY: Verify ownership
-    if (source.userId !== session.id && session.email !== 'alec@getaifactory.com') {
-      console.error('🚫 Access denied - userId mismatch');
+    // 3. SECURITY: Verify ownership (support both hash ID and legacy Google OAuth ID)
+    // Load user to get googleUserId for backward compatibility
+    const user = await getUserById(session.id);
+    const googleUserId = user?.googleUserId;
+    
+    const isOwner = source.userId === session.id || 
+                    (googleUserId && source.userId === googleUserId) ||
+                    session.email === 'alec@getaifactory.com';
+    
+    if (!isOwner) {
+      console.error('🚫 Access denied - userId mismatch', {
+        sourceUserId: source.userId,
+        sessionId: session.id,
+        googleUserId: googleUserId || 'N/A'
+      });
       return new Response(
         '<html><body><h1>403 Prohibido</h1><p>No puedes acceder a documentos de otros usuarios</p></body></html>',
         { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
+    
+    console.log('✅ Ownership verified', {
+      method: source.userId === session.id ? 'hash-id' : 'google-oauth-id'
+    });
+
 
     // 4. Try to get storage path
     const metadata = source.metadata as any;

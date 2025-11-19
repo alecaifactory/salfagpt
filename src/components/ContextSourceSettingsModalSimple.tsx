@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, FileText, RefreshCw, Database, Sparkles, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Eye, Code, Hash, Target } from 'lucide-react';
+import { X, FileText, RefreshCw, Database, Sparkles, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Eye, Code, Hash, Target, Download } from 'lucide-react';
 import { useModalClose } from '../hooks/useModalClose';
 import type { ContextSource } from '../types/context';
 import DocumentTestPanel from './DocumentTestPanel';
@@ -65,6 +65,18 @@ export default function ContextSourceSettingsModalSimple({
   const [showFileViewer, setShowFileViewer] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
+  // ✅ NEW: PDF viewer modal state
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  
+  // ✅ NEW: PDF modal ref with its own close handler
+  const pdfModalRef = useModalClose(
+    showPdfModal,
+    () => setShowPdfModal(false),
+    true,  // closeOnOutsideClick
+    true,  // closeOnEscape
+    false  // preventBodyScroll (already prevented by parent modal)
+  );
+  
   // NEW: Full source data state (includes extractedData)
   const [fullSource, setFullSource] = useState<ContextSource | null>(null);
   const [loadingFullSource, setLoadingFullSource] = useState(false);
@@ -82,8 +94,14 @@ export default function ContextSourceSettingsModalSimple({
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [testQuestion, setTestQuestion] = useState('');
 
-  // 🔑 Hook para cerrar con ESC y click fuera
-  const modalRef = useModalClose(isOpen, onClose, true, true, true);
+  // 🔑 Hook para cerrar con ESC y click fuera (deshabilitar cuando PDF modal está abierto)
+  const modalRef = useModalClose(
+    isOpen && !showPdfModal,  // Solo activo cuando PDF modal NO está abierto
+    onClose, 
+    true,  // closeOnOutsideClick
+    !showPdfModal,  // closeOnEscape (solo si PDF modal no está abierto)
+    true   // preventBodyScroll
+  );
   const [testResult, setTestResult] = useState<{
     question: string;
     response: string;
@@ -188,7 +206,14 @@ export default function ContextSourceSettingsModalSimple({
 
   if (!isOpen || !source) return null;
 
-  const hasCloudStorage = !!(source.metadata as any)?.storagePath || !!(source.metadata as any)?.gcsPath;
+  // ✅ Check for Cloud Storage using multiple indicators:
+  // 1. storagePath or gcsPath in metadata (new uploads)
+  // 2. originalFileName exists AND extractedData exists (legacy uploads - file was saved but path not recorded)
+  // 3. For CLI uploads, always assume file is stored
+  const hasCloudStorage = !!(source.metadata as any)?.storagePath || 
+                          !!(source.metadata as any)?.gcsPath ||
+                          ((source.metadata as any)?.uploadedVia === 'cli') ||
+                          (!!(source.metadata as any)?.originalFileName && !!source.extractedData);
   // Check RAG status from multiple sources:
   // 1. source.ragEnabled field
   // 2. chunksData loaded from API (most reliable)
@@ -802,29 +827,42 @@ export default function ContextSourceSettingsModalSimple({
                       )}
                     </div>
 
-                    {/* View button */}
-                    <button
-                      onClick={() => setShowFileViewer(!showFileViewer)}
-                      className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      {showFileViewer ? 'Ocultar' : 'Ver archivo'}
-                    </button>
-                    
-                    {/* Integrated PDF viewer - Authenticated */}
-                    {showFileViewer && (
-                      <div className="border border-slate-300 rounded overflow-hidden bg-slate-100">
-                        <div className="bg-slate-700 text-white px-2 py-1.5 text-xs flex items-center justify-between">
-                          <span>📄 {source.name}</span>
-                          <span className="text-slate-300 text-[10px]">Vista protegida</span>
-                        </div>
-                        <iframe
-                          src={`/api/context-sources/${source.id}/file`}
-                          className="w-full h-48 bg-white"
-                          title={`Vista previa de ${source.name}`}
-                        />
-                      </div>
-                    )}
+                    {/* View and Download buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowPdfModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        Ver archivo
+                      </button>
+                      
+                      <a
+                        href={`/api/context-sources/${source.id}/file`}
+                        download={source.metadata?.originalFileName || source.name}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Descargar
+                      </a>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-start gap-2">
@@ -866,6 +904,84 @@ export default function ContextSourceSettingsModalSimple({
           userId={userId}
           onClose={() => setShowInteractiveTest(false)}
         />
+      )}
+      
+      {/* ✅ PDF Viewer Modal */}
+      {showPdfModal && (
+        <div 
+          className="fixed inset-0 z-[60] bg-black/70 flex items-center justify-center p-4"
+        >
+          <div 
+            ref={pdfModalRef}
+            className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-blue-600" />
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {source?.name || 'Documento'}
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    {source?.metadata?.originalFileName || 'Vista previa del documento'}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                {/* Download button */}
+                <a
+                  href={`/api/context-sources/${source?.id}/file`}
+                  download={source?.metadata?.originalFileName || source?.name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium flex items-center gap-2 transition-colors"
+                >
+                  <Download className="w-4 h-4" />
+                  Descargar
+                </a>
+                
+                {/* Close button */}
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowPdfModal(false);
+                  }}
+                  className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                  title="Cerrar"
+                >
+                  <X className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
+            </div>
+            
+            {/* PDF Viewer */}
+            <div className="flex-1 overflow-hidden bg-gray-100">
+              <iframe
+                src={`/api/context-sources/${source?.id}/file`}
+                className="w-full h-full border-0"
+                title={`Vista de ${source?.name || 'documento'}`}
+              />
+            </div>
+            
+            {/* Footer */}
+            <div className="p-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <p className="text-xs text-gray-600 text-center">
+                📄 Documento protegido • Solo visible para ti
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
