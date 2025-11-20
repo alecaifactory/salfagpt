@@ -121,17 +121,57 @@ export default function AgentPromptEnhancer({
       console.log('📤 [FRONTEND] Uploading file:', file.name);
       console.log('📤 [FRONTEND] Agent ID:', agentId);
       console.log('📤 [FRONTEND] File size:', file.size, 'bytes');
-
-      const uploadResponse = await fetch('/api/agents/upload-setup-document', {
-        method: 'POST',
-        body: formData,
+      console.log('📤 [FRONTEND] File type:', file.type);
+      console.log('📤 [FRONTEND] FormData contents:', {
+        file: file.name,
+        agentId: formData.get('agentId'),
+        purpose: formData.get('purpose'),
       });
+
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch('/api/agents/upload-setup-document', {
+          method: 'POST',
+          body: formData,
+        });
+        console.log('📥 [FRONTEND] Response received:', {
+          status: uploadResponse.status,
+          ok: uploadResponse.ok,
+          statusText: uploadResponse.statusText,
+        });
+      } catch (fetchError: any) {
+        console.error('❌ [FRONTEND] Fetch failed:', fetchError);
+        throw new Error(`Error de conexión: ${fetchError.message}`);
+      }
 
       clearInterval(uploadInterval);
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        throw new Error(`Error al subir el documento: ${uploadResponse.status}`);
+        console.error('❌ [FRONTEND] Upload failed:', {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          body: errorText,
+        });
+        
+        // Try to parse error details
+        let errorMessage = `Error al subir el documento: ${uploadResponse.status}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.details) {
+            errorMessage = `Error: ${errorData.error || 'Unknown'}\n${errorData.details}`;
+          }
+          if (errorData.step) {
+            errorMessage += `\nFase: ${errorData.step}`;
+          }
+        } catch (e) {
+          // If not JSON, use the raw text
+          if (errorText) {
+            errorMessage += `\n${errorText}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const uploadData = await uploadResponse.json();
