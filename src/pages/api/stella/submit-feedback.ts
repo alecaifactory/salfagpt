@@ -122,7 +122,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         status: 'backlog',
         lane: 'backlog', // Roadmap lane
         category: feedbackSession.category,
-        source: 'stella-chat',
+        feedbackSource: 'stella-chat', // Renamed to avoid conflict with environment source
         stellaTicketId: ticketId,
         stellaSessionId: sessionRef.id,
         attachments: extractAttachments(feedbackSession.messages),
@@ -139,7 +139,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
         createdByName: userName,
         createdAt: new Date(),
         updatedAt: new Date(),
-        source: getEnvironmentSource(),
+        source: getEnvironmentSource(), // Environment source (localhost/production)
       };
       
       const backlogRef = await firestore.collection('backlog_items').add(backlogItem);
