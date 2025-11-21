@@ -215,9 +215,23 @@ Generate 768-dim embeddings for each chunk
 ::
 
 ::card{title="Index" icon="lucide:search"}
-Store embeddings in vector database
+Store embeddings in vector database (Firestore + BigQuery)
 ::
 :::
+
+::alert{type="danger"}
+**CRITICAL BUG FIXED (2025-11-19)**: Previous uploads may report "✅ Synced to BigQuery" even when sync failed. Always verify embeddings reached BigQuery:
+
+\`\`\`bash
+bq query --use_legacy_sql=false "
+SELECT COUNT(*) FROM \`salfagpt.flow_rag_optimized.document_chunks_vectorized\`
+WHERE user_id = 'YOUR_USER_ID'
+AND created_at >= TIMESTAMP('2025-11-19')
+"
+\`\`\`
+
+Expected: ~30-50 chunks per document. If 0, see troubleshooting section.
+::
 
 ### Step 4: Agent Assignment
 

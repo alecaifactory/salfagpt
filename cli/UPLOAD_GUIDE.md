@@ -263,24 +263,57 @@ npx tsx cli/commands/upload.ts \
 }
 ```
 
-### 3. Firestore - `document_embeddings`
+### 3. Firestore - `document_chunks`
+Embeddings se guardan en la colección `document_chunks`:
 ```json
 {
-  "id": "embedding-xyz789",
+  "id": "chunk-xyz789",
   "sourceId": "source-abc123",
-  "sourceName": "Manual_Seguridad_SSOMA.pdf",
-  "userId": "114671162830729001607",
+  "fileName": "Manual_Seguridad_SSOMA.pdf",
+  "userId": "usr_uhwqffaqag1wrryd82tw",
   "agentId": "TestApiUpload_S001",
   "chunkIndex": 0,
   "text": "MANUAL DE SEGURIDAD Y SALUD OCUPACIONAL...",
+  "chunkText": "MANUAL DE SEGURIDAD Y SALUD OCUPACIONAL...",
   "embedding": [0.123, -0.456, 0.789, ...],  // 768 dimensions
-  "tokenCount": 692,
-  "model": "text-embedding-004",
+  "metadata": {
+    "tokenCount": 692,
+    "startChar": 0,
+    "endChar": 523
+  },
+  "embeddingModel": "text-embedding-004",
   "uploadedVia": "cli",
   "userEmail": "alec@getaifactory.com",
-  "createdAt": "2025-11-18T10:30:15Z"
+  "source": "cli",
+  "createdAt": "2025-11-18T10:30:15Z",
+  "indexedAt": "2025-11-18T10:30:15Z"
 }
 ```
+
+### 4. BigQuery - `flow_rag_optimized.document_chunks_vectorized`
+
+⚠️ **IMPORTANTE**: Los embeddings DEBEN sincronizarse a BigQuery para que RAG funcione correctamente.
+
+**Dataset:** `flow_rag_optimized`  
+**Table:** `document_chunks_vectorized`  
+**Location:** US (multi-region)
+
+**Schema:**
+```
+- chunk_id: STRING           # Unique chunk identifier
+- source_id: STRING          # Reference to context_sources doc
+- user_id: STRING            # User hash ID
+- chunk_index: INTEGER       # Sequential chunk number (0, 1, 2...)
+- text_preview: STRING       # First 500 characters of chunk
+- full_text: STRING          # Complete chunk text
+- embedding: FLOAT[]         # 768-dimensional vector
+- metadata: JSON             # Additional chunk metadata
+- created_at: TIMESTAMP      # When chunk was created
+```
+
+**Partitioning & Clustering:**
+- Partitioned by: `created_at` (DAY)
+- Clustered by: `user_id`, `source_id`
 
 ### 4. Analytics - `cli_events`
 ```json
@@ -323,6 +356,174 @@ npx tsx cli/commands/upload.ts \
   "success": true,
   "cliVersion": "0.2.0"
 }
+```
+
+---
+
+## ✅ Verificación Post-Upload
+
+⚠️ **CRÍTICO**: Siempre verifica que el upload fue exitoso. El proceso puede reportar éxito incluso si algún paso falló.
+
+### 1. Verificar Documentos en Firestore
+
+```bash
+node -e "
+const admin = require('firebase-admin');
+admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: 'salfagpt' });
+const firestore = admin.firestore();
+
+firestore.collection('context_sources')
+  .where('assignedToAgents', 'array-contains', 'YOUR_AGENT_ID')
+  .get()
+  .then(s => {
+    console.log('📄 Documentos en Firestore:', s.size);
+    let withZeroChars = 0;
+    s.docs.forEach(doc => {
+      if (doc.data().metadata?.charactersExtracted === 0) withZeroChars++;
+    });
+    console.log('⚠️  Con 0 caracteres:', withZeroChars);
+    process.exit(0);
+  });
+"
+```
+
+**Esperado:** Número de documentos debe coincidir con PDFs subidos, 0 documentos con 0 caracteres.
+
+### 2. Verificar Chunks en Firestore
+
+```bash
+node -e "
+const admin = require('firebase-admin');
+admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: 'salfagpt' });
+const firestore = admin.firestore();
+
+firestore.collection('document_chunks')
+  .where('agentId', '==', 'YOUR_AGENT_ID')
+  .get()
+  .then(s => {
+    console.log('📦 Chunks en Firestore:', s.size);
+    process.exit(0);
+  });
+"
+```
+
+**Esperado:** ~30-50 chunks por documento (varía según tamaño).
+
+### 3. 🚨 CRÍTICO: Verificar Embeddings en BigQuery
+
+```bash
+bq query --use_legacy_sql=false "
+SELECT 
+  COUNT(*) as total_chunks,
+  COUNT(DISTINCT source_id) as unique_sources,
+  MAX(created_at) as last_upload
+FROM \`salfagpt.flow_rag_optimized.document_chunks_vectorized\`
+WHERE user_id = 'YOUR_USER_ID'
+AND created_at >= TIMESTAMP('2025-11-19')
+"
+```
+
+**Resultado esperado:**
+- `total_chunks`: ~30-50 chunks × número de documentos
+- `unique_sources`: Debe coincidir con número de documentos en Firestore
+- `last_upload`: Debe ser fecha/hora reciente
+
+**⚠️ Si `total_chunks = 0`:**
+```
+❌ PROBLEMA CRÍTICO: Embeddings NO se sincronizaron a BigQuery
+❌ IMPACTO: RAG NO funcionará (búsquedas no encontrarán documentos)
+✅ SOLUCIÓN: Ver sección "Troubleshooting BigQuery Sync" abajo
+```
+
+### 4. Verificar Agent Sync
+
+```bash
+node -e "
+const admin = require('firebase-admin');
+admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: 'salfagpt' });
+const firestore = admin.firestore();
+
+firestore.collection('conversations').doc('YOUR_AGENT_ID').get()
+  .then(doc => {
+    const activeIds = doc.data().activeContextSourceIds || [];
+    console.log('🔗 activeContextSourceIds:', activeIds.length);
+    process.exit(0);
+  });
+"
+```
+
+**Esperado:** Número debe coincidir con documentos subidos.
+
+### 5. Test de Búsqueda RAG
+
+Una vez confirmado que embeddings están en BigQuery:
+
+```bash
+# Opción A: Usar la UI
+# 1. Abre el agente en el navegador
+# 2. Haz una pregunta sobre el contenido subido
+# 3. Verifica que devuelve respuestas con referencias
+
+# Opción B: Usar test query del CLI
+npx tsx cli/commands/upload.ts \
+  --test-query="¿Qué dice sobre seguridad?" \
+  --agent=YOUR_AGENT_ID \
+  --user=YOUR_USER_ID
+```
+
+---
+
+## 🚨 Troubleshooting BigQuery Sync
+
+### Problema: "✅ Synced to BigQuery" pero query devuelve 0 resultados
+
+⚠️ **ADVERTENCIA CONOCIDA**: El proceso puede reportar "✅ Synced to BigQuery" incluso cuando la sincronización falla silenciosamente.
+
+**Causa Raíz (CORREGIDA 2025-11-19):**
+El código anterior intentaba insertar en tabla/dataset incorrectos:
+```typescript
+// ❌ INCORRECTO (ANTIGUO):
+const DATASET_ID = 'flow_analytics';
+const TABLE_ID = 'document_embeddings';
+
+// ✅ CORRECTO (ACTUAL):
+const DATASET_ID = 'flow_rag_optimized';
+const TABLE_ID = 'document_chunks_vectorized';
+```
+
+**Síntomas:**
+- ✅ Mensaje "Synced to BigQuery" aparece en logs
+- ✅ Documentos existen en Firestore `context_sources`
+- ✅ Chunks existen en Firestore `document_chunks`
+- ❌ Query a BigQuery devuelve 0 resultados
+- ❌ RAG no funciona (búsquedas no encuentran documentos)
+
+**Diagnóstico:**
+```bash
+# 1. Verificar Firestore (debe tener datos)
+node -e "..." # Ver comando arriba
+
+# 2. Verificar BigQuery (si devuelve 0, hay problema)
+bq query --use_legacy_sql=false "
+SELECT COUNT(*) as chunks
+FROM \`salfagpt.flow_rag_optimized.document_chunks_vectorized\`
+WHERE user_id = 'YOUR_USER_ID'
+AND created_at >= TIMESTAMP('2025-11-19')
+"
+```
+
+**Solución para uploads anteriores al fix:**
+
+Si tienes uploads con este problema (subidos antes del 19-11-2025):
+
+1. Los chunks SÍ están en Firestore `document_chunks`
+2. Necesitas re-sincronizarlos a BigQuery
+3. Opción A: Re-subir documentos (recomendado si son pocos)
+4. Opción B: Script de re-sync desde Firestore (para muchos documentos)
+
+```bash
+# Crear script de re-sync
+npx tsx scripts/resync-embeddings-to-bigquery.ts --agent=YOUR_AGENT_ID
 ```
 
 ---

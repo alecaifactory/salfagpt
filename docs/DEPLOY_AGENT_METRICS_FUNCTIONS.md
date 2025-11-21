@@ -334,3 +334,4 @@ gcloud functions logs tail updateAgentMetrics --gen2
 
 **Next:** Deploy these functions, then integrate with UI for <50ms agent metrics! 🚀
 
+

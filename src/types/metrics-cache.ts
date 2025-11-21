@@ -217,3 +217,4 @@ export interface SignatureVerification {
   message?: string;                   // Error message if invalid
 }
 
+

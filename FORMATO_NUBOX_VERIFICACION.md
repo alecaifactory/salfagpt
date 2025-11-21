@@ -215,3 +215,4 @@ El sistema está listo para:
 
 **¿Quieres que cambie `extraction_proximity_pct` a `cercania_extraccion_pct` para que coincida exactamente con tu spec?**
 
+

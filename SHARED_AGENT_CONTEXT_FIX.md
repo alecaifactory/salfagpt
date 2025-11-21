@@ -1,221 +1,151 @@
-# ✅ Shared Agent Context Access - FIXED
+# Fix: Shared Agents Now Access Owner's Documents
 
-**Date:** November 14, 2025, 11:05 AM PST  
-**Issue:** Shared agents couldn't access owner's context  
-**Status:** ✅ FIXED - Server restarted
+## Problem Identificado (Gracias al Usuario!)
+Cuando **Usuario B** usa un agente compartido por **Usuario A**:
+- ❌ El sistema buscaba documentos con `userId` de **Usuario B** 
+- ❌ Pero los documentos están asignados con `userId` de **Usuario A** (el dueño)
+- ❌ Resultado: 0 documentos encontrados, no hay RAG, no hay referencias
 
----
+## Ejemplo Real: S1-v2
+- **Usuario A** (dundurraga@iaconcagua.com - `usr_uhwqffaqag1wrryd82tw`):
+  - Creó S1-v2
+  - Subió 75 documentos MAQ
+  - Los documentos tienen `userId: usr_uhwqffaqag1wrryd82tw`
 
-## 🎯 **The Problem You Discovered**
+- **Usuario B** (alec@getaifactory.com - `usr_ywg6pg0v3tgbq1817xmo`):
+  - Tiene acceso a S1-v2 compartido
+  - Sistema buscaba documentos con `userId: usr_ywg6pg0v3tgbq1817xmo` ❌
+  - Encontraba 0 documentos
+  - No había RAG ni referencias
 
-### **Test Results:**
+## La Solución: `getEffectiveOwnerForContext`
 
-| User | Role | Agent | Result | Reason |
-|------|------|-------|--------|--------|
-| alec@getaifactory.com | SuperAdmin (Owner) | GOP GPT (M003) | ✅ Found docs | Owner = match |
-| alecdickinson@gmail.com | User (Shared) | GOP GPT (M003) | ❌ No docs found | userId mismatch! |
-
-**Your diagnosis was correct!** 🎯
-
----
-
-## 🔍 **Root Cause**
-
-### **Before Fix:**
-
-```typescript
-// When alecdickinson@ accesses shared agent:
-
-searchByAgentOptimized(
-  userId: 'usr_alecdickinson_xxx',  // Current user
-  agentId: 'M003_agent_id'
-)
-
-// Queried:
-WHERE user_id = 'usr_alecdickinson_xxx'  // ❌ Wrong!
-// But chunks owned by: 'usr_uhwqffaqag1wrryd82tw' (alec@)
-
-Result: 0 chunks found ❌
-Message: "No encontramos el documento que buscabas"
-```
-
-### **The Logic Error:**
-
-```
-Shared Agent Flow (BROKEN):
-1. alecdickinson@ opens M003 agent (owned by alec@)
-2. Code searches for chunks with userId = alecdickinson@
-3. But chunks are owned by alec@ (agent owner)
-4. No match → 0 results
-5. AI says "no relevant docs"
-```
-
----
-
-## ✅ **The Fix**
-
-### **After Fix:**
+La función YA EXISTÍA en `firestore.ts` pero NO se estaba usando:
 
 ```typescript
-// Now correctly gets agent owner first:
-
-1. Get agent from Firestore
-2. Extract agent.userId (owner)
-3. Use OWNER's userId for searches
-4. Works for shared agents! ✅
-
-searchByAgentOptimized(
-  userId: 'usr_alecdickinson_xxx',  // Current user (for permissions)
-  agentId: 'M003_agent_id'
-)
-
-// Gets agent owner:
-agentOwnerUserId = 'usr_uhwqffaqag1wrryd82tw'  // alec@
-
-// Queries with owner's ID:
-WHERE user_id = 'usr_uhwqffaqag1wrryd82tw'  // ✅ Correct!
-
-Result: Finds chunks ✅
-Message: Returns relevant references ✅
+/**
+ * Get the effective owner userId for context source access
+ * 
+ * When an agent is shared:
+ * - User's own conversations use their userId
+ * - Shared agents use the original owner's userId
+ * 
+ * This ensures shared agents have access to the owner's context sources
+ */
+export async function getEffectiveOwnerForContext(
+  agentId: string,
+  currentUserId: string
+): Promise<string>
 ```
 
----
+## Cambios Aplicados
 
-## 📊 **Impact**
+### 1. `src/pages/api/agents/[id]/context-stats.ts`
 
-### **What Now Works:**
-
-| Scenario | User | Agent Owner | Before Fix | After Fix |
-|----------|------|-------------|------------|-----------|
-| **Own agent** | alec@ | alec@ | ✅ Worked | ✅ Still works |
-| **Shared to me** | alecdickinson@ | alec@ | ❌ Broken | ✅ **FIXED!** |
-| **I share to others** | other_user | alec@ | ❌ Broken | ✅ **FIXED!** |
-| **Multi-user** | anyone | alec@ | ❌ Broken | ✅ **FIXED!** |
-
-**All shared agent scenarios now work!** 🎉
-
----
-
-## 🔑 **What Changed in Code**
-
-### **File:** `src/lib/bigquery-optimized.ts`
-
-**Change 1: Get agent owner (lines 84-96)**
 ```typescript
-// NEW: Get agent to find owner
-const agent = await getConversation(agentId);
-const agentOwnerUserId = agent.userId;
-const isSharedAgent = agentOwnerUserId !== userId;
+// ANTES (INCORRECTO):
+const agentSourcesSnapshot = await firestore
+  .collection('agent_sources')
+  .where('agentId', '==', effectiveAgentId)
+  .where('userId', '==', session.id)  // ❌ Usuario actual, no el dueño
+  .count()
+  .get();
 
-console.log(`Agent owner: ${agentOwnerUserId}${isSharedAgent ? ' (shared)' : ' (own)'}`);
+// DESPUÉS (CORRECTO):
+const effectiveUserId = await getEffectiveOwnerForContext(effectiveAgentId, session.id);
+
+const agentSourcesSnapshot = await firestore
+  .collection('agent_sources')
+  .where('agentId', '==', effectiveAgentId)
+  .where('userId', '==', effectiveUserId)  // ✅ Usuario dueño del agente
+  .count()
+  .get();
 ```
 
-**Change 2: Search with owner's userId (lines 116-134)**
+### 2. `src/pages/api/conversations/[id]/context-sources-metadata.ts`
+
 ```typescript
-// OLD: Used current user's ID
-// const numericUserId = userId.startsWith('usr_') ? ...
+// ANTES (INCORRECTO):
+let query = firestore
+  .collection(COLLECTIONS.CONTEXT_SOURCES)
+  .where('userId', '==', session.id)  // ❌ Usuario actual
+  .orderBy('addedAt', 'desc')
+  .limit(BATCH_SIZE);
 
-// NEW: Use agent OWNER's ID
-const ownerUserId = agentOwnerUserId;
-const numericOwnerUserId = ownerUserId.startsWith('usr_') ? '114671...' : ownerUserId;
+// DESPUÉS (CORRECTO):
+const effectiveUserId = await getEffectiveOwnerForContext(effectiveAgentId, session.id);
 
-// Filter by OWNER's userId (not current user)
-return docUserId === ownerUserId || docUserId === numericOwnerUserId;
+let query = firestore
+  .collection(COLLECTIONS.CONTEXT_SOURCES)
+  .where('userId', '==', effectiveUserId)  // ✅ Usuario dueño
+  .orderBy('addedAt', 'desc')
+  .limit(BATCH_SIZE);
 ```
 
-**Change 3: BigQuery query with owner (lines 145-190)**
+También en la búsqueda de `agent_sources`:
 ```typescript
-// OLD: WHERE user_id = @userId (current user)
-// NEW: WHERE user_id = @queryUserId (agent owner)
-
-params: {
-  queryUserId: agentOwnerUserId,  // ← Owner's ID, not current user
-  sourceIds,
-  queryEmbedding,
-  ...
-}
+const agentSourcesSnapshot = await firestore
+  .collection('agent_sources')
+  .where('agentId', '==', effectiveAgentId)
+  .where('userId', '==', effectiveUserId)  // ✅ Usuario dueño
+  .get();
 ```
 
----
+### 3. `src/lib/rag-search.ts`
 
-## 🧪 **Test Again Now**
+```typescript
+// ANTES (INCORRECTO):
+const { getUserByIdOrEmail } = await import('./firestore.js');  // ❌ Función no existe
 
-### **Both Users Should Work:**
-
-**Test 1: alec@getaifactory.com (Owner)**
-```
-1. Open: http://localhost:3000/chat
-2. Login as: alec@getaifactory.com
-3. Select: GOP GPT (M003)
-4. Ask: "¿Qué procedimientos están asociados al plan de calidad?"
-5. Expected: ✅ Finds documents (same as before)
+// DESPUÉS (CORRECTO):
+const { getUserById } = await import('./firestore.js');  // ✅ Función correcta
 ```
 
-**Test 2: alecdickinson@gmail.com (Shared)**
+## Cómo Funciona Ahora
+
+1. **Usuario B** abre S1-v2 (compartido por Usuario A)
+2. Frontend llama `/api/agents/iQmdg3bMSJ1AdqqlFpye/context-stats`
+3. API detecta:
+   - `session.id` = `usr_ywg6pg0v3tgbq1817xmo` (Usuario B)
+   - Agente pertenece a `usr_uhwqffaqag1wrryd82tw` (Usuario A)
+4. `getEffectiveOwnerForContext` retorna el userId del **dueño** (Usuario A)
+5. Queries buscan documentos con userId del **dueño**
+6. ✅ Encuentra los 75 documentos MAQ
+7. ✅ activeContextSourceIds se carga correctamente
+8. ✅ RAG funciona con los documentos del dueño
+9. ✅ Referencias aparecen en las respuestas
+
+## Otros Fixes Incluidos
+
+1. ✅ API Key: Necesita ser regenerada (bloqueada por Google)
+2. ✅ `getUserById` función corregida en rag-search.ts
+3. ✅ `agent_sources` collection ahora se consulta correctamente
+4. ✅ Ambos APIs (context-stats y context-sources-metadata) ahora usan `getEffectiveOwnerForContext`
+
+## Testing
+
+### Para agentes propios:
+- `getEffectiveOwnerForContext` retorna el mismo `userId`
+- Todo funciona igual que antes
+
+### Para agentes compartidos:
+- `getEffectiveOwnerForContext` retorna el userId del **dueño**
+- El usuario con acceso compartido ve los documentos del dueño
+- RAG funciona con los documentos correctos
+- Referencias muestran los documentos apropiados
+
+## Deployment
+
+```bash
+git add -A
+git commit -m "Fix: Use getEffectiveOwnerForContext for shared agents"
+git push
+
+gcloud run deploy cr-salfagpt-ai-ft-prod --source . --region us-central1 --project salfagpt
 ```
-1. Open: http://localhost:3000/chat (different browser/incognito)
-2. Login as: alecdickinson@gmail.com
-3. Select: GOP GPT (M003) (shared agent)
-4. Ask: "¿Qué procedimientos están asociados al plan de calidad?"
-5. Expected: ✅ NOW FINDS DOCUMENTS! (fixed!)
-```
 
-**Console should show:**
-```
-🔑 Agent owner: usr_uhwqffaqag1wrryd82tw (shared agent - using owner userId)
-✓ Found 28 sources for agent owner
-✓ Search complete (450ms)
-✓ Found 8 chunks
-```
+## Próximo Paso Crítico
 
----
+**GENERAR NUEVA API KEY de Google** - La actual está bloqueada y impide todas las respuestas AI.
 
-## 📊 **What This Fixes**
-
-### **Before (Broken):**
-```
-Shared Agents:
-├─ Owner queries: ✅ Works (userId matches)
-├─ Shared user queries: ❌ Broken (userId mismatch)
-├─ Result: Shared agents useless for non-owners
-└─ Impact: Multi-user broken
-```
-
-### **After (Fixed):**
-```
-Shared Agents:
-├─ Owner queries: ✅ Works (uses owner userId)
-├─ Shared user queries: ✅ FIXED (uses owner userId)
-├─ Result: Shared agents work for everyone
-└─ Impact: Multi-user fully functional
-```
-
----
-
-## 🎯 **Summary**
-
-**Your finding:** Shared agents don't find context for non-owner users ✅
-
-**Root cause:** Code used current user's ID instead of agent owner's ID ✅
-
-**Fix applied:** 
-1. Get agent owner userId ✅
-2. Search Firestore with owner ID ✅
-3. Query BigQuery with owner ID ✅
-4. Try both formats (numeric + hashed) ✅
-
-**Status:** ✅ Fixed and deployed (server restarted)
-
-**Test again:** Both alec@ and alecdickinson@ should now find documents! 🎉
-
----
-
-## 🚀 **Ready to Test**
-
-**Server:** ✅ Running with fix  
-**URL:** http://localhost:3000  
-**Test:** Try M003 agent with both users  
-**Expected:** Both find documents now ✅
-
-**The shared agent context bug is fixed!** Test it now. 🎯✨
-
+Sin nueva API key, nada funcionará (ni RAG, ni embeddings, ni respuestas).

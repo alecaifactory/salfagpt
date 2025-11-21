@@ -47,17 +47,50 @@ export async function searchRelevantChunks(
     console.log('🔍 RAG Search starting...');
     console.log(`  Query: "${query.substring(0, 100)}..."`);
     console.log(`  TopK: ${topK}, MinSimilarity: ${minSimilarity}`);
+    console.log(`  UserId (hash format): ${userId}`);
 
-    // 🔑 CRITICAL FIX: Resolve userId to Google format for chunk queries
-    // Chunks were indexed with Google user ID (numeric), not hashed ID (usr_xxx)
-    const { getUserById } = await import('./firestore.js');
-    const userDoc = await getUserById(userId);
-    const googleUserId = userDoc?.googleUserId || userId;
-    
-    if (googleUserId !== userId) {
-      console.log(`  🔑 Resolved userId: ${userId} → ${googleUserId} (Google format)`);
+    const startTime = Date.now();
+
+    // ✅ OPTIMIZATION 2025-11-19: Try BigQuery first (20x faster)
+    // BigQuery calculates similarity in SQL and returns only top-K results
+    // Fallback to Firestore if BigQuery fails
+    try {
+      console.log('  🚀 Strategy: Using BigQuery vector search (optimized)...');
+      const { vectorSearchBigQuery } = await import('./bigquery-vector-search.js');
+      
+      const bqResults = await vectorSearchBigQuery(userId, query, {
+        topK,
+        minSimilarity,
+        activeSourceIds
+      });
+      
+      console.log(`✅ RAG Search complete - ${bqResults.length} results (${Date.now() - startTime}ms via BigQuery)`);
+      
+      // Log top results
+      bqResults.slice(0, 3).forEach((r, i) => {
+        console.log(`  ${i+1}. ${r.source_name || r.source_id} (chunk ${r.chunk_index}) - ${(r.similarity * 100).toFixed(1)}% similar`);
+      });
+      
+      // Transform BigQuery results to RAGSearchResult format
+      return bqResults.map(result => ({
+        id: result.chunk_id,
+        text: result.full_text,
+        sourceId: result.source_id,
+        sourceName: result.source_name || 'Unknown Source',
+        chunkIndex: result.chunk_index,
+        similarity: result.similarity,
+        metadata: result.metadata
+      }));
+      
+    } catch (bigQueryError: any) {
+      console.warn('  ⚠️ BigQuery search failed, falling back to Firestore...');
+      console.warn(`     Error: ${bigQueryError.message}`);
+      
+      // FALLBACK: Original Firestore-based search
+      console.log('  📦 Strategy: Using Firestore search (slower fallback)...');
     }
 
+    // ✅ FALLBACK PATH: Original Firestore implementation
     // 1. Generate embedding for query
     console.log('  1/4 Generating query embedding...');
     const startEmbed = Date.now();
@@ -70,7 +103,7 @@ export async function searchRelevantChunks(
     
     let chunksQuery = firestore
       .collection('document_chunks')
-      .where('userId', '==', googleUserId); // ✅ Use Google user ID for chunks
+      .where('userId', '==', userId); // ✅ Use hash ID directly
     
     // Optional: filter by active sources only
     if (activeSourceIds && activeSourceIds.length > 0) {

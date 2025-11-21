@@ -192,3 +192,4 @@ If issues arise:
 
 **Note:** This is a critical bug fix that MUST be tested with real PDFs before full production deployment. The unit tests confirm the parsing logic is correct, but end-to-end testing with Gemini API is required.
 
+

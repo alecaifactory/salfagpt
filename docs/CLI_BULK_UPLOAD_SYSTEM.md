@@ -185,21 +185,36 @@ upload-queue/
 **`document_chunks`**
 ```typescript
 {
-  sourceId: string;       // Reference to context_sources
+  sourceId: string;       // Reference to context_sources  
+  documentId: string;     // Backward compatibility
   userId: string;         // Hash ID
   agentId: string;        // Agent document ID
+  fileName: string;       // Original file name
   chunkIndex: number;     // Sequential chunk number
-  text: string;           // Chunk text content
+  text: string;           // Chunk text content (API field)
+  chunkText: string;      // Backward compatibility
   embedding: number[];    // 768-dim vector (text-embedding-004)
-  tokens: number;         // Token count for this chunk
+  embeddingModel: string; // e.g., 'text-embedding-004'
   metadata: {
-    fileName: string;
-    chunkSize: number;
-    overlap: number;
+    tokenCount: number;
+    startChar: number;
+    endChar: number;
   };
+  uploadedVia: string;    // 'cli', 'webapp', 'api'
+  cliVersion: string;     // e.g., '0.2.0'
+  userEmail: string;      // For audit
+  source: string;         // 'cli'
   createdAt: Timestamp;
+  indexedAt: Timestamp;
 }
 ```
+
+⚠️ **IMPORTANT**: Embeddings sync to **BigQuery** for optimized vector search.
+
+**BigQuery Dataset:** `flow_rag_optimized`  
+**BigQuery Table:** `document_chunks_vectorized`  
+
+Always verify embeddings reached BigQuery after upload!
 
 **`conversations` (Agents)**
 ```typescript

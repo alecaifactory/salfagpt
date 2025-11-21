@@ -188,3 +188,4 @@ npx tsx scripts/configure-organization-prompts.ts
 
 **Ejecuta el script cuando estés listo para configurar los organization prompts en Firestore.** 🚀
 
+

@@ -26,8 +26,9 @@ const bigquery = new BigQuery({
   projectId: PROJECT_ID,
 });
 
-const DATASET_ID = 'flow_analytics';
-const TABLE_ID = 'document_embeddings';
+// ✅ CORRECTED 2025-11-19: Fixed dataset and table names for RAG embeddings
+const DATASET_ID = 'flow_rag_optimized';
+const TABLE_ID = 'document_chunks_vectorized';
 
 // Log configuration for debugging
 console.log('📊 BigQuery Vector Search initialized');

@@ -252,3 +252,4 @@ grep -n "await sendMessage(messageText, newConvId" src/components/ChatInterfaceW
 
 **El problema estaba en que el override no se pasaba. Ahora sí se pasa.** 🎯
 
+

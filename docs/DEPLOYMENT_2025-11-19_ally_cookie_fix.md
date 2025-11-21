@@ -402,3 +402,4 @@ The Ally authentication cookie fix has been successfully deployed to production.
 *For technical details, see: docs/ALLY_COOKIE_FIX_2025-11-19.md*  
 *For Ally feature rules, see: .cursor/rules/ally.mdc*
 
+

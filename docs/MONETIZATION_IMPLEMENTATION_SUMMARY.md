@@ -901,3 +901,4 @@ See `docs/USER_GUIDE_COMMUNITY_EDITION.md`
 
 **Next step:** Run `npx tsx scripts/seed-latamlab-org.ts` to create LATAMLAB.AI and the 37 initial community groups!
 
+

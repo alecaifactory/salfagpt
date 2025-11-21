@@ -336,3 +336,4 @@ React.memo is a **good tool**, but not the **right tool** for this problem.
 
 **Remember:** Always fix the root cause, not the symptoms. State optimization > React.memo for our use case.
 
+

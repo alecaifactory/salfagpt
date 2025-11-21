@@ -474,3 +474,4 @@ describe('normalizeRUT', () => {
 - Improved: `src/lib/nubox-cartola-extraction-improved.ts`
 - This doc: `docs/CODE_COMPARISON_SIDE_BY_SIDE.md`
 
+

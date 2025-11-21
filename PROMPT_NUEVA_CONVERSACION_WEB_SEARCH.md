@@ -194,3 +194,4 @@ Basado en histórico: Features similares se completan en **0.7x tiempo estimado*
 
 **Guardar este prompt, copiar completo en nueva conversación, y el AI tendrá todo el contexto necesario para continuar sin pérdida de información.** ✅
 
+

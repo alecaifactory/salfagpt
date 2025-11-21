@@ -181,3 +181,4 @@ export function cleanupEmbeddingCache(maxAgeMs: number = 24 * 60 * 60 * 1000) {
   return removed;
 }
 
+

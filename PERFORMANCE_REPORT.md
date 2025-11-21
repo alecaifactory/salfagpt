@@ -608,3 +608,4 @@ gcloud firestore databases create analytics-replica \
 **Última actualización**: ${new Date().toISOString()}  
 **Próxima revisión**: 1 semana
 
+

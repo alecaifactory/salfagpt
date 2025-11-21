@@ -346,3 +346,4 @@ New: Load 10% of data for 90% usage (smart)
 
 **From 9 seconds to 0.5 seconds. That's transformative.** 💎
 
+

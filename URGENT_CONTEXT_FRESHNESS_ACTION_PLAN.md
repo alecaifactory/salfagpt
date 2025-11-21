@@ -633,3 +633,4 @@ Resultado: 100x el valor a 1% del costo ✨
 **Status:** ⏳ Esperando aprobación  
 **Criticidad:** 🔴 ALTA - Afecta retención y NPS
 
+

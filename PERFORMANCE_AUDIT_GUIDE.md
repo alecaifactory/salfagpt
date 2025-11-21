@@ -591,3 +591,4 @@ Para agregar nuevos casos de uso a la auditoría:
 **Versión**: 1.0.0
 **Maintainer**: Alec (@getaifactory)
 
+

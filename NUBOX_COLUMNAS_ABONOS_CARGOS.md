@@ -249,3 +249,4 @@ bash scripts/rollback-nubox-extraction.sh
 **Backup disponible en:**
 - `src/lib/nubox-cartola-extraction.backup-*.ts`
 
+

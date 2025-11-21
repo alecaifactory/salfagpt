@@ -619,3 +619,4 @@ function calculateAverageRetention(docs: SecureDocument[]): number {
   return totalDays / deletedDocs.length;
 }
 
+

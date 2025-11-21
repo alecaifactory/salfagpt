@@ -64,3 +64,4 @@ echo "📚 Full documentation: README.md"
 echo ""
 echo "🎉 Ready to use!"
 
+

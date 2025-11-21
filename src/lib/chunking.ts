@@ -58,6 +58,9 @@ export function chunkText(
 
     // Prevent infinite loop
     if (startChar >= text.length - overlapChars) break;
+    
+    // Safety break for extremely large texts or bad logic
+    if (chunkIndex > 10000) break;
   }
 
   return chunks;

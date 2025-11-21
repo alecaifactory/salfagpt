@@ -985,3 +985,4 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
 ¿Quieres que empiece a implementar alguna parte específica primero?
 
+

@@ -481,3 +481,4 @@ export const INDUSTRIES = [
 
 export type Industry = typeof INDUSTRIES[number];
 
+
