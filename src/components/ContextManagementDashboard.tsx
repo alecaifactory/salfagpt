@@ -819,10 +819,10 @@ export default function ContextManagementDashboard({
     setReviewPage(0);
     
     console.log('📊 Folder structure:', {
-      folders: tree.size,
+      folderCount: tree.size,
       files: pdfFiles.length,
       suggestedTag,
-      folders: Array.from(tree.keys())
+      folderNames: Array.from(tree.keys())
     });
   };
 
