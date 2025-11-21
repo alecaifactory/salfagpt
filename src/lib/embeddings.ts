@@ -69,7 +69,8 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
   
   try {
-    console.log(`🧮 [Gemini AI] Generating semantic embedding (${text.substring(0, 50)}...)`);
+    const safeText = String(text);
+    console.log(`🧮 [Gemini AI] Generating semantic embedding (${safeText.substring(0, 50)}...)`);
     
     // Gemini AI Embeddings REST API - Official endpoint
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent`;
@@ -78,7 +79,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     const requestBody = {
       model: `models/${EMBEDDING_MODEL}`,
       content: {
-        parts: [{ text }]
+        parts: [{ text: safeText }]
       },
       taskType: 'RETRIEVAL_DOCUMENT', // Optimize for document indexing
       outputDimensionality: 768, // Use 768 dims (recommended for quality/performance balance)
@@ -106,8 +107,10 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     
     if (!embedding || !Array.isArray(embedding) || embedding.length === 0) {
       console.warn('⚠️ Gemini returned empty embedding, using fallback');
-      console.warn('Response:', JSON.stringify(result).substring(0, 200));
-      return generateDeterministicEmbedding(text);
+      // Safely handle text for logging
+      const debugText = typeof text === 'string' ? text.substring(0, 200) : 'Non-string input';
+      console.warn(`Response for text "${debugText}":`, JSON.stringify(result).substring(0, 200));
+      return generateDeterministicEmbedding(String(text || ''));
     }
     
     console.log(`✅ [Gemini AI] Generated SEMANTIC embedding: ${embedding.length} dimensions`);
@@ -119,7 +122,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     console.warn('⚠️ Falling back to deterministic embedding');
     
     // Fallback to deterministic (better than crashing)
-    return generateDeterministicEmbedding(text);
+    return generateDeterministicEmbedding(String(text || ''));
   }
 }
 
@@ -146,7 +149,16 @@ export async function generateEmbedding(text: string): Promise<number[]> {
  * This is a simple but LIMITED approach until real embeddings API is available.
  */
 function generateDeterministicEmbedding(text: string): number[] {
-  const normalized = text.toLowerCase().trim();
+  // Safety check for text input
+  if (!text) {
+    console.warn('⚠️ Empty text provided to generateDeterministicEmbedding');
+    return new Array(EMBEDDING_DIMENSIONS).fill(0);
+  }
+  
+  // Handle non-string inputs gracefully
+  const safeText = String(text);
+  const normalized = safeText.toLowerCase().trim();
+  
   const embedding = new Array(EMBEDDING_DIMENSIONS).fill(0);
   
   // Use multiple hash functions for better distribution
@@ -156,7 +168,9 @@ function generateDeterministicEmbedding(text: string): number[] {
     // Distribute character influence across multiple dimensions
     for (let dim = 0; dim < 10; dim++) {
       const index = (i * 37 + dim * 13 + char) % EMBEDDING_DIMENSIONS;
-      embedding[index] += Math.sin(char * (i + 1) * (dim + 1)) / (normalized.length);
+      // Add safety check for division by zero if length is 0 (though trimmed check above handles it)
+      const len = normalized.length || 1; 
+      embedding[index] += Math.sin(char * (i + 1) * (dim + 1)) / len;
     }
   }
   
@@ -171,7 +185,7 @@ function generateDeterministicEmbedding(text: string): number[] {
     }
     
     const index = Math.abs(wordHash) % EMBEDDING_DIMENSIONS;
-    embedding[index] += 1.0 / Math.sqrt(words.length);
+    embedding[index] += 1.0 / Math.sqrt(Math.max(1, words.length));
   }
   
   // Normalize the vector

@@ -10,15 +10,22 @@
 
 import { GoogleGenAI } from '@google/genai';
 
-// Get API key (same pattern as gemini.ts)
+// Get API key - load from .env if needed
+import { config } from 'dotenv';
+config(); // Load .env file
+
 const API_KEY = process.env.GOOGLE_AI_API_KEY || 
   (typeof import.meta !== 'undefined' && import.meta.env 
     ? (import.meta.env.GOOGLE_AI_API_KEY || import.meta.env.GEMINI_API_KEY)
     : undefined);
 
 if (!API_KEY) {
+  console.error('❌ GOOGLE_AI_API_KEY not found in environment');
+  console.error('💡 Make sure .env contains: GOOGLE_AI_API_KEY=your-key');
   throw new Error('GOOGLE_AI_API_KEY not configured for File API');
 }
+
+console.log('🔑 [File API] API key loaded successfully');
 
 const genAI = new GoogleGenAI({ apiKey: API_KEY });
 

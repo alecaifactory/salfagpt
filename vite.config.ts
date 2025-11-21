@@ -21,6 +21,8 @@ export default defineConfig({
     noExternal: [],
   },
   optimizeDeps: {
+    // ✅ CRITICAL: Force React pre-bundling to prevent duplicate instances
+    include: ['react', 'react-dom', 'react/jsx-runtime'],
     // Exclude server-only modules from client bundle optimization
     exclude: [
       '@google-cloud/firestore',

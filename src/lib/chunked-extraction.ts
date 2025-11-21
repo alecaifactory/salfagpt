@@ -230,10 +230,34 @@ export async function extractTextChunked(
             
             console.log(`    📄 Section ${sectionIndex + 1}: ${sectionSizeMB} MB (${copiedPages.length} pages) → Sending to ${model}...`);
             
-            // Convert to base64
-            const base64Data = Buffer.from(sectionBytes).toString('base64');
+            // ✅ Use File API for reliable extraction (avoids 403 errors with inline data)
+            console.log(`    📤 Uploading PDF section to Gemini File API...`);
             
-            // Extract text with Gemini
+            const blob = new Blob([sectionBytes], { type: 'application/pdf' });
+            
+            const uploadedFile = await genAI.files.uploadFile(blob, {
+              mimeType: 'application/pdf',
+              displayName: `${fileName}_section_${sectionIndex + 1}`,
+            });
+            
+            console.log(`    ✅ Uploaded: ${uploadedFile.name}`);
+            
+            // Wait for file to be ACTIVE
+            let fileStatus = await genAI.files.get({ name: uploadedFile.name });
+            let attempts = 0;
+            while (fileStatus.state !== 'ACTIVE' && attempts < 30) {
+              await new Promise(r => setTimeout(r, 1000));
+              fileStatus = await genAI.files.get({ name: uploadedFile.name });
+              attempts++;
+            }
+            
+            if (fileStatus.state !== 'ACTIVE') {
+              throw new Error(`File processing timeout. State: ${fileStatus.state}`);
+            }
+            
+            console.log(`    📖 Extracting with ${model}...`);
+            
+            // Extract text using File API
             const result = await genAI.models.generateContent({
               model: model,
               contents: [
@@ -241,10 +265,10 @@ export async function extractTextChunked(
                   role: 'user',
                   parts: [
                     { 
-                      inlineData: { 
-                        mimeType: 'application/pdf', 
-                        data: base64Data 
-                      } 
+                      fileData: {
+                        mimeType: 'application/pdf',
+                        fileUri: uploadedFile.uri
+                      }
                     },
                     { 
                       text: `Extract ALL text from this PDF document section (pages ${pageRange}). 
@@ -265,11 +289,18 @@ DO NOT summarize. Extract the COMPLETE text.`
               ],
               config: {
                 temperature: 0.1,
-                maxOutputTokens: 65536, // Max for complete extraction
+                maxOutputTokens: 65536,
               }
             });
             
             const extractedText = result.text || '';
+            
+            // Clean up uploaded file
+            try {
+              await genAI.files.delete({ name: uploadedFile.name });
+            } catch (e) {
+              // Ignore cleanup errors
+            }
             const sectionTime = Date.now() - sectionStartTime;
             
             console.log(`    ✅ Section ${sectionIndex + 1}: Extracted ${extractedText.length} characters in ${(sectionTime / 1000).toFixed(1)}s`);
@@ -297,25 +328,46 @@ DO NOT summarize. Extract the COMPLETE text.`
                 // Wait 2 seconds before retry
                 await new Promise(resolve => setTimeout(resolve, 2000));
                 
-                // Retry the extraction
+                // Retry using File API
+                const retryBlob = new Blob([sectionBytes], { type: 'application/pdf' });
+                const retryFile = await genAI.files.uploadFile(retryBlob, {
+                  mimeType: 'application/pdf',
+                  displayName: `${fileName}_section_${sectionIndex + 1}_retry`,
+                });
+                
+                let retryStatus = await genAI.files.get({ name: retryFile.name });
+                let retryAttempts = 0;
+                while (retryStatus.state !== 'ACTIVE' && retryAttempts < 20) {
+                  await new Promise(r => setTimeout(r, 1000));
+                  retryStatus = await genAI.files.get({ name: retryFile.name });
+                  retryAttempts++;
+                }
+                
                 const result = await genAI.models.generateContent({
                   model: model,
                   contents: [
                     {
                       role: 'user',
                       parts: [
-                        {
-                          inlineData: {
+                        { 
+                          fileData: {
                             mimeType: 'application/pdf',
-                            data: sectionPdfBytes.toString('base64'),
-                          },
+                            fileUri: retryFile.uri
+                          }
                         },
-                        { text: extractionPrompt },
+                        { text: `Extract ALL text from this PDF section (pages ${pageRange}).` },
                       ],
                     },
                   ],
                   config: { maxOutputTokens: 65536 },
                 });
+                
+                // Cleanup
+                try {
+                  await genAI.files.delete({ name: retryFile.name });
+                } catch (e) {
+                  // Ignore
+                }
                 
                 const extractedText = result.text || '';
                 const sectionTime = Date.now() - sectionStartTime;

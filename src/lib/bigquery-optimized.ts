@@ -105,11 +105,22 @@ export async function searchByAgentOptimized(
     console.log('  [2/4] Loading sources assigned to agent...');
     const sourcesStart = Date.now();
     
-    // ✅ FIX: Use AGENT OWNER's userId (for shared agents), try both formats
+    // ✅ FIX: Use AGENT OWNER's userId (for shared agents), use hash ID
     const ownerUserId = agentOwnerUserId;
-    const numericOwnerUserId = ownerUserId.startsWith('usr_') ? '114671162830729001607' : ownerUserId;
     
-    console.log(`  🔍 Searching for sources owned by: ${ownerUserId} (or ${numericOwnerUserId})`);
+    // ✅ CRITICAL: Always use hash ID format (usr_xxx)
+    // New system uses hash IDs consistently
+    // If owner has legacy Google ID, convert to hash ID using mappings
+    let effectiveOwnerUserId = ownerUserId;
+    
+    if (/^\d+$/.test(ownerUserId)) {
+      // Numeric ID detected - convert to hash ID
+      const { USER_ID_MAPPING } = await import('./userid-mappings');
+      effectiveOwnerUserId = USER_ID_MAPPING[ownerUserId] || ownerUserId;
+      console.log(`  🔄 Converted legacy Google ID ${ownerUserId} → ${effectiveOwnerUserId}`);
+    }
+    
+    console.log(`  🔍 Searching for sources owned by: ${effectiveOwnerUserId}`);
     
     const sourcesSnapshot = await firestore
       .collection(COLLECTIONS.CONTEXT_SOURCES)
@@ -117,14 +128,15 @@ export async function searchByAgentOptimized(
       .select('userId', '__name__') // Only get IDs, not full docs
       .get();
     
-    // Filter by AGENT OWNER's userId (both formats) - NOT current user!
+    // Filter by AGENT OWNER's userId (hash ID format)
     const userSources = sourcesSnapshot.docs.filter(doc => {
       const docUserId = doc.data().userId;
-      return docUserId === ownerUserId || docUserId === numericOwnerUserId;
+      // Accept both hash ID and Google ID for backwards compatibility
+      return docUserId === effectiveOwnerUserId || docUserId === ownerUserId;
     });
     const sourceIds = userSources.map(doc => doc.id);
     
-    console.log(`  ✓ Found ${sourceIds.length} sources for agent owner (tried ${ownerUserId}, ${numericOwnerUserId}) (${Date.now() - sourcesStart}ms)`);
+    console.log(`  ✓ Found ${sourceIds.length} sources for agent owner (${effectiveOwnerUserId}) (${Date.now() - sourcesStart}ms)`);
 
     if (sourceIds.length === 0) {
       console.log('  ⚠️ No sources assigned to agent');
@@ -136,11 +148,19 @@ export async function searchByAgentOptimized(
     const searchStart = Date.now();
     
     // ✅ CRITICAL: Use agent OWNER's userId for BigQuery query (handles shared agents)
-    const queryUserId = ownerUserId; // Agent owner, not current user
-    const queryNumericUserId = numericOwnerUserId;
+    // Always use hash ID format for BigQuery queries
+    const queryUserId = effectiveOwnerUserId; // Agent owner hash ID, not current user
     
+    // Optimized query - let index accelerate the join
+    // Filter by user_id first (smallest set), then apply vector similarity
     const sqlQuery = `
-      WITH similarities AS (
+      WITH user_chunks AS (
+        SELECT *
+        FROM \`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\`
+        WHERE user_id = @queryUserId
+          AND source_id IN UNNEST(@sourceIds)
+      ),
+      similarities AS (
         SELECT 
           chunk_id,
           source_id,
@@ -148,19 +168,20 @@ export async function searchByAgentOptimized(
           text_preview,
           full_text,
           metadata,
-          -- Cosine similarity (optimized)
           (
-            SELECT SUM(a * b) / (
+            SELECT IFNULL(
+              SUM(a * b) / NULLIF(
               SQRT((SELECT SUM(a * a) FROM UNNEST(embedding) AS a)) * 
-              SQRT((SELECT SUM(b * b) FROM UNNEST(@queryEmbedding) AS b))
+                SQRT((SELECT SUM(b * b) FROM UNNEST(@queryEmbedding) AS b)),
+                0
+              ),
+              0
             )
             FROM UNNEST(embedding) AS a WITH OFFSET pos
             JOIN UNNEST(@queryEmbedding) AS b WITH OFFSET pos2
               ON pos = pos2
           ) AS similarity
-        FROM \`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\`
-        WHERE user_id = @queryUserId
-          AND source_id IN UNNEST(@sourceIds)
+        FROM user_chunks
       )
       SELECT *
       FROM similarities
@@ -181,10 +202,10 @@ export async function searchByAgentOptimized(
           minSimilarity,
           topK
         },
-        timeout: 5000, // 5 second timeout
+        timeout: 30000, // 30 second timeout (temporary - need vector index)
       }),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('BigQuery timeout')), 5000)
+        setTimeout(() => reject(new Error('BigQuery timeout')), 30000)
       )
     ]);
 
