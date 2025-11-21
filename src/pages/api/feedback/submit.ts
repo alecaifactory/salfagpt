@@ -290,7 +290,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           status: 'backlog',
           lane: 'backlog', // Always starts in backlog
           category: feedbackCategory,
-          source: 'chat-feedback',
+          feedbackSource: 'chat-feedback', // Renamed to avoid conflict
           feedbackTicketId: ticketId,
           feedbackId: feedbackId,
           messageId: messageId,
@@ -317,7 +317,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
           // Timestamps
           createdAt: new Date(),
           updatedAt: new Date(),
-          source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost',
+          source: process.env.NODE_ENV === 'production' ? 'production' : 'localhost', // Environment source
         };
         
         const backlogRef = await firestore.collection('backlog_items').add(backlogItem);
