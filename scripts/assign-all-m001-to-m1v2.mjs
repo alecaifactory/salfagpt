@@ -17,7 +17,7 @@ initializeApp({ projectId: PRODUCTION_PROJECT });
 const db = getFirestore();
 
 // M1-v2 Configuration
-const AGENT_ID = 'cjn3bC0HrUYtHqu69CKS'; // M1-v2 ASISTENTE LEGAL TERRITORIAL RDI
+const AGENT_ID = 'EgXezLcu4O3IUqFUJhUZ'; // M1-v2 ASISTENTE LEGAL TERRITORIAL RDI
 const USER_ID = 'usr_uhwqffaqag1wrryd82tw'; // alec@salfacloud.cl
 
 async function main() {

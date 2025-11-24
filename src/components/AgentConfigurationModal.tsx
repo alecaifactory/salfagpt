@@ -494,6 +494,11 @@ export default function AgentConfigurationModal({
             {agentName && (
               <p className="text-sm text-slate-600 mt-1">{agentName}</p>
             )}
+            {agentId && (
+              <p className="text-xs text-slate-500 mt-1 font-mono bg-slate-100 px-2 py-1 rounded inline-block">
+                ID: {agentId}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}

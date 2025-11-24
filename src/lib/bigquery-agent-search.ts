@@ -29,7 +29,10 @@ const bigquery = new BigQuery({
   projectId: PROJECT_ID,
 });
 
-const DATASET_ID = 'flow_analytics';
+// ✅ GREEN deployment: us-east4 (same region as Cloud Run)
+const DATASET_ID = process.env.USE_EAST4_BIGQUERY === 'true'
+  ? 'flow_analytics_east4'  // GREEN: us-east4 ⚡
+  : 'flow_analytics';        // BLUE: us-central1 (fallback)
 const TABLE_ID = 'document_embeddings';
 
 console.log('📊 BigQuery Agent Search initialized');

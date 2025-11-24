@@ -417,6 +417,11 @@ export function AgentSharingModal({
           <div>
             <h2 className="text-2xl font-bold text-slate-800">Compartir Agente</h2>
             <p className="text-sm text-slate-600 mt-1">{agent.title}</p>
+            {agent.id && (
+              <p className="text-xs text-slate-500 mt-1 font-mono bg-slate-100 px-2 py-1 rounded inline-block">
+                ID: {agent.id}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -711,11 +716,14 @@ export function AgentSharingModal({
                             }
                             
                             // User type - show detailed info
-                            const user = allUsers.find(u => u.email === target.email || u.id === target.id);
-                            const displayName = getTargetName(target);
-                            const email = target.email || user?.email || '';
+                            // ✅ FIX: Use data directly from target (has name, email, userId)
+                            // Don't depend on allUsers which may fail to load
+                            const displayName = target.name || target.email?.split('@')[0] || 'Usuario';
+                            const email = target.email || '';
                             const domain = target.domain || email.split('@')[1] || '';
-                            const orgName = user?.organizationName || '-';
+                            // Try to get user from allUsers for org name, but don't fail if not found
+                            const user = allUsers.find(u => u.email === target.email || u.id === target.userId);
+                            const orgName = user?.organizationName || domain.split('.')[0] || '-';
                             
                             return (
                               <div key={idx} className="p-2 bg-green-50 border border-green-100 rounded hover:bg-green-100 transition-colors">

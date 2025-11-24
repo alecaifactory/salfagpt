@@ -3144,8 +3144,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       abortControllerRef.current = abortController;
       isAbortedRef.current = false; // ✅ Reset abort flag for new request
       
+      // ⚡ PERFORMANCE: Feature flag to use optimized streaming endpoint
+      // This endpoint uses the direct benchmark approach (6s vs 30s)
+      const USE_OPTIMIZED_STREAMING = import.meta.env.PUBLIC_USE_OPTIMIZED_STREAMING === 'true';
+      const streamingEndpoint = USE_OPTIMIZED_STREAMING 
+        ? `/api/conversations/${targetConversation}/messages-optimized`
+        : `/api/conversations/${targetConversation}/messages-stream`;
+      
+      debugLog('⚡ Using streaming endpoint:', {
+        endpoint: streamingEndpoint,
+        optimized: USE_OPTIMIZED_STREAMING,
+        expected: USE_OPTIMIZED_STREAMING ? '~6s' : '~13s'
+      });
+      
       // Use streaming endpoint
-      const response = await fetch(`/api/conversations/${targetConversation}/messages-stream`, {
+      const response = await fetch(streamingEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abortController.signal, // ✅ NEW: Allow cancellation

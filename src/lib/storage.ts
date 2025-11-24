@@ -17,10 +17,12 @@ const storage = new Storage({
 });
 
 // Bucket configuration
-// Use bucket name based on current project
-export const BUCKET_NAME = PROJECT_ID === 'salfagpt' 
-  ? 'salfagpt-uploads' 
-  : 'gen-lang-client-0986191192-uploads';
+// ✅ GREEN deployment: us-east4 buckets (same region as Cloud Run)
+export const BUCKET_NAME = process.env.USE_EAST4_STORAGE === 'true'
+  ? 'salfagpt-context-documents-east4'  // GREEN: us-east4 ⚡
+  : PROJECT_ID === 'salfagpt'
+    ? 'salfagpt-uploads'                 // BLUE: us-central1
+    : 'gen-lang-client-0986191192-uploads';
 export const DOCUMENTS_FOLDER = 'documents';
 
 /**

@@ -13,7 +13,7 @@ import { searchRelevantChunks } from '../src/lib/rag-search.js';
 initializeApp({ projectId: 'salfagpt' });
 const db = getFirestore();
 
-const AGENT_ID = 'cjn3bC0HrUYtHqu69CKS'; // M1-v2
+const AGENT_ID = 'EgXezLcu4O3IUqFUJhUZ'; // M1-v2
 const USER_ID = 'usr_uhwqffaqag1wrryd82tw';
 
 // Evaluation questions from Ficha de Asistente
