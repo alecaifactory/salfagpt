@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MessageSquare, Plus, Send, FileText, Loader2, User, Settings, Settings as SettingsIcon, LogOut, Play, CheckCircle, XCircle, Sparkles, Pencil, Check, X as XIcon, Database, Users, UserCog, AlertCircle, Globe, Archive, ArchiveRestore, DollarSign, StopCircle, Award, BarChart3, Folder, FolderPlus, Share2, Copy, Building2, Bot, Target, TestTube, Star, ListTodo, Wand2, Boxes, Network, TrendingUp, FlaskConical, Zap, MessageCircle, Bell, Newspaper, Shield, Palette, Mail, Radio, Pin, Key, Code, ExternalLink, Upload } from 'lucide-react';
+
+// ⚡ PERFORMANCE: Debug flag to control verbose logging
+// Set to false in production to eliminate 327 console.log statements
+const DEBUG = import.meta.env.DEV && false; // Double disable for safety
+const debugLog = DEBUG ? console.log : () => {};
+const debugWarn = DEBUG ? console.warn : () => {};
+const debugError = console.error; // Always log errors
 import ContextManager from './ContextManager';
 import AddSourceModal from './AddSourceModal';
 import WorkflowConfigModal from './WorkflowConfigModal';
@@ -137,7 +144,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 function getCachedSources(agentId: string): AgentSourcesCache | null {
   const cached = agentSourcesCache.get(agentId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`⚡⚡⚡ CACHE HIT for agent ${agentId} - NO API call needed`);
+    debugLog(`⚡⚡⚡ CACHE HIT for agent ${agentId} - NO API call needed`);
     return cached;
   }
   return null;
@@ -149,12 +156,12 @@ function setCachedSources(agentId: string, sources: ContextSource[], activeIds: 
     activeIds,
     timestamp: Date.now(),
   });
-  console.log(`💾 Cached ${sources.length} sources for agent ${agentId}`);
+  debugLog(`💾 Cached ${sources.length} sources for agent ${agentId}`);
 }
 
 function invalidateCache(agentId: string) {
   agentSourcesCache.delete(agentId);
-  console.log(`🗑️ Cache invalidated for agent: ${agentId}`);
+  debugLog(`🗑️ Cache invalidated for agent: ${agentId}`);
 }
 
 // ===== SAMPLE QUESTIONS HELPERS =====
@@ -331,16 +338,14 @@ interface ChatInterfaceWorkingProps {
 }
 
 function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }: ChatInterfaceWorkingProps) {
-  // 🔍 DIAGNOSTIC: Log component mount (dev only - reduce console noise)
-  if (import.meta.env.DEV) {
-    console.log('🎯 ChatInterfaceWorking MOUNTING:', {
-      userId,
-      userEmail,
-      userName,
-      userRole,
-      timestamp: new Date().toISOString()
-    });
-  }
+  // ⚡ PERFORMANCE: Debug logging disabled by default (use DEBUG flag to enable)
+  debugLog('🎯 ChatInterfaceWorking MOUNTING:', {
+    userId,
+    userEmail,
+    userName,
+    userRole,
+    timestamp: new Date().toISOString()
+  });
   
   // 🆕 ALLY: Ally conversation (pinned at top of agents)
   const [allyConversationId, setAllyConversationId] = useState<string | null>(null);
@@ -373,24 +378,24 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   
   async function loadAllyConversation() {
     try {
-      console.log('🤖 [ALLY] Loading Ally conversation for:', userEmail);
-      console.log('🤖 [ALLY] userId:', userId);
+      debugLog('🤖 [ALLY] Loading Ally conversation for:', userEmail);
+      debugLog('🤖 [ALLY] userId:', userId);
       
       const response = await fetch(
         `/api/ally?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}&userDomain=${userEmail?.split('@')[1] || 'unknown'}`
       );
       
-      console.log('🤖 [ALLY] API response status:', response.status);
+      debugLog('🤖 [ALLY] API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
         setAllyConversationId(data.allyId);
         
-        console.log('✅ [ALLY] Ally conversation loaded:', data.allyId);
+        debugLog('✅ [ALLY] Ally conversation loaded:', data.allyId);
         
         // DON'T auto-select Ally - let user click sample question or select manually
         // This prevents Ally from showing on every refresh
-        console.log('ℹ️ [ALLY] Ally available but not auto-selected (user can click sample question)');
+        debugLog('ℹ️ [ALLY] Ally available but not auto-selected (user can click sample question)');
       } else {
         console.error('❌ [ALLY] Failed to load Ally - API returned status:', response.status);
         const errorText = await response.text();
@@ -730,17 +735,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   // Load conversations on mount
   useEffect(() => {
-    console.log('🔍 DIAGNOSTIC: useEffect for loadConversations() TRIGGERED');
-    console.log('   userId:', userId);
-    console.log('   userId type:', typeof userId);
-    console.log('   userId truthy:', !!userId);
-    console.log('   Calling loadConversations()...');
+    debugLog('🔍 DIAGNOSTIC: useEffect for loadConversations() TRIGGERED');
+    debugLog('   userId:', userId);
+    debugLog('   userId type:', typeof userId);
+    debugLog('   userId truthy:', !!userId);
+    debugLog('   Calling loadConversations()...');
     
     if (userId) {
       loadConversations();
       loadFolders(); // Also load folders on mount
     } else {
-      console.warn('⚠️ userId is not set, skipping data load');
+      debugWarn('⚠️ userId is not set, skipping data load');
     }
   }, [userId]);
 
@@ -785,7 +790,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     
     // Skip if already loaded for this agent
     if (lastLoadedAgentRef.current === effectiveAgentId && currentSampleQuestions.length > 0) {
-      console.log('⚡ [QUESTIONS] Using cached questions for agent:', effectiveAgentId);
+      debugLog('⚡ [QUESTIONS] Using cached questions for agent:', effectiveAgentId);
       return;
     }
     
@@ -793,7 +798,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     const agentCode = getAgentCode(effectiveAgent?.title);
     const questions = getSampleQuestions(agentCode);
     
-    console.log('📝 [QUESTIONS] Loading for agent:', {
+    debugLog('📝 [QUESTIONS] Loading for agent:', {
       agentId: effectiveAgentId,
       title: effectiveAgent?.title,
       code: agentCode,
@@ -869,7 +874,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // NEW: Load folders from Firestore
   const loadFolders = async () => {
     try {
-      console.log('📥 Cargando carpetas desde Firestore...');
+      debugLog('📥 Cargando carpetas desde Firestore...');
       const response = await fetch(`/api/folders?userId=${userId}`);
       if (response.ok) {
         const data = await response.json();
@@ -882,10 +887,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setFolders(foldersWithDates);
         
         if (foldersWithDates.length > 0) {
-          console.log(`✅ ${foldersWithDates.length} carpetas cargadas desde Firestore`);
-          console.log('📁 Carpetas:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
+          debugLog(`✅ ${foldersWithDates.length} carpetas cargadas desde Firestore`);
+          debugLog('📁 Carpetas:', foldersWithDates.map((f: { name: string }) => f.name).join(', '));
         } else {
-          console.log('ℹ️ No hay carpetas guardadas');
+          debugLog('ℹ️ No hay carpetas guardadas');
         }
       }
     } catch (error) {
@@ -978,18 +983,19 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // Phase 2: Lazy load full data only when agent is clicked
   const loadConversations = async () => {
     try {
-      console.log('⚡ PHASE 1: Loading lightweight lists (id + title only)...');
+      debugLog('⚡ PHASE 1: Loading lightweight lists (id + title only)...');
       console.time('⚡ Phase 1: Lightweight load');
       
       // ✅ PHASE 1: Load ALL conversations with minimal data (both agents and chats)
-      const lightweightResponse = await fetch(`/api/conversations/list-lightweight?userId=${userId}&type=all`);
+      // ✅ CRITICAL FIX: Include archived conversations for proper count display
+      const lightweightResponse = await fetch(`/api/conversations/list-lightweight?userId=${userId}&type=all&includeArchived=true`);
       
       if (lightweightResponse.ok) {
         const lightweightData = await lightweightResponse.json();
         const items = lightweightData.items || [];
         
         console.timeEnd('⚡ Phase 1: Lightweight load');
-        console.log(`⚡ ${items.length} items loaded (minimal data)`);
+        debugLog(`⚡ ${items.length} items loaded (minimal data)`);
         
         // ✅ Create lightweight conversation objects for instant display
         const lightweightConversations: Conversation[] = items.map((item: any) => ({
@@ -1003,12 +1009,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           // Real values from API (not placeholders anymore)
           messageCount: item.messageCount || 0,
           agentModel: item.agentModel || 'gemini-2.5-flash',
+          status: item.status, // ✅ CRITICAL FIX: Keep undefined as undefined (don't default to 'active')
+          archivedFolder: item.archivedFolder, // ✅ FIXED: Include archive category
+          archivedAt: item.archivedAt ? new Date(item.archivedAt) : undefined, // ✅ FIXED: Include archive timestamp
           // Placeholder values (will be lazy-loaded on click)
           createdAt: new Date(),
           updatedAt: new Date(),
           lastMessageAt: new Date(),
           contextWindowUsage: 0,
-          status: 'active' as const,
+          hasBeenRenamed: false,
         }));
         
         // ✅ INSTANT: Show both agents and chats immediately
@@ -1016,7 +1025,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         const agentCount = lightweightConversations.filter(c => c.isAgent !== false).length;
         const chatCount = lightweightConversations.filter(c => c.isAgent === false).length;
-        console.log(`✅ Lists rendered instantly: ${agentCount} agents + ${chatCount} chats`);
+        const archivedCount = lightweightConversations.filter(c => c.status === 'archived').length;
+        const activeCount = lightweightConversations.filter(c => c.status !== 'archived').length;
+        
+        debugLog(`✅ Lists rendered instantly: ${agentCount} agents + ${chatCount} chats`);
+        debugLog(`📊 Status breakdown: ${activeCount} active, ${archivedCount} archived, ${lightweightConversations.length} total`);
         
         // ✅ PHASE 2: Load shared agents in background (non-blocking)
         loadSharedAgentsBackground();
@@ -1035,7 +1048,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ Background: Load shared agents (non-blocking)
   const loadSharedAgentsBackground = async () => {
     try {
-      console.log('🔍 PHASE 2: Loading shared agents in background...');
+      debugLog('🔍 PHASE 2: Loading shared agents in background...');
       const sharedResponse = await fetch(`/api/agents/shared?userId=${userId}&userEmail=${encodeURIComponent(userEmail || '')}`);
       
       if (sharedResponse.ok) {
@@ -1059,19 +1072,19 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         }));
         
         if (sharedAgents.length > 0) {
-          console.log(`✅ ${sharedAgents.length} shared agents loaded`);
+          debugLog(`✅ ${sharedAgents.length} shared agents loaded`);
           setConversations(prev => [...prev, ...sharedAgents]);
         }
       }
     } catch (error) {
-      console.log('⚠️ Could not load shared agents:', error);
+      debugLog('⚠️ Could not load shared agents:', error);
     }
   };
   
   // ✅ FALLBACK: Original full load (if lightweight fails)
   const loadConversationsFull = async () => {
     try {
-      console.log('📥 Full conversation load (fallback)...');
+      debugLog('📥 Full conversation load (fallback)...');
       const response = await fetch(`/api/conversations?userId=${userId}`);
       
       if (response.ok) {
@@ -1106,7 +1119,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         }
         
         setConversations(allConversations);
-        console.log(`✅ ${allConversations.length} conversations loaded (full data)`);
+        debugLog(`✅ ${allConversations.length} conversations loaded (full data)`);
       }
     } catch (error) {
       console.error('❌ Error in full load:', error);
@@ -1115,13 +1128,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const loadMessages = async (conversationId: string) => {
     try {
-      console.log('📥 [LOAD MESSAGES] Loading messages for conversation:', conversationId);
+      debugLog('📥 [LOAD MESSAGES] Loading messages for conversation:', conversationId);
       setIsLoadingMessages(true); // ✅ Mark as loading to prevent flash
       
       const response = await fetch(`/api/conversations/${conversationId}/messages`);
       if (response.ok) {
         const data = await response.json();
-        console.log('📥 [LOAD MESSAGES] Received', data.messages?.length || 0, 'messages');
+        debugLog('📥 [LOAD MESSAGES] Received', data.messages?.length || 0, 'messages');
         
         // Transform messages: extract text from MessageContent object
         const transformedMessages = (data.messages || []).map((msg: any) => ({
@@ -1135,23 +1148,23 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // Debug: Check message content lengths
         if (transformedMessages.length > 0) {
           const lastMsg = transformedMessages[transformedMessages.length - 1];
-          console.log('📥 [LOAD MESSAGES] Last message role:', lastMsg.role);
-          console.log('📥 [LOAD MESSAGES] Last message content length:', lastMsg.content?.length);
-          console.log('📥 [LOAD MESSAGES] Last message preview:', lastMsg.content?.substring(0, 200));
+          debugLog('📥 [LOAD MESSAGES] Last message role:', lastMsg.role);
+          debugLog('📥 [LOAD MESSAGES] Last message content length:', lastMsg.content?.length);
+          debugLog('📥 [LOAD MESSAGES] Last message preview:', lastMsg.content?.substring(0, 200));
         }
         
         // Debug: Check for references in loaded messages
         const messagesWithRefs = transformedMessages.filter((m: Message) => m.references && m.references.length > 0);
         if (messagesWithRefs.length > 0) {
-          console.log(`📚 Loaded ${messagesWithRefs.length} messages with references`);
+          debugLog(`📚 Loaded ${messagesWithRefs.length} messages with references`);
           messagesWithRefs.forEach((m: Message) => {
-            console.log(`  Message ${m.id}: ${m.references?.length} references`);
+            debugLog(`  Message ${m.id}: ${m.references?.length} references`);
           });
         } else {
-          console.log('📚 No messages with references found in loaded history');
+          debugLog('📚 No messages with references found in loaded history');
         }
         
-        console.log('📥 [LOAD MESSAGES] Setting', transformedMessages.length, 'messages to state');
+        debugLog('📥 [LOAD MESSAGES] Setting', transformedMessages.length, 'messages to state');
         setMessages(transformedMessages);
       }
     } catch (error) {
@@ -1172,11 +1185,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       // Check cache
       const now = Date.now();
       if (agentData.isLoaded && agentData.agentId === agentIdToLoad && (now - agentData.loadedAt) < 30000) {
-        console.log('⚡ [COORDINATED] Using cached agent data');
+        debugLog('⚡ [COORDINATED] Using cached agent data');
         return;
       }
       
-      console.log('🎬 [COORDINATED] Starting coordinated load for agent:', agentIdToLoad);
+      debugLog('🎬 [COORDINATED] Starting coordinated load for agent:', agentIdToLoad);
       
       // STAGE 1: Context (33%)
       setAgentLoadingProgress({
@@ -1260,10 +1273,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setCurrentAgentPrompt(promptData.agentPrompt);
       }
       
-      console.log('✅ [COORDINATED] All data loaded successfully');
-      console.log(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
-      console.log(`   - Questions: ${questions.length} disponibles`);
-      console.log(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
+      debugLog('✅ [COORDINATED] All data loaded successfully');
+      debugLog(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
+      debugLog(`   - Questions: ${questions.length} disponibles`);
+      debugLog(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
       
       // COMPLETE: Mark as done and hide progress
       setAgentLoadingProgress({
@@ -1295,18 +1308,18 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const now = Date.now();
       
       if (agentData.isLoaded && agentData.agentId === agentIdToLoad && (now - agentData.loadedAt) < 30000) {
-        console.log('⚡ [OPTIMIZED] Using cached agent data for agent:', agentIdToLoad, '(age:', Math.round((now - agentData.loadedAt)/1000), 'seconds)');
+        debugLog('⚡ [OPTIMIZED] Using cached agent data for agent:', agentIdToLoad, '(age:', Math.round((now - agentData.loadedAt)/1000), 'seconds)');
         return;
       }
       
-      console.log('🚀 [OPTIMIZED] Loading all agent data in parallel for agent:', agentIdToLoad);
+      debugLog('🚀 [OPTIMIZED] Loading all agent data in parallel for agent:', agentIdToLoad);
       const startTime = Date.now();
       
       // ✅ FIX: Get agent to determine title for sample questions
       const agent = conversations.find(c => c.id === agentIdToLoad);
       const agentTitle = agent?.title || currentConv?.title;
       
-      console.log('🔍 [OPTIMIZED] Agent for questions:', { agentId: agentIdToLoad, title: agentTitle });
+      debugLog('🔍 [OPTIMIZED] Agent for questions:', { agentId: agentIdToLoad, title: agentTitle });
       
       // ✅ PARALLEL: Load all data simultaneously
       const [statsResponse, promptResponse] = await Promise.all([
@@ -1322,8 +1335,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const agentCode = getAgentCode(agentTitle);
       const questions = getSampleQuestions(agentCode);
       
-      console.log('🔍 [OPTIMIZED] Extracted agentCode:', agentCode, 'from title:', agentTitle);
-      console.log('🔍 [OPTIMIZED] Found', questions.length, 'sample questions');
+      debugLog('🔍 [OPTIMIZED] Extracted agentCode:', agentCode, 'from title:', agentTitle);
+      debugLog('🔍 [OPTIMIZED] Found', questions.length, 'sample questions');
       
       // ✅ ATOMIC: Single state update with ALL data
       const newAgentData = {
@@ -1364,10 +1377,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
       
       const elapsed = Date.now() - startTime;
-      console.log(`✅ [OPTIMIZED] All agent data loaded in ${elapsed}ms (1 batch, 1 render)`);
-      console.log(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
-      console.log(`   - Questions: ${questions.length} disponibles`);
-      console.log(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
+      debugLog(`✅ [OPTIMIZED] All agent data loaded in ${elapsed}ms (1 batch, 1 render)`);
+      debugLog(`   - Context: ${newAgentData.contextStats?.activeCount || 0} fuentes`);
+      debugLog(`   - Questions: ${questions.length} disponibles`);
+      debugLog(`   - Prompt: ${promptData?.agentPrompt?.length || 0} chars`);
       
     } catch (error) {
       console.error('❌ [OPTIMIZED] Error loading agent data:', error);
@@ -1386,24 +1399,24 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const now = Date.now();
       const cached = loadedContextRef.current;
       if (cached && cached.conversationId === conversationId && (now - cached.timestamp) < 30000) {
-        console.log('⚡ Using cached context stats for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
+        debugLog('⚡ Using cached context stats for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
         return;
       }
       
       // ✅ MINIMAL: For RAG with BigQuery, we only need IDs (not full metadata!)
       // BigQuery handles finding relevant chunks by agentId
-      console.log('⚡ Loading minimal context stats (IDs only - BigQuery handles search)...');
+      debugLog('⚡ Loading minimal context stats (IDs only - BigQuery handles search)...');
       
       const response = await fetch(`/api/agents/${conversationId}/context-stats`);
       if (!response.ok) {
-        console.warn('⚠️ Could not load context stats');
+        debugWarn('⚠️ Could not load context stats');
         setContextSources([]); // Clear sources - not needed for agent search
         return;
       }
       
       const data = await response.json();
       
-      console.log(`✅ Context stats loaded:`, {
+      debugLog(`✅ Context stats loaded:`, {
         totalCount: data.totalCount,
         activeCount: data.activeCount,
         activeSourceIds: data.activeContextSourceIds?.length || 0,
@@ -1440,10 +1453,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         timestamp: now
       };
       
-      console.log(`✅ Minimal context loaded: ${minimalSources.length} active sources (${data.loadTime}ms)`);
-      console.log(`   IDs ready for references, BigQuery handles chunk search`);
-      console.log(`   UI will show: ${data.activeCount} activas / ${data.totalCount} asignadas`);
-      console.log(`   🎯 contextStats setState called with:`, newStats);
+      debugLog(`✅ Minimal context loaded: ${minimalSources.length} active sources (${data.loadTime}ms)`);
+      debugLog(`   IDs ready for references, BigQuery handles chunk search`);
+      debugLog(`   UI will show: ${data.activeCount} activas / ${data.totalCount} asignadas`);
+      debugLog(`   🎯 contextStats setState called with:`, newStats);
       
     } catch (error) {
       console.error('Error loading context:', error);
@@ -1489,7 +1502,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
    * Only loads data for sources that don't already have it
    */
   const loadFullContextSources = async (sources: ContextSource[]): Promise<ContextSource[]> => {
-    console.log('📥 Loading full context data for', sources.length, 'sources...');
+    debugLog('📥 Loading full context data for', sources.length, 'sources...');
     
     const fullSources = await Promise.all(
       sources.map(async (source) => {
@@ -1504,14 +1517,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       })
     );
     
-    console.log('✅ Loaded full context data');
+    debugLog('✅ Loaded full context data');
     return fullSources;
   };
 
   // NEW: Load agent config for conversation
   const loadAgentConfig = async (conversationId: string) => {
     try {
-      console.log('⚙️ Cargando configuración del agente para conversación:', conversationId);
+      debugLog('⚙️ Cargando configuración del agente para conversación:', conversationId);
       const response = await fetch(`/api/agent-config?conversationId=${conversationId}`);
       
       if (response.ok) {
@@ -1522,7 +1535,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             preferredModel: config.model || globalUserSettings.preferredModel,
             systemPrompt: config.systemPrompt || globalUserSettings.systemPrompt,
           });
-          console.log('✅ Configuración del agente cargada:', config.model);
+          debugLog('✅ Configuración del agente cargada:', config.model);
         }
       }
     } catch (error) {
@@ -1533,12 +1546,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // NEW: Change model for current agent
   const changeAgentModel = async (newModel: 'gemini-2.5-flash' | 'gemini-2.5-pro') => {
     if (!currentConversation || currentConversation.startsWith('temp-')) {
-      console.warn('⚠️ No se puede cambiar modelo de conversación temporal');
+      debugWarn('⚠️ No se puede cambiar modelo de conversación temporal');
       return;
     }
 
     try {
-      console.log('🔄 Cambiando modelo del agente a:', newModel);
+      debugLog('🔄 Cambiando modelo del agente a:', newModel);
       
       // Update local state immediately (optimistic update)
       setCurrentAgentConfig(prev => ({
@@ -1559,7 +1572,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       });
 
       if (response.ok) {
-        console.log('✅ Modelo del agente actualizado en Firestore');
+        debugLog('✅ Modelo del agente actualizado en Firestore');
       } else {
         console.error('❌ Error al guardar modelo del agente');
         // Revert on error
@@ -1590,10 +1603,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           if (foundUser) {
             setCurrentUser(foundUser);
             setCurrentUserRoles(foundUser.roles || [foundUser.role]);
-            console.log('👤 Current user roles:', foundUser.roles);
+            debugLog('👤 Current user roles:', foundUser.roles);
           } else {
             // Fallback: Create user object from props if not found in API
-            console.warn('⚠️ User not found in API, using props as fallback');
+            debugWarn('⚠️ User not found in API, using props as fallback');
             setCurrentUser({
               id: userId,
               email: userEmail,
@@ -1611,7 +1624,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         .catch(err => {
           console.error('Error loading user roles:', err);
           // Fallback: Create user object from props on error
-          console.warn('⚠️ API error, using props as fallback for currentUser');
+          debugWarn('⚠️ API error, using props as fallback for currentUser');
           setCurrentUser({
             id: userId,
             email: userEmail,
@@ -1661,7 +1674,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     setImpersonatedUser(user);
     setShowUserManagement(false);
 
-    console.log('🎭 Impersonating user:', user.email);
+    debugLog('🎭 Impersonating user:', user.email);
     // Reload with impersonation
     window.location.href = `/chat?impersonate=${encodeURIComponent(user.email)}`;
   }
@@ -1673,7 +1686,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     setImpersonatedUser(null);
     setOriginalUserId(null);
 
-    console.log('✅ Stopped impersonation');
+    debugLog('✅ Stopped impersonation');
     window.location.href = '/chat'; // Reload as original user
   }
   
@@ -1809,17 +1822,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   useEffect(() => {
     const loadUserSettings = async () => {
       try {
-        console.log('⚙️ Cargando configuración del usuario desde Firestore...');
+        debugLog('⚙️ Cargando configuración del usuario desde Firestore...');
         const response = await fetch(`/api/user-settings?userId=${userId}`);
         
         if (response.ok) {
           const data = await response.json();
           setGlobalUserSettings(data);
-          console.log('✅ Configuración del usuario cargada:', data.preferredModel);
+          debugLog('✅ Configuración del usuario cargada:', data.preferredModel);
           
           // Apply theme from Firestore (with fallback to 'light')
           const theme = data.theme || 'light';
-          console.log(`🎨 Aplicando tema desde Firestore: ${theme}`);
+          debugLog(`🎨 Aplicando tema desde Firestore: ${theme}`);
           
           if (theme === 'dark') {
             document.documentElement.classList.add('dark');
@@ -1830,7 +1843,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           // Sync to localStorage for consistency
           localStorage.setItem('theme', theme);
         } else {
-          console.warn('⚠️ No se pudo cargar configuración del usuario, usando defaults');
+          debugWarn('⚠️ No se pudo cargar configuración del usuario, usando defaults');
           // Apply default light theme
           document.documentElement.classList.remove('dark');
           localStorage.setItem('theme', 'light');
@@ -1867,7 +1880,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
     // Don't load messages for temporary conversations
     if (currentConversation.startsWith('temp-')) {
-      console.log('⏭️ Conversación temporal - no cargando mensajes de Firestore');
+      debugLog('⏭️ Conversación temporal - no cargando mensajes de Firestore');
       setMessages([]);
       setContextLogs([]);
       setIsLoadingMessages(false);
@@ -1880,11 +1893,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     const conversationChanged = previousConversationRef.current !== currentConversation;
     
     if (!conversationChanged) {
-      console.log('⏭️ Misma conversación - no recargar mensajes');
+      debugLog('⏭️ Misma conversación - no recargar mensajes');
       return;
     }
     
-    console.log('🔄 Conversación cambió:', {
+    debugLog('🔄 Conversación cambió:', {
       from: previousConversationRef.current,
       to: currentConversation
     });
@@ -1894,24 +1907,24 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
     // ✅ Skip loading if we're in the middle of creating/transitioning
     if (isCreatingConversation || isTransitioningRef.current || isSendingFirstMessage.current) {
-      console.log('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes');
+      debugLog('⏭️ Creando/transicionando conversación - omitiendo carga de mensajes');
       return;
     }
     
     // 🚨 Skip if there's an active streaming message (prevents overwriting during streaming)
     const hasStreamingMessage = messages.some(msg => msg.isStreaming);
     if (hasStreamingMessage) {
-      console.log('⏭️ Hay un mensaje en streaming - no recargar');
+      debugLog('⏭️ Hay un mensaje en streaming - no recargar');
       return;
     }
     
     // 🚨 Skip if agent is processing (prevents overwriting during streaming)
     if (agentProcessing[currentConversation]?.isProcessing) {
-      console.log('⏭️ Agente está procesando - no recargar');
+      debugLog('⏭️ Agente está procesando - no recargar');
       return;
     }
 
-    console.log('✅ Loading messages for new conversation:', currentConversation);
+    debugLog('✅ Loading messages for new conversation:', currentConversation);
     
     // ✅ FIX: Set loading state BEFORE clearing messages
     // This prevents sample questions from flashing during async load
@@ -1920,7 +1933,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // Load logs for this specific conversation from Map
     const logsForConversation = conversationLogs.get(currentConversation) || [];
     setContextLogs(logsForConversation);
-    console.log(`📊 Cargando ${logsForConversation.length} logs para esta conversación`);
+    debugLog(`📊 Cargando ${logsForConversation.length} logs para esta conversación`);
     
     // Load messages for this conversation (will clear loading state in finally block)
     loadMessages(currentConversation);
@@ -1945,9 +1958,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     try {
       const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYHGGS57OihUBELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsIGGi56+mjUhELTKXh8bllHgU2jdXvxHUnBSl+zPLaizsI');
       audio.volume = 0.3;
-      audio.play().catch(e => console.log('Could not play sound:', e));
+      audio.play().catch(e => debugLog('Could not play sound:', e));
     } catch (e) {
-      console.log('Sound notification not available:', e);
+      debugLog('Sound notification not available:', e);
     }
   };
 
@@ -2033,7 +2046,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setCopiedMessageId(null);
       }, 2000);
       
-      console.log('✅ Mensaje copiado en formato Markdown');
+      debugLog('✅ Mensaje copiado en formato Markdown');
     } catch (error) {
       console.error('❌ Error al copiar mensaje:', error);
     }
@@ -2047,7 +2060,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     setIsCreatingConversation(true);
     
     try {
-      console.log('🆕 Creating new Ally conversation with personalized title...');
+      debugLog('🆕 Creating new Ally conversation with personalized title...');
       
       // Generate personalized title from first 50 chars
       const personalizedTitle = initialText.substring(0, 50) + (initialText.length > 50 ? '...' : '');
@@ -2068,7 +2081,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const data = await response.json();
         const newConvId = data.conversation.id;
         
-        console.log('✅ Ally conversation created:', newConvId, 'with title:', personalizedTitle);
+        debugLog('✅ Ally conversation created:', newConvId, 'with title:', personalizedTitle);
         
         // Add to conversations list
         const newConv: Conversation = {
@@ -2102,10 +2115,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setMessages([optimisticMessage]); // Show user message immediately
         setIsLoadingMessages(false);
         
-        console.log('✅ Conversation ready, optimistic message shown, empty state hidden');
+        debugLog('✅ Conversation ready, optimistic message shown, empty state hidden');
         
         // ✅ AUTO-SEND: Actually send the message now
-        console.log('📤 Auto-sending message:', initialText);
+        debugLog('📤 Auto-sending message:', initialText);
         
         // Wait a bit for state to settle, then send
         setTimeout(async () => {
@@ -2123,7 +2136,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             
             if (response.ok) {
               const data = await response.json();
-              console.log('✅ Message sent, reloading conversation');
+              debugLog('✅ Message sent, reloading conversation');
               
               // Reload messages to get both user message and Ally response
               await loadMessages(newConvId);
@@ -2142,9 +2155,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   // ✅ NEW: Create Ally conversation AND send message (when Enter pressed)
   const handleCreateAllyConversationAndSend = async (messageText: string) => {
-    console.log('🎯 [ALLY] handleCreateAllyConversationAndSend called');
-    console.log('📝 [ALLY] Message text:', messageText);
-    console.log('🆔 [ALLY] allyConversationId:', allyConversationId);
+    debugLog('🎯 [ALLY] handleCreateAllyConversationAndSend called');
+    debugLog('📝 [ALLY] Message text:', messageText);
+    debugLog('🆔 [ALLY] allyConversationId:', allyConversationId);
     
     if (!messageText.trim()) {
       console.error('❌ [ALLY] No message text provided');
@@ -2158,11 +2171,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       return;
     }
     
-    console.log('✅ [ALLY] All validations passed. Creating conversation...');
+    debugLog('✅ [ALLY] All validations passed. Creating conversation...');
     setIsCreatingConversation(true);
     
     try {
-      console.log('🆕 [ALLY] Creating new Ally conversation and sending message...');
+      debugLog('🆕 [ALLY] Creating new Ally conversation and sending message...');
       
       // Generate personalized title from message
       const personalizedTitle = messageText.substring(0, 50) + (messageText.length > 50 ? '...' : '');
@@ -2184,7 +2197,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const data = await response.json();
         const newConvId = data.conversation.id;
         
-        console.log('✅ Ally conversation created:', newConvId);
+        debugLog('✅ Ally conversation created:', newConvId);
         
         // Add to conversations
         const newConv: Conversation = {
@@ -2213,16 +2226,16 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // ✅ Wait for conversation state to fully settle after all re-renders
         await new Promise(resolve => setTimeout(resolve, 300));
         
-        console.log('📤 Triggering auto-send after state settled');
-        console.log('📤 Will send to conversation:', newConvId);
-        console.log('📤 Message text:', messageText);
+        debugLog('📤 Triggering auto-send after state settled');
+        debugLog('📤 Will send to conversation:', newConvId);
+        debugLog('📤 Message text:', messageText);
         
         // ✅ CRITICAL: Pass isAlly=true explicitly so first message uses Ally thinking steps
         // Without this, first message uses generic steps because newConv not in array yet
-        console.log('📤 [ALLY] Calling sendMessage with:', { messageText, newConvId, isAlly: true });
+        debugLog('📤 [ALLY] Calling sendMessage with:', { messageText, newConvId, isAlly: true });
         await sendMessage(messageText, newConvId, true); // isAllyOverride = true
         
-        console.log('✅ [ALLY] Auto-send completed successfully (Ally conversation with isAlly=true)');
+        debugLog('✅ [ALLY] Auto-send completed successfully (Ally conversation with isAlly=true)');
         
         // ✅ Clear flag after send completes
         isSendingFirstMessage.current = false;
@@ -2243,7 +2256,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ NEW: Submit feedback (Expert or User)
   const handleSubmitFeedback = async (feedback: Omit<MessageFeedback, 'id' | 'timestamp' | 'source'>) => {
     try {
-      console.log('📝 Submitting feedback:', {
+      debugLog('📝 Submitting feedback:', {
         type: feedback.feedbackType,
         messageId: feedback.messageId,
         userId: feedback.userId,
@@ -2255,7 +2268,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         body: JSON.stringify(feedback),
       });
 
-      console.log('📡 Response status:', response.status);
+      debugLog('📡 Response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -2264,13 +2277,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
 
       const result = await response.json();
-      console.log('✅ Feedback submitted successfully:', result);
+      debugLog('✅ Feedback submitted successfully:', result);
       
       // Check if ticket creation failed
       if (result.warning) {
-        console.warn('⚠️ Warning:', result.warning);
-        console.warn('   Feedback saved but ticket not created');
-        console.warn('   Check server logs for ticket creation error');
+        debugWarn('⚠️ Warning:', result.warning);
+        debugWarn('   Feedback saved but ticket not created');
+        debugWarn('   Check server logs for ticket creation error');
       }
 
       // Close feedback input modals
@@ -2287,7 +2300,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setHighlightTicketId(result.ticketId);
       } else {
         // Show warning toast if ticket wasn't created
-        console.warn('⚠️ Ticket not created - feedback saved but won\'t appear in Roadmap');
+        debugWarn('⚠️ Ticket not created - feedback saved but won\'t appear in Roadmap');
       }
     } catch (error) {
       console.error('❌ Error submitting feedback:', error);
@@ -2330,9 +2343,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // NEW: Folder management functions
   const createNewFolder = async (name: string, parentFolderId?: string) => {
     try {
-      console.log('🚀 Starting createNewFolder with name:', name);
-      console.log('📋 userId:', userId);
-      console.log('📁 parentFolderId:', parentFolderId);
+      debugLog('🚀 Starting createNewFolder with name:', name);
+      debugLog('📋 userId:', userId);
+      debugLog('📁 parentFolderId:', parentFolderId);
       
       // Calculate level based on parent
       let level = 0;
@@ -2360,20 +2373,20 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         }),
       });
 
-      console.log('📡 API response status:', response.status);
+      debugLog('📡 API response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Carpeta creada en Firestore:', data.folder.id, 'Name:', data.folder.name, 'Level:', data.folder.level);
-        console.log('📦 Folder data:', JSON.stringify(data.folder, null, 2));
+        debugLog('✅ Carpeta creada en Firestore:', data.folder.id, 'Name:', data.folder.name, 'Level:', data.folder.level);
+        debugLog('📦 Folder data:', JSON.stringify(data.folder, null, 2));
         
         // Ensure Carpetas section is expanded
         setShowProjectsSection(true);
         
         // CRITICAL: Reload from Firestore to ensure persistence
-        console.log('🔄 Recargando carpetas desde Firestore para verificar persistencia...');
+        debugLog('🔄 Recargando carpetas desde Firestore para verificar persistencia...');
         await loadFolders();
-        console.log('✅ Carpeta creada y lista recargada desde Firestore');
+        debugLog('✅ Carpeta creada y lista recargada desde Firestore');
       } else {
         const errorData = await response.json();
         console.error('❌ API error:', response.status, errorData);
@@ -2397,7 +2410,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setFolders(prev => prev.map(f => f.id === folderId ? { ...f, name: newName } : f));
         setEditingFolderId(null);
         setEditingFolderName('');
-        console.log('✅ Folder renamed:', folderId);
+        debugLog('✅ Folder renamed:', folderId);
       }
     } catch (error) {
       console.error('❌ Error renaming folder:', error);
@@ -2418,7 +2431,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => prev.map(c => 
           c.folderId === folderId ? { ...c, folderId: undefined } : c
         ));
-        console.log('✅ Folder deleted:', folderId);
+        debugLog('✅ Folder deleted:', folderId);
       }
     } catch (error) {
       console.error('❌ Error deleting folder:', error);
@@ -2437,7 +2450,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setConversations(prev => prev.map(c => 
           c.id === chatId ? { ...c, folderId: folderId || undefined } : c
         ));
-        console.log('✅ Chat moved to folder:', chatId, folderId);
+        debugLog('✅ Chat moved to folder:', chatId, folderId);
       }
     } catch (error) {
       console.error('❌ Error moving chat to folder:', error);
@@ -2479,7 +2492,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       setIsLoadingMessages(true); // ✅ Mark as loading during creation
       setIsCreatingConversation(true); // ✅ FIX: Track conversation creation to prevent flash
       
-      console.log('⚡ Chat optimista creado para agente:', agentId);
+      debugLog('⚡ Chat optimista creado para agente:', agentId);
 
       const response = await fetch('/api/conversations', {
         method: 'POST',
@@ -2496,7 +2509,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const data = await response.json();
         const newChatId = data.conversation.id;
         
-        console.log('✅ Chat creado en Firestore:', newChatId, 'para agente:', agentId);
+        debugLog('✅ Chat creado en Firestore:', newChatId, 'para agente:', agentId);
         
         // ✅ FIX: Mark that we're transitioning from optimistic→real ID
         // This prevents useEffect from reacting to the ID change
@@ -2508,7 +2521,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         // ✅ OPTIMIZED INHERITANCE: Just copy activeContextSourceIds from agent to chat
         // NO need to re-assign sources - chat inherits them from parent agent via agentId link
         try {
-          console.log('🔄 Heredando contexto del agente:', agentId);
+          debugLog('🔄 Heredando contexto del agente:', agentId);
           
           // Get agent's active sources (which ones are toggled ON)
           const agentContextResponse = await fetch(`/api/conversations/${agentId}/context-sources`);
@@ -2518,7 +2531,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           
           const agentActiveSourceIds = agentContextData.activeContextSourceIds || [];
           
-          console.log(`🎯 Fuentes activas en el agente: ${agentActiveSourceIds.length}`);
+          debugLog(`🎯 Fuentes activas en el agente: ${agentActiveSourceIds.length}`);
           
           // Determine which sources to activate in the new chat
           let sourcesToActivate: string[];
@@ -2526,14 +2539,14 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           if (agentActiveSourceIds.length > 0) {
             // Agent has sources active → inherit those
             sourcesToActivate = agentActiveSourceIds;
-            console.log(`📋 Heredando ${sourcesToActivate.length} fuentes ACTIVAS del agente`);
+            debugLog(`📋 Heredando ${sourcesToActivate.length} fuentes ACTIVAS del agente`);
           } else if (contextSources.length > 0) {
             // Agent has NO active sources but has assigned sources → auto-activate all
             sourcesToActivate = contextSources.map(s => s.id);
-            console.log(`⚡ Auto-activando ${sourcesToActivate.length} fuentes del agente`);
+            debugLog(`⚡ Auto-activando ${sourcesToActivate.length} fuentes del agente`);
           } else {
             sourcesToActivate = [];
-            console.log('ℹ️ Agente sin fuentes asignadas');
+            debugLog('ℹ️ Agente sin fuentes asignadas');
           }
           
           if (sourcesToActivate.length > 0) {
@@ -2544,7 +2557,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               body: JSON.stringify({ activeContextSourceIds: sourcesToActivate }),
             });
             
-            console.log(`✅ ${sourcesToActivate.length} fuentes activadas (heredadas del agente)`);
+            debugLog(`✅ ${sourcesToActivate.length} fuentes activadas (heredadas del agente)`);
             
             // ✅ Update local state immediately
             setContextSources(prev => prev.map(source => ({
@@ -2552,10 +2565,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               enabled: sourcesToActivate.includes(source.id)
             })));
             
-            console.log('🔄 Listo para enviar mensajes con contexto');
+            debugLog('🔄 Listo para enviar mensajes con contexto');
           }
         } catch (contextError) {
-          console.warn('⚠️ Error heredando contexto:', contextError);
+          debugWarn('⚠️ Error heredando contexto:', contextError);
         }
         
         // Get the current optimistic chat (may have been edited by user)
@@ -2581,7 +2594,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         // If user edited the title while optimistic, save it to Firestore
         if (userEditedTitle) {
-          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          debugLog(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
           try {
             await fetch(`/api/conversations/${newChatId}`, {
               method: 'PUT',
@@ -2591,9 +2604,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 hasBeenRenamed: true
               })
             });
-            console.log('✅ Título editado guardado en Firestore');
+            debugLog('✅ Título editado guardado en Firestore');
           } catch (titleError) {
-            console.warn('⚠️ Failed to save edited title:', titleError);
+            debugWarn('⚠️ Failed to save edited title:', titleError);
           }
         }
         
@@ -2606,10 +2619,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           // Chat inherits agent's sources - copy cache entry
           // Use agentCache.activeIds since we inherited those from parent
           setCachedSources(newChatId, agentCache.sources, agentCache.activeIds);
-          console.log(`⚡ Chat ${newChatId} heredó cache del agente ${agentId} (${agentCache.sources.length} fuentes)`);
+          debugLog(`⚡ Chat ${newChatId} heredó cache del agente ${agentId} (${agentCache.sources.length} fuentes)`);
         }
         
-        console.log('✅ Chat confirmado y actualizado con ID real:', newChatId);
+        debugLog('✅ Chat confirmado y actualizado con ID real:', newChatId);
         
         // ✅ FIX: Clear transition flag and creation flag
         isTransitioningRef.current = false;
@@ -2658,7 +2671,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
     } catch (error) {
       console.error('❌ Error creating chat:', error);
-      console.warn('⚠️ Chat temporal creado (no persistente)');
+      debugWarn('⚠️ Chat temporal creado (no persistente)');
     }
   };
 
@@ -2689,7 +2702,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       setSelectedAgent(optimisticId);
       setMessages([]);
       
-      console.log('⚡ Agente optimista creado (esperando confirmación de Firestore)');
+      debugLog('⚡ Agente optimista creado (esperando confirmación de Firestore)');
       
       // Call API to create conversation in Firestore
       const response = await fetch('/api/conversations', {
@@ -2706,7 +2719,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         const data = await response.json();
         const newConvId = data.conversation.id;
         
-        console.log('✅ Agente creado en Firestore:', newConvId);
+        debugLog('✅ Agente creado en Firestore:', newConvId);
         
         // Save initial agent config
         const initialModel = 'gemini-2.5-flash';
@@ -2734,7 +2747,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 body: JSON.stringify({ agentId: newConvId }),
               });
             } catch (error) {
-              console.warn('⚠️ Failed to auto-assign PUBLIC source:', sourceId, error);
+              debugWarn('⚠️ Failed to auto-assign PUBLIC source:', sourceId, error);
             }
           }
           
@@ -2767,7 +2780,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         
         // If user edited the title while optimistic, save it to Firestore
         if (userEditedTitle) {
-          console.log(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
+          debugLog(`📝 Usuario editó título mientras era optimista: "${editedTitle}"`);
           try {
             await fetch(`/api/conversations/${newConvId}`, {
               method: 'PUT',
@@ -2777,9 +2790,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                 hasBeenRenamed: true
               })
             });
-            console.log('✅ Título editado guardado en Firestore');
+            debugLog('✅ Título editado guardado en Firestore');
           } catch (titleError) {
-            console.warn('⚠️ Failed to save edited title:', titleError);
+            debugWarn('⚠️ Failed to save edited title:', titleError);
           }
         }
         
@@ -2795,7 +2808,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           systemPrompt: globalUserSettings.systemPrompt,
         });
         
-        console.log('✅ Agente confirmado y actualizado con ID real:', newConvId);
+        debugLog('✅ Agente confirmado y actualizado con ID real:', newConvId);
       } else {
         // Handle API error response
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -2839,7 +2852,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
     } catch (error) {
       console.error('❌ Error creating agent:', error);
-      console.warn('⚠️ Agente temporal creado (no persistente)');
+      debugWarn('⚠️ Agente temporal creado (no persistente)');
     }
   };
 
@@ -2901,7 +2914,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     const messageToSend = messageOverride !== undefined ? messageOverride : input;
     const targetConversation = conversationOverride || currentConversation;
     
-    console.log('🚀 [sendMessage] Called with:', {
+    debugLog('🚀 [sendMessage] Called with:', {
       messageOverride,
       conversationOverride,
       messageToSend: messageToSend.substring(0, 50),
@@ -2909,7 +2922,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     });
     
     if (!messageToSend.trim() || !targetConversation) {
-      console.log('❌ [sendMessage] Aborted - missing message or conversation');
+      debugLog('❌ [sendMessage] Aborted - missing message or conversation');
       return;
     }
 
@@ -2936,21 +2949,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         timestamp: new Date()
       };
 
-      console.log('📨 [USER MSG] Adding user message to state');
-      console.log('📨 [USER MSG] Current messages count:', messages.length);
+      debugLog('📨 [USER MSG] Adding user message to state');
+      debugLog('📨 [USER MSG] Current messages count:', messages.length);
       setMessages(prev => {
-        console.log('📨 [USER MSG] Previous messages:', prev.length);
+        debugLog('📨 [USER MSG] Previous messages:', prev.length);
         const updated = [...prev, userMessage];
-        console.log('📨 [USER MSG] After adding user:', updated.length);
+        debugLog('📨 [USER MSG] After adding user:', updated.length);
         return updated;
       });
     } else {
-      console.log('✅ [USER MSG] Optimistic message already present, skipping duplication');
+      debugLog('✅ [USER MSG] Optimistic message already present, skipping duplication');
     }
     
     // ✅ NEW: Generate title immediately for first message (non-streaming - PROVEN)
     if (isFirstMessage && !targetConversation?.startsWith('temp-')) {
-      console.log('🏷️ First message - generating title...');
+      debugLog('🏷️ First message - generating title...');
       
       // Use proven non-streaming API (streaming returned zero chunks)
       fetch('/api/generate-title', {
@@ -2963,7 +2976,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       })
       .then(response => response.json())
       .then(data => {
-        console.log('✅ Title generated:', data.title);
+        debugLog('✅ Title generated:', data.title);
         
         // Update sidebar immediately
         setConversations(prev => prev.map(c => 
@@ -3003,40 +3016,40 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     
     // Method 3: If not found in array, check if targetConversation IS the Ally agent itself
     if (!isAllyConversation && targetConversation === allyConversationId) {
-      console.log('🤖 [ALLY] Target IS Ally agent itself');
+      debugLog('🤖 [ALLY] Target IS Ally agent itself');
       isAllyConversation = true;
     }
     
     const currentConv = conversations.find(c => c.id === targetConversation);
     
     // 🔍 DEBUG: Log Ally detection
-    console.log('🤖 [ALLY DETECTION] ==================');
-    console.log('  isAllyOverride (passed param):', isAllyOverride);
-    console.log('  targetConversation:', targetConversation);
-    console.log('  allyConversationId:', allyConversationId);
-    console.log('  Is target Ally agent itself?', targetConversation === allyConversationId);
-    console.log('  currentConv found in array?', !!currentConv);
+    debugLog('🤖 [ALLY DETECTION] ==================');
+    debugLog('  isAllyOverride (passed param):', isAllyOverride);
+    debugLog('  targetConversation:', targetConversation);
+    debugLog('  allyConversationId:', allyConversationId);
+    debugLog('  Is target Ally agent itself?', targetConversation === allyConversationId);
+    debugLog('  currentConv found in array?', !!currentConv);
     if (currentConv) {
-      console.log('  currentConv.id:', currentConv.id);
-      console.log('  currentConv.title:', currentConv.title);
-      console.log('  currentConv.agentId:', currentConv.agentId);
-      console.log('  currentConv.isAlly:', currentConv.isAlly);
-      console.log('  Match agentId?', currentConv.agentId === allyConversationId);
-      console.log('  Match isAlly flag?', currentConv.isAlly === true);
+      debugLog('  currentConv.id:', currentConv.id);
+      debugLog('  currentConv.title:', currentConv.title);
+      debugLog('  currentConv.agentId:', currentConv.agentId);
+      debugLog('  currentConv.isAlly:', currentConv.isAlly);
+      debugLog('  Match agentId?', currentConv.agentId === allyConversationId);
+      debugLog('  Match isAlly flag?', currentConv.isAlly === true);
     }
-    console.log('  ✅ FINAL isAllyConversation:', isAllyConversation);
-    console.log('  Detection method:', 
+    debugLog('  ✅ FINAL isAllyConversation:', isAllyConversation);
+    debugLog('  Detection method:', 
       isAllyOverride ? 'EXPLICIT_OVERRIDE (first message)' :
       currentConv?.agentId === allyConversationId ? 'AGENT_ID_MATCH' :
       currentConv?.isAlly === true ? 'IS_ALLY_FLAG' :
       targetConversation === allyConversationId ? 'IS_ALLY_AGENT_ITSELF' :
       'NOT_ALLY'
     );
-    console.log('==================');
+    debugLog('==================');
 
     // ✅ FIX: Initialize thinking steps FIRST so message is visible immediately
     // Customize labels for Ally vs regular agents
-    console.log('🎨 [THINKING STEPS] Using', isAllyConversation ? 'ALLY' : 'REGULAR', 'labels');
+    debugLog('🎨 [THINKING STEPS] Using', isAllyConversation ? 'ALLY' : 'REGULAR', 'labels');
     
     const stepLabels = isAllyConversation ? {
       thinking: 'Ally está revisando tus memorias...',
@@ -3050,7 +3063,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       generating: 'Generando Respuesta...'
     };
     
-    console.log('🎨 [THINKING STEPS] Labels:', stepLabels);
+    debugLog('🎨 [THINKING STEPS] Labels:', stepLabels);
 
     const initialSteps: ThinkingStep[] = Object.entries(stepLabels).map(([key, label]) => ({
       id: key,
@@ -3071,13 +3084,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       thinkingSteps: initialSteps // ✅ FIX: Add thinking steps immediately so message is visible
     };
 
-    console.log('🤖 [AI MSG] Adding streaming message to state');
-    console.log('🤖 [AI MSG] Messages before adding streaming:', messages.length);
+    debugLog('🤖 [AI MSG] Adding streaming message to state');
+    debugLog('🤖 [AI MSG] Messages before adding streaming:', messages.length);
     setMessages(prev => {
-      console.log('🤖 [AI MSG] Previous messages:', prev.length);
+      debugLog('🤖 [AI MSG] Previous messages:', prev.length);
       const updated = [...prev, streamingMessage];
-      console.log('🤖 [AI MSG] After adding streaming:', updated.length);
-      console.log('🤖 [AI MSG] Message types:', updated.map(m => `${m.role}:${m.id.substring(0, 10)}`));
+      debugLog('🤖 [AI MSG] After adding streaming:', updated.length);
+      debugLog('🤖 [AI MSG] Message types:', updated.map(m => `${m.role}:${m.id.substring(0, 10)}`));
       return updated;
     });
 
@@ -3089,7 +3102,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       // ✅ OPTIMAL: Use agent-based search - NO need to load or send source IDs!
       // BigQuery queries by agentId directly and finds relevant chunks
       
-      console.log(`📊 Sending message with agent-based RAG search:`, {
+      debugLog(`📊 Sending message with agent-based RAG search:`, {
         agentId: currentConversation,
         useAgentSearch: true,
         note: 'Backend queries BigQuery by agentId - no source loading needed!'
@@ -3109,7 +3122,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         .filter(s => s.enabled)
         .map(s => s.id);
       
-      console.log(`📊 Active sources for this agent:`, {
+      debugLog(`📊 Active sources for this agent:`, {
         count: activeSourceIds.length,
         sources: contextSources.filter(s => s.enabled).map(s => s.name)
       });
@@ -3120,7 +3133,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         currentAgentPrompt || currentAgentConfig?.systemPrompt || globalUserSettings.systemPrompt
       );
       
-      console.log('🔗 Using combined prompt:', {
+      debugLog('🔗 Using combined prompt:', {
         hasDomain: !!currentDomainPrompt,
         hasAgent: !!currentAgentPrompt,
         finalLength: finalSystemPrompt.length
@@ -3197,7 +3210,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           } catch (readError) {
             // ✅ Handle abort or read errors gracefully
             if (readError instanceof Error && (readError.name === 'AbortError' || isAbortedRef.current)) {
-              console.log('🛑 Stream reading aborted');
+              debugLog('🛑 Stream reading aborted');
               break; // Exit loop cleanly
             }
             throw readError; // Re-throw unexpected errors
@@ -3234,38 +3247,38 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   });
                 } else if (data.type === 'chunks') {
                   // Store chunk information for later display
-                  console.log('📊 Chunks seleccionados:', data.chunks);
+                  debugLog('📊 Chunks seleccionados:', data.chunks);
                 } else if (data.type === 'fragmentMapping') {
                   // NEW: Store fragment mapping for validation
-                  console.log('🗺️ Fragment mapping received:', data.mapping);
+                  debugLog('🗺️ Fragment mapping received:', data.mapping);
                   fragmentMappingRef.current = data.mapping;
                   
                   // Log expected citations
                   const expectedCitations = data.mapping.map((m: any) => `[${m.refId}]`).join(', ');
-                  console.log(`📋 Expected citations in response: ${expectedCitations}`);
+                  debugLog(`📋 Expected citations in response: ${expectedCitations}`);
                   data.mapping.forEach((m: any) => {
-                    console.log(`  [${m.refId}] → Fragmento ${m.chunkIndex} (${m.sourceName}) - ${(m.similarity * 100).toFixed(1)}%`);
+                    debugLog(`  [${m.refId}] → Fragmento ${m.chunkIndex} (${m.sourceName}) - ${(m.similarity * 100).toFixed(1)}%`);
                   });
                 } else if (data.type === 'references') {
                   // ✅ Receive references early and store in ref (not state - prevents re-render)
-                  console.log('📚 Received references BEFORE streaming:', data.references?.length || 0);
+                  debugLog('📚 Received references BEFORE streaming:', data.references?.length || 0);
                   receivedReferences = data.references || []; // Store in local variable
                   
                   if (USE_OPTIMIZED_REFERENCES) {
                     // ✅ OPTIMIZED: Attach references immediately (no wait for complete)
-                    console.log('⚡ [OPTIMIZED REF] Attaching references immediately to streaming message');
+                    debugLog('⚡ [OPTIMIZED REF] Attaching references immediately to streaming message');
                     setMessages(prev => prev.map(msg => 
                       msg.id === streamingId 
                         ? { ...msg, references: receivedReferences, isLoadingReferences: false }
                         : msg
                     ));
                   } else {
-                    console.log('   [OLD] Stored in variable, will attach on complete');
+                    debugLog('   [OLD] Stored in variable, will attach on complete');
                   }
                 } else if (data.type === 'chunk') {
                   // Append chunk to accumulated content
                   accumulatedContent += data.content;
-                  console.log('📝 [CHUNK] Received chunk, accumulated length now:', accumulatedContent.length);
+                  debugLog('📝 [CHUNK] Received chunk, accumulated length now:', accumulatedContent.length);
                   
                   // Update streaming message with new content
                   // First chunk: expand the container width smoothly
@@ -3285,11 +3298,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   finalUserMessageId = data.userMessageId;
                   
                   // Debug: Completion received
-                  console.log('✅ Message complete event received');
-                  console.log('🔍 [STREAM COMPLETE] Content length:', accumulatedContent.length);
-                  console.log('🔍 [STREAM COMPLETE] References already attached earlier');
-                  console.log('🔍 [STREAM COMPLETE] Streaming ID:', streamingId);
-                  console.log('🔍 [STREAM COMPLETE] Accumulated content preview:', accumulatedContent.substring(0, 100));
+                  debugLog('✅ Message complete event received');
+                  debugLog('🔍 [STREAM COMPLETE] Content length:', accumulatedContent.length);
+                  debugLog('🔍 [STREAM COMPLETE] References already attached earlier');
+                  debugLog('🔍 [STREAM COMPLETE] Streaming ID:', streamingId);
+                  debugLog('🔍 [STREAM COMPLETE] Accumulated content preview:', accumulatedContent.substring(0, 100));
                   // ✅ No references in complete event (sent separately to prevent flicker)
                   
                   // NEW: Validate citations if we have fragment mapping
@@ -3303,38 +3316,38 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       }
                     }
                     
-                    console.log('📋 Citation validation:');
-                    console.log(`  Expected: ${expectedCitations.join(', ')}`);
-                    console.log(`  Found in text: ${foundCitations.join(', ')}`);
-                    console.log(`  Coverage: ${foundCitations.length}/${expectedCitations.length} (${(foundCitations.length / expectedCitations.length * 100).toFixed(0)}%)`);
+                    debugLog('📋 Citation validation:');
+                    debugLog(`  Expected: ${expectedCitations.join(', ')}`);
+                    debugLog(`  Found in text: ${foundCitations.join(', ')}`);
+                    debugLog(`  Coverage: ${foundCitations.length}/${expectedCitations.length} (${(foundCitations.length / expectedCitations.length * 100).toFixed(0)}%)`);
                     
                     if (foundCitations.length === 0) {
-                      console.warn('⚠️ WARNING: AI did not include any inline citations [1], [2], etc.');
-                      console.warn('   The AI may not have followed the RAG citation instructions.');
-                      console.warn('   References will still be shown below the message.');
+                      debugWarn('⚠️ WARNING: AI did not include any inline citations [1], [2], etc.');
+                      debugWarn('   The AI may not have followed the RAG citation instructions.');
+                      debugWarn('   References will still be shown below the message.');
                     } else if (foundCitations.length < expectedCitations.length) {
-                      console.warn(`⚠️ WARNING: AI only cited ${foundCitations.length}/${expectedCitations.length} fragments.`);
-                      console.warn(`   Missing: ${expectedCitations.filter((c: string) => !foundCitations.includes(c)).join(', ')}`);
+                      debugWarn(`⚠️ WARNING: AI only cited ${foundCitations.length}/${expectedCitations.length} fragments.`);
+                      debugWarn(`   Missing: ${expectedCitations.filter((c: string) => !foundCitations.includes(c)).join(', ')}`);
                     } else {
-                      console.log('✅ All fragments were cited correctly by the AI!');
+                      debugLog('✅ All fragments were cited correctly by the AI!');
                     }
                   }
                   
                   // ✅ FINAL FIX: Update to complete state with references attached
-                  console.log('🔄 [STREAM COMPLETE] Attaching references and marking complete');
-                  console.log('   Streaming ID:', streamingId);
-                  console.log('   Content length:', accumulatedContent.length, 'chars');
-                  console.log('   References to attach:', receivedReferences.length);
+                  debugLog('🔄 [STREAM COMPLETE] Attaching references and marking complete');
+                  debugLog('   Streaming ID:', streamingId);
+                  debugLog('   Content length:', accumulatedContent.length, 'chars');
+                  debugLog('   References to attach:', receivedReferences.length);
                   
                   // ✅ ONE FINAL UPDATE: Complete state with everything
                   setMessages(prev => {
-                    console.log('🔍 [STATE UPDATE] Previous messages count:', prev.length);
-                    console.log('🔍 [STATE UPDATE] Looking for streaming message:', streamingId);
+                    debugLog('🔍 [STATE UPDATE] Previous messages count:', prev.length);
+                    debugLog('🔍 [STATE UPDATE] Looking for streaming message:', streamingId);
                     const found = prev.find(msg => msg.id === streamingId);
-                    console.log('🔍 [STATE UPDATE] Streaming message found:', !!found);
+                    debugLog('🔍 [STATE UPDATE] Streaming message found:', !!found);
                     if (found) {
-                      console.log('🔍 [STATE UPDATE] Streaming message current content length:', found.content?.length || 0);
-                      console.log('🔍 [STATE UPDATE] Streaming message isStreaming:', found.isStreaming);
+                      debugLog('🔍 [STATE UPDATE] Streaming message current content length:', found.content?.length || 0);
+                      debugLog('🔍 [STATE UPDATE] Streaming message isStreaming:', found.isStreaming);
                     }
                     
                     const updated = prev.map(msg => 
@@ -3352,11 +3365,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         : msg
                     );
                     
-                    console.log('🔍 [STATE UPDATE] Updated messages count:', updated.length);
+                    debugLog('🔍 [STATE UPDATE] Updated messages count:', updated.length);
                     const updatedMsg = updated.find(m => m.id === streamingId);
                     if (updatedMsg) {
-                      console.log('🔍 [STATE UPDATE] Updated message content length:', updatedMsg.content?.length || 0);
-                      console.log('🔍 [STATE UPDATE] Updated message isStreaming:', updatedMsg.isStreaming);
+                      debugLog('🔍 [STATE UPDATE] Updated message content length:', updatedMsg.content?.length || 0);
+                      debugLog('🔍 [STATE UPDATE] Updated message isStreaming:', updatedMsg.isStreaming);
                     }
                     return updated;
                   });
@@ -3387,9 +3400,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
                   // Log references for debugging
                   if (data.references && data.references.length > 0) {
-                    console.log('📚 Message saved with references:', data.references.length);
+                    debugLog('📚 Message saved with references:', data.references.length);
                     data.references.forEach((ref: any) => {
-                      console.log(`  [${ref.id}] ${ref.sourceName} - Chunk #${ref.chunkIndex + 1} - ${(ref.similarity * 100).toFixed(1)}%`);
+                      debugLog(`  [${ref.id}] ${ref.sourceName} - Chunk #${ref.chunkIndex + 1} - ${(ref.similarity * 100).toFixed(1)}%`);
                     });
                   }
 
@@ -3449,7 +3462,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
                   // ✅ SIMPLIFIED: If first message, reload conversation to get updated title
                   if (isFirstMessage && currentConversation) { // ✅ Validate not null
-                    console.log('🏷️ First message completed - reloading conversation for title...');
+                    debugLog('🏷️ First message completed - reloading conversation for title...');
                     
                     // Capture conversationId in closure to avoid race conditions
                     const convId = currentConversation;
@@ -3459,7 +3472,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       try {
                         // ✅ FIX: Validate convId is not null/undefined before making API call
                         if (!convId || convId === 'null' || convId === 'undefined') {
-                          console.warn('⚠️ Skipping title reload - invalid conversationId:', convId);
+                          debugWarn('⚠️ Skipping title reload - invalid conversationId:', convId);
                           return;
                         }
                         
@@ -3471,7 +3484,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                               ? { ...c, title: updatedConv.title }
                               : c
                           ));
-                          console.log('✅ Title updated:', updatedConv.title);
+                          debugLog('✅ Title updated:', updatedConv.title);
                         }
                       } catch (error) {
                         console.error('⚠️ Could not reload title:', error);
@@ -3492,7 +3505,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     } catch (error) {
       // ✅ NEW: Don't show error if user cancelled the request
       if (error instanceof Error && (error.name === 'AbortError' || isAbortedRef.current)) {
-        console.log('🛑 Request cancelled by user');
+        debugLog('🛑 Request cancelled by user');
         // Only remove streaming message if stopProcessing hasn't already handled it
         if (!isAbortedRef.current) {
           setMessages(prev => prev.filter(msg => msg.id !== streamingId));
@@ -3537,7 +3550,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     
     // ✅ NEW: Abort the ongoing fetch request
     if (abortControllerRef.current) {
-      console.log('🛑 Aborting ongoing request...');
+      debugLog('🛑 Aborting ongoing request...');
       abortControllerRef.current.abort();
       // Don't set to null here - let finally block handle cleanup
     }
@@ -3567,22 +3580,22 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       return filtered;
     });
     
-    console.log('⏹️ Procesamiento detenido para agente:', currentConversation);
+    debugLog('⏹️ Procesamiento detenido para agente:', currentConversation);
   };
 
   const toggleContext = async (sourceId: string) => {
-    console.log('🔄 Toggle context called for source:', sourceId);
-    console.log('📚 Current sources state:', contextSources.map(s => ({ id: s.id, name: s.name, enabled: s.enabled })));
+    debugLog('🔄 Toggle context called for source:', sourceId);
+    debugLog('📚 Current sources state:', contextSources.map(s => ({ id: s.id, name: s.name, enabled: s.enabled })));
     
     // Get current enabled state
     const source = contextSources.find(s => s.id === sourceId);
     if (!source) {
-      console.warn('⚠️ Source not found:', sourceId);
+      debugWarn('⚠️ Source not found:', sourceId);
       return;
     }
     
     const newEnabledState = !source.enabled;
-    console.log(`📝 Toggling ${source.name} (ID: ${sourceId}): ${source.enabled} → ${newEnabledState}`);
+    debugLog(`📝 Toggling ${source.name} (ID: ${sourceId}): ${source.enabled} → ${newEnabledState}`);
     
     // Calculate new state immediately
     const updatedSources = contextSources.map(s => 
@@ -3601,7 +3614,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: newEnabledState })
       });
-      console.log(`✅ Context source enabled state updated in Firestore: ${sourceId} → ${newEnabledState}`);
+      debugLog(`✅ Context source enabled state updated in Firestore: ${sourceId} → ${newEnabledState}`);
     } catch (error) {
       console.error('❌ Error updating context source enabled state:', error);
     }
@@ -3611,7 +3624,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const newActiveIds = updatedSources
         .filter(s => s.enabled)
         .map(s => s.id);
-      console.log('💾 Saving active IDs for conversation:', newActiveIds);
+      debugLog('💾 Saving active IDs for conversation:', newActiveIds);
       saveContextForConversation(currentConversation, newActiveIds);
       
       // ✅ CACHE: Update cache with new toggle state
@@ -3704,7 +3717,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         formData.append('model', 'gemini-2.5-pro'); // Use Pro for better extraction quality
         formData.append('extractionMethod', 'vision-api'); // ✅ Use Vision API for PDFs
 
-        console.log(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with Gemini Pro`);
+        debugLog(`📤 Uploading file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB) with Gemini Pro`);
 
         const response = await fetch('/api/extract-document', {
           method: 'POST',
@@ -3724,12 +3737,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           throw new Error(data.error || 'Extraction failed');
         }
 
-        console.log(`✅ Extraction successful: ${data.extractedText?.length || 0} characters extracted`);
+        debugLog(`✅ Extraction successful: ${data.extractedText?.length || 0} characters extracted`);
         
         // Log token usage and cost
         if (data.metadata?.totalTokens) {
-          console.log(`📊 Tokens: ${data.metadata.inputTokens?.toLocaleString()} input + ${data.metadata.outputTokens?.toLocaleString()} output = ${data.metadata.totalTokens.toLocaleString()} total`);
-          console.log(`💰 Cost: ${data.metadata.costFormatted} (Input: $${data.metadata.inputCost?.toFixed(4)}, Output: $${data.metadata.outputCost?.toFixed(4)})`);
+          debugLog(`📊 Tokens: ${data.metadata.inputTokens?.toLocaleString()} input + ${data.metadata.outputTokens?.toLocaleString()} output = ${data.metadata.totalTokens.toLocaleString()} total`);
+          debugLog(`💰 Cost: ${data.metadata.costFormatted} (Input: $${data.metadata.inputCost?.toFixed(4)}, Output: $${data.metadata.outputCost?.toFixed(4)})`);
         }
 
         // Save to Firestore - Assign to current agent (or all agents if PUBLIC)
@@ -3811,7 +3824,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             : s
         ));
 
-        console.log('✅ Fuente de contexto guardada en Firestore:', sourceId);
+        debugLog('✅ Fuente de contexto guardada en Firestore:', sourceId);
 
         // Auto-activate in current conversation
         if (currentConversation) {
@@ -3821,12 +3834,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           const newActiveIds = [...currentActiveIds, sourceId];
           
           await saveContextForConversation(currentConversation, newActiveIds);
-          console.log(`✅ Fuente activada automáticamente para agente ${currentConversation}`);
+          debugLog(`✅ Fuente activada automáticamente para agente ${currentConversation}`);
         }
 
         // AUTO-INDEX WITH RAG (NEW - Automatic)
         if (data.extractedText && data.extractedText.length > 100) {
-          console.log('🔍 Auto-indexing with RAG...');
+          debugLog('🔍 Auto-indexing with RAG...');
           
           try {
             // Update UI to show indexing started
@@ -3856,17 +3869,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
             if (indexResponse.ok) {
               const indexData = await indexResponse.json();
-              console.log(`✅ RAG indexing complete: ${indexData.chunksCreated} chunks created`);
+              debugLog(`✅ RAG indexing complete: ${indexData.chunksCreated} chunks created`);
               
               // Reload context sources to show RAG metadata (force verification since we just indexed)
               if (currentConversation) {
                 await loadContextForConversation(currentConversation, false); // Force RAG verification
               }
             } else {
-              console.warn('⚠️ RAG indexing failed, document still usable in full-text mode');
+              debugWarn('⚠️ RAG indexing failed, document still usable in full-text mode');
             }
           } catch (indexError) {
-            console.warn('⚠️ RAG indexing error (non-critical):', indexError);
+            debugWarn('⚠️ RAG indexing error (non-critical):', indexError);
             // Continue - document is still usable without RAG
           }
         }
@@ -3924,12 +3937,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     setWorkflows(prev => prev.map(w => 
       w.id === workflowId ? { ...w, config } : w
     ));
-    console.log('✅ Workflow config saved:', workflowId, config);
+    debugLog('✅ Workflow config saved:', workflowId, config);
   };
 
   const handleSaveUserSettings = async (settings: UserSettings) => {
     try {
-      console.log('💾 Guardando configuración del usuario en Firestore...');
+      debugLog('💾 Guardando configuración del usuario en Firestore...');
       const response = await fetch('/api/user-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3939,11 +3952,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       if (response.ok) {
         const savedSettings = await response.json();
         setGlobalUserSettings(savedSettings);
-        console.log('✅ Configuración del usuario guardada en Firestore:', savedSettings.preferredModel);
+        debugLog('✅ Configuración del usuario guardada en Firestore:', savedSettings.preferredModel);
         
         // Apply theme if it was changed
         if (savedSettings.theme) {
-          console.log(`🎨 Aplicando tema guardado: ${savedSettings.theme}`);
+          debugLog(`🎨 Aplicando tema guardado: ${savedSettings.theme}`);
           if (savedSettings.theme === 'dark') {
             document.documentElement.classList.add('dark');
           } else {
@@ -3966,7 +3979,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // Save agent-specific config for the current conversation if applicable
     if (currentConversation && !currentConversation.startsWith('temp-')) {
       try {
-        console.log('💾 Guardando configuración del agente para conversación en Firestore...', currentConversation);
+        debugLog('💾 Guardando configuración del agente para conversación en Firestore...', currentConversation);
         await fetch('/api/agent-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3977,7 +3990,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             systemPrompt: settings.systemPrompt,
           }),
         });
-        console.log('✅ Configuración del agente para conversación guardada en Firestore.');
+        debugLog('✅ Configuración del agente para conversación guardada en Firestore.');
       } catch (error) {
         console.error('❌ Error al guardar configuración del agente para conversación:', error);
       }
@@ -4002,7 +4015,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       });
       
       setCurrentDomainPrompt(domainPrompt);
-      console.log('✅ Domain prompt saved');
+      debugLog('✅ Domain prompt saved');
     } catch (error) {
       console.error('❌ Error saving domain prompt:', error);
       throw error;
@@ -4024,15 +4037,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const currentConv = conversations.find(c => c.id === conversationIdToUse);
       const agentIdToSave = currentConv?.agentId || conversationIdToUse;
       
-      console.log('💾 [FRONTEND] Guardando agent prompt...');
-      console.log('🔍 [FRONTEND] conversationIdToUse:', conversationIdToUse);
-      console.log('🔍 [FRONTEND] Current conversation ID:', currentConversation);
-      console.log('🔍 [FRONTEND] agentForEnhancer:', agentForEnhancer?.id);
-      console.log('🔍 [FRONTEND] Is chat with parent agent:', !!currentConv?.agentId);
-      console.log('🔍 [FRONTEND] Agent ID to save to:', agentIdToSave);
-      console.log('🔍 [FRONTEND] Agent prompt length:', agentPrompt.length);
-      console.log('🔍 [FRONTEND] Change type:', changeType || 'manual_update');
-      console.log('🔍 [FRONTEND] Agent prompt (first 200 chars):', agentPrompt.substring(0, 200));
+      debugLog('💾 [FRONTEND] Guardando agent prompt...');
+      debugLog('🔍 [FRONTEND] conversationIdToUse:', conversationIdToUse);
+      debugLog('🔍 [FRONTEND] Current conversation ID:', currentConversation);
+      debugLog('🔍 [FRONTEND] agentForEnhancer:', agentForEnhancer?.id);
+      debugLog('🔍 [FRONTEND] Is chat with parent agent:', !!currentConv?.agentId);
+      debugLog('🔍 [FRONTEND] Agent ID to save to:', agentIdToSave);
+      debugLog('🔍 [FRONTEND] Agent prompt length:', agentPrompt.length);
+      debugLog('🔍 [FRONTEND] Change type:', changeType || 'manual_update');
+      debugLog('🔍 [FRONTEND] Agent prompt (first 200 chars):', agentPrompt.substring(0, 200));
       
       const response = await fetch(`/api/conversations/${agentIdToSave}/prompt`, {
         method: 'PUT',
@@ -4051,10 +4064,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
       
       const result = await response.json();
-      console.log('✅ [FRONTEND] Agent prompt saved, response:', result);
-      console.log('🔍 [FRONTEND] Saved prompt length:', result.agentPrompt?.length);
-      console.log('🔍 [FRONTEND] Saved prompt:', result.agentPrompt);
-      console.log('📚 [FRONTEND] Version number:', result.promptVersion);
+      debugLog('✅ [FRONTEND] Agent prompt saved, response:', result);
+      debugLog('🔍 [FRONTEND] Saved prompt length:', result.agentPrompt?.length);
+      debugLog('🔍 [FRONTEND] Saved prompt:', result.agentPrompt);
+      debugLog('📚 [FRONTEND] Version number:', result.promptVersion);
       
       // Update state and track save time
       setCurrentAgentPrompt(agentPrompt);
@@ -4070,7 +4083,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       // Auto-hide toast after 4 seconds
       setTimeout(() => setShowPromptSavedToast(false), 4000);
       
-      console.log('✅ Agent prompt saved and cached');
+      debugLog('✅ Agent prompt saved and cached');
     } catch (error) {
       console.error('❌ Error saving agent prompt:', error);
       throw error;
@@ -4080,36 +4093,36 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ NEW: Handle enhanced prompt suggestion
   const handlePromptSuggested = async (enhancedPrompt: string, documentUrl: string) => {
     try {
-      console.log('✨ [SUGGEST] Enhanced prompt suggested:', enhancedPrompt.length, 'characters');
-      console.log('📄 [SUGGEST] Document URL:', documentUrl);
-      console.log('🔍 [SUGGEST] Current conversation:', currentConversation);
-      console.log('🔍 [SUGGEST] Current agent prompt BEFORE:', currentAgentPrompt?.length || 0, 'chars');
-      console.log('📝 [SUGGEST] Enhanced prompt (first 200):', enhancedPrompt.substring(0, 200));
+      debugLog('✨ [SUGGEST] Enhanced prompt suggested:', enhancedPrompt.length, 'characters');
+      debugLog('📄 [SUGGEST] Document URL:', documentUrl);
+      debugLog('🔍 [SUGGEST] Current conversation:', currentConversation);
+      debugLog('🔍 [SUGGEST] Current agent prompt BEFORE:', currentAgentPrompt?.length || 0, 'chars');
+      debugLog('📝 [SUGGEST] Enhanced prompt (first 200):', enhancedPrompt.substring(0, 200));
       
       // Save the enhanced prompt with AI enhancement marker
-      console.log('💾 [SUGGEST] Saving to Firestore with ai_enhanced...');
+      debugLog('💾 [SUGGEST] Saving to Firestore with ai_enhanced...');
       await handleSaveAgentPrompt(enhancedPrompt, 'ai_enhanced');
-      console.log('✅ [SUGGEST] Saved to Firestore successfully');
+      debugLog('✅ [SUGGEST] Saved to Firestore successfully');
       
       // Update local state IMMEDIATELY (before any modal operations)
-      console.log('🔄 [SUGGEST] Updating local state to enhanced prompt...');
+      debugLog('🔄 [SUGGEST] Updating local state to enhanced prompt...');
       setCurrentAgentPrompt(enhancedPrompt);
-      console.log('✅ [SUGGEST] Local state updated to:', enhancedPrompt.length, 'chars');
+      debugLog('✅ [SUGGEST] Local state updated to:', enhancedPrompt.length, 'chars');
       
       // Close enhancer
-      console.log('🔄 [SUGGEST] Closing enhancer modal...');
+      debugLog('🔄 [SUGGEST] Closing enhancer modal...');
       setShowAgentPromptEnhancer(false);
       
       // Small delay for React state updates to propagate
       await new Promise(resolve => setTimeout(resolve, 100));
       
       // Reopen config modal - React will use the updated currentAgentPrompt state
-      console.log('🔄 [SUGGEST] Reopening config modal with updated state...');
-      console.log('🔍 [SUGGEST] currentAgentPrompt state:', enhancedPrompt.length, 'chars');
+      debugLog('🔄 [SUGGEST] Reopening config modal with updated state...');
+      debugLog('🔍 [SUGGEST] currentAgentPrompt state:', enhancedPrompt.length, 'chars');
       setShowAgentPromptModal(true);
       
-      console.log('✅ [SUGGEST] Enhanced prompt applied and modal reopened');
-      console.log('💡 [SUGGEST] Modal will display the updated prompt from state');
+      debugLog('✅ [SUGGEST] Enhanced prompt applied and modal reopened');
+      debugLog('💡 [SUGGEST] Modal will display the updated prompt from state');
       
       // TODO: Save document URL reference to agent config
     } catch (error) {
@@ -4122,8 +4135,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   // ✅ NEW: Handle prompt version revert
   const handlePromptReverted = async (revertedPrompt: string, versionNumber: number) => {
     try {
-      console.log('🔄 Prompt reverted to version:', versionNumber);
-      console.log('📝 Prompt length:', revertedPrompt.length);
+      debugLog('🔄 Prompt reverted to version:', versionNumber);
+      debugLog('📝 Prompt length:', revertedPrompt.length);
       
       // Update local state
       setCurrentAgentPrompt(revertedPrompt);
@@ -4137,7 +4150,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       setShowPromptVersionHistory(false);
       setShowAgentPromptModal(true);
       
-      console.log('✅ Prompt reverted successfully and modal reopened');
+      debugLog('✅ Prompt reverted successfully and modal reopened');
     } catch (error) {
       console.error('❌ Error handling reverted prompt:', error);
     }
@@ -4150,21 +4163,21 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const now = Date.now();
       const cached = loadedPromptsRef.current;
       if (cached && cached.conversationId === conversationId && (now - cached.timestamp) < 30000) {
-        console.log('⚡ Using cached prompts for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
+        debugLog('⚡ Using cached prompts for:', conversationId, '(loaded', Math.round((now - cached.timestamp)/1000), 'seconds ago)');
         return;
       }
       
       // 🔑 Skip reload if we recently saved (within last 5 seconds)
       const timeSinceLastSave = Date.now() - lastPromptSaveTime;
       if (timeSinceLastSave < 5000 && lastPromptSaveTime > 0) {
-        console.log('⏭️ [LOAD PROMPTS] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
-        console.log('💡 [LOAD PROMPTS] Using cached prompt:', currentAgentPrompt.length, 'chars');
+        debugLog('⏭️ [LOAD PROMPTS] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
+        debugLog('💡 [LOAD PROMPTS] Using cached prompt:', currentAgentPrompt.length, 'chars');
         return;
       }
       
       // 🔑 Skip reload if explicitly requested
       if (skipReload) {
-        console.log('⏭️ [LOAD PROMPTS] Skipping reload - skipReload flag set');
+        debugLog('⏭️ [LOAD PROMPTS] Skipping reload - skipReload flag set');
         return;
       }
       
@@ -4172,9 +4185,9 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const currentConv = conversations.find(c => c.id === conversationId);
       const agentIdToLoad = currentConv?.agentId || conversationId;
       
-      console.log('📥 [LOAD PROMPTS] Loading prompts for conversation:', conversationId);
-      console.log('🔍 [LOAD PROMPTS] Is chat with parent agent:', !!currentConv?.agentId);
-      console.log('🔍 [LOAD PROMPTS] Agent ID to load from:', agentIdToLoad);
+      debugLog('📥 [LOAD PROMPTS] Loading prompts for conversation:', conversationId);
+      debugLog('🔍 [LOAD PROMPTS] Is chat with parent agent:', !!currentConv?.agentId);
+      debugLog('🔍 [LOAD PROMPTS] Agent ID to load from:', agentIdToLoad);
       
       // Load organization domain prompt
       // For now using default-org, in future would be from user.organizationId
@@ -4190,8 +4203,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       const agentResponse = await fetch(`/api/conversations/${agentIdToLoad}/prompt`);
       if (agentResponse.ok) {
         const promptData = await agentResponse.json();
-        console.log('📥 [LOAD PROMPTS] Prompt data received:', promptData);
-        console.log('🔍 [LOAD PROMPTS] Agent prompt length:', promptData.agentPrompt?.length);
+        debugLog('📥 [LOAD PROMPTS] Prompt data received:', promptData);
+        debugLog('🔍 [LOAD PROMPTS] Agent prompt length:', promptData.agentPrompt?.length);
         setCurrentAgentPrompt(promptData.agentPrompt || '');
         
         // ✅ CACHE: Store that we loaded this
@@ -4213,15 +4226,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
 
   const handleAgentConfigSaved = async (config: AgentConfiguration) => {
     if (!currentConversation) {
-      console.warn('⚠️ No current conversation to save config');
+      debugWarn('⚠️ No current conversation to save config');
       return;
     }
     
-    console.log('💾 Guardando configuración extraída del agente:', currentConversation, config);
-    console.log('🔍 [SAVE FULL] ALL CONFIG KEYS:', Object.keys(config));
-    console.log('🔍 [SAVE FULL] FULL CONFIG:', JSON.stringify(config, null, 2));
-    console.log('🔍 [SAVE FULL] expectedInputExamples:', config.expectedInputExamples);
-    console.log('🔍 [SAVE FULL] expectedInputExamples count:', config.expectedInputExamples?.length);
+    debugLog('💾 Guardando configuración extraída del agente:', currentConversation, config);
+    debugLog('🔍 [SAVE FULL] ALL CONFIG KEYS:', Object.keys(config));
+    debugLog('🔍 [SAVE FULL] FULL CONFIG:', JSON.stringify(config, null, 2));
+    debugLog('🔍 [SAVE FULL] expectedInputExamples:', config.expectedInputExamples);
+    debugLog('🔍 [SAVE FULL] expectedInputExamples count:', config.expectedInputExamples?.length);
     
     // Validate and correct model name (fix gemini-1.5-* -> gemini-2.5-*)
     let validatedModel: 'gemini-2.5-pro' | 'gemini-2.5-flash' = 'gemini-2.5-flash';
@@ -4229,12 +4242,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     
     if (modelStr === 'gemini-1.5-pro' || modelStr === 'gemini-pro' || modelStr === 'gemini-2.5-pro') {
       if (modelStr !== 'gemini-2.5-pro') {
-        console.log(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-pro`);
+        debugLog(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-pro`);
       }
       validatedModel = 'gemini-2.5-pro';
     } else if (modelStr === 'gemini-1.5-flash' || modelStr === 'gemini-flash' || modelStr === 'gemini-2.5-flash') {
       if (modelStr !== 'gemini-2.5-flash') {
-        console.log(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-flash`);
+        debugLog(`🔧 Correcting invalid model: ${modelStr} -> gemini-2.5-flash`);
       }
       validatedModel = 'gemini-2.5-flash';
     }
@@ -4262,11 +4275,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           },
         }),
       });
-      console.log('✅ Configuración guardada en Firestore para agente:', currentConversation);
+      debugLog('✅ Configuración guardada en Firestore para agente:', currentConversation);
       
       // Also save to agent_setup_docs for evaluation system
-      console.log('💾 [SAVE SETUP] Guardando en agent_setup_docs...');
-      console.log('💾 [SAVE SETUP] expectedInputExamples:', config.expectedInputExamples);
+      debugLog('💾 [SAVE SETUP] Guardando en agent_setup_docs...');
+      debugLog('💾 [SAVE SETUP] expectedInputExamples:', config.expectedInputExamples);
       
       // Generate test examples - try expectedInputExamples first, fallback to criteria
       let inputExamples: any[] = [];
@@ -4274,7 +4287,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       
       // Method 1: Use expectedInputExamples if exists
       if (config.expectedInputExamples && Array.isArray(config.expectedInputExamples) && config.expectedInputExamples.length > 0) {
-        console.log('💾 [SAVE SETUP] Using expectedInputExamples from config');
+        debugLog('💾 [SAVE SETUP] Using expectedInputExamples from config');
         inputExamples = config.expectedInputExamples.map((ex: any) => ({
           question: ex.question || ex.example || '',
           category: ex.category || 'General'
@@ -4289,7 +4302,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       } 
       // Method 2: Generate from acceptanceCriteria and qualityCriteria
       else {
-        console.log('💾 [SAVE SETUP] No expectedInputExamples, generating from criteria');
+        debugLog('💾 [SAVE SETUP] No expectedInputExamples, generating from criteria');
         
         // Use acceptanceCriteria as test cases
         if (config.acceptanceCriteria && Array.isArray(config.acceptanceCriteria)) {
@@ -4322,8 +4335,8 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         }
       }
       
-      console.log('💾 [SAVE SETUP] Final inputExamples:', inputExamples);
-      console.log('💾 [SAVE SETUP] inputExamples count:', inputExamples.length);
+      debugLog('💾 [SAVE SETUP] Final inputExamples:', inputExamples);
+      debugLog('💾 [SAVE SETUP] inputExamples count:', inputExamples.length);
       
       const setupDocData = {
         agentId: currentConversation,
@@ -4366,13 +4379,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         successMetrics: config.successMetrics || []
       };
       
-      console.log('💾 [SAVE SETUP] inputExamples mapeados:', setupDocData.inputExamples);
-      console.log('💾 [SAVE SETUP] inputExamples count:', setupDocData.inputExamples.length);
-      console.log('💾 [SAVE SETUP] pilotUsers count:', setupDocData.pilotUsers?.length || 0);
-      console.log('💾 [SAVE SETUP] targetAudience count:', setupDocData.targetAudience?.length || 0);
-      console.log('💾 [SAVE SETUP] tone:', setupDocData.tone || 'N/A');
-      console.log('💾 [SAVE SETUP] recommendedModel:', setupDocData.recommendedModel || 'N/A');
-      console.log('💾 [SAVE SETUP] domainExpert:', setupDocData.domainExpert);
+      debugLog('💾 [SAVE SETUP] inputExamples mapeados:', setupDocData.inputExamples);
+      debugLog('💾 [SAVE SETUP] inputExamples count:', setupDocData.inputExamples.length);
+      debugLog('💾 [SAVE SETUP] pilotUsers count:', setupDocData.pilotUsers?.length || 0);
+      debugLog('💾 [SAVE SETUP] targetAudience count:', setupDocData.targetAudience?.length || 0);
+      debugLog('💾 [SAVE SETUP] tone:', setupDocData.tone || 'N/A');
+      debugLog('💾 [SAVE SETUP] recommendedModel:', setupDocData.recommendedModel || 'N/A');
+      debugLog('💾 [SAVE SETUP] domainExpert:', setupDocData.domainExpert);
       
       await fetch('/api/agent-setup/save', {
         method: 'POST',
@@ -4380,7 +4393,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         body: JSON.stringify(setupDocData)
       });
       
-      console.log('✅ [SAVE SETUP] Configuración guardada en agent_setup_docs');
+      debugLog('✅ [SAVE SETUP] Configuración guardada en agent_setup_docs');
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
     }
@@ -4388,17 +4401,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // Auto-rename conversation to match agent name (ONLY if not manually renamed before)
     const currentConv = conversations.find(c => c.id === currentConversation);
     if (config.agentName && !currentConv?.hasBeenRenamed) {
-      console.log('🔄 Auto-renaming agent to:', config.agentName);
+      debugLog('🔄 Auto-renaming agent to:', config.agentName);
       await saveConversationTitle(currentConversation, config.agentName, false); // false = auto-rename, not manual
       
       // Force UI update by re-loading conversations to ensure name change is visible
-      console.log('🔄 Reloading conversations to reflect name change...');
+      debugLog('🔄 Reloading conversations to reflect name change...');
       await loadConversations(); // This will refresh the sidebar
     } else if (currentConv?.hasBeenRenamed) {
-      console.log('ℹ️ Agent already renamed by user, preserving name:', currentConv.title);
+      debugLog('ℹ️ Agent already renamed by user, preserving name:', currentConv.title);
     }
     
-    console.log('✅ Configuración del agente aplicada solo a este agente');
+    debugLog('✅ Configuración del agente aplicada solo a este agente');
   };
 
   const handleSourceSettings = (sourceId: string) => {
@@ -4427,7 +4440,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
     // 🚨 CRITICAL: Prevent editing agent titles
     const conversation = conversations.find(c => c.id === conversationId);
     if (conversation?.isAgent === true) {
-      console.warn('⚠️ Cannot edit agent title - only conversation titles can be edited');
+      debugWarn('⚠️ Cannot edit agent title - only conversation titles can be edited');
       alert('No puedes editar el nombre del agente. Solo se pueden renombrar conversaciones derivadas del agente.');
       cancelEditingConversation();
       return;
@@ -4445,12 +4458,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           : c
       ));
       
-      console.log(`⚡ Título actualizado localmente: "${newTitle.trim()}" (${conversationId})`);
+      debugLog(`⚡ Título actualizado localmente: "${newTitle.trim()}" (${conversationId})`);
       cancelEditingConversation();
 
       // If optimistic or temporary, only update locally (don't call API yet)
       if (isOptimistic || isTemporary) {
-        console.log(`ℹ️ Chat ${isOptimistic ? 'optimista' : 'temporal'} - título se guardará cuando se confirme en Firestore`);
+        debugLog(`ℹ️ Chat ${isOptimistic ? 'optimista' : 'temporal'} - título se guardará cuando se confirme en Firestore`);
         return;
       }
 
@@ -4486,7 +4499,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
       }
 
       const renameType = isManualRename ? 'manual' : 'auto';
-      console.log(`✅ Título actualizado en Firestore (${renameType}):`, conversationId, '→', newTitle.trim());
+      debugLog(`✅ Título actualizado en Firestore (${renameType}):`, conversationId, '→', newTitle.trim());
       
     } catch (error) {
       console.error('❌ Error al actualizar título:', error);
@@ -4546,7 +4559,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setMessages([]);
       }
 
-      console.log(`📦 Archivado → ${category}:`, conversationId);
+      debugLog(`📦 Archivado → ${category}:`, conversationId);
     } catch (error) {
       console.error('❌ Error al archivar agente:', error);
     }
@@ -4579,7 +4592,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         } : c
       ));
 
-      console.log('📂 Agente restaurado:', conversationId);
+      debugLog('📂 Agente restaurado:', conversationId);
     } catch (error) {
       console.error('❌ Error al restaurar agente:', error);
     }
@@ -4627,7 +4640,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         setMessages([]);
       }
 
-      console.log('🗑️ Agente eliminado permanentemente:', deleteConfirmation.conversationId);
+      debugLog('🗑️ Agente eliminado permanentemente:', deleteConfirmation.conversationId);
       
       // Close modal
       setDeleteConfirmation(null);
@@ -4639,7 +4652,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   };
 
   const handleReExtract = async (sourceId: string, newConfig: { model?: 'gemini-2.5-flash' | 'gemini-2.5-pro' }) => {
-    console.log('Re-extracting source:', sourceId, 'with config:', newConfig);
+    debugLog('Re-extracting source:', sourceId, 'with config:', newConfig);
     
     // Find the source
     const source = contextSources.find(s => s.id === sourceId);
@@ -4721,7 +4734,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           : s
       ));
 
-      console.log('✅ Re-extraction successful:', sourceId);
+      debugLog('✅ Re-extraction successful:', sourceId);
     } catch (error) {
       console.error('❌ Re-extraction failed:', error);
       
@@ -5106,7 +5119,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         setCurrentConversation(null);
                         setSelectedAgent(allyConversationId);
                         setMessages([]);
-                        console.log('✅ Ally selected - showing empty state with sample questions');
+                        debugLog('✅ Ally selected - showing empty state with sample questions');
                       }}
                       className={`
                         w-full p-2 rounded-lg transition-all cursor-pointer
@@ -6084,7 +6097,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <button
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors border border-transparent hover:border-blue-300 dark:hover:border-blue-700"
                         onClick={() => {
-                          console.log('🎯 Opening API Playground...');
+                          debugLog('🎯 Opening API Playground...');
                           setShowAPIPlayground(true);
                           setShowUserMenu(false);
                         }}
@@ -6100,7 +6113,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <button
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
-                          console.log('🎯 Opening API Management...');
+                          debugLog('🎯 Opening API Management...');
                           setShowAPIManagement(true);
                           setShowUserMenu(false);
                         }}
@@ -6146,7 +6159,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
-                            console.log('🎯 Opening Supervisor Expert Panel...');
+                            debugLog('🎯 Opening Supervisor Expert Panel...');
                             setShowSupervisorPanel(true);
                             setShowUserMenu(false);
                           }}
@@ -6161,7 +6174,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
-                            console.log('🎯 Opening Specialist Panel...');
+                            debugLog('🎯 Opening Specialist Panel...');
                             setShowSpecialistPanel(true);
                             setShowUserMenu(false);
                           }}
@@ -6176,7 +6189,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
-                            console.log('🔐 Opening Admin Approval Panel...');
+                            debugLog('🔐 Opening Admin Approval Panel...');
                             setShowAdminApproval(true);
                             setShowUserMenu(false);
                           }}
@@ -6191,7 +6204,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
-                            console.log('🛡️ Opening SuperAdmin Domain Assignment...');
+                            debugLog('🛡️ Opening SuperAdmin Domain Assignment...');
                             setShowSuperAdminDomains(true);
                             setShowUserMenu(false);
                           }}
@@ -6206,7 +6219,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         <button
                           className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                           onClick={() => {
-                            console.log('⚙️ Opening Domain Review Config...');
+                            debugLog('⚙️ Opening Domain Review Config...');
                             setShowDomainConfig(true);
                             setShowUserMenu(false);
                           }}
@@ -6220,7 +6233,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       <button
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
                         onClick={() => {
-                          console.log('📊 Opening Quality Dashboard...');
+                          debugLog('📊 Opening Quality Dashboard...');
                           setShowQualityDashboard(true);
                           setShowUserMenu(false);
                         }}
@@ -6748,7 +6761,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   <button
                     key={idx}
                     onClick={async () => {
-                      console.log('🔵 [ALLY] Sample question clicked:', question);
+                      debugLog('🔵 [ALLY] Sample question clicked:', question);
                       // ✅ Use the new helper function
                       setInput(question);
                       await handleCreateAllyConversationAndSend(question);
@@ -6886,7 +6899,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                         /* Show actual message content */
                         <div className="relative">
                           {/* DEBUG: Log message state before render */}
-                          {msg.role === 'assistant' && console.log('🐛 DEBUG rendering assistant message:', {
+                          {msg.role === 'assistant' && debugLog('🐛 DEBUG rendering assistant message:', {
                             id: msg.id,
                             hasReferences: !!msg.references,
                             referencesCount: msg.references?.length || 0,
@@ -6914,7 +6927,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                                 references={msg.references} // Pass references for this message
                                 isLoadingReferences={msg.isStreaming && (!msg.references || msg.references.length === 0)} // Show loading while streaming and no references yet
                                 onReferenceClick={async (reference) => {
-                                  console.log('🔍 Opening document viewer for reference:', reference);
+                                  debugLog('🔍 Opening document viewer for reference:', reference);
                                   
                                   // Load full source for document viewer
                                   const fullSource = await loadFullContextSource(reference.sourceId);
@@ -7764,7 +7777,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                                       <button
                                         key={ref.id}
                                         onClick={() => {
-                                          console.log('🔍 Opening reference from context log:', ref);
+                                          debugLog('🔍 Opening reference from context log:', ref);
                                           setSelectedReference(ref);
                                         }}
                                         className="w-full text-left bg-blue-50 border border-blue-200 rounded p-1.5 hover:bg-blue-50 transition-colors"
@@ -7965,7 +7978,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                     
                     // ✅ CREATE ONLY HERE: When user actually sends the message
                     if (!currentConversation && allyConversationId) {
-                      console.log('🆕 Enter pressed - creating Ally conversation and sending...');
+                      debugLog('🆕 Enter pressed - creating Ally conversation and sending...');
                       handleCreateAllyConversationAndSend(input);
                     } else {
                       sendMessage();
@@ -7990,7 +8003,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   onClick={() => {
                     // ✅ SAME LOGIC: Create conversation first if needed
                     if (!currentConversation && allyConversationId && input.trim()) {
-                      console.log('🆕 Send button clicked - creating Ally conversation and sending...');
+                      debugLog('🆕 Send button clicked - creating Ally conversation and sending...');
                       handleCreateAllyConversationAndSend(input);
                     } else if (input.trim()) {
                       sendMessage();
@@ -8033,7 +8046,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               <div
                 key={workflow.id}
                 className="p-1.5 bg-slate-50 rounded-md border border-slate-200 hover:shadow-md transition-all cursor-pointer"
-                onClick={() => console.log('Open workflow:', workflow.id)}
+                onClick={() => debugLog('Open workflow:', workflow.id)}
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-1.5">
@@ -8315,11 +8328,11 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           onEditPrompt={async () => {
             // ✅ IMPROVED: Store agent object before opening prompt modal
             const agent = conversations.find(c => c.id === agentForContextConfig);
-            console.log('🔍 [onEditPrompt] agentForContextConfig:', agentForContextConfig);
-            console.log('🔍 [onEditPrompt] Found agent:', agent?.id, agent?.title);
+            debugLog('🔍 [onEditPrompt] agentForContextConfig:', agentForContextConfig);
+            debugLog('🔍 [onEditPrompt] Found agent:', agent?.id, agent?.title);
             if (agent) {
               setAgentForEnhancer(agent); // ✅ Guardar para uso posterior en enhancer
-              console.log('✅ [onEditPrompt] Stored in agentForEnhancer:', agent.id);
+              debugLog('✅ [onEditPrompt] Stored in agentForEnhancer:', agent.id);
               setShowAgentContextModal(false);
               
               // ✅ Check if we recently saved (within 5 seconds) - CRITICAL FIX
@@ -8327,10 +8340,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               const recentlySaved = timeSinceLastSave < 5000 && lastPromptSaveTime > 0;
               
               if (recentlySaved) {
-                console.log('⏭️ [onEditPrompt] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
-                console.log('💡 [onEditPrompt] Using cached prompt:', currentAgentPrompt.length, 'chars');
+                debugLog('⏭️ [onEditPrompt] Skipping reload - recently saved', timeSinceLastSave, 'ms ago');
+                debugLog('💡 [onEditPrompt] Using cached prompt:', currentAgentPrompt.length, 'chars');
               } else {
-                console.log('📥 [onEditPrompt] Loading fresh prompt from Firestore');
+                debugLog('📥 [onEditPrompt] Loading fresh prompt from Firestore');
                 await loadPromptsForAgent(agentForContextConfig);
               }
               
@@ -8402,17 +8415,17 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         onSave={handleSaveAgentPrompt}
         onOpenEnhancer={() => {
           // ✅ IMPROVED: Use already stored agent from onEditPrompt
-          console.log('🔍 [onOpenEnhancer] agentForEnhancer:', agentForEnhancer?.id, agentForEnhancer?.title);
-          console.log('🔍 [onOpenEnhancer] currentConversation:', currentConversation);
+          debugLog('🔍 [onOpenEnhancer] agentForEnhancer:', agentForEnhancer?.id, agentForEnhancer?.title);
+          debugLog('🔍 [onOpenEnhancer] currentConversation:', currentConversation);
           
           if (agentForEnhancer) {
-            console.log('✅ Opening enhancer with stored agent:', agentForEnhancer.id, agentForEnhancer.title);
+            debugLog('✅ Opening enhancer with stored agent:', agentForEnhancer.id, agentForEnhancer.title);
             setShowAgentPromptModal(false);
             setShowAgentPromptEnhancer(true);
           } else {
             console.error('❌ Cannot open enhancer - agentForEnhancer not set');
-            console.log('   currentConversation:', currentConversation);
-            console.log('   Attempting fallback...');
+            debugLog('   currentConversation:', currentConversation);
+            debugLog('   Attempting fallback...');
             // Fallback: try to find from currentConversation
             const currentConv = conversations.find(c => c.id === currentConversation);
             const agentId = currentConv?.agentId || currentConversation;
@@ -8523,10 +8536,10 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           // ✅ PERFORMANCE: Lightweight metadata-only refresh (no RAG verification)
           // Only reload the metadata to show updated assignments in left panel
           if (currentConversation) {
-            console.log('⚡ Lightweight context refresh after modal close:', currentConversation);
+            debugLog('⚡ Lightweight context refresh after modal close:', currentConversation);
             loadContextForConversation(currentConversation, true); // skipRAGVerification = true
           } else {
-            console.warn('⚠️ No current conversation - skipping context reload');
+            debugWarn('⚠️ No current conversation - skipping context reload');
           }
         }}
       />
@@ -9118,7 +9131,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
           reference={selectedReference}
           onClose={() => setSelectedReference(null)}
           onViewFullDocument={async (sourceId) => {
-            console.log('📄 Attempting to load full document for reference:', sourceId);
+            debugLog('📄 Attempting to load full document for reference:', sourceId);
             
             // Load and open in new DocumentViewer
             const fullSource = await loadFullContextSource(sourceId);
