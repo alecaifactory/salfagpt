@@ -1,12 +1,16 @@
 /**
- * ⚡ OPTIMIZED Streaming API endpoint - Direct RAG approach
+ * ⚡ OPTIMIZED Streaming API endpoint
  * POST /api/conversations/:id/messages-optimized
  * 
  * Feature flag: PUBLIC_USE_OPTIMIZED_STREAMING=true
- * Performance: ~6s (vs ~30s original) - 5x faster
  * 
- * This endpoint eliminates overhead by using direct database access
- * pattern from benchmark-simple.mjs, matching backend performance exactly.
+ * This is a SIMPLIFIED version of messages-stream.ts with:
+ * - No fallback logic (fail fast)
+ * - Direct searchByAgent (proven to work)
+ * - Minimal steps (no redundant operations)
+ * - Same response format (backward compatible)
+ * 
+ * Expected performance: ~6s (vs ~30s original)
  */
 import type { APIRoute } from 'astro';
 import {
@@ -14,160 +18,10 @@ import {
   getMessages,
   getConversation,
   updateConversation,
-  firestore,
 } from '../../../../lib/firestore';
-import { generateEmbedding } from '../../../../lib/embeddings';
-import { GoogleGenAI } from '@google/genai';
-import { BigQuery } from '@google-cloud/bigquery';
-
-const bq = new BigQuery({ 
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt' 
-});
-
-const genAI = new GoogleGenAI({ 
-  apiKey: process.env.GOOGLE_AI_API_KEY || '' 
-});
-
-/**
- * Search chunks using BigQuery IVF index (direct approach)
- */
-async function searchChunksOptimized(
-  userId: string,
-  agentId: string,
-  query: string,
-  options: { topK: number; minSimilarity: number }
-): Promise<any[]> {
-  const startTime = Date.now();
-  
-  // Get agent's active sources
-  const agentDoc = await firestore.collection('conversations').doc(agentId).get();
-  const sourceIds = agentDoc.data()?.activeContextSourceIds || [];
-  
-  if (sourceIds.length === 0) {
-    console.log('⚡ [OPTIMIZED] No active sources');
-    return [];
-  }
-  
-  console.log(`⚡ [OPTIMIZED] Searching ${sourceIds.length} sources for agent ${agentId}`);
-  
-  // Generate embedding
-  const embeddingStart = Date.now();
-  const embedding = await generateEmbedding(query);
-  console.log(`⚡ [OPTIMIZED] Embedding generated (${Date.now() - embeddingStart}ms)`);
-  
-  // Determine dataset and location
-  const dataset = process.env.USE_EAST4_BIGQUERY === 'true' 
-    ? 'flow_analytics_east4' 
-    : 'flow_analytics';
-  const location = dataset.includes('east4') ? 'us-east4' : 'us-central1';
-  
-  // Search using IVF index
-  const searchStart = Date.now();
-  const searchQuery = `
-    SELECT 
-      base.chunk_id,
-      base.text,
-      base.source_id,
-      base.source_name,
-      base.chunk_index,
-      base.metadata,
-      distance AS similarity
-    FROM VECTOR_SEARCH(
-      TABLE \`${process.env.GOOGLE_CLOUD_PROJECT}.${dataset}.document_embeddings\`,
-      'embedding_normalized',
-      (SELECT @query_embedding AS embedding_normalized),
-      top_k => @topK,
-      options => JSON '{"fraction_lists_to_search": 0.05}'
-    )
-    WHERE base.user_id = @userId
-      AND base.source_id IN UNNEST(@sourceIds)
-    ORDER BY similarity DESC
-  `;
-  
-  const [rows] = await bq.query({
-    query: searchQuery,
-    params: {
-      query_embedding: embedding,
-      topK: options.topK * 2, // Get extra to filter
-      userId,
-      sourceIds,
-    },
-    location,
-  });
-  
-  console.log(`⚡ [OPTIMIZED] BigQuery search (${Date.now() - searchStart}ms) - ${rows.length} chunks`);
-  console.log(`⚡ [OPTIMIZED] Total search time: ${Date.now() - startTime}ms`);
-  
-  // Convert distance to similarity and filter
-  const results = rows.map((r: any) => ({
-    ...r,
-    similarity: 1 - r.similarity, // Distance → similarity
-  })).filter(r => r.similarity >= options.minSimilarity);
-  
-  console.log(`⚡ [OPTIMIZED] After threshold filter: ${results.length} chunks (min: ${options.minSimilarity})`);
-  
-  return results;
-}
-
-/**
- * Build RAG context from search results
- */
-function buildRAGContext(results: any[]): string {
-  if (results.length === 0) return '';
-  
-  return results
-    .map((r, idx) => `
-=== Fragmento ${idx + 1}: ${r.source_name} ===
-Chunk: ${r.chunk_index + 1}
-Similitud: ${(r.similarity * 100).toFixed(1)}%
-
-${r.text}
-`)
-    .join('\n\n');
-}
-
-/**
- * Build consolidated references (one per document)
- */
-function buildReferences(results: any[]): any[] {
-  // Group by source
-  const sourceGroups = new Map<string, any[]>();
-  results.forEach(result => {
-    const key = result.source_id || result.source_name;
-    if (!sourceGroups.has(key)) {
-      sourceGroups.set(key, []);
-    }
-    sourceGroups.get(key)!.push(result);
-  });
-  
-  // Build one reference per document
-  let refId = 1;
-  return Array.from(sourceGroups.values()).map(chunks => {
-    chunks.sort((a, b) => b.similarity - a.similarity);
-    const primary = chunks[0];
-    const avgSimilarity = chunks.reduce((sum, c) => sum + c.similarity, 0) / chunks.length;
-    const combinedText = chunks.map(c => c.text).join('\n\n---\n\n');
-    
-    return {
-      id: refId++,
-      sourceId: primary.source_id,
-      sourceName: primary.source_name,
-      chunkIndex: primary.chunk_index,
-      similarity: avgSimilarity,
-      snippet: primary.text.substring(0, 300),
-      fullText: combinedText.substring(0, 5000), // Firestore limit
-      metadata: {
-        startChar: primary.metadata?.startChar || 0,
-        endChar: primary.metadata?.endChar || primary.text.length,
-        tokenCount: chunks.reduce((sum, c) => 
-          sum + (c.metadata?.tokenCount || Math.ceil(c.text.length / 4)), 0
-        ),
-        isRAGChunk: true,
-        chunkCount: chunks.length,
-      },
-    };
-  });
-}
+import { streamAIResponse } from '../../../../lib/gemini';
+import { searchByAgent } from '../../../../lib/bigquery-router';
+import { buildRAGContext, getRAGStats } from '../../../../lib/rag-search-optimized';
 
 export const POST: APIRoute = async ({ params, request }) => {
   const conversationId = params.id;
@@ -191,10 +45,10 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
-    console.log('⚡ [OPTIMIZED] Starting optimized streaming for conversation:', conversationId);
     const totalStart = Date.now();
+    console.log('⚡ [OPTIMIZED] Starting request');
 
-    // Determine effective agent ID
+    // Get effective agent ID
     let effectiveAgentId = conversationId;
     if (!conversationId.startsWith('temp-')) {
       const conv = await getConversation(conversationId);
@@ -221,96 +75,112 @@ export const POST: APIRoute = async ({ params, request }) => {
         try {
           const send = (type: string, data: any = {}) => {
             controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type, timestamp: new Date().toISOString(), ...data })}\n\n`
+              `data: ${JSON.stringify({ type, ...data })}\n\n`
             ));
           };
 
-          // Phase 1: Thinking (minimal delay)
+          // Step 1: Thinking (minimal)
           send('thinking', { step: 'thinking', status: 'active' });
-          await new Promise(r => setTimeout(r, 500)); // Just 500ms
+          await new Promise(r => setTimeout(r, 500));
           send('thinking', { step: 'thinking', status: 'complete' });
 
-          // Phase 2: Search (fast!)
+          // Step 2: Search
           send('thinking', { step: 'searching', status: 'active' });
           
-          const searchResults = isAllyConversation 
-            ? [] // Ally uses conversation history, not RAG
-            : await searchChunksOptimized(userId, effectiveAgentId, message, {
-                topK: ragTopK,
-                minSimilarity: ragMinSimilarity,
-              });
+          let ragResults: any[] = [];
           
-          send('thinking', { 
-            step: 'searching', 
-            status: 'complete',
-            chunksFound: searchResults.length
-          });
+          if (!isAllyConversation) {
+            const requestOrigin = request.headers.get('origin') || 
+                                 request.headers.get('referer') || 
+                                 request.url;
+            
+            // Use proven searchByAgent function
+            ragResults = await searchByAgent(userId, effectiveAgentId, message, {
+              topK: ragTopK,
+              minSimilarity: ragMinSimilarity,
+              requestOrigin,
+            });
+            
+            console.log(`⚡ [OPTIMIZED] Found ${ragResults.length} chunks`);
+          }
+          
+          send('thinking', { step: 'searching', status: 'complete' });
 
-          // Phase 3: Build context & references
+          // Step 3: Build references
           send('thinking', { step: 'selecting', status: 'active' });
           
-          const ragContext = isAllyConversation 
-            ? '' // Ally doesn't use RAG
-            : buildRAGContext(searchResults);
+          // Build context
+          const ragContext = ragResults.length > 0 ? buildRAGContext(ragResults) : '';
           
-          const references = isAllyConversation
-            ? [] // Ally doesn't have references
-            : buildReferences(searchResults);
+          // Build references (consolidated by document)
+          const sourceGroups = new Map<string, any[]>();
+          ragResults.forEach(result => {
+            const key = result.sourceId || result.source_id;
+            if (!sourceGroups.has(key)) {
+              sourceGroups.set(key, []);
+            }
+            sourceGroups.get(key)!.push(result);
+          });
           
-          // Send references immediately
+          let refId = 1;
+          const references = Array.from(sourceGroups.values()).map(chunks => {
+            chunks.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+            const primary = chunks[0];
+            const avgSim = chunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / chunks.length;
+            const combined = chunks.map(c => c.text).join('\n\n---\n\n');
+            
+            return {
+              id: refId++,
+              sourceId: primary.sourceId || primary.source_id,
+              sourceName: primary.sourceName || primary.source_name,
+              chunkIndex: primary.chunkIndex || primary.chunk_index || 0,
+              similarity: avgSim,
+              snippet: primary.text.substring(0, 300),
+              fullText: combined.substring(0, 5000),
+              metadata: {
+                startChar: primary.metadata?.startChar || 0,
+                endChar: primary.metadata?.endChar || primary.text.length,
+                tokenCount: chunks.reduce((sum, c) => 
+                  sum + (c.metadata?.tokenCount || Math.ceil(c.text.length / 4)), 0
+                ),
+                isRAGChunk: true,
+                chunkCount: chunks.length,
+              },
+            };
+          });
+          
+          // Send references
           if (references.length > 0) {
             send('references', { references });
           }
           
-          send('thinking', { 
-            step: 'selecting', 
-            status: 'complete',
-            referencesCount: references.length
-          });
+          send('thinking', { step: 'selecting', status: 'complete' });
 
-          // Phase 4: Generate response
+          // Step 4: Generate
           send('thinking', { step: 'generating', status: 'active' });
           
-          // Build Gemini request
-          const contents = [
-            ...conversationHistory.map(msg => ({
-              role: msg.role === 'user' ? 'user' : 'model',
-              parts: [{ text: msg.content }],
-            })),
-            {
-              role: 'user',
-              parts: [{ text: ragContext ? `${ragContext}\n\n${message}` : message }],
-            },
-          ];
-          
-          // Stream from Gemini
           let fullResponse = '';
           let chunkBuffer = '';
-          const CHUNK_BUFFER_SIZE = 500;
+          const BUFFER_SIZE = 500;
           
-          const genStream = await genAI.models.generateContentStream({
+          const aiStream = streamAIResponse(message, {
             model,
-            contents,
-            config: {
-              systemInstruction: systemPrompt,
-              temperature: 0.7,
-              maxOutputTokens: 8192,
-            },
+            systemInstruction: systemPrompt,
+            conversationHistory,
+            userContext: ragContext,
+            temperature: 0.7,
           });
           
-          for await (const chunk of genStream) {
-            if (chunk.text) {
-              fullResponse += chunk.text;
-              chunkBuffer += chunk.text;
-              
-              if (chunkBuffer.length >= CHUNK_BUFFER_SIZE) {
-                send('chunk', { content: chunkBuffer });
-                chunkBuffer = '';
-              }
+          for await (const chunk of aiStream) {
+            fullResponse += chunk;
+            chunkBuffer += chunk;
+            
+            if (chunkBuffer.length >= BUFFER_SIZE) {
+              send('chunk', { content: chunkBuffer });
+              chunkBuffer = '';
             }
           }
           
-          // Flush buffer
           if (chunkBuffer.length > 0) {
             send('chunk', { content: chunkBuffer });
           }
@@ -321,7 +191,6 @@ export const POST: APIRoute = async ({ params, request }) => {
           if (!conversationId.startsWith('temp-')) {
             const totalTime = Date.now() - totalStart;
             
-            // Save user message
             const userMsg = await addMessage(
               conversationId,
               userId,
@@ -330,23 +199,23 @@ export const POST: APIRoute = async ({ params, request }) => {
               Math.ceil(message.length / 4)
             );
             
-            // Save AI message
             const aiMsg = await addMessage(
               conversationId,
               userId,
               'assistant',
               { type: 'text', text: fullResponse },
               Math.ceil(fullResponse.length / 4),
-              undefined, // contextSections
-              references.length > 0 ? references : undefined, // references
-              totalTime // responseTime
+              undefined,
+              references.length > 0 ? references : undefined,
+              totalTime
             );
             
-            // Update conversation
             await updateConversation(conversationId, {
               messageCount: (await getMessages(conversationId)).length,
               lastMessageAt: new Date(),
             });
+            
+            const ragStats = ragResults.length > 0 ? getRAGStats(ragResults) : null;
             
             send('complete', {
               messageId: aiMsg.id,
@@ -354,15 +223,14 @@ export const POST: APIRoute = async ({ params, request }) => {
               responseTime: totalTime,
               ragConfiguration: {
                 enabled: !isAllyConversation,
-                actuallyUsed: searchResults.length > 0,
+                actuallyUsed: ragResults.length > 0,
                 topK: ragTopK,
                 minSimilarity: ragMinSimilarity,
-                chunksFound: searchResults.length,
-                referencesBuilt: references.length,
+                stats: ragStats,
               },
             });
             
-            console.log(`⚡ [OPTIMIZED] Total time: ${totalTime}ms`);
+            console.log(`⚡ [OPTIMIZED] Complete in ${totalTime}ms`);
           }
 
           controller.close();
