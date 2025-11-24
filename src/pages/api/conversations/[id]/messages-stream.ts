@@ -650,6 +650,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // Accumulate full response for final save
           let fullResponse = '';
           
+          // ⚡ PERFORMANCE: Buffer chunks to reduce re-renders
+          // Instead of sending every 20-50 char chunk, accumulate to ~500 chars
+          let chunkBuffer = '';
+          const CHUNK_SIZE_THRESHOLD = 500; // Chars before sending to client
+          
           // Stream AI response
           const aiStream = streamAIResponse(message, {
             model: model || 'gemini-2.5-flash',
@@ -661,11 +666,24 @@ Usa la información de los documentos encontrados para responder, pero aclara la
 
           for await (const chunk of aiStream) {
             fullResponse += chunk;
+            chunkBuffer += chunk;
             
-            // Send chunk to client
+            // Only send to client when buffer exceeds threshold
+            if (chunkBuffer.length >= CHUNK_SIZE_THRESHOLD) {
+              const data = `data: ${JSON.stringify({ 
+                type: 'chunk', 
+                content: chunkBuffer 
+              })}\n\n`;
+              controller.enqueue(encoder.encode(data));
+              chunkBuffer = ''; // Clear buffer
+            }
+          }
+          
+          // Send any remaining buffered content
+          if (chunkBuffer.length > 0) {
             const data = `data: ${JSON.stringify({ 
               type: 'chunk', 
-              content: chunk 
+              content: chunkBuffer 
             })}\n\n`;
             controller.enqueue(encoder.encode(data));
           }
