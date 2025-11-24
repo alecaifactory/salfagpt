@@ -1,0 +1,106 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 PROMPT PARA NUEVA CONVERSACIÓN - Configurar M1-v2
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COPIA ESTO Y PEGA EN NUEVA CONVERSACIÓN:
+
+═══════════════════════════════════════════════════════════════════
+
+Hola! Necesito configurar el agente M1-v2 usando el proceso exitoso de S2-v2 y S1-v2.
+
+CONTEXTO COMPLETADO:
+- ✅ S2-v2: 12,219 chunks, 76.3% similarity, 4/4 evaluaciones
+- ✅ S1-v2: 1,217 chunks, 79.2% similarity, 3/4 evaluaciones
+- Total: 13,436 chunks, $0.24, 5h 24min
+
+OBJETIVO:
+Configurar M1-v2 siguiendo el mismo proceso probado 2 veces.
+
+INFORMACIÓN M1-v2:
+[AQUÍ PROPORCIONO]:
+- Agent ID: [buscar en Firestore] o "nombre del agente M1-v2"
+- Carpeta: upload-queue/M001-20251118
+- Ficha asistente: [JSON con preguntas] o "usar genérica"
+
+ARCHIVOS DE REFERENCIA:
+- PROMPT_CONTINUE_M1V2.md (contexto técnico completo)
+- READY_FOR_M1V2.md (estado actual)
+- CONTEXT_HANDOFF_M1_M3.md (proceso detallado)
+- Scripts base: scripts/process-s1v2-chunks.mjs (mejor template)
+
+PROCESO A EJECUTAR:
+1. Buscar Agent ID de M1-v2 en Firestore
+2. Copiar 5 scripts de S1-v2 a M1-v2
+3. Adaptar IDs con buscar/reemplazar
+4. Ejecutar: análisis → asignación → procesamiento → evaluación
+5. Generar reportes finales
+
+CONFIGURACIÓN CRÍTICA:
+- BigQuery: salfagpt.flow_analytics.document_embeddings
+- User ID: usr_uhwqffaqag1wrryd82tw
+- Embeddings: Gemini text-embedding-004 (768 dims)
+- Schema: Backward compatible (campos extra en metadata JSON)
+
+SCRIPTS BASE (copiar de S1-v2):
+- scripts/check-s001-status.mjs → check-m001-status.mjs
+- scripts/assign-all-s001-to-s1v2.mjs → assign-all-m001-to-m1v2.mjs
+- scripts/process-s1v2-chunks.mjs → process-m1v2-chunks.mjs
+- scripts/test-s1v2-evaluation.mjs → test-m1v2-evaluation.mjs
+
+BUSCAR/REEMPLAZAR EN CADA SCRIPT:
+- S1V2_AGENT_ID → M1V2_AGENT_ID
+- iQmdg3bMSJ1AdqqlFpye → [M1 agent ID]
+- S001-20251118 → M001-20251118
+- s1v2 → m1v2
+- S1-v2 → M1-v2
+
+RESULTADO ESPERADO:
+- M1-v2 configurado en 1-2h
+- ~4,000 chunks indexados
+- Similarity >75%
+- 4/4 evaluaciones passed
+- Costo ~$0.04
+
+DESPUÉS:
+- Repetir para M3-v2 (45min-1h, ~$0.025)
+- Sistema completo 4/4 agentes ✅
+
+¿Empezamos buscando el Agent ID de M1-v2 en Firestore?
+
+═══════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INFORMACIÓN TÉCNICA ESENCIAL:
+
+Firestore Project: salfagpt
+BigQuery Dataset: flow_analytics
+BigQuery Table: document_embeddings
+User ID: usr_uhwqffaqag1wrryd82tw (alec@salfacloud.cl)
+
+Embeddings:
+- Model: text-embedding-004
+- Dimensions: 768
+- API: src/lib/embeddings.js
+
+RAG Search:
+- Method: Cosine similarity (BigQuery)
+- Top K: 5 chunks
+- Threshold: >0.5
+- Performance: ~3s per query
+
+Batch Processing:
+- Firestore: 100 sources/batch
+- BigQuery: 500 rows/batch
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHIVOS CRÍTICOS:
+1. PROMPT_CONTINUE_M1V2.md - Lee si necesitas más detalles
+2. CONTEXT_HANDOFF_M1_M3.md - Proceso completo
+3. scripts/process-s1v2-chunks.mjs - Mejor template
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COPIA EL PROMPT DE ARRIBA Y AGREGA INFO M1-V2 🚀
+

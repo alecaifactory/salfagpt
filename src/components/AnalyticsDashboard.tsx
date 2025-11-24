@@ -36,12 +36,14 @@ export default function AnalyticsDashboard({ isOpen, onClose, conversations }: P
   const loadDomainReports = async () => {
     try {
       setLoadingDomainReports(true);
-      const response = await fetch('/api/analytics/domain-reports');
+      const response = await fetch('/api/analytics/domain-reports', {
+        credentials: 'include' // ✅ Include cookies for authentication
+      });
       if (response.ok) {
         const data = await response.json();
         setDomainReports(data);
       } else {
-        console.error('Failed to load domain reports');
+        console.error('Failed to load domain reports:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error loading domain reports:', error);
@@ -358,6 +360,7 @@ function AgentsConversationsView() {
       const response = await fetch('/api/analytics/agents-conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Include cookies for authentication
         body: JSON.stringify({
           filters: {
             startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -371,6 +374,8 @@ function AgentsConversationsView() {
         setAgentStats(data.agentStats || []);
         setUserStats(data.userStats || []);
         setSummary(data.summary || {});
+      } else {
+        console.error('Failed to load agents & conversations:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error loading agents & conversations data:', error);

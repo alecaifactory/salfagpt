@@ -1,0 +1,109 @@
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 PROMPT PARA NUEVA CONVERSACIÓN - Configurar M3-v2 (ÚLTIMO AGENTE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COPIA ESTO Y PEGA EN NUEVA CONVERSACIÓN:
+
+═══════════════════════════════════════════════════════════════════
+
+Hola! Necesito configurar el ÚLTIMO agente M3-v2 para completar el sistema RAG.
+
+CONTEXTO COMPLETADO (3/4 agentes):
+- ✅ S2-v2: 12,219 chunks, 76.3% similarity
+- ✅ S1-v2: 1,217 chunks, 79.2% similarity
+- ✅ M1-v2: ~4,000 chunks, ~75% similarity
+- Total: ~17,500 chunks, ~$0.28, ~7 horas
+
+OBJETIVO:
+Configurar M3-v2 (último agente) usando proceso probado 3 veces con 100% éxito.
+
+INFORMACIÓN M3-v2:
+[AQUÍ PROPORCIONO]:
+- Agent ID: [buscar en Firestore] o "nombre del agente M3-v2"
+- Carpeta: upload-queue/M003-20251118
+- Ficha asistente: [JSON con preguntas] o "usar genérica"
+
+ARCHIVOS DE REFERENCIA:
+- PROMPT_CONTINUE_M3V2.md (contexto técnico completo)
+- READY_FOR_M3V2.md (estado actual)
+- Scripts base: scripts/process-m1v2-chunks.mjs (mejor template)
+
+PROCESO A EJECUTAR:
+1. Buscar Agent ID de M3-v2 en Firestore
+2. Copiar 4 scripts de M1-v2 a M3-v2
+3. Adaptar IDs con buscar/reemplazar
+4. Ejecutar: análisis → asignación → procesamiento → evaluación
+5. Generar reportes finales
+6. Crear resumen sistema completo (4/4 agentes) ✅
+
+SCRIPTS BASE (copiar de M1-v2):
+- scripts/check-m001-status.mjs → check-m003-status.mjs
+- scripts/assign-all-m001-to-m1v2.mjs → assign-all-m003-to-m3v2.mjs
+- scripts/process-m1v2-chunks.mjs → process-m3v2-chunks.mjs
+- scripts/test-m1v2-evaluation.mjs → test-m3v2-evaluation.mjs
+
+BUSCAR/REEMPLAZAR EN CADA SCRIPT:
+- M1V2_AGENT_ID → M3V2_AGENT_ID
+- [M1 agent ID] → [M3 agent ID]
+- M001-20251118 → M003-20251118
+- m1v2 → m3v2
+- M1-v2 → M3-v2
+
+CONFIGURACIÓN CRÍTICA (probada 3 veces):
+- BigQuery: salfagpt.flow_analytics.document_embeddings
+- User ID: usr_uhwqffaqag1wrryd82tw
+- Embeddings: Gemini text-embedding-004 (768 dims)
+- Schema: Backward compatible (campos extra en metadata JSON)
+
+RESULTADO ESPERADO M3-v2:
+- ~2,500 chunks indexados
+- Similarity >75%
+- 4/4 evaluaciones passed
+- Búsqueda <60s
+- Tiempo: 45min-1h
+- Costo: ~$0.025
+
+SISTEMA COMPLETO AL TERMINAR:
+- 4/4 agentes configurados ✅
+- ~20,000 chunks totales ✅
+- Similarity promedio ~77% ✅
+- Costo total ~$0.30 ✅
+- Listo para producción ✅
+
+¿Empezamos buscando el Agent ID de M3-v2 en Firestore?
+
+═══════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INFORMACIÓN TÉCNICA ESENCIAL:
+
+BigQuery:
+- Table: salfagpt.flow_analytics.document_embeddings ✅
+- Schema: 9 campos (backward compatible)
+- Probado: 3 agentes exitosos
+
+Embeddings:
+- Model: text-embedding-004 (Gemini)
+- Dimensions: 768
+- Module: src/lib/embeddings.js
+
+Batch Processing:
+- Firestore: 100 sources/batch
+- BigQuery: 500 rows/batch
+
+Performance:
+- ~18-20 sources/min
+- ~115 chunks/min
+- ~3s RAG search
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ARCHIVOS CRÍTICOS:
+- PROMPT_CONTINUE_M3V2.md (detalles completos)
+- scripts/process-m1v2-chunks.mjs (mejor template)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COPIA EL PROMPT Y AGREGA INFO M3-V2 PARA COMPLETAR SISTEMA 🎯
+

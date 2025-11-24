@@ -135,6 +135,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
       const response = await fetch('/api/analytics/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Include cookies for authentication
         body: JSON.stringify({
           filters: {
             startDate: filters.dateRange.start.toISOString(),
@@ -146,6 +147,8 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+      } else {
+        console.error('Failed to load users:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -163,6 +166,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
       const response = await fetch('/api/analytics/user-details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Include cookies for authentication
         body: JSON.stringify({
           userId: user.id,
           filters: {
@@ -176,6 +180,8 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
         const detailsData = await response.json();
         // Update selected user with detailed info
         setSelectedUser(prev => prev ? { ...prev, ...detailsData } : null);
+      } else {
+        console.error('Failed to load user details:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error loading user details:', error);
@@ -194,6 +200,7 @@ export default function SalfaAnalyticsDashboard({ isOpen, onClose, userId, userE
       const response = await fetch('/api/analytics/salfagpt-stats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ✅ Include cookies for authentication
         body: JSON.stringify({
           userId: userRole === 'admin' ? undefined : userId,
           filters: {

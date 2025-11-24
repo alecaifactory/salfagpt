@@ -191,6 +191,7 @@ export default function AgentContextModal({
   };
   
   const loadDocumentDetails = async (sourceId: string) => {
+    console.log('🔍 loadDocumentDetails called with sourceId:', sourceId);
     setLoadingDetails(true);
     
     try {
@@ -201,14 +202,23 @@ export default function AgentContextModal({
         credentials: 'include', // ✅ FIX: Include cookies for authentication
       });
       
+      console.log('📡 Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📦 Response data:', data);
+        console.log('📄 Setting selectedDocument to:', data.source?.name);
         setSelectedDocument(data.source);
         
         console.log('✅ Loaded full source:', data.source.name);
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ API error:', response.status, errorData);
+        alert(`Error al cargar documento: ${errorData.error || response.statusText}`);
       }
     } catch (error) {
-      console.error('Error loading document details:', error);
+      console.error('❌ Error loading document details:', error);
+      alert('Error al cargar documento. Revisa la consola para más detalles.');
     } finally {
       setLoadingDetails(false);
     }
@@ -340,11 +350,14 @@ export default function AgentContextModal({
                   {sources.map(source => (
                     <button
                       key={source.id}
-                      onClick={() => loadDocumentDetails(source.id)}
+                      onClick={() => {
+                        console.log('🖱️ Document clicked:', source.name, 'ID:', source.id);
+                        loadDocumentDetails(source.id);
+                      }}
                       className={`w-full text-left p-3 rounded-lg border transition-all ${
                         selectedDocument?.id === source.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+                          : 'border-gray-200 dark:border-slate-600 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -400,9 +413,9 @@ export default function AgentContextModal({
           </div>
 
           {/* Right: Document Details (On-Demand) */}
-          <div className="w-1/2 flex flex-col bg-gray-50">
+          <div className="w-1/2 flex flex-col bg-gray-50 dark:bg-slate-700">
             {!selectedDocument ? (
-              <div className="flex-1 flex items-center justify-center text-gray-400">
+              <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-slate-500">
                 <div className="text-center">
                   <Grid className="w-12 h-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">Selecciona un documento para ver detalles</p>
@@ -417,10 +430,13 @@ export default function AgentContextModal({
             ) : (
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900">{selectedDocument.name}</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">{selectedDocument.name}</h3>
                   <button
-                    onClick={() => setSelectedDocument(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    onClick={() => {
+                      console.log('🔴 Cerrando detalles del documento');
+                      setSelectedDocument(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -429,8 +445,8 @@ export default function AgentContextModal({
                 {/* Document Details */}
                 <div className="space-y-4">
                   {/* Metadata */}
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Metadata</h4>
+                  <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border border-gray-200 dark:border-slate-600">
+                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">Metadata</h4>
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-gray-600">Páginas:</p>
