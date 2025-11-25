@@ -82,46 +82,56 @@ export async function uploadFile(
 
 /**
  * Download file from Cloud Storage
- * ✅ MIGRATION: Try us-east4 first, fallback to us-central1
+ * ✅ MIGRATION: Try multiple buckets AND path structures
  */
 export async function downloadFile(storagePath: string): Promise<Buffer> {
   console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
   
-  // Try buckets in order: us-east4 (GREEN) → us-central1 (BLUE)
-  const bucketsToTry = [
-    'salfagpt-context-documents-east4',  // GREEN: us-east4 (new)
-    'salfagpt-uploads',                   // BLUE: us-central1 (old)
+  // Try combinations of buckets and paths
+  const attempts = [
+    // Attempt 1: us-east4 with original path
+    { bucket: 'salfagpt-context-documents-east4', path: storagePath },
+    
+    // Attempt 2: us-central1 uploads with original path
+    { bucket: 'salfagpt-uploads', path: storagePath },
+    
+    // Attempt 3: us-central1 context-documents with original path
+    { bucket: 'salfagpt-context-documents', path: storagePath },
+    
+    // Attempt 4: us-east4 with userId/agentId structure (if storagePath has it)
+    { bucket: 'salfagpt-context-documents-east4', path: storagePath },
   ];
   
-  for (const bucketName of bucketsToTry) {
+  for (const attempt of attempts) {
     try {
-      console.log(`  🔍 Trying bucket: ${bucketName}`);
+      console.log(`  🔍 Trying: ${attempt.bucket}/${attempt.path}`);
       
-      const bucket = storage.bucket(bucketName);
-      const file = bucket.file(storagePath);
+      const bucket = storage.bucket(attempt.bucket);
+      const file = bucket.file(attempt.path);
       
       // Check if file exists
       const [exists] = await file.exists();
       if (!exists) {
-        console.log(`  ⚠️  File not in ${bucketName}`);
-        continue; // Try next bucket
+        console.log(`  ⚠️  Not found`);
+        continue; // Try next
       }
       
       // Download file
       const [buffer] = await file.download();
       
-      console.log(`✅ File downloaded from ${bucketName}: ${buffer.length} bytes`);
+      console.log(`✅ File downloaded from ${attempt.bucket}: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
       
       return buffer;
       
     } catch (error) {
-      console.log(`  ❌ Failed from ${bucketName}:`, error instanceof Error ? error.message : 'Unknown');
-      // Continue to next bucket
+      console.log(`  ❌ Error:`, error instanceof Error ? error.message.substring(0, 100) : 'Unknown');
+      // Continue to next attempt
     }
   }
   
-  // All buckets failed
-  throw new Error(`File not found in any bucket: ${storagePath} (tried: ${bucketsToTry.join(', ')})`);
+  // All attempts failed
+  console.error(`❌ File not found after trying ${attempts.length} buckets/paths`);
+  throw new Error(`File not found: ${storagePath}`);
 }
 
 /**
