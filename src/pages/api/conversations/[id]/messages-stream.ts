@@ -155,7 +155,17 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragStats = null;
           let ragHadFallback = false;
           let ragResults: any[] = [];
-          let systemPromptToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.'; // Can be modified if no relevant docs found
+          let systemPromptToUse = systemPrompt || `Eres un asistente de IA útil, preciso y amigable.
+
+FORMATO DE RESPUESTA OPTIMIZADO (máximo 300 tokens):
+1. Intro breve al tema (1-2 oraciones, ~50-80 tokens)
+2. Tres puntos clave concisos (~60-90 tokens total):
+   • Punto 1: Información concreta
+   • Punto 2: Dato relevante
+   • Punto 3: Detalle importante
+3. 2-3 preguntas de seguimiento (~40-60 tokens)
+
+SÉ CONCISO: Prioriza claridad y acción sobre extensión. Responde directo al punto.`; // Can be modified if no relevant docs found
           let shouldShowNoDocsMessage = false; // ✅ FIX: Declare at function scope for global access
 
           // Step 2: Context building - different strategies for Ally vs regular agents
@@ -302,11 +312,11 @@ Usa estas conversaciones para proporcionar contexto y continuidad.
                 // Get admin contact information
                 const adminEmails = await getOrgAdminContactsForUser(body.userEmail || '');
                 const lowQualityDocsMessage = `
-NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 70%).
+NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 60%).
 
 INSTRUCCIONES PARA TU RESPUESTA:
 1. Informa al usuario que encontraste información relacionada pero con relevancia moderada-baja
-2. Menciona que las similitudes están entre ${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 70%)
+2. Menciona que las similitudes están entre ${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 60%)
 3. Recomienda verificar esta información con el documento completo o contactar a un experto
 4. Proporciona contacto del administrador si necesita documentos más específicos:
    ${adminEmails.length > 0 ? adminEmails.map(email => `• ${email}`).join('\n   ') : 'Contacta a tu administrador'}
@@ -650,6 +660,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           // Accumulate full response for final save
           let fullResponse = '';
           
+          // ⚡ PERFORMANCE: Buffer chunks to reduce re-renders
+          // Instead of sending every 20-50 char chunk, accumulate to ~500 chars
+          let chunkBuffer = '';
+          const CHUNK_SIZE_THRESHOLD = 500; // Chars before sending to client
+          
           // Stream AI response
           const aiStream = streamAIResponse(message, {
             model: model || 'gemini-2.5-flash',
@@ -657,15 +672,29 @@ Usa la información de los documentos encontrados para responder, pero aclara la
             conversationHistory,
             userContext: additionalContext,
             temperature: 0.7,
+            maxTokens: 300, // ✅ OPTIMIZED: Concise responses for fast generation
           });
 
           for await (const chunk of aiStream) {
             fullResponse += chunk;
+            chunkBuffer += chunk;
             
-            // Send chunk to client
+            // Only send to client when buffer exceeds threshold
+            if (chunkBuffer.length >= CHUNK_SIZE_THRESHOLD) {
+              const data = `data: ${JSON.stringify({ 
+                type: 'chunk', 
+                content: chunkBuffer 
+              })}\n\n`;
+              controller.enqueue(encoder.encode(data));
+              chunkBuffer = ''; // Clear buffer
+            }
+          }
+          
+          // Send any remaining buffered content
+          if (chunkBuffer.length > 0) {
             const data = `data: ${JSON.stringify({ 
               type: 'chunk', 
-              content: chunk 
+              content: chunkBuffer 
             })}\n\n`;
             controller.enqueue(encoder.encode(data));
           }

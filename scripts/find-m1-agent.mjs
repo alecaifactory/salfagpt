@@ -63,6 +63,8 @@ async function findM1Agent() {
       console.log('\n🎯 MEJOR CANDIDATO (usar este ID):');
       console.log(`   ${candidates[0].id}`);
       console.log(`   "${candidates[0].title}"`);
+      console.log('');
+      console.log('⚠️  VERIFICAR: El ID correcto para M1-v2 es: EgXezLcu4O3IUqFUJhUZ');
 
     } else {
       console.log('⚠️  No encontrado con keywords. Listando últimos 15 agentes:\n');

@@ -15,7 +15,7 @@ initializeApp({ projectId: 'salfagpt' });
 const db = getFirestore();
 const bigquery = new BigQuery({ projectId: 'salfagpt' });
 
-const M1V2_AGENT_ID = 'cjn3bC0HrUYtHqu69CKS';
+const M1V2_AGENT_ID = 'EgXezLcu4O3IUqFUJhUZ';
 const USER_ID = 'usr_uhwqffaqag1wrryd82tw';
 const CHUNK_SIZE = 500;
 const CHUNK_OVERLAP = 50;

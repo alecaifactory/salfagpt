@@ -19,7 +19,7 @@ Configurar M3-v2 (último agente) usando proceso probado 3 veces con 100% éxito
 
 INFORMACIÓN M3-v2:
 [AQUÍ PROPORCIONO]:
-- Agent ID: [buscar en Firestore] o "nombre del agente M3-v2"
+- Agent ID: vStojK73ZKbjNsEnqANJ (GOP GPT)
 - Carpeta: upload-queue/M003-20251118
 - Ficha asistente: [JSON con preguntas] o "usar genérica"
 

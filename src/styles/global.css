@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ⚡ OPTIMIZATION: Reduce base font size for better content density */
+html {
+  font-size: 14px; /* Reduced from default 16px - user feedback: "font muy grande" */
+}
+
 @layer utilities {
   .animate-slide-in-right {
     animation: slideInRight 0.3s ease-out;

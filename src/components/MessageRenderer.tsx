@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -20,7 +20,9 @@ interface MessageRendererProps {
   onSourceClick?: (sourceId: string) => void;
 }
 
-export default function MessageRenderer({ 
+// ⚡ PERFORMANCE: Memoize MessageRenderer to prevent unnecessary re-renders
+// Only re-render when content or references actually change
+const MessageRenderer = memo(function MessageRenderer({ 
   content, 
   contextSources = [],
   references = [],
@@ -30,17 +32,8 @@ export default function MessageRenderer({
 }: MessageRendererProps) {
   const [referencesExpanded, setReferencesExpanded] = useState(false); // Collapsed by default
   
-  // Debug: Log references received
-  React.useEffect(() => {
-    if (references && references.length > 0) {
-      console.log('📚 MessageRenderer received references:', references.length);
-      references.forEach(ref => {
-        console.log(`  [${ref.id}] ${ref.sourceName} - ${ref.similarity ? `${(ref.similarity * 100).toFixed(1)}%` : 'N/A'} - Chunk #${ref.chunkIndex}`);
-      });
-    } else {
-      console.log('📚 MessageRenderer: No references received');
-    }
-  }, [references]);
+  // ⚡ PERFORMANCE: Debug logging disabled (enable DEBUG flag in ChatInterfaceWorking to re-enable)
+  // Removed 3+ console.log statements per message render
 
   // Pre-process content to make references VISUALLY OBVIOUS and clickable
   const processedContent = React.useMemo(() => {
@@ -523,5 +516,15 @@ export default function MessageRenderer({
     </div>
   </>
   );
-}
+}, (prevProps, nextProps) => {
+  // ⚡ PERFORMANCE: Custom comparison function
+  // Only re-render if content or references actually changed
+  return (
+    prevProps.content === nextProps.content &&
+    prevProps.references?.length === nextProps.references?.length &&
+    prevProps.isLoadingReferences === nextProps.isLoadingReferences
+  );
+});
+
+export default MessageRenderer;
 

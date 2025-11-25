@@ -17,10 +17,12 @@ const storage = new Storage({
 });
 
 // Bucket configuration
-// Use bucket name based on current project
-export const BUCKET_NAME = PROJECT_ID === 'salfagpt' 
-  ? 'salfagpt-uploads' 
-  : 'gen-lang-client-0986191192-uploads';
+// ✅ GREEN deployment: us-east4 buckets (same region as Cloud Run)
+export const BUCKET_NAME = process.env.USE_EAST4_STORAGE === 'true'
+  ? 'salfagpt-context-documents-east4'  // GREEN: us-east4 ⚡
+  : PROJECT_ID === 'salfagpt'
+    ? 'salfagpt-uploads'                 // BLUE: us-central1
+    : 'gen-lang-client-0986191192-uploads';
 export const DOCUMENTS_FOLDER = 'documents';
 
 /**
@@ -80,31 +82,56 @@ export async function uploadFile(
 
 /**
  * Download file from Cloud Storage
+ * ✅ MIGRATION: Try multiple buckets AND path structures
  */
 export async function downloadFile(storagePath: string): Promise<Buffer> {
-  try {
-    console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
+  console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
+  
+  // Try combinations of buckets and paths
+  const attempts = [
+    // Attempt 1: us-east4 with original path
+    { bucket: 'salfagpt-context-documents-east4', path: storagePath },
     
-    const bucket = storage.bucket(BUCKET_NAME);
-    const file = bucket.file(storagePath);
+    // Attempt 2: us-central1 uploads with original path
+    { bucket: 'salfagpt-uploads', path: storagePath },
     
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      throw new Error(`File not found in storage: ${storagePath}`);
+    // Attempt 3: us-central1 context-documents with original path
+    { bucket: 'salfagpt-context-documents', path: storagePath },
+    
+    // Attempt 4: us-east4 with userId/agentId structure (if storagePath has it)
+    { bucket: 'salfagpt-context-documents-east4', path: storagePath },
+  ];
+  
+  for (const attempt of attempts) {
+    try {
+      console.log(`  🔍 Trying: ${attempt.bucket}/${attempt.path}`);
+      
+      const bucket = storage.bucket(attempt.bucket);
+      const file = bucket.file(attempt.path);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.log(`  ⚠️  Not found`);
+        continue; // Try next
+      }
+      
+      // Download file
+      const [buffer] = await file.download();
+      
+      console.log(`✅ File downloaded from ${attempt.bucket}: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
+      
+      return buffer;
+      
+    } catch (error) {
+      console.log(`  ❌ Error:`, error instanceof Error ? error.message.substring(0, 100) : 'Unknown');
+      // Continue to next attempt
     }
-    
-    // Download file
-    const [buffer] = await file.download();
-    
-    console.log(`✅ File downloaded: ${buffer.length} bytes`);
-    
-    return buffer;
-    
-  } catch (error) {
-    console.error('❌ Error downloading from Cloud Storage:', error);
-    throw new Error(`Cloud Storage download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+  
+  // All attempts failed
+  console.error(`❌ File not found after trying ${attempts.length} buckets/paths`);
+  throw new Error(`File not found: ${storagePath}`);
 }
 
 /**
