@@ -85,8 +85,8 @@ export async function uploadFile(
  * ✅ MIGRATION: Try multiple buckets AND path structures
  */
 export async function downloadFile(storagePath: string): Promise<Buffer> {
-  console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
-  
+    console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
+    
   // Try combinations of buckets and paths
   const attempts = [
     // Attempt 1: us-east4 with original path
@@ -108,25 +108,25 @@ export async function downloadFile(storagePath: string): Promise<Buffer> {
       
       const bucket = storage.bucket(attempt.bucket);
       const file = bucket.file(attempt.path);
-      
-      // Check if file exists
-      const [exists] = await file.exists();
-      if (!exists) {
+    
+    // Check if file exists
+    const [exists] = await file.exists();
+    if (!exists) {
         console.log(`  ⚠️  Not found`);
         continue; // Try next
-      }
-      
-      // Download file
-      const [buffer] = await file.download();
-      
+    }
+    
+    // Download file
+    const [buffer] = await file.download();
+    
       console.log(`✅ File downloaded from ${attempt.bucket}: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
-      
-      return buffer;
-      
-    } catch (error) {
+    
+    return buffer;
+    
+  } catch (error) {
       console.log(`  ❌ Error:`, error instanceof Error ? error.message.substring(0, 100) : 'Unknown');
       // Continue to next attempt
-    }
+  }
   }
   
   // All attempts failed
