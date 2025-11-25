@@ -175,7 +175,7 @@ export interface Message {
   conversationId: string;
   userId: string; // ✅ Current user who made the request (for ownership & permissions)
   role: 'user' | 'assistant' | 'system';
-  content: MessageContent;
+  content: MessageContent | string; // ✅ FIX: Accept string OR object (backward compatible)
   timestamp: Date;
   tokenCount: number;
   responseTime?: number; // Response time in milliseconds (for assistant messages)
@@ -667,7 +667,7 @@ export async function addMessage(
   conversationId: string,
   userId: string,
   role: 'user' | 'assistant' | 'system',
-  content: MessageContent,
+  content: MessageContent | string, // ✅ FIX: Accept string OR object
   tokenCount: number,
   contextSections?: ContextSection[],
   references?: Array<{
@@ -2202,25 +2202,35 @@ export async function getContextSource(sourceId: string): Promise<ContextSource 
     }
     
     const data = doc.data();
+    
+    // Helper to safely convert Firestore Timestamp to Date
+    const toDate = (value: any): Date | undefined => {
+      if (!value) return undefined;
+      if (value instanceof Date) return value;
+      if (typeof value.toDate === 'function') return value.toDate();
+      if (typeof value === 'string') return new Date(value);
+      return undefined;
+    };
+    
     const source: any = {
       ...data,
       id: doc.id, // ✅ CRITICAL: Document ID from Firestore (overwrites data.id if exists)
-      addedAt: data?.addedAt?.toDate() || new Date(),
+      addedAt: toDate(data?.addedAt) || new Date(),
       metadata: data?.metadata ? {
         ...data.metadata,
-        extractionDate: data.metadata.extractionDate?.toDate(),
-        validatedAt: data.metadata.validatedAt?.toDate(),
+        extractionDate: toDate(data.metadata.extractionDate),
+        validatedAt: toDate(data.metadata.validatedAt),
       } : undefined,
       certified: data?.certified || false,
-      certifiedAt: data?.certifiedAt?.toDate(),
+      certifiedAt: toDate(data?.certifiedAt),
       progress: data?.progress,
       error: data?.error ? {
         ...data.error,
-        timestamp: data.error.timestamp?.toDate() || new Date(),
+        timestamp: toDate(data.error.timestamp) || new Date(),
       } : undefined,
       ragMetadata: data?.ragMetadata ? {
         ...data.ragMetadata,
-        indexedAt: data.ragMetadata.indexedAt?.toDate(),
+        indexedAt: toDate(data.ragMetadata.indexedAt),
       } : undefined,
     };
     return source as ContextSource;

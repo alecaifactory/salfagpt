@@ -168,6 +168,9 @@ REFERENCIAS:
         systemInstruction: enhancedSystemInstruction,
         temperature: temperature,
         maxOutputTokens: maxTokens,
+        thinkingConfig: {
+          thinkingBudget: 0  // ⚡ FIX: Disable thinking mode
+        }
       }
     });
 
@@ -384,14 +387,26 @@ export async function* streamAIResponse(
     let fullUserMessage = userMessage;
     let enhancedSystemInstruction = systemInstruction;
     
-    if (userContext) {
+    // ⚡ CRITICAL FIX: Gemini silently rejects if context too large vs maxTokens
+    // With maxTokens=300, limit context to ~10KB (~2,500 tokens max)
+    const MAX_CONTEXT_CHARS = 10000;
+    let processedContext = userContext;
+    
+    if (userContext && userContext.length > MAX_CONTEXT_CHARS) {
+      console.warn(`⚠️ [gemini.ts] Context too large: ${userContext.length} chars`);
+      console.warn(`   Trimming to ${MAX_CONTEXT_CHARS} chars to prevent silent rejection`);
+      processedContext = userContext.substring(0, MAX_CONTEXT_CHARS) + '\n\n[...resto del contexto omitido por límite de tokens...]';
+      console.log(`   ✅ Context trimmed: ${userContext.length} → ${processedContext.length} chars`);
+    }
+    
+    if (processedContext) {
       // Detectar si el contexto contiene chunks RAG numerados
-      const isRAGContext = userContext.includes('[Fragmento ') || userContext.includes('Relevancia:');
+      const isRAGContext = processedContext.includes('[Fragmento ') || processedContext.includes('Relevancia:');
       
       if (isRAGContext) {
         // ✅ FIX 2025-10-29: Extract REFERENCE numbers (consolidated), not fragment numbers
         // New format: === [Referencia N] DocumentName ===
-        const referenceMatches = userContext.match(/=== \[Referencia (\d+)\]/g) || [];
+        const referenceMatches = processedContext.match(/=== \[Referencia (\d+)\]/g) || [];
         const referenceNumbers = referenceMatches.map(m => {
           const match = m.match(/\[Referencia (\d+)\]/);
           return match ? parseInt(match[1]) : null;
@@ -400,7 +415,7 @@ export async function* streamAIResponse(
         const totalReferences = referenceNumbers.length;
         
         fullUserMessage = `DOCUMENTOS RELEVANTES DEL CONTEXTO (ordenados por relevancia):
-${userContext}
+${processedContext}
 
 ───────────────────────────────────
 PREGUNTA DEL USUARIO:
@@ -408,48 +423,11 @@ ${userMessage}`;
 
         enhancedSystemInstruction = `${systemInstruction}
 
-🔍 MODO RAG ACTIVADO - REFERENCIAS CONSOLIDADAS:
-
-✅ YA CONSOLIDADO: Los fragmentos ya están agrupados por documento único.
-- Referencias disponibles: ${totalReferences} documentos
-- Cada referencia [N] representa UN documento completo
-- Los números son finales y correctos: [1] a [${totalReferences}]
-
-🚨 REGLA ABSOLUTA - USA SOLO ESTOS NÚMEROS:
-- Referencias válidas: ${referenceNumbers.map(n => `[${n}]`).join(', ')}
-- ❌ PROHIBIDO usar números mayores a [${totalReferences}]
-- ❌ PROHIBIDO inventar referencias que no existen
-- ✅ Si la información no está, di claramente que no está disponible
-
-INSTRUCCIONES OBLIGATORIAS:
-1. ✅ Cita usando [N] INMEDIATAMENTE después del dato específico
-2. ✅ SIEMPRE usa referencias INDIVIDUALES: [1] [2] [3]
-3. ✅ Si un dato viene de múltiples documentos, cita así: [1][2] (juntos, sin espacios ni comas)
-4. ✅ Cada afirmación factual DEBE tener su referencia
-5. ❌ NO inventes información
-6. ❌ NO uses números que no estén en la lista de referencias válidas arriba
-
-EJEMPLO CORRECTO (si tienes ${totalReferences} referencias):
-"La gestión del combustible requiere control diario[1]. El informe se genera en SAP 
-con la transacción ZMM_IE[2]. Este proceso aplica a varias áreas[1][2] y es 
-responsabilidad de JBOD[${totalReferences > 2 ? '3' : totalReferences}]."
-
-### Referencias
-${referenceNumbers.map((n, i) => `[${n}] Documento ${i + 1} (del contexto arriba)`).join('\n')}
-
-❌ EJEMPLOS INCORRECTOS:
-"... según procedimiento [${totalReferences + 1}]" ← Número inválido (mayor que ${totalReferences})
-"... transacción ZMM_IE [1, 2]" ← NO uses comas, usa [1][2]
-"... para declaración [1, 2, 3]" ← NO uses comas, usa [1][2][3]
-
-FORMATO OBLIGATORIO para tu sección Referencias:
-- Una línea por documento (máximo ${totalReferences} líneas)
-- Usa EXACTAMENTE los números ${referenceNumbers.map(n => `[${n}]`).join(', ')}
-- NO inventes números adicionales`;
+MODO RAG: ${totalReferences} documentos disponibles. Cita usando [1], [2], etc. después de cada dato.`;
       } else {
         // Modo Full-Text (documento completo)
         fullUserMessage = `DOCUMENTO COMPLETO:
-${userContext}
+${processedContext}
 
 ───────────────────────────────────
 PREGUNTA DEL USUARIO:
@@ -457,14 +435,7 @@ ${userMessage}`;
         
         enhancedSystemInstruction = `${systemInstruction}
 
-📝 MODO FULL-TEXT ACTIVADO:
-
-Tienes acceso al documento completo. Puedes usar cualquier parte del documento para responder.
-
-RECOMENDADO (pero no obligatorio):
-- Menciona el documento cuando sea útil: "Según el documento..."
-- Cita secciones específicas si es relevante
-`;
+Documento completo disponible. Responde basándote en él.`;
       }
     }
 
@@ -475,6 +446,11 @@ RECOMENDADO (pero no obligatorio):
     });
 
     // ✅ CORRECT API: genAI.models.generateContentStream()
+    console.log('🤖 [gemini.ts] Calling Gemini API...');
+    console.log(`   Model: ${model}`);
+    console.log(`   System instruction length: ${enhancedSystemInstruction.length}`);
+    console.log(`   Max tokens: ${maxTokens}`);
+    
     const stream = await genAI.models.generateContentStream({
       model: model,
       contents: contents,
@@ -482,14 +458,25 @@ RECOMENDADO (pero no obligatorio):
         systemInstruction: enhancedSystemInstruction,
         temperature: temperature,
         maxOutputTokens: maxTokens,
+        thinkingConfig: {
+          thinkingBudget: 0  // ⚡ FIX: Disable thinking mode (causes empty responses)
+        }
       }
     });
 
+    console.log('🤖 [gemini.ts] Stream received, processing chunks...');
+    
+    let chunkIndex = 0;
+    
     for await (const chunk of stream) {
+      chunkIndex++;
+      
       if (chunk.text) {
         yield chunk.text;
       }
     }
+    
+    console.log(`✅ [gemini.ts] Stream complete. Total chunks: ${chunkIndex}`);
   } catch (error) {
     console.error('Error streaming AI response:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -613,6 +600,9 @@ export async function analyzeImage(
       config: {
         temperature: 0.7,
         maxOutputTokens: 2048,
+        thinkingConfig: {
+          thinkingBudget: 0  // ⚡ FIX: Disable thinking mode
+        }
       }
     });
 
