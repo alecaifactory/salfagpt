@@ -155,7 +155,17 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragStats = null;
           let ragHadFallback = false;
           let ragResults: any[] = [];
-          let systemPromptToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable.'; // Can be modified if no relevant docs found
+          let systemPromptToUse = systemPrompt || `Eres un asistente de IA útil, preciso y amigable.
+
+FORMATO DE RESPUESTA OPTIMIZADO (máximo 300 tokens):
+1. Intro breve al tema (1-2 oraciones, ~50-80 tokens)
+2. Tres puntos clave concisos (~60-90 tokens total):
+   • Punto 1: Información concreta
+   • Punto 2: Dato relevante
+   • Punto 3: Detalle importante
+3. 2-3 preguntas de seguimiento (~40-60 tokens)
+
+SÉ CONCISO: Prioriza claridad y acción sobre extensión. Responde directo al punto.`; // Can be modified if no relevant docs found
           let shouldShowNoDocsMessage = false; // ✅ FIX: Declare at function scope for global access
 
           // Step 2: Context building - different strategies for Ally vs regular agents
@@ -662,6 +672,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
             conversationHistory,
             userContext: additionalContext,
             temperature: 0.7,
+            maxTokens: 300, // ✅ OPTIMIZED: Concise responses for fast generation
           });
 
           for await (const chunk of aiStream) {

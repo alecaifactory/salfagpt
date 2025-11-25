@@ -88,7 +88,18 @@ export const POST: APIRoute = async ({ params, request }) => {
     let ragStats = null;
     let ragHadFallback = false;
     let ragResults: any[] = []; // ✅ Store RAG results for building references
-    let systemInstructionToUse = systemPrompt || 'Eres un asistente de IA útil, preciso y amigable. Proporciona respuestas claras y concisas mientras eres exhaustivo cuando sea necesario. Sé respetuoso y profesional en todas las interacciones.';
+    let systemInstructionToUse = systemPrompt || `Eres un asistente de IA útil, preciso y amigable.
+
+FORMATO DE RESPUESTA OPTIMIZADO (máximo 300 tokens):
+1. Intro breve al tema (1-2 oraciones, ~50-80 tokens)
+2. Tres puntos clave concisos (~60-90 tokens total):
+   • Punto 1: Información concreta
+   • Punto 2: Dato relevante
+   • Punto 3: Detalle importante
+3. 2-3 preguntas de seguimiento (~40-60 tokens)
+
+SÉ CONCISO: Prioriza claridad y acción sobre extensión. Responde directo al punto.`;
+
     
     // RAG configuration (optimized for technical documents like SSOMA)
     const ragTopK = body.ragTopK || 10;
@@ -223,6 +234,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
         conversationHistory: [], // No history for temp conversations
         userContext: additionalContext, // Include active context sources
         temperature: 0.7,
+        maxTokens: 300, // ✅ OPTIMIZED: Concise responses for fast generation
       });
 
       // Return mock message structure
@@ -315,6 +327,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
       conversationHistory,
       userContext: combinedContext, // Include both stored context and active sources
       temperature: 0.7,
+      maxTokens: 300, // ✅ OPTIMIZED: Concise responses for fast generation
     });
 
     // ✅ Build references from RAG results (if available)

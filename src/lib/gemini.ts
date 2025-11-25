@@ -31,7 +31,7 @@ export interface GenerateOptions {
   conversationHistory?: Array<{ role: string; content: string }>;
   userContext?: string;
   temperature?: number;
-  maxTokens?: number;
+  maxTokens?: number; // Default: 300 tokens (optimized for concise responses)
 }
 
 export interface SourceReference {
@@ -85,7 +85,7 @@ export async function generateAIResponse(
     conversationHistory = [],
     userContext = '',
     temperature = 0.7,
-    maxTokens = 8192,
+    maxTokens = 300, // ✅ OPTIMIZED: 300 tokens = ~1 intro paragraph + 3 bullets + 2-3 questions
   } = options;
 
   try {
@@ -365,7 +365,7 @@ export async function* streamAIResponse(
     conversationHistory = [],
     userContext = '',
     temperature = 0.7,
-    maxTokens = 8192,
+    maxTokens = 300, // ✅ OPTIMIZED: Concise responses for fast generation
   } = options;
 
   try {
