@@ -302,11 +302,11 @@ Usa estas conversaciones para proporcionar contexto y continuidad.
                 // Get admin contact information
                 const adminEmails = await getOrgAdminContactsForUser(body.userEmail || '');
                 const lowQualityDocsMessage = `
-NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 70%).
+NOTA IMPORTANTE: Los documentos encontrados tienen relevancia moderada-baja (${(bestSimilarity * 100).toFixed(1)}% máximo, umbral recomendado: 60%).
 
 INSTRUCCIONES PARA TU RESPUESTA:
 1. Informa al usuario que encontraste información relacionada pero con relevancia moderada-baja
-2. Menciona que las similitudes están entre ${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 70%)
+2. Menciona que las similitudes están entre ${((Math.min(...ragResults.map(r => r.similarity || 0))) * 100).toFixed(1)}% y ${(bestSimilarity * 100).toFixed(1)}% (por debajo del umbral recomendado de 60%)
 3. Recomienda verificar esta información con el documento completo o contactar a un experto
 4. Proporciona contacto del administrador si necesita documentos más específicos:
    ${adminEmails.length > 0 ? adminEmails.map(email => `• ${email}`).join('\n   ') : 'Contacta a tu administrador'}
