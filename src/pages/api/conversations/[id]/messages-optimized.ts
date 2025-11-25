@@ -65,14 +65,13 @@ async function searchChunksEast4(
   
   console.log(`  🎯 Using dataset: ${dataset} (location: ${location})`);
   
-  // Use IVF vector search
+  // Use IVF vector search - CORRECTED for actual table schema
   const searchStart = Date.now();
   const searchQuery = `
     SELECT 
       base.chunk_id,
-      base.text,
+      base.full_text AS text,
       base.source_id,
-      base.source_name,
       base.chunk_index,
       base.metadata,
       distance
@@ -101,12 +100,12 @@ async function searchChunksEast4(
   const searchTime = Date.now() - searchStart;
   console.log(`  ✅ BigQuery search (${searchTime}ms) - ${rows.length} raw results`);
   
-  // Convert distance to similarity
+  // Get source names from metadata (stored in JSON field)
   const results = rows.map((r: any) => ({
     chunk_id: r.chunk_id,
-    text: r.text,
+    text: r.text, // Already aliased from full_text
     source_id: r.source_id,
-    source_name: r.source_name,
+    source_name: r.metadata?.sourceName || r.metadata?.source_name || `Document ${r.source_id.substring(0, 8)}`,
     chunk_index: r.chunk_index,
     metadata: r.metadata,
     similarity: 1 - r.distance, // Convert distance to similarity
