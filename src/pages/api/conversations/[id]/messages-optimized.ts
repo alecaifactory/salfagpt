@@ -81,7 +81,7 @@ async function searchChunksEast4(
       'embedding_normalized',
       (SELECT @queryEmbedding AS embedding_normalized),
       top_k => @topK,
-      options => JSON '{"fraction_lists_to_search": 0.01}'
+      options => '{"fraction_lists_to_search": 0.01}'
     )
     WHERE base.user_id = @userId
       AND base.source_id IN UNNEST(@sourceIds)
