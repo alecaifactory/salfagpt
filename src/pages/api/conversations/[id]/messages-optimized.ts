@@ -1,16 +1,12 @@
 /**
- * ⚡ OPTIMIZED Streaming API endpoint
+ * ⚡ OPTIMIZED Streaming API endpoint - us-east4 ONLY
  * POST /api/conversations/:id/messages-optimized
  * 
  * Feature flag: PUBLIC_USE_OPTIMIZED_STREAMING=true
+ * Performance: ~6s target
  * 
- * This is a SIMPLIFIED version of messages-stream.ts with:
- * - No fallback logic (fail fast)
- * - Direct searchByAgent (proven to work)
- * - Minimal steps (no redundant operations)
- * - Same response format (backward compatible)
- * 
- * Expected performance: ~6s (vs ~30s original)
+ * CRITICAL: Uses us-east4 BigQuery directly (no GREEN/BLUE routing)
+ * This is the PROVEN working configuration from backend benchmarks.
  */
 import type { APIRoute } from 'astro';
 import {
@@ -18,10 +14,112 @@ import {
   getMessages,
   getConversation,
   updateConversation,
+  firestore,
 } from '../../../../lib/firestore';
 import { streamAIResponse } from '../../../../lib/gemini';
-import { searchByAgent } from '../../../../lib/bigquery-router';
-import { buildRAGContext, getRAGStats } from '../../../../lib/rag-search-optimized';
+import { generateEmbedding } from '../../../../lib/embeddings';
+import { GoogleGenAI } from '@google/genai';
+import { BigQuery } from '@google-cloud/bigquery';
+
+const bq = new BigQuery({ 
+  projectId: process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt' 
+});
+
+const genAI = new GoogleGenAI({ 
+  apiKey: process.env.GOOGLE_AI_API_KEY || '' 
+});
+
+/**
+ * Search chunks using us-east4 BigQuery DIRECTLY
+ * No routing, no GREEN/BLUE - just us-east4 with IVF index
+ */
+async function searchChunksEast4(
+  userId: string,
+  agentId: string,
+  query: string,
+  options: { topK: number; minSimilarity: number }
+): Promise<any[]> {
+  const startTime = Date.now();
+  
+  console.log(`⚡ [OPTIMIZED-EAST4] Starting search for agent ${agentId}`);
+  
+  // Get agent's active sources
+  const agentDoc = await firestore.collection('conversations').doc(agentId).get();
+  const sourceIds = agentDoc.data()?.activeContextSourceIds || [];
+  
+  if (sourceIds.length === 0) {
+    console.log('  ⚠️ No active sources');
+    return [];
+  }
+  
+  console.log(`  📊 Agent has ${sourceIds.length} active sources`);
+  
+  // Generate embedding
+  const embStart = Date.now();
+  const embedding = await generateEmbedding(query);
+  console.log(`  ✅ Embedding (${Date.now() - embStart}ms)`);
+  
+  // FORCE us-east4 dataset
+  const dataset = 'flow_analytics_east4'; // ALWAYS east4
+  const location = 'us-east4'; // ALWAYS east4
+  
+  console.log(`  🎯 Using dataset: ${dataset} (location: ${location})`);
+  
+  // Use IVF vector search
+  const searchStart = Date.now();
+  const searchQuery = `
+    SELECT 
+      base.chunk_id,
+      base.text,
+      base.source_id,
+      base.source_name,
+      base.chunk_index,
+      base.metadata,
+      distance
+    FROM VECTOR_SEARCH(
+      TABLE \`salfagpt.${dataset}.document_embeddings\`,
+      'embedding_normalized',
+      (SELECT @queryEmbedding AS embedding_normalized),
+      top_k => @topK,
+      options => JSON '{"fraction_lists_to_search": 0.01}'
+    )
+    WHERE base.user_id = @userId
+      AND base.source_id IN UNNEST(@sourceIds)
+  `;
+  
+  const [rows] = await bq.query({
+    query: searchQuery,
+    params: {
+      queryEmbedding: embedding,
+      topK: options.topK * 2,
+      userId,
+      sourceIds,
+    },
+    location, // CRITICAL: us-east4
+  });
+  
+  const searchTime = Date.now() - searchStart;
+  console.log(`  ✅ BigQuery search (${searchTime}ms) - ${rows.length} raw results`);
+  
+  // Convert distance to similarity
+  const results = rows.map((r: any) => ({
+    chunk_id: r.chunk_id,
+    text: r.text,
+    source_id: r.source_id,
+    source_name: r.source_name,
+    chunk_index: r.chunk_index,
+    metadata: r.metadata,
+    similarity: 1 - r.distance, // Convert distance to similarity
+  }));
+  
+  // Filter by threshold
+  const filtered = results.filter(r => r.similarity >= options.minSimilarity);
+  
+  console.log(`  ✅ After filter (>=${options.minSimilarity}): ${filtered.length} chunks`);
+  console.log(`  ⏱️ Total search time: ${Date.now() - startTime}ms`);
+  
+  return filtered;
+}
 
 export const POST: APIRoute = async ({ params, request }) => {
   const conversationId = params.id;
@@ -46,7 +144,10 @@ export const POST: APIRoute = async ({ params, request }) => {
     }
 
     const totalStart = Date.now();
-    console.log('⚡ [OPTIMIZED] Starting request');
+    console.log('⚡ [OPTIMIZED-EAST4] ========================================');
+    console.log('⚡ [OPTIMIZED-EAST4] Starting optimized streaming (us-east4 ONLY)');
+    console.log(`   Conversation: ${conversationId}`);
+    console.log(`   Query: "${message.substring(0, 50)}..."`);
 
     // Get effective agent ID
     let effectiveAgentId = conversationId;
@@ -54,6 +155,7 @@ export const POST: APIRoute = async ({ params, request }) => {
       const conv = await getConversation(conversationId);
       if (conv?.agentId) {
         effectiveAgentId = conv.agentId;
+        console.log(`   Using parent agent: ${effectiveAgentId}`);
       }
     }
 
@@ -65,6 +167,7 @@ export const POST: APIRoute = async ({ params, request }) => {
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
       }));
+      console.log(`   History: ${conversationHistory.length} messages`);
     }
 
     // Create SSE stream
@@ -75,47 +178,51 @@ export const POST: APIRoute = async ({ params, request }) => {
         try {
           const send = (type: string, data: any = {}) => {
             controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type, ...data })}\n\n`
+              `data: ${JSON.stringify({ type, timestamp: new Date().toISOString(), ...data })}\n\n`
             ));
           };
 
-          // Step 1: Thinking (minimal)
+          // Step 1: Minimal thinking
           send('thinking', { step: 'thinking', status: 'active' });
           await new Promise(r => setTimeout(r, 500));
           send('thinking', { step: 'thinking', status: 'complete' });
 
-          // Step 2: Search
+          // Step 2: Search in us-east4
           send('thinking', { step: 'searching', status: 'active' });
           
           let ragResults: any[] = [];
           
           if (!isAllyConversation) {
-            const requestOrigin = request.headers.get('origin') || 
-                                 request.headers.get('referer') || 
-                                 request.url;
+            console.log('⚡ [OPTIMIZED-EAST4] Searching us-east4...');
             
-            // Use proven searchByAgent function
-            ragResults = await searchByAgent(userId, effectiveAgentId, message, {
+            ragResults = await searchChunksEast4(userId, effectiveAgentId, message, {
               topK: ragTopK,
               minSimilarity: ragMinSimilarity,
-              requestOrigin,
             });
-            
-            console.log(`⚡ [OPTIMIZED] Found ${ragResults.length} chunks`);
           }
           
-          send('thinking', { step: 'searching', status: 'complete' });
+          send('thinking', { step: 'searching', status: 'complete', chunksFound: ragResults.length });
 
           // Step 3: Build references
           send('thinking', { step: 'selecting', status: 'active' });
           
           // Build context
-          const ragContext = ragResults.length > 0 ? buildRAGContext(ragResults) : '';
+          let ragContext = '';
+          if (ragResults.length > 0) {
+            ragContext = ragResults
+              .map((r, idx) => `
+=== Fragmento ${idx + 1}: ${r.source_name} ===
+Similitud: ${(r.similarity * 100).toFixed(1)}%
+
+${r.text}
+`)
+              .join('\n\n');
+          }
           
           // Build references (consolidated by document)
           const sourceGroups = new Map<string, any[]>();
           ragResults.forEach(result => {
-            const key = result.sourceId || result.source_id;
+            const key = result.source_id;
             if (!sourceGroups.has(key)) {
               sourceGroups.set(key, []);
             }
@@ -124,16 +231,16 @@ export const POST: APIRoute = async ({ params, request }) => {
           
           let refId = 1;
           const references = Array.from(sourceGroups.values()).map(chunks => {
-            chunks.sort((a, b) => (b.similarity || 0) - (a.similarity || 0));
+            chunks.sort((a, b) => b.similarity - a.similarity);
             const primary = chunks[0];
-            const avgSim = chunks.reduce((sum, c) => sum + (c.similarity || 0), 0) / chunks.length;
+            const avgSim = chunks.reduce((sum, c) => sum + c.similarity, 0) / chunks.length;
             const combined = chunks.map(c => c.text).join('\n\n---\n\n');
             
             return {
               id: refId++,
-              sourceId: primary.sourceId || primary.source_id,
-              sourceName: primary.sourceName || primary.source_name,
-              chunkIndex: primary.chunkIndex || primary.chunk_index || 0,
+              sourceId: primary.source_id,
+              sourceName: primary.source_name,
+              chunkIndex: primary.chunk_index,
               similarity: avgSim,
               snippet: primary.text.substring(0, 300),
               fullText: combined.substring(0, 5000),
@@ -149,14 +256,16 @@ export const POST: APIRoute = async ({ params, request }) => {
             };
           });
           
+          console.log(`⚡ [OPTIMIZED-EAST4] Built ${references.length} references`);
+          
           // Send references
           if (references.length > 0) {
             send('references', { references });
           }
           
-          send('thinking', { step: 'selecting', status: 'complete' });
+          send('thinking', { step: 'selecting', status: 'complete', referencesCount: references.length });
 
-          // Step 4: Generate
+          // Step 4: Generate with Gemini
           send('thinking', { step: 'generating', status: 'active' });
           
           let fullResponse = '';
@@ -215,8 +324,6 @@ export const POST: APIRoute = async ({ params, request }) => {
               lastMessageAt: new Date(),
             });
             
-            const ragStats = ragResults.length > 0 ? getRAGStats(ragResults) : null;
-            
             send('complete', {
               messageId: aiMsg.id,
               userMessageId: userMsg.id,
@@ -226,16 +333,23 @@ export const POST: APIRoute = async ({ params, request }) => {
                 actuallyUsed: ragResults.length > 0,
                 topK: ragTopK,
                 minSimilarity: ragMinSimilarity,
-                stats: ragStats,
+                chunksFound: ragResults.length,
+                referencesBuilt: references.length,
+                dataset: 'flow_analytics_east4',
+                location: 'us-east4',
               },
             });
             
-            console.log(`⚡ [OPTIMIZED] Complete in ${totalTime}ms`);
+            console.log(`⚡ [OPTIMIZED-EAST4] ========================================`);
+            console.log(`⚡ [OPTIMIZED-EAST4] COMPLETE in ${totalTime}ms`);
+            console.log(`   Chunks: ${ragResults.length}`);
+            console.log(`   References: ${references.length}`);
+            console.log(`⚡ [OPTIMIZED-EAST4] ========================================`);
           }
 
           controller.close();
         } catch (error) {
-          console.error('❌ [OPTIMIZED] Error:', error);
+          console.error('❌ [OPTIMIZED-EAST4] Error:', error);
           controller.enqueue(encoder.encode(
             `data: ${JSON.stringify({ 
               type: 'error', 
@@ -255,7 +369,7 @@ export const POST: APIRoute = async ({ params, request }) => {
       },
     });
   } catch (error) {
-    console.error('❌ [OPTIMIZED] Fatal error:', error);
+    console.error('❌ [OPTIMIZED-EAST4] Fatal error:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Failed to stream response',
