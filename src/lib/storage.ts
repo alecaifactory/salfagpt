@@ -82,31 +82,46 @@ export async function uploadFile(
 
 /**
  * Download file from Cloud Storage
+ * ✅ MIGRATION: Try us-east4 first, fallback to us-central1
  */
 export async function downloadFile(storagePath: string): Promise<Buffer> {
-  try {
-    console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
-    
-    const bucket = storage.bucket(BUCKET_NAME);
-    const file = bucket.file(storagePath);
-    
-    // Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      throw new Error(`File not found in storage: ${storagePath}`);
+  console.log(`📥 Downloading from Cloud Storage: ${storagePath}`);
+  
+  // Try buckets in order: us-east4 (GREEN) → us-central1 (BLUE)
+  const bucketsToTry = [
+    'salfagpt-context-documents-east4',  // GREEN: us-east4 (new)
+    'salfagpt-uploads',                   // BLUE: us-central1 (old)
+  ];
+  
+  for (const bucketName of bucketsToTry) {
+    try {
+      console.log(`  🔍 Trying bucket: ${bucketName}`);
+      
+      const bucket = storage.bucket(bucketName);
+      const file = bucket.file(storagePath);
+      
+      // Check if file exists
+      const [exists] = await file.exists();
+      if (!exists) {
+        console.log(`  ⚠️  File not in ${bucketName}`);
+        continue; // Try next bucket
+      }
+      
+      // Download file
+      const [buffer] = await file.download();
+      
+      console.log(`✅ File downloaded from ${bucketName}: ${buffer.length} bytes`);
+      
+      return buffer;
+      
+    } catch (error) {
+      console.log(`  ❌ Failed from ${bucketName}:`, error instanceof Error ? error.message : 'Unknown');
+      // Continue to next bucket
     }
-    
-    // Download file
-    const [buffer] = await file.download();
-    
-    console.log(`✅ File downloaded: ${buffer.length} bytes`);
-    
-    return buffer;
-    
-  } catch (error) {
-    console.error('❌ Error downloading from Cloud Storage:', error);
-    throw new Error(`Cloud Storage download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+  
+  // All buckets failed
+  throw new Error(`File not found in any bucket: ${storagePath} (tried: ${bucketsToTry.join(', ')})`);
 }
 
 /**
