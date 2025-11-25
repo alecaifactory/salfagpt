@@ -1,12 +1,15 @@
 /**
- * ⚡ OPTIMIZED Streaming API endpoint - us-east4 ONLY
+ * ⚡ OPTIMIZED Streaming API endpoint - us-east4 with SQL cosine similarity
  * POST /api/conversations/:id/messages-optimized
  * 
  * Feature flag: PUBLIC_USE_OPTIMIZED_STREAMING=true
- * Performance: ~6s target
  * 
- * CRITICAL: Uses us-east4 BigQuery directly (no GREEN/BLUE routing)
- * This is the PROVEN working configuration from backend benchmarks.
+ * Uses PROVEN working approach from bigquery-agent-search.ts:
+ * - SQL-based cosine similarity (NOT VECTOR_SEARCH function)
+ * - Direct us-east4 access
+ * - Same query that works in production
+ * 
+ * Expected: ~6s (embedding 1s + BigQuery 2s + Gemini 4s)
  */
 import type { APIRoute } from 'astro';
 import {
@@ -15,25 +18,21 @@ import {
   getConversation,
   updateConversation,
   firestore,
+  getEffectiveOwnerForContext,
 } from '../../../../lib/firestore';
 import { streamAIResponse } from '../../../../lib/gemini';
 import { generateEmbedding } from '../../../../lib/embeddings';
-import { GoogleGenAI } from '@google/genai';
 import { BigQuery } from '@google-cloud/bigquery';
 
 const bq = new BigQuery({ 
   projectId: process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt' 
 });
 
-const genAI = new GoogleGenAI({ 
-  apiKey: process.env.GOOGLE_AI_API_KEY || '' 
-});
-
 /**
- * Search chunks using us-east4 BigQuery DIRECTLY
- * No routing, no GREEN/BLUE - just us-east4 with IVF index
+ * Search using SQL cosine similarity (PROVEN approach that works)
+ * Same as bigquery-agent-search.ts but forced to us-east4
  */
-async function searchChunksEast4(
+async function searchChunksEast4Direct(
   userId: string,
   agentId: string,
   query: string,
@@ -41,83 +40,85 @@ async function searchChunksEast4(
 ): Promise<any[]> {
   const startTime = Date.now();
   
-  console.log(`⚡ [OPTIMIZED-EAST4] Starting search for agent ${agentId}`);
+  console.log(`⚡ [OPTIMIZED-EAST4] Starting search`);
+  console.log(`   Agent: ${agentId}`);
+  console.log(`   Query: "${query.substring(0, 50)}..."`);
   
   // Get agent's active sources
   const agentDoc = await firestore.collection('conversations').doc(agentId).get();
   const sourceIds = agentDoc.data()?.activeContextSourceIds || [];
   
   if (sourceIds.length === 0) {
-    console.log('  ⚠️ No active sources');
+    console.log('   ⚠️ No active sources');
     return [];
   }
   
-  console.log(`  📊 Agent has ${sourceIds.length} active sources`);
+  console.log(`   📊 ${sourceIds.length} active sources`);
+  
+  // Get effective owner for shared agents
+  const effectiveUserId = await getEffectiveOwnerForContext(agentId, userId);
+  console.log(`   🔑 Effective owner: ${effectiveUserId}${effectiveUserId !== userId ? ' (shared)' : ''}`);
   
   // Generate embedding
   const embStart = Date.now();
   const embedding = await generateEmbedding(query);
-  console.log(`  ✅ Embedding (${Date.now() - embStart}ms)`);
+  console.log(`   ✅ Embedding (${Date.now() - embStart}ms)`);
   
-  // FORCE us-east4 dataset
-  const dataset = 'flow_analytics_east4'; // ALWAYS east4
-  const location = 'us-east4'; // ALWAYS east4
-  
-  console.log(`  🎯 Using dataset: ${dataset} (location: ${location})`);
-  
-  // Use IVF vector search - CORRECTED for actual table schema
+  // SQL-based cosine similarity (PROVEN to work)
   const searchStart = Date.now();
-  const searchQuery = `
-    SELECT 
-      base.chunk_id,
-      base.full_text AS text,
-      base.source_id,
-      base.chunk_index,
-      base.metadata,
-      distance
-    FROM VECTOR_SEARCH(
-      TABLE \`salfagpt.${dataset}.document_embeddings\`,
-      'embedding_normalized',
-      (SELECT @queryEmbedding AS embedding_normalized),
-      top_k => @topK,
-      options => '{"fraction_lists_to_search": 0.01}'
+  const sqlQuery = `
+    WITH similarities AS (
+      SELECT 
+        chunk_id,
+        source_id,
+        chunk_index,
+        text_preview,
+        full_text,
+        metadata,
+        (
+          SELECT SUM(a * b) / (
+            SQRT((SELECT SUM(a * a) FROM UNNEST(embedding) AS a)) * 
+            SQRT((SELECT SUM(b * b) FROM UNNEST(@queryEmbedding) AS b))
+          )
+          FROM UNNEST(embedding) AS a WITH OFFSET pos
+          JOIN UNNEST(@queryEmbedding) AS b WITH OFFSET pos2
+            ON pos = pos2
+        ) AS similarity
+      FROM \`salfagpt.flow_analytics_east4.document_embeddings\`
+      WHERE user_id = @effectiveUserId
+        AND source_id IN UNNEST(@sourceIds)
     )
-    WHERE base.user_id = @userId
-      AND base.source_id IN UNNEST(@sourceIds)
+    SELECT *
+    FROM similarities
+    WHERE similarity >= @minSimilarity
+    ORDER BY similarity DESC
+    LIMIT @topK
   `;
   
   const [rows] = await bq.query({
-    query: searchQuery,
+    query: sqlQuery,
     params: {
-      queryEmbedding: embedding,
-      topK: options.topK * 2,
-      userId,
+      effectiveUserId,
       sourceIds,
+      queryEmbedding: embedding,
+      minSimilarity: options.minSimilarity,
+      topK: options.topK,
     },
-    location, // CRITICAL: us-east4
+    location: 'us-east4', // CRITICAL
   });
   
-  const searchTime = Date.now() - searchStart;
-  console.log(`  ✅ BigQuery search (${searchTime}ms) - ${rows.length} raw results`);
+  console.log(`   ✅ Search complete (${Date.now() - searchStart}ms) - ${rows.length} chunks`);
+  console.log(`   ⏱️ Total: ${Date.now() - startTime}ms`);
   
-  // Get source names from metadata (stored in JSON field)
-  const results = rows.map((r: any) => ({
+  return rows.map((r: any) => ({
     chunk_id: r.chunk_id,
-    text: r.text, // Already aliased from full_text
+    text: r.full_text,
     source_id: r.source_id,
-    source_name: r.metadata?.sourceName || r.metadata?.source_name || `Document ${r.source_id.substring(0, 8)}`,
+    source_name: r.metadata?.sourceName || `Doc ${r.source_id.substring(0, 8)}`,
     chunk_index: r.chunk_index,
     metadata: r.metadata,
-    similarity: 1 - r.distance, // Convert distance to similarity
+    similarity: r.similarity,
   }));
-  
-  // Filter by threshold
-  const filtered = results.filter(r => r.similarity >= options.minSimilarity);
-  
-  console.log(`  ✅ After filter (>=${options.minSimilarity}): ${filtered.length} chunks`);
-  console.log(`  ⏱️ Total search time: ${Date.now() - startTime}ms`);
-  
-  return filtered;
 }
 
 export const POST: APIRoute = async ({ params, request }) => {
@@ -144,9 +145,7 @@ export const POST: APIRoute = async ({ params, request }) => {
 
     const totalStart = Date.now();
     console.log('⚡ [OPTIMIZED-EAST4] ========================================');
-    console.log('⚡ [OPTIMIZED-EAST4] Starting optimized streaming (us-east4 ONLY)');
-    console.log(`   Conversation: ${conversationId}`);
-    console.log(`   Query: "${message.substring(0, 50)}..."`);
+    console.log('⚡ [OPTIMIZED-EAST4] Using SQL cosine similarity (us-east4 ONLY)');
 
     // Get effective agent ID
     let effectiveAgentId = conversationId;
@@ -154,7 +153,6 @@ export const POST: APIRoute = async ({ params, request }) => {
       const conv = await getConversation(conversationId);
       if (conv?.agentId) {
         effectiveAgentId = conv.agentId;
-        console.log(`   Using parent agent: ${effectiveAgentId}`);
       }
     }
 
@@ -166,7 +164,6 @@ export const POST: APIRoute = async ({ params, request }) => {
         role: msg.role,
         content: typeof msg.content === 'string' ? msg.content : msg.content?.text || '',
       }));
-      console.log(`   History: ${conversationHistory.length} messages`);
     }
 
     // Create SSE stream
@@ -192,9 +189,7 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragResults: any[] = [];
           
           if (!isAllyConversation) {
-            console.log('⚡ [OPTIMIZED-EAST4] Searching us-east4...');
-            
-            ragResults = await searchChunksEast4(userId, effectiveAgentId, message, {
+            ragResults = await searchChunksEast4Direct(userId, effectiveAgentId, message, {
               topK: ragTopK,
               minSimilarity: ragMinSimilarity,
             });
@@ -257,14 +252,13 @@ ${r.text}
           
           console.log(`⚡ [OPTIMIZED-EAST4] Built ${references.length} references`);
           
-          // Send references
           if (references.length > 0) {
             send('references', { references });
           }
           
           send('thinking', { step: 'selecting', status: 'complete', referencesCount: references.length });
 
-          // Step 4: Generate with Gemini
+          // Step 4: Generate
           send('thinking', { step: 'generating', status: 'active' });
           
           let fullResponse = '';
@@ -334,6 +328,7 @@ ${r.text}
                 minSimilarity: ragMinSimilarity,
                 chunksFound: ragResults.length,
                 referencesBuilt: references.length,
+                method: 'sql-cosine-similarity',
                 dataset: 'flow_analytics_east4',
                 location: 'us-east4',
               },
@@ -341,8 +336,6 @@ ${r.text}
             
             console.log(`⚡ [OPTIMIZED-EAST4] ========================================`);
             console.log(`⚡ [OPTIMIZED-EAST4] COMPLETE in ${totalTime}ms`);
-            console.log(`   Chunks: ${ragResults.length}`);
-            console.log(`   References: ${references.length}`);
             console.log(`⚡ [OPTIMIZED-EAST4] ========================================`);
           }
 
