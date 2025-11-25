@@ -6705,13 +6705,15 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </button>
             )}
             
-            {/* Stella ✨ Button - Activates magic wand mode */}
-            <button
-              onClick={handleStellaActivate}
-              className="px-2 py-1.5 text-xs bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-md transition-all flex items-center gap-1.5 font-semibold shadow-sm"
-            >
-              Stella ✨
-            </button>
+            {/* Stella ✨ Button - Activates magic wand mode (SuperAdmin only) */}
+            {userEmail === 'alec@getaifactory.com' && (
+              <button
+                onClick={handleStellaActivate}
+                className="px-2 py-1.5 text-xs bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-700 hover:to-purple-700 rounded-md transition-all flex items-center gap-1.5 font-semibold shadow-sm"
+              >
+                Stella ✨
+              </button>
+            )}
           </div>
         </div>
         
