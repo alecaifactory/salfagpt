@@ -1,0 +1,24 @@
+🧪 TEST 4 CASOS - CONFIGURACIÓN OPTIMIZADA
+Threshold: 0.6 | Dataset: us-east4
+
+
+══════════════════════════════════════════════════════════════════════
+CASO 1: Indicame que filtros debo utilizar para una manten...
+Agent: S2-v2 | Original: Inaceptable (1/5)
+──────────────────────────────────────────────────────────────────────
+Sources: 467
+file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:11716
+            const apiError = new ApiError({
+                             ^
+
+ApiError: {"error":{"code":403,"message":"Request had insufficient authentication scopes.","status":"PERMISSION_DENIED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"ACCESS_TOKEN_SCOPE_INSUFFICIENT","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com","method":"google.ai.generativelanguage.v1beta.GenerativeService.BatchEmbedContents"}}]}}
+    at throwErrorIfNotOK (file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:11716:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:11454:13
+    at async genEmb (file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:51:18)
+    at async test (file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:78:15)
+    at async file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:154:15 {
+  status: 403
+}
+
+Node.js v22.18.0

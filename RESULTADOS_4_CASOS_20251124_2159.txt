@@ -1,0 +1,23 @@
+🧪 TEST 4 CASOS - CONFIGURACIÓN OPTIMIZADA
+Threshold: 0.6 | Dataset: us-east4
+
+
+══════════════════════════════════════════════════════════════════════
+CASO 1: Indicame que filtros debo utilizar para una manten...
+Agent: S2-v2 | Original: Inaceptable (1/5)
+──────────────────────────────────────────────────────────────────────
+Sources: 467
+file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:103
+                    throw new Error(`Value must be a list given an array path ${key}`);
+                          ^
+
+Error: Value must be a list given an array path requests[]
+    at setValueByPath (file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:103:27)
+    at embedContentParametersToMldev (file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:8514:9)
+    at Models.embedContent (file:///Users/alec/salfagpt/node_modules/@google/genai/dist/node/index.mjs:13447:26)
+    at genEmb (file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:51:37)
+    at test (file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:78:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///Users/alec/salfagpt/scripts/test-4-casos-simple.mjs:154:15
+
+Node.js v22.18.0
