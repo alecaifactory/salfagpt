@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { getContextSource, getExtractedData, getUserById } from '../../../../lib/firestore';
+import { getContextSource, getExtractedData, getUserById, userHasAccessToAgent } from '../../../../lib/firestore';
 import { getSession } from '../../../../lib/auth';
 import { downloadFile } from '../../../../lib/storage';
 
@@ -51,30 +51,53 @@ export const GET: APIRoute = async ({ params, cookies }) => {
 
     console.log('📋 Source loaded:', source.name, 'User:', source.userId);
 
-    // 3. SECURITY: Verify ownership (support both hash ID and legacy Google OAuth ID)
-    // Load user to get googleUserId for backward compatibility
+    // 3. SECURITY: Verify access (ownership OR superadmin OR agent sharing)
+    console.log('🔒 [FILE ACCESS] Checking permissions...');
+    console.log('   User:', session.id, session.email);
+    console.log('   Source owner:', source.userId);
+    console.log('   Assigned to agents:', source.assignedToAgents?.length || 0);
+    
+    // A) Check ownership (support hash ID and legacy OAuth ID)
     const user = await getUserById(session.id);
     const googleUserId = user?.googleUserId;
     
     const isOwner = source.userId === session.id || 
-                    (googleUserId && source.userId === googleUserId) ||
-                    session.email === 'alec@getaifactory.com';
+                    (googleUserId && source.userId === googleUserId);
     
-    if (!isOwner) {
-      console.error('🚫 Access denied - userId mismatch', {
+    // B) Check SuperAdmin
+    const isSuperAdmin = session.email === 'alec@getaifactory.com' || session.role === 'superadmin';
+    
+    // C) Check agent sharing
+    let hasAgentAccess = false;
+    if (!isOwner && !isSuperAdmin && source.assignedToAgents && source.assignedToAgents.length > 0) {
+      console.log('   🔍 Checking access to assigned agents...');
+      
+      for (const agentId of source.assignedToAgents) {
+        const access = await userHasAccessToAgent(session.id, agentId, session.email);
+        if (access.hasAccess) {
+          console.log(`   ✅ User has ${access.accessLevel} access to agent:`, agentId);
+          hasAgentAccess = true;
+          break;
+        }
+      }
+    }
+    
+    // Deny if no access
+    if (!isOwner && !isSuperAdmin && !hasAgentAccess) {
+      console.error('🚫 Access denied', {
+        isOwner,
+        isSuperAdmin,
+        hasAgentAccess,
         sourceUserId: source.userId,
-        sessionId: session.id,
-        googleUserId: googleUserId || 'N/A'
+        sessionId: session.id
       });
       return new Response(
-        '<html><body><h1>403 Prohibido</h1><p>No puedes acceder a documentos de otros usuarios</p></body></html>',
+        '<html><body style="font-family: sans-serif; padding: 40px; text-align: center;"><h1>🔒 403 Prohibido</h1><p>No tienes acceso a este documento.</p><p style="color: #666; font-size: 14px;">Contacta al administrador si crees que esto es un error.</p></body></html>',
         { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
       );
     }
     
-    console.log('✅ Ownership verified', {
-      method: source.userId === session.id ? 'hash-id' : 'google-oauth-id'
-    });
+    console.log('✅ Access granted:', { isOwner, isSuperAdmin, hasAgentAccess });
 
 
     // 4. Try to get storage path
