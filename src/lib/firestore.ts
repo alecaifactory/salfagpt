@@ -1550,13 +1550,25 @@ export async function saveConversationContext(
   }
 
   try {
-    // 1. Update conversation with active source IDs
-    await updateConversation(conversationId, {
-      activeContextSourceIds,
-    });
+    // 1. Check if conversation exists before updating
+    const conversationDoc = await firestore
+      .collection(COLLECTIONS.CONVERSATIONS)
+      .doc(conversationId)
+      .get();
     
-    // 2. ✅ CRITICAL FIX: Update assignedToAgents field on each source document
-    // This enables agent-based search to work correctly
+    if (conversationDoc.exists) {
+      // Update conversation with active source IDs
+      await updateConversation(conversationId, {
+        activeContextSourceIds,
+      });
+      console.log(`✅ Updated conversation ${conversationId} with ${activeContextSourceIds.length} active sources`);
+    } else {
+      console.log(`⏭️ Conversation ${conversationId} not found - skipping conversation update`);
+      console.log(`   ℹ️  Context sources will still be assigned to agent via assignedToAgents field`);
+    }
+    
+    // 2. ✅ Update assignedToAgents field on each source document
+    // This is the CRITICAL field for agent-based search
     if (activeContextSourceIds.length > 0) {
       const batch = firestore.batch();
       
@@ -1575,7 +1587,7 @@ export async function saveConversationContext(
       console.log(`✅ Updated assignedToAgents field on ${activeContextSourceIds.length} sources`);
     }
     
-    console.log('💾 Saved context for conversation:', conversationId, activeContextSourceIds);
+    console.log('💾 Saved context for conversation:', conversationId, activeContextSourceIds.length, 'sources');
   } catch (error) {
     console.error('Error saving conversation context:', error);
     throw error;

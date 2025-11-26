@@ -144,3 +144,6 @@ WHERE user_id = 'usr_uhwqffaqag1wrryd82tw'
 **Next:** M3-v2 configuration  
 **ETA Sistema Completo:** ~1.5-2 horas
 
+
+
+

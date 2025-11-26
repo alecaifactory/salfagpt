@@ -151,58 +151,102 @@ async function uploadCommand(config: UploadConfig): Promise<UploadSummary> {
     filesProcessed: files.length,
   });
   
-  // Process each file
+  // Process files in parallel batches for MASSIVE speed improvement
+  const PARALLEL_BATCH_SIZE = 15; // ✅ 15 concurrent uploads (under 60/min API limit)
+  
   const results: FileUploadResult[] = [];
   let totalCost = 0;
   let totalChars = 0;
   let totalChunks = 0;
   
-  for (let i = 0; i < files.length; i++) {
-    const filePath = files[i];
-    const fileName = basename(filePath);
+  console.log(`\n🚀 PARALLEL PROCESSING: ${PARALLEL_BATCH_SIZE} files at a time`);
+  console.log(`   Total batches: ${Math.ceil(files.length / PARALLEL_BATCH_SIZE)}`);
+  console.log(`   Expected speedup: ${PARALLEL_BATCH_SIZE}× faster\n`);
+  
+  // Process in parallel batches
+  for (let batchStart = 0; batchStart < files.length; batchStart += PARALLEL_BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + PARALLEL_BATCH_SIZE, files.length);
+    const batchFiles = files.slice(batchStart, batchEnd);
+    const batchNum = Math.floor(batchStart / PARALLEL_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(files.length / PARALLEL_BATCH_SIZE);
     
     console.log(`\n${'═'.repeat(70)}`);
-    console.log(`📄 ARCHIVO ${i + 1} de ${files.length}`);
-    console.log(`${'═'.repeat(70)}`);
-    console.log(`📁 Archivo: ${fileName}`);
-    console.log(`📊 Progreso global: ${i} completados, ${files.length - i} restantes`);
+    console.log(`🔄 BATCH ${batchNum}/${totalBatches}: Processing ${batchFiles.length} files in parallel`);
+    console.log(`   Files ${batchStart + 1}-${batchEnd} of ${files.length}`);
     console.log(`${'═'.repeat(70)}\n`);
     
-    try {
-      const result = await uploadSingleFile(filePath, config, SESSION_ID);
-      results.push(result);
-      
-      if (result.success) {
-        // Accumulate totals
-        if (result.extractedChars) totalChars += result.extractedChars;
-        if (result.chunks) totalChunks += result.chunks;
-        totalCost += result.duration ? estimateCost(config.model || 'gemini-2.5-flash', result.extractedChars || 0) : 0;
+    // Process this batch in parallel using Promise.allSettled
+    const batchResults = await Promise.allSettled(
+      batchFiles.map((filePath, idx) => {
+        const globalIndex = batchStart + idx;
+        const fileName = basename(filePath);
         
-        // Show running totals
-        console.log(`\n📊 PROGRESO ACUMULADO (${i + 1}/${files.length}):`);
-        console.log(`   ✅ Exitosos: ${results.filter(r => r.success).length}`);
-        console.log(`   ❌ Fallidos: ${results.filter(r => !r.success).length}`);
-        console.log(`   📝 Total caracteres: ${totalChars.toLocaleString()}`);
-        console.log(`   📐 Total chunks: ${totalChunks}`);
-        console.log(`   💰 Costo acumulado: $${totalCost.toFixed(4)}`);
+        console.log(`   [${globalIndex + 1}/${files.length}] 🚀 Starting: ${fileName}`);
+        
+        return uploadSingleFile(filePath, config, SESSION_ID)
+          .then(result => {
+            if (result.success) {
+              console.log(`   [${globalIndex + 1}/${files.length}] ✅ DONE: ${fileName} (${result.chunks} chunks, $${estimateCost(config.model || 'gemini-2.5-flash', result.extractedChars || 0).toFixed(4)})`);
+            } else {
+              console.log(`   [${globalIndex + 1}/${files.length}] ❌ FAILED: ${fileName} - ${result.error}`);
+            }
+            return result;
+          })
+          .catch(error => {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.log(`   [${globalIndex + 1}/${files.length}] ❌ ERROR: ${fileName} - ${errorMessage}`);
+            return {
+              fileName,
+              success: false,
+              error: errorMessage,
+            } as FileUploadResult;
+          });
+      })
+    );
+    
+    // Collect results from this batch
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        results.push(result.value);
+        
+        if (result.value.success) {
+          if (result.value.extractedChars) totalChars += result.value.extractedChars;
+          if (result.value.chunks) totalChunks += result.value.chunks;
+          totalCost += result.value.duration ? estimateCost(config.model || 'gemini-2.5-flash', result.value.extractedChars || 0) : 0;
+        }
       } else {
-        console.log(`\n❌ ${fileName} failed: ${result.error}`);
+        results.push({
+          fileName: 'unknown',
+          success: false,
+          error: result.reason,
+        });
       }
-      
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.log(`\n❌ ${fileName} failed: ${errorMessage}`);
-      
-      results.push({
-        fileName,
-        success: false,
-        error: errorMessage,
-      });
     }
     
-    // Small delay between files to avoid rate limits
-    if (i < files.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    // Show batch summary
+    const batchSucceeded = batchResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const batchFailed = batchResults.length - batchSucceeded;
+    
+    console.log(`\n📊 BATCH ${batchNum} COMPLETE:`);
+    console.log(`   ✅ Succeeded: ${batchSucceeded}/${batchFiles.length}`);
+    console.log(`   ❌ Failed: ${batchFailed}/${batchFiles.length}`);
+    
+    // Show cumulative totals
+    const totalSucceeded = results.filter(r => r.success).length;
+    const totalFailed = results.filter(r => !r.success).length;
+    
+    console.log(`\n📊 PROGRESO ACUMULADO (${batchEnd}/${files.length}):`);
+    console.log(`   ✅ Exitosos: ${totalSucceeded}`);
+    console.log(`   ❌ Fallidos: ${totalFailed}`);
+    console.log(`   📝 Total caracteres: ${totalChars.toLocaleString()}`);
+    console.log(`   📐 Total chunks: ${totalChunks}`);
+    console.log(`   💰 Costo acumulado: $${totalCost.toFixed(4)}`);
+    console.log(`   ⏱️  Tiempo transcurrido: ${((Date.now() - startTime) / 1000 / 60).toFixed(1)} min`);
+    
+    // Small delay between batches to avoid overwhelming APIs
+    if (batchEnd < files.length) {
+      console.log(`\n⏸️  Waiting 3s before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
   
@@ -349,6 +393,18 @@ async function uploadSingleFile(
     console.log(`   🤖 Assigned to: ${config.agentId}`);
     const firestoreStart = Date.now();
     
+    // ✅ FIX: Store only preview in Firestore (max 100k chars to avoid 1MB limit)
+    // Full text will be in chunks and BigQuery
+    const MAX_FIRESTORE_CHARS = 100000; // 100k chars ≈ 100 KB (well under 1 MB limit)
+    const textPreview = extraction.extractedText.substring(0, MAX_FIRESTORE_CHARS);
+    const isTextTruncated = extraction.extractedText.length > MAX_FIRESTORE_CHARS;
+    
+    if (isTextTruncated) {
+      console.log(`   ⚠️  Large extraction (${extraction.extractedText.length.toLocaleString()} chars)`);
+      console.log(`   📝 Storing preview only (${MAX_FIRESTORE_CHARS.toLocaleString()} chars) in Firestore`);
+      console.log(`   ℹ️  Full text will be in chunks and BigQuery`);
+    }
+    
     const sourceDoc = await firestore.collection('context_sources').add({
       userId: config.userId, // ✅ HASH ID - PRIMARY (e.g., usr_uhwqffaqag1wrryd82tw)
       name: fileName,
@@ -356,7 +412,8 @@ async function uploadSingleFile(
       enabled: true,
       status: 'active',
       addedAt: new Date(),
-      extractedData: extraction.extractedText,
+      extractedData: textPreview, // ✅ FIXED: Only preview (max 100 KB)
+      fullTextInChunks: true, // ✅ Flag that full text is distributed in chunks
       originalFileUrl: uploadResult.gcsPath,
       tags: [config.tag],
       assignedToAgents: [config.agentId],
@@ -369,6 +426,9 @@ async function uploadSingleFile(
         model: extraction.model,
         charactersExtracted: extraction.charactersExtracted,
         tokensEstimate: extraction.tokensEstimate,
+        textPreviewLength: textPreview.length, // ✅ Preview length stored
+        fullTextLength: extraction.extractedText.length, // ✅ Full text length
+        isTextTruncated: isTextTruncated, // ✅ Flag if preview is truncated
         ...(extraction.pageCount && { pageCount: extraction.pageCount }),
         inputTokens: extraction.inputTokens,
         outputTokens: extraction.outputTokens,
@@ -439,17 +499,49 @@ async function uploadSingleFile(
     console.log(`   ✅ Metadata actualizada`);
     console.log(`   🔍 RAG enabled: ${ragResult.success ? 'Yes' : 'No'}`);
     
-    // Assign to agent's active context
-    console.log('\n🔗 Asignando a agente...');
+    // Assign to agent and activate
+    console.log('\n🔗 Asignando a agente y activando...');
     console.log(`   🤖 Agente: ${config.agentId}`);
-    const { saveConversationContext, loadConversationContext } = await import('../../src/lib/firestore');
     
-    const currentActive = await loadConversationContext(config.agentId);
-    const previousCount = currentActive.length;
-    await saveConversationContext(config.agentId, [...currentActive, sourceId]);
-    
-    console.log(`   ✅ Documento asignado y activado`);
-    console.log(`   📚 Contextos activos: ${previousCount} → ${previousCount + 1}`);
+    try {
+      // ✅ FIX: Direct assignment via assignedToAgents field (already done in Firestore save)
+      // No need to update conversation document (may not exist after deletion)
+      
+      // Just verify the assignment was successful
+      const sourceCheck = await firestore.collection('context_sources').doc(sourceId).get();
+      const sourceData = sourceCheck.data();
+      
+      if (sourceData && sourceData.assignedToAgents?.includes(config.agentId)) {
+        console.log(`   ✅ Documento asignado a agente via assignedToAgents field`);
+        console.log(`   ✅ RAG habilitado: ${sourceData.ragEnabled ? 'Yes' : 'No'}`);
+        console.log(`   ✅ Estado: ${sourceData.status}`);
+      } else {
+        console.log(`   ⚠️  Assignment verification: Document exists but assignment unclear`);
+      }
+      
+      // Optional: Try to update conversation document if it exists, but don't fail if it doesn't
+      try {
+        const { loadConversationContext } = await import('../../src/lib/firestore');
+        const currentActive = await loadConversationContext(config.agentId);
+        const previousCount = currentActive.length;
+        
+        // Only try to update if conversation exists
+        const convDoc = await firestore.collection('conversations').doc(config.agentId).get();
+        if (convDoc.exists) {
+          await firestore.collection('conversations').doc(config.agentId).update({
+            activeContextSourceIds: [...currentActive, sourceId],
+          });
+          console.log(`   ✅ Actualizado activeContextSourceIds: ${previousCount} → ${previousCount + 1}`);
+        } else {
+          console.log(`   ℹ️  Conversation document not found (OK - assignedToAgents is primary)`);
+        }
+      } catch (convError) {
+        console.log(`   ℹ️  Could not update conversation document (non-critical)`);
+      }
+      
+    } catch (error) {
+      console.log(`   ⚠️  Assignment verification error (non-critical):`, error instanceof Error ? error.message : error);
+    }
     
     const totalDuration = Date.now() - fileStartTime;
     

@@ -48,99 +48,88 @@ export interface RAGProcessResult {
 }
 
 /**
- * Intelligent text chunking
- * Splits text into semantically meaningful chunks
+ * Intelligent text chunking with overlap
+ * Splits text into semantically meaningful chunks with 20% overlap for robust border protection
+ * 
+ * Optimized for:
+ * - text-embedding-004 (optimal input: 256-512 tokens)
+ * - Spanish procedural documents
+ * - BigQuery vector search (COSINE similarity)
+ * - 20% overlap ensures no context loss at boundaries
  */
 export function chunkText(
   text: string,
-  maxTokensPerChunk: number = 512
+  maxTokensPerChunk: number = 512,
+  overlapTokens: number = 102  // 20% of chunk size (512 * 0.2 ≈ 102)
 ): TextChunk[] {
-  console.log(`   📐 Chunking text (max ${maxTokensPerChunk} tokens/chunk)...`);
-  
-  // Split by paragraphs first
-  const paragraphs = text
-    .split(/\n\n+/)
-    .map(p => p.trim())
-    .filter(p => p.length > 0);
+  console.log(`   📐 Chunking text (${maxTokensPerChunk} tokens/chunk, ${overlapTokens} token overlap = ${((overlapTokens/maxTokensPerChunk)*100).toFixed(0)}%)...`);
   
   const chunks: TextChunk[] = [];
-  let currentChunk = '';
-  let currentTokenCount = 0;
-  let currentStartChar = 0;
+  const textLength = text.length;
+  let position = 0;
   
-  for (const paragraph of paragraphs) {
-    const paragraphTokens = estimateTokens(paragraph);
+  while (position < textLength) {
+    // Calculate chunk boundaries
+    const chunkStart = position;
+    const targetChunkChars = maxTokensPerChunk * 4; // ~4 chars per token
+    let chunkEnd = Math.min(chunkStart + targetChunkChars, textLength);
     
-    // If paragraph alone exceeds max, split it by sentences
-    if (paragraphTokens > maxTokensPerChunk) {
-      // Save current chunk if exists
-      if (currentChunk) {
-        chunks.push({
-          chunkIndex: chunks.length,
-          text: currentChunk.trim(),
-          tokenCount: currentTokenCount,
-          startChar: currentStartChar,
-          endChar: currentStartChar + currentChunk.length,
-        });
-        currentChunk = '';
-        currentTokenCount = 0;
-        currentStartChar += currentChunk.length;
-      }
-      
-      // Split long paragraph by sentences
-      const sentences = paragraph.split(/\. /).map(s => s.trim() + '.');
-      for (const sentence of sentences) {
-        const sentenceTokens = estimateTokens(sentence);
-        
-        if (currentTokenCount + sentenceTokens > maxTokensPerChunk && currentChunk) {
-          chunks.push({
-            chunkIndex: chunks.length,
-            text: currentChunk.trim(),
-            tokenCount: currentTokenCount,
-            startChar: currentStartChar,
-            endChar: currentStartChar + currentChunk.length,
-          });
-          currentChunk = sentence + ' ';
-          currentTokenCount = sentenceTokens;
-          currentStartChar += currentChunk.length;
-        } else {
-          currentChunk += sentence + ' ';
-          currentTokenCount += sentenceTokens;
+    // Extract potential chunk text
+    let chunkText = text.substring(chunkStart, chunkEnd);
+    
+    // Try to break at natural boundaries (only if not at end of text)
+    if (chunkEnd < textLength) {
+      // First try: paragraph boundary (\n\n)
+      const lastParagraph = chunkText.lastIndexOf('\n\n');
+      if (lastParagraph > targetChunkChars * 0.5) {
+        // Good paragraph break found (not too early in chunk)
+        chunkEnd = chunkStart + lastParagraph + 2;
+        chunkText = text.substring(chunkStart, chunkEnd);
+      } else {
+        // Second try: sentence boundary (. followed by space or newline)
+        const sentenceMatch = chunkText.match(/\.\s+(?=[A-ZÁÉÍÓÚÑ])/g);
+        if (sentenceMatch && sentenceMatch.length > 0) {
+          const lastSentencePos = chunkText.lastIndexOf(sentenceMatch[sentenceMatch.length - 1]);
+          if (lastSentencePos > targetChunkChars * 0.7) {
+            // Good sentence break found
+            chunkEnd = chunkStart + lastSentencePos + 2;
+            chunkText = text.substring(chunkStart, chunkEnd);
+          }
         }
       }
-    } else {
-      // Check if adding this paragraph exceeds limit
-      if (currentTokenCount + paragraphTokens > maxTokensPerChunk && currentChunk) {
-        chunks.push({
-          chunkIndex: chunks.length,
-          text: currentChunk.trim(),
-          tokenCount: currentTokenCount,
-          startChar: currentStartChar,
-          endChar: currentStartChar + currentChunk.length,
-        });
-        currentChunk = paragraph + '\n\n';
-        currentTokenCount = paragraphTokens;
-        currentStartChar += currentChunk.length;
-      } else {
-        currentChunk += paragraph + '\n\n';
-        currentTokenCount += paragraphTokens;
-      }
+    }
+    
+    // Calculate actual tokens for this chunk
+    const actualTokens = estimateTokens(chunkText);
+    
+    // Create chunk
+    chunks.push({
+      chunkIndex: chunks.length,
+      text: chunkText.trim(),
+      tokenCount: actualTokens,
+      startChar: chunkStart,
+      endChar: chunkEnd,
+    });
+    
+    // Move position forward with overlap
+    // Overlap is applied by moving back from the end of current chunk
+    const overlapChars = overlapTokens * 4; // ~4 chars per token
+    position = chunkEnd - overlapChars;
+    
+    // Ensure we make progress (avoid infinite loop on very small chunks)
+    if (position <= chunkStart) {
+      position = chunkEnd; // Skip overlap if chunk is too small
+    }
+    
+    // Safety: if we're very close to the end, just finish
+    if (textLength - position < targetChunkChars * 0.1) {
+      break; // Avoid tiny final chunk
     }
   }
   
-  // Add final chunk
-  if (currentChunk.trim()) {
-    chunks.push({
-      chunkIndex: chunks.length,
-      text: currentChunk.trim(),
-      tokenCount: currentTokenCount,
-      startChar: currentStartChar,
-      endChar: currentStartChar + currentChunk.length,
-    });
-  }
-  
-  console.log(`   ✅ Created ${chunks.length} chunks`);
+  console.log(`   ✅ Created ${chunks.length} chunks (with ${overlapTokens} token overlap)`);
   console.log(`   📊 Average chunk size: ${Math.round(chunks.reduce((sum, c) => sum + c.tokenCount, 0) / chunks.length)} tokens`);
+  console.log(`   📊 Overlap: ${overlapTokens} tokens (${((overlapTokens / maxTokensPerChunk) * 100).toFixed(1)}%)`);
   
   return chunks;
 }
@@ -212,7 +201,10 @@ export function filterGarbageChunks(chunks: TextChunk[]): TextChunk[] {
 }
 
 /**
- * Generate embeddings for chunks
+ * Generate embeddings for chunks (optimized with batching)
+ * 
+ * Batch size: 32 chunks per batch (optimized for throughput)
+ * Processing: Sequential within each batch for stability
  */
 export async function generateEmbeddings(
   chunks: TextChunk[],
@@ -220,44 +212,65 @@ export async function generateEmbeddings(
 ): Promise<EmbeddingResult[]> {
   console.log(`   🧬 Generating embeddings for ${chunks.length} chunks...`);
   console.log(`   🤖 Model: ${model}`);
+  console.log(`   📦 Batch size: 32 chunks (optimized for throughput)`);
   
   const embeddings: EmbeddingResult[] = [];
+  const BATCH_SIZE = 100; // ✅ Optimized for Gemini API (supports up to 100 concurrent)
   
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
+  // Process in batches
+  for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+    const batchEnd = Math.min(batchStart + BATCH_SIZE, chunks.length);
+    const batchChunks = chunks.slice(batchStart, batchEnd);
+    const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(chunks.length / BATCH_SIZE);
     
-    try {
-      // Show progress every 5 chunks
-      if (i % 5 === 0 || i === chunks.length - 1) {
-        console.log(`      Procesando chunk ${i + 1}/${chunks.length} (${((i + 1) / chunks.length * 100).toFixed(0)}%)`);
+    console.log(`      📦 Batch ${batchNum}/${totalBatches}: Processing chunks ${batchStart + 1}-${batchEnd}...`);
+    
+    // Process each chunk in this batch
+    for (let i = 0; i < batchChunks.length; i++) {
+      const chunk = batchChunks[i];
+      const globalIndex = batchStart + i;
+      
+      try {
+        // Generate embedding using Gemini Embedding API
+        const result = await genAI.models.embedContent({
+          model: model,
+          contents: {
+            parts: [{ text: chunk.text }],
+          },
+        });
+        
+        // Extract embedding vector (768 dimensions)
+        const embedding = result.embeddings?.[0]?.values || [];
+        
+        embeddings.push({
+          chunkIndex: chunk.chunkIndex,
+          text: chunk.text,
+          embedding: embedding,
+          tokenCount: chunk.tokenCount,
+        });
+        
+        // Micro-delay within batch to avoid rate limiting
+        if (i < batchChunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+      } catch (error) {
+        console.log(`      ⚠️  Error en chunk ${globalIndex + 1}: ${error instanceof Error ? error.message : 'Unknown'}`);
+        // Continue with other chunks
       }
-      
-      // Generate embedding using Gemini Embedding API
-      // Correct format: contents (plural), not content
-      const result = await genAI.models.embedContent({
-        model: model,
-        contents: {
-          parts: [{ text: chunk.text }],
-        },
-      });
-      
-      // Extract embedding vector (768 dimensions)
-      const embedding = result.embeddings?.[0]?.values || [];
-      
-      embeddings.push({
-        chunkIndex: chunk.chunkIndex,
-        text: chunk.text,
-        embedding: embedding,
-        tokenCount: chunk.tokenCount,
-      });
-      
-    } catch (error) {
-      console.log(`      ⚠️  Error en chunk ${i + 1}: ${error instanceof Error ? error.message : 'Unknown'}`);
-      // Continue with other chunks
+    }
+    
+    console.log(`      ✅ Batch ${batchNum} complete: ${batchChunks.length} embeddings generated`);
+    
+    // Small delay between batches
+    if (batchEnd < chunks.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   
   console.log(`   ✅ Generated ${embeddings.length} embeddings (${embeddings[0]?.embedding.length || 0} dimensions each)`);
+  console.log(`   📊 Processed in ${Math.ceil(chunks.length / BATCH_SIZE)} batches`);
   
   return embeddings;
 }

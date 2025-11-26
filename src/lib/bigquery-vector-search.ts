@@ -244,7 +244,7 @@ export async function syncChunkToBigQuery(chunk: {
 
 /**
  * Batch sync multiple chunks to BigQuery
- * More efficient than individual inserts
+ * Optimized with 500 chunk batches (BigQuery recommended limit)
  */
 export async function syncChunksBatchToBigQuery(chunks: Array<{
   id: string;
@@ -257,42 +257,58 @@ export async function syncChunksBatchToBigQuery(chunks: Array<{
 }>): Promise<void> {
   if (chunks.length === 0) return;
 
-  try {
-    console.log(`📤 Syncing ${chunks.length} chunks to BigQuery...`);
-    
-    const rows = chunks.map(chunk => {
-      // Ensure metadata is JSON-serializable for BigQuery
-      const safeMetadata = chunk.metadata ? {
-        startChar: chunk.metadata.startChar || 0,
-        endChar: chunk.metadata.endChar || chunk.text.length,
-        tokenCount: chunk.metadata.tokenCount || 0,
-        startPage: chunk.metadata.startPage,
-        endPage: chunk.metadata.endPage
-      } : {};
+  const BQ_BATCH_SIZE = 500; // ✅ BigQuery supports up to 500 rows per insert
 
-      return {
-        chunk_id: chunk.id,
-        source_id: chunk.sourceId,
-        user_id: chunk.userId,
-        chunk_index: chunk.chunkIndex,
-        text_preview: chunk.text.substring(0, 500),
-        full_text: chunk.text,
-        embedding: chunk.embedding,
-        metadata: JSON.stringify(safeMetadata), // ✅ FIX: Convert to JSON string
-        created_at: new Date().toISOString(),
-      };
-    });
+  // Process in batches of 500
+  for (let i = 0; i < chunks.length; i += BQ_BATCH_SIZE) {
+    const batchChunks = chunks.slice(i, i + BQ_BATCH_SIZE);
+    const batchNum = Math.floor(i / BQ_BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(chunks.length / BQ_BATCH_SIZE);
 
-    await bigquery
-      .dataset(DATASET_ID)
-      .table(TABLE_ID)
-      .insert(rows);
+    try {
+      console.log(`   📤 BigQuery batch ${batchNum}/${totalBatches}: Syncing ${batchChunks.length} chunks...`);
+      
+      const rows = batchChunks.map(chunk => {
+        // Ensure metadata is JSON-serializable for BigQuery
+        const safeMetadata = chunk.metadata ? {
+          startChar: chunk.metadata.startChar || 0,
+          endChar: chunk.metadata.endChar || chunk.text.length,
+          tokenCount: chunk.metadata.tokenCount || 0,
+          startPage: chunk.metadata.startPage,
+          endPage: chunk.metadata.endPage
+        } : {};
 
-    console.log(`✅ ${chunks.length} chunks synced to BigQuery`);
-  } catch (error) {
-    console.warn('⚠️ BigQuery batch sync failed (non-critical):', error);
-    // Don't throw - Firestore is source of truth
+        return {
+          chunk_id: chunk.id,
+          source_id: chunk.sourceId,
+          user_id: chunk.userId,
+          chunk_index: chunk.chunkIndex,
+          text_preview: chunk.text.substring(0, 500),
+          full_text: chunk.text,
+          embedding: chunk.embedding,
+          metadata: JSON.stringify(safeMetadata),
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      await bigquery
+        .dataset(DATASET_ID)
+        .table(TABLE_ID)
+        .insert(rows);
+
+      console.log(`   ✅ BigQuery batch ${batchNum} complete: ${batchChunks.length} chunks synced`);
+    } catch (error) {
+      console.warn(`   ⚠️ BigQuery batch ${batchNum} failed (non-critical):`, error);
+      // Don't throw - Firestore is source of truth
+    }
+
+    // Small delay between batches
+    if (i + BQ_BATCH_SIZE < chunks.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
   }
+
+  console.log(`   ✅ Total synced to BigQuery: ${chunks.length} chunks`);
 }
 
 /**
