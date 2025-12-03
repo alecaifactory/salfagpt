@@ -69,7 +69,15 @@ export default defineConfig({
           // Add version hash to filenames to bust browser cache
           entryFileNames: '[name].[hash].js',
           chunkFileNames: '[name].[hash].js',
-          assetFileNames: '[name].[hash].[ext]'
+          // FIX: Don't hash CSS files - causes 404 on production due to Astro SSR mismatch
+          assetFileNames: (assetInfo) => {
+            // Keep CSS files without hash (Tailwind handles its own naming)
+            if (assetInfo.name?.endsWith('.css')) {
+              return '_astro/[name][extname]';
+            }
+            // Hash other assets (images, fonts, etc.)
+            return '_astro/[name].[hash][extname]';
+          }
         }
       }
     },
