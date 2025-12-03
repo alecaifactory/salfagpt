@@ -176,24 +176,72 @@ try {
     <script src="/performance-monitor.js" is:inline></script>
   </head>
   <body class="h-full m-0 p-0">
-    <!-- 🚀 FORCE CACHE RELOAD: Add version timestamp to force fresh JavaScript -->
+    <!-- 🚀 VERSION-BASED SESSION REFRESH: Check server version and refresh session on deployment -->
     <script is:inline>
-      // Force reload if cached version detected
-      const CURRENT_VERSION = '2025-11-10-15-15';
-      const cachedVersion = localStorage.getItem('app_version');
-      
-      if (cachedVersion !== CURRENT_VERSION) {
-        console.log('🔄 New version detected, clearing cache...');
-        localStorage.setItem('app_version', CURRENT_VERSION);
-        
-        // Force hard reload to get fresh JavaScript
-        if (cachedVersion) {
-          console.log('   Old version:', cachedVersion);
-          console.log('   New version:', CURRENT_VERSION);
-          console.log('   🚀 Forcing hard reload...');
-          location.reload(true);
+      (async function checkVersionAndRefreshSession() {
+        try {
+          // 1. Get current server version
+          const response = await fetch('/api/version');
+          if (!response.ok) {
+            console.warn('⚠️ Could not check server version');
+            return;
+          }
+          
+          const serverInfo = await response.json();
+          const serverBuildId = serverInfo.buildId; // e.g., "0.1.0-a1b2c3d"
+          const cachedBuildId = localStorage.getItem('app_build_id');
+          
+          // 2. Check if version changed
+          if (cachedBuildId && cachedBuildId !== serverBuildId) {
+            console.log('🔄 NEW VERSION DEPLOYED - Refreshing session...');
+            console.log('   Old build:', cachedBuildId);
+            console.log('   New build:', serverBuildId);
+            
+            // 3. Refresh session cookie before reload
+            console.log('   📝 Step 1/2: Refreshing session cookie...');
+            const refreshResponse = await fetch('/api/auth/refresh-session', {
+              method: 'POST',
+              credentials: 'include', // Include cookies
+            });
+            
+            if (refreshResponse.ok) {
+              const refreshData = await refreshResponse.json();
+              console.log('   ✅ Session refreshed:', refreshData);
+              
+              // Log if role changed during refresh
+              if (refreshData.roleChanged) {
+                console.log('   🎭 Role updated:', refreshData.oldRole, '→', refreshData.newRole);
+              }
+            } else {
+              console.warn('   ⚠️ Session refresh failed, continuing with cache clear...');
+            }
+            
+            // 4. Update cached version
+            localStorage.setItem('app_build_id', serverBuildId);
+            
+            // 5. Force hard reload to get fresh JavaScript
+            console.log('   🚀 Step 2/2: Forcing hard reload...');
+            console.log('   This ensures you get the latest code and features.');
+            
+            // Small delay to ensure cookie is set
+            setTimeout(() => {
+              location.reload(true);
+            }, 500);
+            
+          } else if (!cachedBuildId) {
+            // First time - just cache the version
+            console.log('📦 First load - caching build ID:', serverBuildId);
+            localStorage.setItem('app_build_id', serverBuildId);
+          } else {
+            // Same version - no action needed
+            console.log('✅ Running latest version:', serverBuildId);
+          }
+          
+        } catch (error) {
+          console.error('❌ Version check failed:', error);
+          // Don't block app if version check fails
         }
-      }
+      })();
     </script>
     
     <!-- CHAT V2: Fully Functional - Complete Rebuild -->
