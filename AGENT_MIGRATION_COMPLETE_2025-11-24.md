@@ -253,3 +253,6 @@ Esperar ~2-3 horas para que termine la re-indexación de S2-v2, luego hacer test
 **Proceso en background:** `/tmp/s2v2-reindex.log`  
 **Comando monitoreo:** `tail -f /tmp/s2v2-reindex.log`
 
+
+
+

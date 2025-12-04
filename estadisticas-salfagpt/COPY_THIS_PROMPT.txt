@@ -1,0 +1,68 @@
+Build a production Next.js 15 statistics dashboard for SalfaGPT. I've attached CSV data files and HTML mockup.
+
+TECH: Next.js 15, React 19, TypeScript strict, Tailwind v3.4.17, Recharts, Lucide React
+
+DATA: 30 days (Oct 30-Nov 29), 1,710 messages, 48 users, 655 agents across 7 CSV files
+
+IMPLEMENT:
+
+1. GLOBAL FILTERS (RF-02) - update all charts
+   - Date range picker, Quick: "Últimos 7/30 días"
+   - Dropdowns: Assistant, Domain
+
+2. KPI CARDS (RF-03) - 4 cards from 7_kpis_summary.csv
+   - Total Messages: 1,710
+   - Total Conversations: 655  
+   - Active Users: 48
+   - Avg/User: 35.6
+   Each with icon, trend +X%
+
+3. FIVE CHARTS (RF-04):
+   - Activity Line (3_daily_activity.csv): messages/day
+   - Agent Bar (2_agent_performance.csv): top 15, total messages
+   - Hourly Area (4_hourly_distribution.csv): 24h pattern
+   - User Bar (1_user_engagement.csv): top 10, horizontal
+   - Domain Pie (5_domain_distribution.csv): all domains, %
+
+4. TOP USERS TABLE (RF-05.1 from 1_user_engagement.csv)
+   - Columns: Email, Name, Messages
+   - Top 10 sorted descending
+
+5. AI ASSISTANT (RF-06) - basic structure
+   - Collapsible section
+   - Left: 3 suggested questions
+   - Right: chat input/send (can be placeholder)
+
+6. EXPORT BUTTONS (RF-07)
+   - "Exportar (.xlsx, PDF)" button
+   - "Programar Reporte" button
+
+FILES TO GENERATE (15 files):
+1. src/app/estadisticas/page.tsx
+2-11. src/components/statistics/ (10 components: KPICards, GlobalFilters, 5 charts, TopUsersTable, AIAssistant, ExportButtons)
+12. src/lib/statistics-data.ts (CSV parsing)
+13. src/lib/statistics-filters.ts (filter logic)  
+14. src/types/statistics.ts (interfaces)
+15. src/contexts/StatisticsContext.tsx (shared filter state)
+
+REQUIREMENTS:
+✅ TypeScript strict, interfaces for all data
+✅ CSV files in /public/data/statistics/
+✅ Responsive design (mobile/tablet/desktop)
+✅ Spanish UI text (match mockup)
+✅ Match mockup design exactly
+✅ Filter state shared via Context
+✅ All filters update all charts simultaneously
+✅ Loading & error states
+✅ <3s load, <2s filter performance
+✅ Professional enterprise styling
+
+CRITICAL:
+- Tailwind v3.4.17 classes only (NOT v4)
+- Spanish day names (getDayName: lunes, martes...)
+- Blue theme (#3b82f6)
+- White cards (shadow-sm, rounded-xl)
+
+Generate complete, production-ready code for all 15 files. Include all imports, types, logic, styling. Copy-paste ready.
+
+

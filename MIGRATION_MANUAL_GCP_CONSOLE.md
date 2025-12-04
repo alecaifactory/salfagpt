@@ -292,3 +292,6 @@ Total: ~40 minutos + 20 min vector index (background)
 
 **¿Comenzamos con GCP Console?** 🎯
 
+
+
+

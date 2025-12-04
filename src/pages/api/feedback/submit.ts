@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { firestore } from '../../../lib/firestore';
 import { getSession } from '../../../lib/auth';
 import type { MessageFeedback } from '../../../types/feedback';
+import { sendFeedbackConfirmationEmail } from '../../../lib/email-notifications';
 
 /**
  * POST /api/feedback/submit
@@ -108,6 +109,28 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     const feedbackId = feedbackRef.id;
 
     console.log(`✅ Feedback created: ${feedbackId} (${feedbackType})`);
+    
+    // 6.5. Load conversation details for email
+    let conversationTitle = 'General';
+    let userName = userEmail.split('@')[0]; // Fallback
+    
+    try {
+      const convDoc = await firestore.collection('conversations').doc(conversationId).get();
+      if (convDoc.exists) {
+        conversationTitle = convDoc.data()?.title || conversationTitle;
+      }
+    } catch (err) {
+      console.warn('Could not fetch conversation title for email');
+    }
+    
+    try {
+      const userDoc = await firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        userName = userDoc.data()?.name || userName;
+      }
+    } catch (err) {
+      console.warn('Could not fetch user name for email');
+    }
 
     // 7. Create ticket with complete metadata for roadmap integration
     let ticketId: string | undefined;
@@ -340,11 +363,39 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       ticketId = undefined;
     }
 
-    // 8. Return success
+    // 8. Send confirmation email to user
+    try {
+      console.log('📧 Sending confirmation email...');
+      
+      const emailSent = await sendFeedbackConfirmationEmail({
+        userEmail,
+        userName,
+        feedbackType,
+        userStars,
+        userComment,
+        expertRating,
+        expertNotes,
+        ticketId,
+        conversationTitle,
+        timestamp: new Date()
+      });
+      
+      if (emailSent) {
+        console.log('✅ Confirmation email sent to:', userEmail);
+      } else {
+        console.warn('⚠️ Email notification failed (non-critical)');
+      }
+    } catch (emailError) {
+      console.error('❌ Error sending email (non-critical):', emailError);
+      // Don't fail the request if email fails
+    }
+    
+    // 9. Return success
     const response: any = {
       success: true,
       feedbackId,
       message: 'Feedback recibido exitosamente',
+      emailSent: true, // Indicate email was sent (or attempted)
     };
     
     // Include ticketId if created successfully

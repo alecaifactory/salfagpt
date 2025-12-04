@@ -2149,3 +2149,6 @@ aws ce get-cost-and-usage \
 - AWS_LAMBDA_CARTOLA_PRD.md (PRD completo)
 - CONCILIACION_EJECUTIVA_AWS_LAMBDA.md (Executive summary)
 
+
+
+

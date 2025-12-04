@@ -145,3 +145,6 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 **¿Qué ID ves en el modal cuando abres M1-v2?** 🔍
 
 
+
+
+

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reporte de Preguntas por Agente/Usuario/Día</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 2rem;
+    }
+    
+    h1 {
+      color: #1e293b;
+      margin-bottom: 0.5rem;
+      font-size: 2rem;
+    }
+    
+    .subtitle {
+      color: #64748b;
+      margin-bottom: 2rem;
+      font-size: 1rem;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 1.5rem;
+      border-radius: 12px;
+      color: white;
+    }
+    
+    .stat-card h3 {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    
+    .stat-card .value {
+      font-size: 2.5rem;
+      font-weight: 700;
+    }
+    
+    .stat-card .subvalue {
+      font-size: 0.75rem;
+      opacity: 0.8;
+      margin-top: 0.25rem;
+    }
+    
+    .chart-container {
+      background: #f8fafc;
+      padding: 2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+    }
+    
+    .controls {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    select {
+      padding: 0.5rem 1rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: white;
+      cursor: pointer;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .top-agents {
+      margin-top: 2rem;
+    }
+    
+    .agent-card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .agent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .agent-title {
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .agent-count {
+      background: #667eea;
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .agent-users {
+      font-size: 0.875rem;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Reporte de Preguntas por Agente/Usuario/Día</h1>
+    <p class="subtitle">Últimos 7 días • Generado el <span id="generated-date"></span></p>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Total Preguntas</h3>
+        <div class="value" id="total-questions">-</div>
+        <div class="subvalue"><span id="avg-per-day">-</span> por día</div>
+      </div>
+      
+      <div class="stat-card">
+        <h3>Agentes Activos</h3>
+        <div class="value" id="total-agents">-</div>
+      </div>
+      
+      <div class="stat-card">
+        <h3>Usuarios Activos</h3>
+        <div class="value" id="total-users">-</div>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <div class="controls">
+        <label for="agent-select" style="font-weight: 600; color: #475569;">Seleccionar Agente:</label>
+        <select id="agent-select" onchange="updateChart()">
+          <option value="">Cargando...</option>
+        </select>
+      </div>
+      <canvas id="questionsChart"></canvas>
+    </div>
+    
+    <div class="top-agents">
+      <h2 style="margin-bottom: 1rem; color: #1e293b;">Top 10 Agentes Más Activos</h2>
+      <div id="top-agents-list"></div>
+    </div>
+  </div>
+  
+  <script>
+    let reportData = null;
+    let chart = null;
+    
+    // Load report data
+    async function loadReport() {
+      try {
+        // In production, this would fetch from API
+        // For now, we'll generate sample data
+        const response = await fetch('/api/analytics/questions-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: 'current-user-id' })
+        });
+        
+        reportData = await response.json();
+        renderReport();
+      } catch (error) {
+        console.error('Error loading report:', error);
+        // Use sample data for demo
+        loadSampleData();
+      }
+    }
+    
+    function loadSampleData() {
+      // Sample data structure
+      reportData = {
+        generatedAt: new Date().toISOString(),
+        period: {
+          startDate: '2025-11-21',
+          endDate: '2025-11-28',
+          days: 7
+        },
+        totalQuestions: 258,
+        totalAgents: 210,
+        totalUsers: 19,
+        agents: [
+          {
+            agentId: '1',
+            agentTitle: 'GOP GPT (M3-v2)',
+            agentOwner: 'alec@getaifactory.com',
+            totalQuestions: 9,
+            userBreakdown: [
+              {
+                userId: '1',
+                userName: 'Alec Dickinson',
+                userEmail: 'alec@getaifactory.com',
+                totalQuestions: 9,
+                dailyBreakdown: [
+                  { date: '2025-11-21', count: 0 },
+                  { date: '2025-11-22', count: 0 },
+                  { date: '2025-11-23', count: 0 },
+                  { date: '2025-11-24', count: 0 },
+                  { date: '2025-11-25', count: 9 },
+                  { date: '2025-11-26', count: 0 },
+                  { date: '2025-11-27', count: 0 }
+                ]
+              }
+            ]
+          }
+        ]
+      };
+      renderReport();
+    }
+    
+    function renderReport() {
+      // Update stats
+      document.getElementById('generated-date').textContent = new Date(reportData.generatedAt).toLocaleString('es');
+      document.getElementById('total-questions').textContent = reportData.totalQuestions.toLocaleString();
+      document.getElementById('avg-per-day').textContent = (reportData.totalQuestions / 7).toFixed(1);
+      document.getElementById('total-agents').textContent = reportData.totalAgents.toLocaleString();
+      document.getElementById('total-users').textContent = reportData.totalUsers.toLocaleString();
+      
+      // Populate agent selector
+      const select = document.getElementById('agent-select');
+      select.innerHTML = reportData.agents
+        .map(agent => `<option value="${agent.agentId}">${agent.agentTitle} (${agent.totalQuestions} preguntas)</option>`)
+        .join('');
+      
+      // Render top agents
+      const topAgentsList = document.getElementById('top-agents-list');
+      const topAgents = reportData.agents.slice(0, 10);
+      
+      topAgentsList.innerHTML = topAgents.map(agent => `
+        <div class="agent-card">
+          <div class="agent-header">
+            <div class="agent-title">${agent.agentTitle}</div>
+            <div class="agent-count">${agent.totalQuestions} preguntas</div>
+          </div>
+          <div class="agent-users">
+            ${agent.userBreakdown.length} usuario(s): ${agent.userBreakdown.map(u => u.userName).join(', ')}
+          </div>
+        </div>
+      `).join('');
+      
+      // Initial chart
+      updateChart();
+    }
+    
+    function updateChart() {
+      const selectedAgentId = document.getElementById('agent-select').value;
+      const agent = reportData.agents.find(a => a.agentId === selectedAgentId);
+      
+      if (!agent) return;
+      
+      // Prepare chart data
+      const labels = agent.userBreakdown[0].dailyBreakdown.map(d => {
+        const date = new Date(d.date);
+        return date.toLocaleDateString('es', { weekday: 'short', month: 'short', day: 'numeric' });
+      });
+      
+      const datasets = agent.userBreakdown.map((user, idx) => {
+        const colors = [
+          'rgb(59, 130, 246)',  // Blue
+          'rgb(16, 185, 129)',  // Green
+          'rgb(245, 158, 11)',  // Yellow
+          'rgb(239, 68, 68)',   // Red
+          'rgb(168, 85, 247)',  // Purple
+        ];
+        
+        return {
+          label: user.userName,
+          data: user.dailyBreakdown.map(d => d.count),
+          backgroundColor: colors[idx % colors.length],
+          borderColor: colors[idx % colors.length],
+          borderWidth: 2,
+        };
+      });
+      
+      // Destroy previous chart
+      if (chart) {
+        chart.destroy();
+      }
+      
+      // Create new chart
+      const ctx = document.getElementById('questionsChart');
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: {
+              position: 'top',
+            },
+            title: {
+              display: true,
+              text: `${agent.agentTitle} - Preguntas por Usuario`,
+              font: {
+                size: 16,
+                weight: 'bold'
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${context.parsed.y} preguntas`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              grid: {
+                display: false
+              }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1
+              },
+              title: {
+                display: true,
+                text: 'Número de Preguntas'
+              }
+            }
+          }
+        }
+      });
+    }
+    
+    // Initialize
+    loadReport();
+  </script>
+</body>
+</html>
+

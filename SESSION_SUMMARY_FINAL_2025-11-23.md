@@ -252,3 +252,6 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 **Tu turno** 🎯
 
 
+
+
+

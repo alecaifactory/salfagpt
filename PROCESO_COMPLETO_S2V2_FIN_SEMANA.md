@@ -400,3 +400,6 @@ Carpeta origen → Firestore (metadata + texto)
 
 **Todo está en su lugar y funcionando.** 🎯✨
 
+
+
+

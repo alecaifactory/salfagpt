@@ -249,3 +249,6 @@ Proceso continúa automáticamente:
 **Proceso:** 🔄 Corriendo con tabla correcta  
 **ETA:** ~2-3 horas para completitud
 
+
+
+

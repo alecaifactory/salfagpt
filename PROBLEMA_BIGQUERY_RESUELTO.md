@@ -174,3 +174,6 @@ bq query --use_legacy_sql=false --project_id=salfagpt \
 **Proceso:** 🔄 Reiniciado con tabla correcta  
 **ETA RAG funcional:** ~2-3 horas
 
+
+
+

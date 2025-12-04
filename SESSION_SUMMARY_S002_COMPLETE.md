@@ -282,3 +282,6 @@ Referencias [1], [2], [3] en respuestas
 **Next:** S1-v2, M1-v2, M3-v2  
 **Ready to handoff:** ✅ SÍ
 
+
+
+

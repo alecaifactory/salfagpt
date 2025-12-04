@@ -274,3 +274,6 @@ tail -30 /tmp/s2v2-chunks-processing.log
 
 **Todo está en marcha** ✅ Los documentos están siendo procesados ahora mismo. En 1-2 horas, S2-v2 tendrá RAG 100% funcional con referencias correctas. 🎉
 
+
+
+

@@ -150,3 +150,6 @@ npm run dev
 
 **MIGRACIÓN LISTA PARA ACTIVAR** 🎯✨
 
+
+
+

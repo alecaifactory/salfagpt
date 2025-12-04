@@ -252,3 +252,6 @@ npx tsx scripts/test-s2v2-rag-optimized.mjs
 
 **¿Quieres que ejecute la migración a flow_data (us-east4)?** 🚀
 
+
+
+

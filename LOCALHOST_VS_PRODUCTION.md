@@ -126,3 +126,6 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 **¿Ejecutas el deploy ahora?** 🚀
 
 
+
+
+

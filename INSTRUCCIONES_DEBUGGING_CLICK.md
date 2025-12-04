@@ -166,3 +166,6 @@ Cuando funcione correctamente, deberías ver:
 **Fecha:** 2025-11-24  
 **Cambios:** Logs de debug agregados a AgentContextModal.tsx
 
+
+
+

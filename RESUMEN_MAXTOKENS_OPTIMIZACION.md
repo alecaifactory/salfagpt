@@ -89,3 +89,6 @@ Ver: `docs/features/max-tokens-optimization-2025-11-25.md`
 
 **¿Preguntas?** Este cambio es **simple, seguro y reversible**. Mejora performance sin romper nada. 🎯
 
+
+
+

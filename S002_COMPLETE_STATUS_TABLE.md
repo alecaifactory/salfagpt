@@ -437,3 +437,6 @@ Esto habilitará RAG search con referencias.
 **ETA para fix completo:** 1-2 horas  
 **Impacto en usuarios:** Alto - Agente dando respuestas genéricas sin referencias
 
+
+
+

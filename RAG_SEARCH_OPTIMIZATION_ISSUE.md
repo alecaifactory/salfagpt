@@ -239,3 +239,6 @@ const sourceIds = snapshot.docs.map(d => d.data().sourceId);
 
 **Próximo paso:** Ejecutar `test-s2v2-rag-optimized.mjs` y verificar tiempo <5s
 
+
+
+

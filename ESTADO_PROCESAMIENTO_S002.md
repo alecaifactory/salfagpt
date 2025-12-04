@@ -69,3 +69,6 @@ Siguiente: Procesar chunks + embeddings
 **Proceso:** ✅ Corriendo con tabla correcta  
 **Monitorear:** `tail -f /tmp/s2v2-chunks-v2.log`
 
+
+
+

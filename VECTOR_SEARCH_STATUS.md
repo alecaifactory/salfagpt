@@ -97,3 +97,6 @@ npx tsx scripts/test-s2v2-rag-optimized.mjs
 **Velocidad:** Aceptable (10-15s), mejorable a 2-3s con índice  
 **Enfoque:** ✅ RAG correcto con BigQuery
 
+
+
+

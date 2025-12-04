@@ -200,3 +200,6 @@ gcloud run services update cr-salfagpt-ai-ft-prod \
 
 **Probar ahora en localhost con servidor nuevo** ⚡
 
+
+
+

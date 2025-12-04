@@ -1,0 +1,2066 @@
+
+📊 REPORTE DETALLADO DE FEEDBACKS
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+✅ Total feedbacks encontrados: 62
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+FEEDBACKS POR USUARIO
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: alec@getaifactory.com
+┃    Hash ID:       ebcf3c60abc9
+┃    Rol:           superadmin
+┃    Dominio:       getaifactory.com
+┃    Organización:  AI Factory
+┃    Total Feedbacks: 27
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 24-11-2025, 03:13 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   2/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Indicame que filtros debo utilizar para
+  │     Conv ID: 69EX3vvlLXK2dscBuUUR...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "Indicame que filtros debo utilizar para una mantencion de 2000 Hrs para una grua Sany CR900C"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según la información proporcionada en los documentos, toda la información de mantenimiento y filtros se refiere a grúas **HIAB**, no a una g"
+  │      rúa **Sany CR900C**. Los documentos detallan los intervalos de servicio para filtros en grúas HIAB, que incluyen: * Un primer servicio a las
+  │       **50 horas de uso**. * Un servicio regular cuando se cumpla una de estas condiciones: **1000 horas de uso**, 10.000 ciclos, o 365 días. * L
+  │      a sustitución de cartuchos de filtro en un taller de servicio autorizado: tras las primeras 50 horas de funcionamiento, y luego cada **1000 
+  │      horas de funcionamiento** o al menos una...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según la información proporcionada en los documentos
+  │
+  │  💬 Comentario del usuario:
+  │     "Me parecio muy buena la experiencia para otros equipos, pero para mi en particular le falta que el documento este correctemente subido, porq"
+  │      ue no lo encuentra, al parecer falta la documentacion.  
+  │      El documento que deberia usarse en este caso para esta pregunta es el: "... Manual Sany 123445..pdf"
+  │
+  │  🔗 IDs:
+  │     Feedback: 8FGmf6pmGLfYdqPjzQ6M...
+  │     Message:  flqeqeeY7Lf4KqgkClWB...
+  │     Ticket:   TKT-1764008003962-nhmd8a
+  └─
+
+  ┌─ FEEDBACK #2 - 18-11-2025, 02:51 p. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Por dónde empiezo
+  │     Conv ID: T2p0LaWEpL6D0b2405O6...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "penso y deberia haber respondido directamente"
+  │
+  │  🔗 IDs:
+  │     Feedback: H5MeGwxozILHul8oHrKH...
+  │     Message:  streaming-1763488229...
+  │     Ticket:   TKT-1763488269732-07o0n6
+  └─
+
+  ┌─ FEEDBACK #3 - 13-11-2025, 03:46 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: New Conversation
+  │     Conv ID: QP05JVPs6pdnAgo9bmKZ...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No encontro el doc, y no me dio referencias."
+  │
+  │  🔗 IDs:
+  │     Feedback: vyT0hvtqZPmVmsoPlABX...
+  │     Message:  streaming-1763058806...
+  │     Ticket:   TKT-1763059611489-hzc4j
+  └─
+
+  ┌─ FEEDBACK #4 - 13-11-2025, 09:40 a. m.
+  │
+  │  📊 Rating: inaceptable
+  │     CSAT:   1/5
+  │     NPS:    1/10
+  │
+  │  🤖 Agente: New Conversation
+  │     Conv ID: Ja5endX2zDJ2mxB31lgO...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Puedes buscar los códigos de materiales en anexos específicos para insumos de tecnología o directamente en SAP utilizando la opción de búsqu"
+  │      eda por texto breve.
+  │      **Pasos Clave / Detalles:**
+  │      *   **Para Insumos de Tecnología:** Consulta el "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" para encontrar códigos como ACCESS POINT 
+  │      GTI, CELULAR (Costo), MONITOR GTI, LICENCIA SOFTWARE PC WINDOWS OFFICE GTI, entre otros.
+  │      *   **Para otros materiales en SAP:**
+  │          1.  En la columna `Material` de la transacción de solicitud, utiliza la opción de búsqueda (generalmente un icono de lupa o F4).
+  │          2.  En...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No references in the response"
+  │
+  │  🔗 IDs:
+  │     Feedback: mDvZJPoK2K5i5CQxNBL2...
+  │     Message:  wQlVigY5F05kD47mfpYz...
+  │     Ticket:   TKT-1763037640248-mbqa3m
+  └─
+
+  ┌─ FEEDBACK #5 - 13-11-2025, 09:39 a. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: New Conversation
+  │     Conv ID: Ja5endX2zDJ2mxB31lgO...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Puedes buscar los códigos de materiales en anexos específicos para insumos de tecnología o directamente en SAP utilizando la opción de búsqu"
+  │      eda por texto breve.
+  │      **Pasos Clave / Detalles:**
+  │      *   **Para Insumos de Tecnología:** Consulta el "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" para encontrar códigos como ACCESS POINT 
+  │      GTI, CELULAR (Costo), MONITOR GTI, LICENCIA SOFTWARE PC WINDOWS OFFICE GTI, entre otros.
+  │      *   **Para otros materiales en SAP:**
+  │          1.  En la columna `Material` de la transacción de solicitud, utiliza la opción de búsqueda (generalmente un icono de lupa o F4).
+  │          2.  En...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Poor reference responses"
+  │
+  │  🔗 IDs:
+  │     Feedback: 7OssrbRdtvT3I7Uw4jd8...
+  │     Message:  wQlVigY5F05kD47mfpYz...
+  │     Ticket:   TKT-1763037586326-6kntaz
+  └─
+
+  ┌─ FEEDBACK #6 - 12-11-2025, 04:39 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    7/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: EOFkSODFLM3KABbNgRst...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo genero una guía de despacho?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para generar una Guía de Despacho Electrónica, debes crear una entrega de salida sin referencia utilizando la transacción VL01NO en SAP. **P"
+  │      asos Clave / Detalles:** * **Paso 1: Crear la entrega de salida.** * Ingresa a la transacción **VL01NO - Crear entrega salida sin referencia
+  │      **. * Completa los datos organizativos: * **Puesto de expedición:** Ingresa el centro correspondiente a tu proyecto. * **Clase de entrega:**
+  │       ZESR * **Organización ventas:** Ingresa la sociedad correspondiente (ej. C143). * **Canal distribución:** ON * **Sector:** SR * Presiona En
+  │      ter o Ejecutar. * En la pantalla "Entreg...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Me gusto pero la respuesta es muy larga, y adeams espacio de la respuesta"
+  │
+  │  🔗 IDs:
+  │     Feedback: wH6ntt5ENs3CY2T86JoX...
+  │     Message:  e69KtXbLYo9PVZp1NqIu...
+  │     Ticket:   TKT-1762976368029-wvsp6
+  └─
+
+  ┌─ FEEDBACK #7 - 10-11-2025, 11:50 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: h3y6mwQO7kDONI3vh13B...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo genero el informe de consumo de petróleo?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "No tengo información detallada sobre el procedimiento para generar el informe de consumo de petróleo en los documentos de referencia proporc"
+  │      ionados. El documento "MAQ-LOG-CBO-I-002 Cierre de Bodegas" menciona la actividad de enviar el último Informe de consumo de Petróleo al área
+  │       de Impuestos durante el proceso de cierre de bodega (Ítem 7 del Cuadro de Actividades), y hace referencia a un instructivo "MAQ-LOG-CBO-PP-
+  │      009 Como Imprimir Resumen Consumo Petróleo Diésel", pero el contenido de este instructivo no está disponible. **Referencia:** * [MAQ-LOG-CBO
+  │      -I-002 Cierre de Bodegas, Rev.08, Secció...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: JvraLUzJfuLkfMOpqQG6...
+  │     Message:  1ulzovPIsLXgz0HDRhwF...
+  │     Ticket:   TKT-1762786240358-kecw8
+  └─
+
+  ┌─ FEEDBACK #8 - 07-11-2025, 12:14 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: SQg1a4LwmfeCLVhthe0s...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762528480587-9erlia
+  └─
+
+  ┌─ FEEDBACK #9 - 06-11-2025, 12:17 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: fvEW72AUfPOwybjA5cPq...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Puedes buscar los códigos de materiales en los anexos de documentos específicos o directamente en el sistema SAP. **Pasos Clave / Detalles:*"
+  │      * * **Para insumos tecnológicos:** Consulta el "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" que lista los códigos por tipo (Conectivid
+  │      ad, Escritorio, Hardware, Servicio, Software). * **En SAP (para Solicitudes de Pedido):** * Utiliza la opción de búsqueda en la columna *Mat
+  │      erial*. * En el campo *Texto breve material*, introduce la palabra o abreviación clave entre asteriscos (ej. `*ASCENSOR*`). * El sistema des
+  │      plegará un listado con las opciones disp...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Me gusto"
+  │
+  │  🔗 IDs:
+  │     Feedback: aCYNdo6BpWEh7ttltZK4...
+  │     Message:  s3nv3RzgFshRreUSga1q...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #10 - 06-11-2025, 07:25 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Regular"
+  │
+  │  🔗 IDs:
+  │     Feedback: wnSHB2Ig0w2HslMB7ef5...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762424706388-67rlzk
+  └─
+
+  ┌─ FEEDBACK #11 - 06-11-2025, 07:18 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Bueno"
+  │
+  │  🔗 IDs:
+  │     Feedback: oraixjI63nkTeJ2MiBcC...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762424281832-d44glt
+  └─
+
+  ┌─ FEEDBACK #12 - 06-11-2025, 07:14 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐⭐
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Hola"
+  │
+  │  🔗 IDs:
+  │     Feedback: 3OipScxw3YIfS4HM5B7c...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762424077752-h0dncs
+  └─
+
+  ┌─ FEEDBACK #13 - 06-11-2025, 07:10 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐⭐
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Hola"
+  │
+  │  🔗 IDs:
+  │     Feedback: 6mctJqny6BOiCMTyGANk...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762431727869-y1n09i
+  └─
+
+  ┌─ FEEDBACK #14 - 06-11-2025, 06:50 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: a4Dx4Z4TfdxIDhWHEBqp...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Los códigos de materiales se pueden encontrar en el Anexo de Códigos de Material de Insumos de Tecnología, o buscando directamente en SAP. *"
+  │      *Pasos Clave / Detalles:** * **Para insumos de tecnología:** Consulta el "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" que incluye cate
+  │      gorías como CONECTIVIDAD, ESCRITORIO, HARDWARE, SERVICIO y SOFTWARE, con sus respectivos códigos y descripciones. Por ejemplo, el código par
+  │      a "MONITOR GTI" es 35055768 y para "LICENCIA SOFTWARE PC WINDOWS OFFICE GTI" es 35055811. * **Búsqueda en SAP:** Para buscar un código de ma
+  │      terial en SAP, puedes utilizar la opción...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Hola"
+  │
+  │  🔗 IDs:
+  │     Feedback: aO0pUU8zDQdkjmUZpjMq...
+  │     Message:  nJKF5AbkxZb6i99gTWd8...
+  │     Ticket:   TKT-1762431749771-3ypbc
+  └─
+
+  ┌─ FEEDBACK #15 - 06-11-2025, 06:41 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: zuyasYeQT5dL8Dt5UxKw...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para buscar los códigos de materiales, puedes referirte al anexo de insumos tecnológicos o utilizar la función de búsqueda en SAP. **Pasos C"
+  │      lave / Detalles:** * **Códigos de Insumos Tecnológicos:** Los códigos de materiales para insumos tecnológicos se encuentran detallados en el
+  │       "ANEXO: CÓDIGOS DE MATERIAL INSUMOS DE TECNOLOGÍA" en el documento de Solicitud de Pedido de Insumos Tecnológicos-GTI. Este anexo lista el 
+  │      tipo, código y descripción de cada material (ej. "Celular (Costo)" con código "37000743"). * **Búsqueda en SAP:** En SAP, al crear una Solic
+  │      itud de Pedido (Solped), puedes buscar e...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: jkW5EzBQuByewU4RqCjt...
+  │     Message:  XhoNF2KP2JvkkKhVAXVj...
+  │     Ticket:   TKT-1762431752397-29ywir
+  └─
+
+  ┌─ FEEDBACK #16 - 04-11-2025, 12:07 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Pregunta 3: Muy larga respuesta, Pregunta tmb.
+  │     Conv ID: WHQ3erygR7SNMWoBfnfu...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "Qué requisitos se necesitan para aprobar un permiso de edificios, un permiso de urbanización, permiso de subdivisión, permiso de loteo."
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento, se precisan a continuación los requisitos para la aprobación de los permisos solicitados: ### Permiso de Edificación Los"
+  │       documentos proporcionados no detallan explícitamente una lista de requisitos generales para la aprobación de un permiso de edificación, sin
+  │      o que mencionan los tipos de formularios aplicables y las situaciones en las que un permiso *no* es necesario. * **Tipos de permisos que req
+  │      uieren formularios del Grupo 2** (según [Referencia 2]): * Obra nueva. * Ampliación mayor a 100 m². * Alteración. * Reparación. * Reconstruc
+  │      ción. * **Formularios aplicables** (segú...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          2
+  │     Detalles:          2 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento
+  │       - según el tipo de urbanización: 1
+  │
+  │  💬 Comentario del usuario:
+  │     "efdgdfgd"
+  │
+  │  🔗 IDs:
+  │     Feedback: CDu8vtS6Ycspggr3jzoD...
+  │     Message:  rTF1w1eQInkrNu1V4uSl...
+  │     Ticket:   TKT-1762431729924-ur54e
+  └─
+
+  ┌─ FEEDBACK #17 - 03-11-2025, 06:30 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Test ¿Qué procedimiento me sirve para el panel financiero?
+  │     Conv ID: efGcRJKXprVAv2i8vfda...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué procedimiento me sirve para el panel financiero?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para poder indicarte el procedimiento exacto para el Panel Financiero, necesito saber si el proyecto al que te refieres es **afecto a IVA** "
+  │      o **exento de IVA**. Ambos procedimientos tienen como objetivo estandarizar el control financiero de obra, analizando costos incurridos y pr
+  │      oyectados para estimar la rentabilidad futura y detectar desviaciones. **Detalles del Procedimiento (general, a la espera de tu aclaración):
+  │      ** * El Administrador de Obra (AO) es responsable del ciclo del Panel Financiero, incluyendo el análisis del real a la fecha, la proyección 
+  │      de costos e ingresos, y la carga de proy...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "adfsgsdfgasdfsadf"
+  │
+  │  🔗 IDs:
+  │     Feedback: 5IJCfoj5bUDg4rw7Bufc...
+  │     Message:  XYGLCcOWVSnK3AGq8j2p...
+  │     Ticket:   TKT-1762431724564-0kbnec
+  └─
+
+  ┌─ FEEDBACK #18 - 03-11-2025, 05:57 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Test ¿Qué procedimiento me sirve para el panel financiero?
+  │     Conv ID: efGcRJKXprVAv2i8vfda...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué procedimiento me sirve para el panel financiero?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para poder indicarte el procedimiento exacto para el Panel Financiero, necesito saber si el proyecto al que te refieres es **afecto a IVA** "
+  │      o **exento de IVA**. Ambos procedimientos tienen como objetivo estandarizar el control financiero de obra, analizando costos incurridos y pr
+  │      oyectados para estimar la rentabilidad futura y detectar desviaciones. **Detalles del Procedimiento (general, a la espera de tu aclaración):
+  │      ** * El Administrador de Obra (AO) es responsable del ciclo del Panel Financiero, incluyendo el análisis del real a la fecha, la proyección 
+  │      de costos e ingresos, y la carga de proy...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "asdfgadsfgasdf"
+  │
+  │  🔗 IDs:
+  │     Feedback: 4hLI0OxvARk2YG1Ne4WA...
+  │     Message:  XYGLCcOWVSnK3AGq8j2p...
+  │     Ticket:   TKT-1762431721164-ralngo
+  └─
+
+  ┌─ FEEDBACK #19 - 03-11-2025, 12:17 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: qndjF1Kh83TGvZ3sjxZU...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué procedimientos están asociados al plan de calidad?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "El plan de calidad es un documento central para la gestión de la calidad en SalfaGestión, y el procedimiento de Trazabilidad, Certificados y"
+  │       Ensayos está directamente asociado a él. **Detalles del Procedimiento** * El documento principal que define la gestión de calidad es el **P
+  │      LAN DE CALIDAD Y OPERACIÓN**. * El Responsable de Calidad de Obra (RCO) es quien debe describir en el Plan de Calidad los materiales o equip
+  │      os que requieren trazabilidad. * Esta descripción incluye la identificación de los requisitos y niveles de trazabilidad del proyecto, los su
+  │      ministros y actividades subcontratadas s...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según el procedimiento de Trazabilidad? * ¿Puedo detallarte las responsabilidades del RCO en relación con la trazabilidad y los certificados?
+  │
+  │  💬 Comentario del usuario:
+  │     "asdfasdasdas"
+  │
+  │  🔗 IDs:
+  │     Feedback: N1e0ZpLRwgnt1LWVyS5Q...
+  │     Message:  8RZm7s3DNQpLmEdeEK2I...
+  │     Ticket:   TKT-1762431739292-19g9bn
+  └─
+
+  ┌─ FEEDBACK #20 - 03-11-2025, 12:17 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: qndjF1Kh83TGvZ3sjxZU...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué procedimientos están asociados al plan de calidad?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "El plan de calidad es un documento central para la gestión de la calidad en SalfaGestión, y el procedimiento de Trazabilidad, Certificados y"
+  │       Ensayos está directamente asociado a él. **Detalles del Procedimiento** * El documento principal que define la gestión de calidad es el **P
+  │      LAN DE CALIDAD Y OPERACIÓN**. * El Responsable de Calidad de Obra (RCO) es quien debe describir en el Plan de Calidad los materiales o equip
+  │      os que requieren trazabilidad. * Esta descripción incluye la identificación de los requisitos y niveles de trazabilidad del proyecto, los su
+  │      ministros y actividades subcontratadas s...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según el procedimiento de Trazabilidad? * ¿Puedo detallarte las responsabilidades del RCO en relación con la trazabilidad y los certificados?
+  │
+  │  💬 Comentario del usuario:
+  │     "sdfsdfsdfxcfvs"
+  │
+  │  🔗 IDs:
+  │     Feedback: FUMYIsNejvf48qzDTcMQ...
+  │     Message:  8RZm7s3DNQpLmEdeEK2I...
+  │     Ticket:   TKT-1762431736554-yuhaqp
+  └─
+
+  ┌─ FEEDBACK #21 - 30-10-2025, 08:35 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Pregunta 3: Muy larga respuesta, Pregunta tmb.
+  │     Conv ID: WHQ3erygR7SNMWoBfnfu...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "Qué requisitos se necesitan para aprobar un permiso de edificios, un permiso de urbanización, permiso de subdivisión, permiso de loteo."
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento, se precisan a continuación los requisitos para la aprobación de los permisos solicitados: ### Permiso de Edificación Los"
+  │       documentos proporcionados no detallan explícitamente una lista de requisitos generales para la aprobación de un permiso de edificación, sin
+  │      o que mencionan los tipos de formularios aplicables y las situaciones en las que un permiso *no* es necesario. * **Tipos de permisos que req
+  │      uieren formularios del Grupo 2** (según [Referencia 2]): * Obra nueva. * Ampliación mayor a 100 m². * Alteración. * Reparación. * Reconstruc
+  │      ción. * **Formularios aplicables** (segú...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          2
+  │     Detalles:          2 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento
+  │       - según el tipo de urbanización: 1
+  │
+  │  💬 Comentario del usuario:
+  │     "Buen feature"
+  │
+  │  🔗 IDs:
+  │     Feedback: vTG8Vqot14n7eAMtnHkf...
+  │     Message:  rTF1w1eQInkrNu1V4uSl...
+  │     Ticket:   TKT-1762431753170-uzjxc7
+  └─
+
+  ┌─ FEEDBACK #22 - 30-10-2025, 02:15 p. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   5/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: VUmBIOnjEmXdw8QMyp2B...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo hago un pedido de convenio?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para hacer un pedido de convenio en SAP, debes iniciar la transacción de creación de pedidos y seleccionar el tipo de pedido específico para"
+  │       convenios. ### Resumen Concreto: Para generar un pedido de compra contra convenio, ingresa a la transacción **ME21N** en SAP y selecciona e
+  │      l tipo de pedido **ZCON (Contra Convenio)**. ### Puntos Adicionales: * **Transacción SAP:** El proceso comienza utilizando la transacción **
+  │      ME21N**, que es la interfaz para la creación de pedidos en el sistema SAP. [Referencia 2, Fragmento 1, 2, 3] * **Selección del Tipo de Pedid
+  │      o:** Dentro de la transacción ME21N, es ...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: DrCCdybXg7sdYGmFnM1d...
+  │     Message:  V7TDdluFd6O6R2gyEkPb...
+  │     Ticket:   TKT-1762431733549-3bxqql
+  └─
+
+  ┌─ FEEDBACK #23 - 30-10-2025, 01:59 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   5/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: uMSj2tpbpezTHN0CbBxh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo hago un pedido de convenio?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio", para hacer un pedido de convenio en SAP, debes seguir estos pasos: 1. **Ingres"
+  │      ar a la transacción ME21N**: Esta transacción se utiliza para la creación de pedidos en el sistema SAP. 2. **Seleccionar el tipo de pedido Z
+  │      CON**: Una vez en la transacción ME21N, debes elegir "**ZCON Pedido por Convenio**" del menú desplegable de tipos de pedido (Referencia 2, f
+  │      ragmentos 1, 2 y 3). El objetivo de este procedimiento es describir cómo generar los pedidos de compras contra convenio en el sistema SAP (R
+  │      eferencia 2, fragmentos 1, 2 y 3).
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio"
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: ZVc7Yp4vxRldjuhCFI7w...
+  │     Message:  V94BxfmHGD1Muze380XY...
+  │     Ticket:   TKT-1762431747665-fu4c3
+  └─
+
+  ┌─ FEEDBACK #24 - 30-10-2025, 01:55 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   5/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: uMSj2tpbpezTHN0CbBxh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo hago un pedido de convenio?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio", para hacer un pedido de convenio en SAP, debes seguir estos pasos: 1. **Ingres"
+  │      ar a la transacción ME21N**: Esta transacción se utiliza para la creación de pedidos en el sistema SAP. 2. **Seleccionar el tipo de pedido Z
+  │      CON**: Una vez en la transacción ME21N, debes elegir "**ZCON Pedido por Convenio**" del menú desplegable de tipos de pedido (Referencia 2, f
+  │      ragmentos 1, 2 y 3). El objetivo de este procedimiento es describir cómo generar los pedidos de compras contra convenio en el sistema SAP (R
+  │      eferencia 2, fragmentos 1, 2 y 3).
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio"
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: ed6PPoHDHOrVMrWj8DlM...
+  │     Message:  cYDZ2ANjCduzz9kIHaxf...
+  │     Ticket:   UY5GoQIeLBCmnPUnblri
+  └─
+
+  ┌─ FEEDBACK #25 - 30-10-2025, 01:38 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   5/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: uMSj2tpbpezTHN0CbBxh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo hago un pedido de convenio?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio", para hacer un pedido de convenio en SAP, debes seguir estos pasos: 1. **Ingres"
+  │      ar a la transacción ME21N**: Esta transacción se utiliza para la creación de pedidos en el sistema SAP. 2. **Seleccionar el tipo de pedido Z
+  │      CON**: Una vez en la transacción ME21N, debes elegir "**ZCON Pedido por Convenio**" del menú desplegable de tipos de pedido (Referencia 2, f
+  │      ragmentos 1, 2 y 3). El objetivo de este procedimiento es describir cómo generar los pedidos de compras contra convenio en el sistema SAP (R
+  │      eferencia 2, fragmentos 1, 2 y 3).
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio"
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: Slhm3mVh56izqHICufYi...
+  │     Message:  w3cpDqND0oYJiqe7G4Ff...
+  │     Ticket:   sXlQXsVrKi8jE4846mQS
+  └─
+
+  ┌─ FEEDBACK #26 - 30-10-2025, 12:31 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: uMSj2tpbpezTHN0CbBxh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cómo hago un pedido de convenio?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio", para hacer un pedido de convenio en SAP, debes seguir estos pasos: 1. **Ingres"
+  │      ar a la transacción ME21N**: Esta transacción se utiliza para la creación de pedidos en el sistema SAP. 2. **Seleccionar el tipo de pedido Z
+  │      CON**: Una vez en la transacción ME21N, debes elegir "ZCON Pedido por Convenio" del menú desplegable de tipos de pedido (Referencia 2, fragm
+  │      entos 1, 2 y 3). El objetivo de este procedimiento es describir cómo generar los pedidos de compras contra convenio en el sistema SAP (Refer
+  │      encia 2, fragmentos 1, 2 y 3).
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el documento "MAQ-ABA-CNV-PP-001 Compras por Convenio"
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: eV9t9cs3uP8M2v2j7jYh...
+  │     Message:  KSqxQQMK6mIkWyTm55Ws...
+  │     Ticket:   SZftKoG0z7vK8AxY11BL
+  └─
+
+  ┌─ FEEDBACK #27 - 30-10-2025, 12:16 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    9/10
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: uMSj2tpbpezTHN0CbBxh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Dónde busco los códigos de materiales?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Puedes buscar los códigos de materiales en el **Anexo de Códigos de Material Insumos de Tecnología** o a través del sistema SAP utilizando e"
+  │      l campo "Texto breve material". Aquí te detallo las opciones: * **Anexo de Códigos de Material Insumos de Tecnología**: Para insumos tecnoló
+  │      gicos, existe un anexo que lista los códigos de material por tipo (Conectividad, Escritorio, Hardware, Servicio, Software) junto con su desc
+  │      ripción (Referencia 1, páginas 2 y 3). * **Búsqueda en SAP**: Dentro del sistema SAP, puedes buscar códigos de material en la columna "Mater
+  │      ial" utilizando la opción de búsqueda po...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: 4y5JH29UyjEDt0NjyaB6...
+  │     Message:  JZEehtjVerRnARYAV13v...
+  │     Ticket:   B2aI2ZeXwnDwNzkmEJhW
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: ABHERNANDEZ@maqsa.cl
+┃    Hash ID:       2feaec6d718c
+┃    Rol:           user
+┃    Dominio:       maqsa.cl
+┃    Organización:  Salfa Corp
+┃    Total Feedbacks: 16
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 19-11-2025, 03:37 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Donde obtengo procedimiento acta para cierre
+  │     Conv ID: qGr5xNOZ21qgV1qyjRv5...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Conduce correctamente a los registros de apoyo para este proceso"
+  │
+  │  🔗 IDs:
+  │     Feedback: WY1LgZQS3P4xbs192zjM...
+  │     Message:  streaming-1763577239...
+  │     Ticket:   TKT-1763577452233-8z6qpt
+  └─
+
+  ┌─ FEEDBACK #2 - 19-11-2025, 03:32 p. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Los equipos mayores como ingresan rebajan
+  │     Conv ID: 8Cd8EMcvJPeuAdTBlhac...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Se cambio este proceso, nuestra area debe subir nuevo procedimiento al respecto"
+  │
+  │  🔗 IDs:
+  │     Feedback: 6P7H4wQLCMDwUHCaf23x...
+  │     Message:  streaming-1763576783...
+  │     Ticket:   TKT-1763577167367-1vhw9n
+  └─
+
+  ┌─ FEEDBACK #3 - 19-11-2025, 03:22 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐⭐
+  │
+  │  🤖 Agente: Como realizar convenio
+  │     Conv ID: AcMfFG7Yr6JqUfcAQaXy...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Respuesta clara y con el dato adicional del paso a paso respectivo que deben usar"
+  │
+  │  🔗 IDs:
+  │     Feedback: DGwnyd9S6ADceWmaF4HF...
+  │     Message:  streaming-1763576315...
+  │     Ticket:   TKT-1763576543626-eom2v
+  └─
+
+  ┌─ FEEDBACK #4 - 19-11-2025, 12:39 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Como canaliza solicitud creacion nuevo almacen
+  │     Conv ID: qLA97tVmbFLt32jon18V...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Correcto, como area no se ha estableido un paso a paso para este requerimiento, son casos especificos y deben ser derivados a cada superivso"
+  │      r (tal como indica la respuesta)
+  │
+  │  🔗 IDs:
+  │     Feedback: 3q5o2kycnZleOtpEy8j5...
+  │     Message:  streaming-1763566568...
+  │     Ticket:   TKT-1763566781396-ilns4s
+  └─
+
+  ┌─ FEEDBACK #5 - 19-11-2025, 12:34 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Como canalizo implementacion Bodega Facil
+  │     Conv ID: 4V6sJT7qAZyBVmiBCrsm...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Correcta respuesta"
+  │
+  │  🔗 IDs:
+  │     Feedback: 4cUaQnp3Bxorpo9vW4s3...
+  │     Message:  streaming-1763566273...
+  │     Ticket:   TKT-1763566473328-oxiwt
+  └─
+
+  ┌─ FEEDBACK #6 - 19-11-2025, 12:29 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Como doy baja equipos menores
+  │     Conv ID: 5RFoXzTS7RIZs8YvbI75...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Solo me indica lo asociado a un procedimiento por desvinculacion de trabajador, tambien debe considerar el instructivo CORP-SG-I-002 REQUERI"
+  │      MIENTO BAJA DE EQUIPOS
+  │
+  │  🔗 IDs:
+  │     Feedback: Gkb5IPpc0nnGuY8ghwle...
+  │     Message:  streaming-1763565975...
+  │     Ticket:   TKT-1763566191815-oleg2
+  └─
+
+  ┌─ FEEDBACK #7 - 19-11-2025, 12:25 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Puedo enviar proveedores aun aprobadas sistema
+  │     Conv ID: 59JEaFVgXBbf4ueno7cR...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Solo habla de proveedores sin crear en la base SAP, pero esto tambien aplica para proveedores ya creados"
+  │
+  │  🔗 IDs:
+  │     Feedback: Kut7WHGY3R0FBtF3PYpM...
+  │     Message:  streaming-1763565783...
+  │     Ticket:   TKT-1763565931477-ce43pp
+  └─
+
+  ┌─ FEEDBACK #8 - 19-11-2025, 12:22 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Que debo hacer cuando guia proveedor
+  │     Conv ID: ka95gYoj8HJxyruA1Gk3...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Correcta respuesta"
+  │
+  │  🔗 IDs:
+  │     Feedback: c6S0XIyodpXdriB4539g...
+  │     Message:  streaming-1763565647...
+  │     Ticket:   TKT-1763565724932-ma6ehq
+  └─
+
+  ┌─ FEEDBACK #9 - 19-11-2025, 12:18 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Como realizo inventario materiales
+  │     Conv ID: JcTE4pRzvC3jVcpZsFKh...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Correcta respuesta"
+  │
+  │  🔗 IDs:
+  │     Feedback: aFMDIRcyIsATfGxPev5J...
+  │     Message:  streaming-1763565417...
+  │     Ticket:   TKT-1763565536133-35q3tp
+  └─
+
+  ┌─ FEEDBACK #10 - 19-11-2025, 12:15 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Como soluciono facturas con problemas SAP
+  │     Conv ID: 1glaCBrIEFe3sy0XNGRE...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Correcta respuesta"
+  │
+  │  🔗 IDs:
+  │     Feedback: BcWEXMgVMCt7kY7954cY...
+  │     Message:  streaming-1763565205...
+  │     Ticket:   TKT-1763565311030-oib2rc
+  └─
+
+  ┌─ FEEDBACK #11 - 19-11-2025, 12:07 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Donde reviso las facturas con problemas
+  │     Conv ID: fWQ5VYW03WGsr4TKlkNv...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Deberia llevar al instructivo Toma de Inventario"
+  │
+  │  🔗 IDs:
+  │     Feedback: 4NpF5UfAbez2o4ReMLQH...
+  │     Message:  streaming-1763563804...
+  │     Ticket:   TKT-1763564827932-aes1s
+  └─
+
+  ┌─ FEEDBACK #12 - 19-11-2025, 11:48 a. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Donde reviso las facturas con problemas
+  │     Conv ID: fWQ5VYW03WGsr4TKlkNv...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Deberia asocias a paso a paso Solucion Facturas Retenidas"
+  │
+  │  🔗 IDs:
+  │     Feedback: NCuax4wXmKtDvyJYnTzW...
+  │     Message:  streaming-1763563545...
+  │     Ticket:   TKT-1763563720689-pbcdzi
+  └─
+
+  ┌─ FEEDBACK #13 - 19-11-2025, 11:44 a. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Donde reviso las facturas con problemas
+  │     Conv ID: fWQ5VYW03WGsr4TKlkNv...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Deberia llevar a procedimiento asociado a transaccion ZFEL_MONITOR"
+  │
+  │  🔗 IDs:
+  │     Feedback: sh0UkmPVbYubzqXiTLpg...
+  │     Message:  streaming-1763563314...
+  │     Ticket:   TKT-1763563469548-nb1tml
+  └─
+
+  ┌─ FEEDBACK #14 - 10-11-2025, 10:12 a. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: amTvIxUeovMLe3TJVmVb...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No asocia el requerimiento a la solictud de pedido"
+  │
+  │  🔗 IDs:
+  │     Feedback: Z1CSgJIBRDdxh85XFA72...
+  │     Message:  cancelled-1762780329...
+  │     Ticket:   TKT-1762780375338-jnjq9c
+  └─
+
+  ┌─ FEEDBACK #15 - 10-11-2025, 10:07 a. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: EUcRpPGBYeR0yEGzT9yP...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No asocia la rebaja de existencias por consumos"
+  │
+  │  🔗 IDs:
+  │     Feedback: jS17C6YPrO3vB9EKwHVL...
+  │     Message:  cancelled-1762779991...
+  │     Ticket:   TKT-1762780026980-cogx1a
+  └─
+
+  ┌─ FEEDBACK #16 - 10-11-2025, 10:00 a. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: EUcRpPGBYeR0yEGzT9yP...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No asocia la pregunta a la solucion de facturas en SAP (Transaccion zfel_monitor)"
+  │
+  │  🔗 IDs:
+  │     Feedback: Vc8jGtDsPKhC24Mw8o9b...
+  │     Message:  cancelled-1762779536...
+  │     Ticket:   TKT-1762779606387-2pw1z
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: ireygadas@iaconcagua.com
+┃    Hash ID:       8a2a75b1c3cf
+┃    Rol:           user
+┃    Dominio:       iaconcagua.com
+┃    Organización:  IA Concagua
+┃    Total Feedbacks: 4
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 06-11-2025, 02:44 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: szbVXdg3Qi2DEN6NTUJF...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "los EIU caducan cuando entra en vigencia el PRC"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "1. **Resumen Concreto** Los documentos normativos disponibles no abordan directamente la caducidad de los Estudios de Impacto Ambiental (EIU"
+  │      ) cuando entra en vigencia un Plan Regulador Comunal (PRC). Sin embargo, establecen la vigencia de los Estudios de Impacto sobre el Sistema 
+  │      de Transporte Urbano (EISTU), que es un tipo específico de estudio de impacto. 2. **Fundamento Normativo y Detalles** * **Distinción EIU y E
+  │      ISTU**: Es crucial diferenciar entre un Estudio de Impacto Ambiental (EIU), regulado principalmente por la legislación ambiental, y un Estud
+  │      io de Impacto sobre el Sistema de Transp...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según la normativa ambiental? * ¿Podríamos revisar cómo se aplica la vigencia de los EISTU a proyectos de loteo o condominios sin construcción simultánea?
+  │
+  │  💬 Comentario del usuario:
+  │     "no da respuesta, al parecer no tiene cargado el PRMS y su ordenanza"
+  │
+  │  🔗 IDs:
+  │     Feedback: pUkmWEnNPi9jkWWrIYGS...
+  │     Message:  faxP76Ji890wWyPg2bv2...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #2 - 06-11-2025, 02:44 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: szbVXdg3Qi2DEN6NTUJF...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "los EIU caducan cuando entra en vigencia el PRC"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "1. **Resumen Concreto** Los documentos normativos disponibles no abordan directamente la caducidad de los Estudios de Impacto Ambiental (EIU"
+  │      ) cuando entra en vigencia un Plan Regulador Comunal (PRC). Sin embargo, establecen la vigencia de los Estudios de Impacto sobre el Sistema 
+  │      de Transporte Urbano (EISTU), que es un tipo específico de estudio de impacto. 2. **Fundamento Normativo y Detalles** * **Distinción EIU y E
+  │      ISTU**: Es crucial diferenciar entre un Estudio de Impacto Ambiental (EIU), regulado principalmente por la legislación ambiental, y un Estud
+  │      io de Impacto sobre el Sistema de Transp...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según la normativa ambiental? * ¿Podríamos revisar cómo se aplica la vigencia de los EISTU a proyectos de loteo o condominios sin construcción simultánea?
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: GJ5CmMLSOOkCr4s3C5xD...
+  │     Message:  faxP76Ji890wWyPg2bv2...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #3 - 06-11-2025, 11:02 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: szbVXdg3Qi2DEN6NTUJF...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "es posible compartir laboratorios en colegios colindantes"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "1. **Resumen Concreto** Sí, es posible compartir laboratorios entre colegios colindantes mediante la interconexión física de sus edificacion"
+  │      es, siempre que se cuente con la autorización de la Dirección de Obras Municipales (DOM) y se cumplan las condiciones de seguridad, funciona
+  │      lidad y servidumbres necesarias. 2. **Fundamento Normativo y Detalles** * **Factibilidad de Interconexión**: No existe impedimento técnico o
+  │       prohibición para que dos o más edificios contiguos o colindantes de distintos dueños, ya sean existentes o proyectados, puedan interconecta
+  │      rse en cualquier nivel. Esto requiere el...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según la OGUC? * ¿Podríamos revisar los requisitos para la obtención de un permiso de edificación para una obra de interconexión?
+  │
+  │  💬 Comentario del usuario:
+  │     "logra resultados mejores que google o gemini"
+  │
+  │  🔗 IDs:
+  │     Feedback: FIBptZdOtmEc3ANzi4Jv...
+  │     Message:  sveXrO7UWBAEYG9BXw5h...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #4 - 05-11-2025, 05:26 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: szbVXdg3Qi2DEN6NTUJF...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cuáles son las alternativas de aporte al espacio publico en los permisos de edifciación?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "1. **Resumen Concreto** Los permisos de edificación que generen crecimiento urbano por densificación pueden cumplir la obligación de Aportes"
+  │       al Espacio Público mediante aportes en dinero, aportes en estudios, proyectos, medidas u obras, o a través de la cesión directa de terrenos
+  │      , e incluso combinando estas opciones. 2. **Fundamento Normativo y Detalles** * **Obligación General**: La Ley N°20.958 incorporó el Título 
+  │      V a la Ley General de Urbanismo y Construcciones (LGUC), estableciendo las obligaciones de Mitigaciones y Aportes al Espacio Público. La obl
+  │      igación de Aportes al Espacio Público se...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: BCqAJsLMxYpHjvSEM6de...
+  │     Message:  0LWYKkk5viqB3x1lxpEk...
+  │     Ticket:   TKT-1762431728892-96yxsu
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: jriverof@iaconcagua.com
+┃    Hash ID:       027a19dcd497
+┃    Rol:           user
+┃    Dominio:       iaconcagua.com
+┃    Organización:  IA Concagua
+┃    Total Feedbacks: 3
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 25-11-2025, 03:33 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Hola, puedes hacer comparación entre nueva
+  │     Conv ID: DPSZd6zoLdWJyaETdNNX...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "Hola, ¿me puedes hacer una comparación entre la nueva ley de copropiedad y los cambios que hubo en contraste con la anterior?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Hola, con gusto te ayudaré con una comparación entre la nueva ley de copropiedad y los cambios en contraste con la anterior. La Ley N°19.537"
+  │      , sobre Copropiedad Inmobiliaria, publicada el 16 de diciembre de 1997, derogó expresamente la Ley N°6.071 sobre Propiedad Horizontal (Refer
+  │      encia 2, fragmento 3 y Referencia 3, fragmento 1). **Cambios y Aplicación de la Nueva Ley (Ley N°19.537):** * **Derogación de la Ley N°6.071
+  │      :** La nueva ley N°19.537 reemplazó completamente la Ley N°6.071, que regulaba la Propiedad Horizontal (Referencia 2, fragmento 3 y Referenc
+  │      ia 3, fragmento 1). * **Régimen de Copro...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "(sin comentario)"
+  │
+  │  🔗 IDs:
+  │     Feedback: u4ijRS4pOhLXYMG9qJ0e...
+  │     Message:  JMYIoxngNTdRF7mLUq4X...
+  │     Ticket:   TKT-1764095630932-0cwgq
+  └─
+
+  ┌─ FEEDBACK #2 - 06-11-2025, 03:05 p. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: dSaCG3BWp6BNn8czaa5v...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "Que debería hacer si quiero desarrollar un proyecto inmobiliario?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "**Resumen Concreto** El desarrollo de un proyecto inmobiliario en su máxima complejidad implica una progresión estructurada que inicia con l"
+  │      a comprensión del marco de planificación territorial, avanza por la formulación y aprobación de anteproyectos, la obtención de permisos de e
+  │      dificación y urbanización, y culmina con la ejecución y recepción final de las obras. **Fundamento Normativo y Detalles** 1. **Estudios Prev
+  │      ios y Marco Normativo (Planificación Territorial):** Antes de cualquier diseño, es imperativo consultar el Instrumento de Planificación Terr
+  │      itorial (IPT) vigente que afecta al pred...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Buscaba algo más directo a la respuesta."
+  │
+  │  🔗 IDs:
+  │     Feedback: kyZDRAvT3unsmcxRrRwP...
+  │     Message:  fywydBJPuL8hiKcoZkve...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #3 - 06-11-2025, 10:42 a. m.
+  │
+  │  📊 Rating: ☆☆☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: dSaCG3BWp6BNn8czaa5v...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "Error en la respuesta."
+  │
+  │  🔗 IDs:
+  │     Feedback: zN6NWbmUo9KTaJQpbPt9...
+  │     Message:  error-1762436129934...
+  │     Ticket:   N/A
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: gfalvarez@novatec.cl
+┃    Hash ID:       57af690e6469
+┃    Rol:           user
+┃    Dominio:       novatec.cl
+┃    Organización:  novatec.cl
+┃    Total Feedbacks: 3
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 18-11-2025, 05:30 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Hola, como puedo controlar calidad obra
+  │     Conv ID: pPABuXO2C6AgsqTxBHUW...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "inidca generalñidades de la contruccion, no como señala el plan de calidad y operacion de obra, deberia haber indicado, que se hace a travez"
+  │       de sistema interno SMAT y que se hace una vez a la semana y que las partidas se impoutas de 0 o 100%
+  │
+  │  🔗 IDs:
+  │     Feedback: GfcfaXRPj9eQq5l5SWaw...
+  │     Message:  streaming-1763497720...
+  │     Ticket:   TKT-1763497857077-gs0d3f
+  └─
+
+  ┌─ FEEDBACK #2 - 18-11-2025, 05:28 p. m.
+  │
+  │  📊 Rating: ⭐☆☆☆☆
+  │
+  │  🤖 Agente: Hola, como puedo controlar calidad obra
+  │     Conv ID: pPABuXO2C6AgsqTxBHUW...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No reconoce el plan de calidad ni el PIE de este, ademas sugiere plataformas que no usamos, nosotros usamos FOCO CALIDAD"
+  │
+  │  🔗 IDs:
+  │     Feedback: Q9mcUHW3Unq90RetQXgk...
+  │     Message:  streaming-1763497553...
+  │     Ticket:   TKT-1763497695506-8iej2n
+  └─
+
+  ┌─ FEEDBACK #3 - 18-11-2025, 05:26 p. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Hola, como puedo controlar calidad obra
+  │     Conv ID: pPABuXO2C6AgsqTxBHUW...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No entrega detalles"
+  │
+  │  🔗 IDs:
+  │     Feedback: DZ7oQ9TOXMXYX4d5thiN...
+  │     Message:  streaming-1763497432...
+  │     Ticket:   TKT-1763497585238-dtd59h
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: mburgoa@novatec.cl
+┃    Hash ID:       37e26b7af2e9
+┃    Rol:           user
+┃    Dominio:       novatec.cl
+┃    Organización:  novatec.cl
+┃    Total Feedbacks: 3
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 11-11-2025, 04:03 p. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: pregunta 2
+  │     Conv ID: vIng19nyZJivyVSPZe9a...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "como puedo controlar la perdida de hormigon en la obra "
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Para controlar la pérdida de hormigón en la obra, es fundamental realizar un análisis detallado de las cubicaciones y rendimientos durante l"
+  │      a fase de obra gruesa, planificando los frentes de trabajo y ciclos de ejecución. ### Detalles del Procedimiento Según el procedimiento de P
+  │      lanificación Inicial de Obra, para controlar el uso del hormigón se debe: * **Analizar Frentes de Trabajo y Ciclos:** Determinar los frentes
+  │       de trabajo y los ciclos de ejecución para partidas como fundaciones, muros de subterráneos, radieres, losas de subterráneos, muros y losas 
+  │      de pisos tipo. * **Cubicación de Hormigó...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según el procedimiento de Planificación Inicial de Obra
+  │
+  │  💬 Comentario del usuario:
+  │     "para este control tambien debes agregar la planilla tipo GOP-R-PCO-2.2.PLANILLA CONTROL HORMIGONES-(V.0)"
+  │
+  │  🔗 IDs:
+  │     Feedback: UhJC5reKrm8MlcLCWOwX...
+  │     Message:  9HKK8E090ibwNqELrWQ7...
+  │     Ticket:   TKT-1762887800049-y56f4s
+  └─
+
+  ┌─ FEEDBACK #2 - 11-11-2025, 12:39 p. m.
+  │
+  │  📊 Rating: ☆☆☆☆☆
+  │
+  │  🤖 Agente: pregunta 2
+  │     Conv ID: vIng19nyZJivyVSPZe9a...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "como empiezo a ocupar en mi obra ibuilder y foco en obra "
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Mi conocimiento se limita a los procedimientos de SalfaGestión proporcionados. No tengo información explícita sobre cómo iniciar el uso de l"
+  │      a plataforma "Foco en Obra", y la documentación relacionada con "iBuilder" se centra en la resolución de problemas técnicos, no en su implem
+  │      entación inicial. ### Detalles del Procedimiento * **iBuilder:** Existe un documento que describe los pasos a seguir en caso de una caída de
+  │       la plataforma de asistencia iBuilder, pero no detalla el proceso de cómo comenzar a utilizarla en una obra. * **Foco en Obra:** No se encue
+  │      ntra un procedimiento o instructivo en m...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "La respuesta debe estar enfocada a lo siguiente : de foco en obra en el plan de calidad en el punto 6.3.	REALIZACIÓN DEL PRODUCTO"
+  │      El control de realización del producto, se hará desde un aspecto general por etapas, las cuales se deberán entregar por medio de protocolos 
+  │      de Recepción y Entrega. Las e...
+  │
+  │  🔗 IDs:
+  │     Feedback: pfKnHSCFKIK37iRxu9XF...
+  │     Message:  e8I8k4v32T42gWpoyBiR...
+  │     Ticket:   TKT-1762875590495-0bjoc8
+  └─
+
+  ┌─ FEEDBACK #3 - 11-11-2025, 11:31 a. m.
+  │
+  │  📊 Rating: ☆☆☆☆☆
+  │
+  │  🤖 Agente: PREGUNTAS ENTRENAMIENTO CHAT
+  │     Conv ID: LCptqHuL1PmuCZLzFL5Q...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "soy jefe de terreno y debo solicitar materiales ¿como los solicito?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Como Jefe de Terreno (JT), su rol principal para solicitar materiales es coordinar y comunicar las necesidades a la Jefatura de Bodega (JBOD"
+  │      ), quien es la responsable de formalizar y gestionar las solicitudes de compra. **Detalles del Procedimiento:** * **Identificación de Necesi
+  │      dades:** Como Jefe de Terreno, usted debe identificar las maquinarias y equipos necesarios para la realización del proyecto, los cuales se p
+  │      lasmarán en la "planilla equipos" (aunque esto es más para proyección financiera de equipos, sienta la base para la necesidad). * **Comunica
+  │      ción a Jefatura de Bodega:** La Jefatura...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "la respuesta divaga por otros procedimientos cuando deberia tomar el capitulo del plan de calidad   6.5.	SOLICITUD DE MATERIALES Y EQUIPOS "
+  │      El pedido de materiales lo genera cada jefe de área y lo entrega a JOT, quien revisa para que lo apruebe el AO, luego el JOT en caso de modi
+  │      ficación del pedido...
+  │
+  │  🔗 IDs:
+  │     Feedback: tr1l8M2KfsZb4Z54DHhk...
+  │     Message:  vxKQ5yVLMJSnYSItvBXp...
+  │     Ticket:   TKT-1762871510806-xp23i
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: alecdickinson@gmail.com
+┃    Hash ID:       ea71385bcaf1
+┃    Rol:           user
+┃    Dominio:       gmail.com
+┃    Organización:  Personal
+┃    Total Feedbacks: 3
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 06-11-2025, 11:34 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: NHfkbX3D12OLEvKNqeyF...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Cuáles son los pasos a seguir en una mantención de grúa Grove RT765E?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "No encuentro información específica sobre los pasos a seguir para la mantención de una grúa **Grove RT765E** en mi base de datos documental."
+  │      Mi conocimiento se limita a la información contenida en los documentos proporcionados, los cuales incluyen manuales y tablas de carga para g
+  │      rúas HIAB, Palfinger, National y AK-3008, así como manuales de operación de camiones International y Ford.
+  │      Sin embargo, puedo proporcionarte un ejemplo de pautas de mantenimiento semanal y general para una grúa HIAB, que podría servir como referen
+  │      cia de prácticas comunes en la mantención de grúas, pero **no debe ser...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - Según la "Pauta de mantención semanal de grúa Hiab" y el "Manual de Operacion Hiab 322-377 Duo-HiDuo"
+  │
+  │  💬 Comentario del usuario:
+  │     "este agente dice que la info no esta cargada"
+  │
+  │  🔗 IDs:
+  │     Feedback: ASMXf1fmGRXLdmdXm3jM...
+  │     Message:  hKKntx1EfboDm87JTlKA...
+  │     Ticket:   N/A
+  └─
+
+  ┌─ FEEDBACK #2 - 06-11-2025, 08:20 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: FFjJt0BPLJHlS4cULiL4...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué significa el código de falla CF103 en Camión Scania R500?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Mi base de conocimiento se limita a la normativa de urbanismo y construcción y a la documentación técnica de equipos específicos (grúas HIAB"
+  │       y Palfinger, camiones International y Ford Cargo).
+  │      No dispongo de información sobre el significado del código de falla **CF103** para un camión **Scania R500** en los documentos proporcionado
+  │      s.
+  │      Para obtener el significado de este código, te recomiendo consultar el manual de operación o servicio específico del camión Scania R500, o c
+  │      ontactar directamente con un servicio técnico autorizado de Scania.
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "not showing the information that is expected"
+  │
+  │  🔗 IDs:
+  │     Feedback: UdW6jN4U8kORBirxnU78...
+  │     Message:  aDBsO5P5dB6CJ7uoAXjU...
+  │     Ticket:   TKT-1762431742083-5ux58h
+  └─
+
+  ┌─ FEEDBACK #3 - 06-11-2025, 08:14 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: FFjJt0BPLJHlS4cULiL4...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué significa el código de falla CF103 en Camión Scania R500?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Mi base de conocimiento se limita a la normativa de urbanismo y construcción y a la documentación técnica de equipos específicos (grúas HIAB"
+  │       y Palfinger, camiones International y Ford Cargo).
+  │      No dispongo de información sobre el significado del código de falla **CF103** para un camión **Scania R500** en los documentos proporcionado
+  │      s.
+  │      Para obtener el significado de este código, te recomiendo consultar el manual de operación o servicio específico del camión Scania R500, o c
+  │      ontactar directamente con un servicio técnico autorizado de Scania.
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "No muestra info"
+  │
+  │  🔗 IDs:
+  │     Feedback: b94a4CNDOPsg65irSIlI...
+  │     Message:  aDBsO5P5dB6CJ7uoAXjU...
+  │     Ticket:   TKT-1762431750573-3tmw8
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: sorellanac@salfagestion.cl
+┃    Hash ID:       bec91bcef872
+┃    Rol:           admin
+┃    Dominio:       salfagestion.cl
+┃    Organización:  Salfa Corp
+┃    Total Feedbacks: 1
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 24-11-2025, 09:47 a. m.
+  │
+  │  📊 Rating: aceptable
+  │     CSAT:   4/5
+  │     NPS:    8/10
+  │
+  │  🤖 Agente: Como hacer pep
+  │     Conv ID: 0D5jwOsLja3YE3hBIhBz...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "(no disponible)"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "(no disponible)"
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "msj de prueba. Rediseñar formato."
+  │
+  │  🔗 IDs:
+  │     Feedback: IVso3SqwzfqFzHXIuJpl...
+  │     Message:  streaming-1763988177...
+  │     Ticket:   TKT-1763988455902-jgegak
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: mmichael@maqsa.cl
+┃    Hash ID:       86d63bd8d59d
+┃    Rol:           user
+┃    Dominio:       maqsa.cl
+┃    Organización:  Salfa Corp
+┃    Total Feedbacks: 1
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 12-11-2025, 12:03 p. m.
+  │
+  │  📊 Rating: ⭐⭐☆☆☆
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: z3TFsb7IJjaLSdPj16A8...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "pm 38522"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "Mi base de datos documental no contiene información sobre el código "PM 38522". Mi conocimiento se limita a la normativa de urbanismo y cons"
+  │      trucción en Chile, así como a manuales y tablas de carga de grúas HIAB, Palfinger y National, y manuales de operación de camiones Internatio
+  │      nal y Ford Cargo. Si "PM 38522" se refiere a una pieza o componente, te recomiendo consultar el manual de servicio o el catálogo de piezas d
+  │      el equipo o vehículo al que corresponda, o contactar directamente al fabricante o proveedor.
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ❌ NO
+  │     Cantidad:          0
+  │     Detalles:          Sin referencias explícitas
+  │
+  │  💬 Comentario del usuario:
+  │     "la carpeta donde esta la información y manuales cargados aun no se actualiza creo, favor revisar."
+  │
+  │  🔗 IDs:
+  │     Feedback: XkHnJoFjzKAQuGGAjYD7...
+  │     Message:  0ApeAgciru29uRysilIs...
+  │     Ticket:   TKT-1762959793253-39068r
+  └─
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ 👤 USUARIO: alec@salfacloud.cl
+┃    Hash ID:       405fa4f63ad9
+┃    Rol:           user
+┃    Dominio:       salfacloud.cl
+┃    Organización:  salfacloud.cl
+┃    Total Feedbacks: 1
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+  ┌─ FEEDBACK #1 - 03-11-2025, 11:41 a. m.
+  │
+  │  📊 Rating: ⭐⭐⭐⭐⭐
+  │
+  │  🤖 Agente: Nuevo Chat
+  │     Conv ID: gCuW7SKJOwTiiN9OhTqU...
+  │
+  │  ❓ PREGUNTA DEL USUARIO:
+  │     "¿Qué procedimientos están asociados al plan de calidad?"
+  │
+  │  🤖 RESPUESTA DE IA:
+  │     "El procedimiento principal directamente asociado al Plan de Calidad es el de Trazabilidad, Certificados y Ensayos, ya que en este se definen"
+  │       los materiales y equipos que requieren trazabilidad y deben ser descritos en dicho plan.
+  │      1.  **Resumen Concreto**
+  │          El procedimiento `TRAZABILIDAD, CERTIFICADOS Y ENSAYOS` está directamente asociado al Plan de Calidad, ya que establece la metodología p
+  │      ara identificar y registrar los elementos que requieren trazabilidad, certificaciones y ensayos, los cuales deben ser descritos en el Plan d
+  │      e Calidad.
+  │      2.  **Detalles del Procedimiento**
+  │          *   El Respon...
+  │
+  │  📚 REFERENCIAS:
+  │     Tiene referencias: ✅ SÍ
+  │     Cantidad:          1
+  │     Detalles:          1 referencia(s) encontrada(s)
+  │     Ejemplos:
+  │       - según el Anexo B del procedimiento de Trazabilidad?
+    *   ¿Puedo detallarte las responsabilidades en la implementación de la trazabilidad?
+    *   ¿Necesitas saber cómo se gestiona la recepción y archivo de los certificados?
+  │
+  │  💬 Comentario del usuario:
+  │     "Responde"
+  │
+  │  🔗 IDs:
+  │     Feedback: ZSABGn0TsuDXvtJ8mdfJ...
+  │     Message:  xCRbpJERb89DK3cMbUlY...
+  │     Ticket:   TKT-1762431744303-1pm6r
+  └─
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+ESTADÍSTICAS GENERALES
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+📊 Total feedbacks:        62
+👥 Total usuarios:         10
+
+Distribución por tipo:
+  🎓 Expert:               15 (24.2%)
+  👤 Usuario:              47 (75.8%)
+
+Distribución de estrellas (Usuario):
+  ⭐⭐⭐⭐⭐ 5 estrellas:    4 (8.5%)
+  ⭐⭐⭐⭐  4 estrellas:    13 (27.7%)
+  ⭐⭐⭐   3 estrellas:    9 (19.1%)
+  ⭐⭐    2 estrellas:    8 (17.0%)
+  ⭐     1 estrella:     10 (21.3%)
+
+⭐ Rating promedio (Usuario): 2.66/5
+
+Distribución ratings Expert:
+  🏆 Perfect:              0 (0.0%)
+  ✨ Great:                0 (0.0%)
+  ✅ Good:                 0 (0.0%)
+  ⚠️  Needs Improvement:   0 (0.0%)
+  ❌ Poor:                 0 (0.0%)
+
+📚 Análisis de Referencias:
+  ✅ Con referencias:      15 (24.2%)
+  ❌ Sin referencias:      47 (75.8%)
+  📊 Promedio referencias: 1.1 por respuesta
+
+🎫 Tickets generados:      55 (88.7%)
+
+📈 NPS Score:              40.0
+  Promotores (9-10):       7 (46.7%)
+  Pasivos (7-8):           7 (46.7%)
+  Detractores (0-6):       1 (6.7%)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+💾 Reporte exportado a: feedback-detailed-report.json
+

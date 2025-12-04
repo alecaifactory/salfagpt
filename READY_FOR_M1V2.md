@@ -360,3 +360,6 @@ Upload → Extract → Chunk → Embed → Save Firestore → Sync BigQuery → 
 
 Ver: `NEXT_STEP_M1V2.md` para detalles
 
+
+
+

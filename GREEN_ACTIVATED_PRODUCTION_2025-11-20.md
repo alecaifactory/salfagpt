@@ -162,3 +162,6 @@ npx tsx scripts/migrate-blue-to-green.ts
 **Status:** ✅ GREEN live en producción  
 **Trade-off:** Mejor performance, pero manual Sany no disponible temporalmente
 
+
+
+

@@ -151,3 +151,6 @@ He corregido tu script a:
 **Proceso:** 🔄 Corriendo con `flow_analytics.document_embeddings`  
 **Monitorear:** `tail -f /tmp/s2v2-chunks-v2.log`
 
+
+
+

@@ -130,3 +130,6 @@ Esto maneja casos donde el nombre en Firestore no tiene extensión.
 **Usuario:** alec@getaifactory.com  
 **Proyecto:** salfagpt
 
+
+
+

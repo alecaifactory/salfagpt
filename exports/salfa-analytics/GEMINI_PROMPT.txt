@@ -1,0 +1,100 @@
+You are an expert Next.js 15 developer. Build a production-ready statistics dashboard for SalfaGPT.
+
+I've attached CSV files with real data (30 days, 1,710 messages, 48 users, 655 agents) and an HTML mockup.
+
+TECH STACK (STRICT):
+- Next.js 15 App Router
+- React 19  
+- TypeScript strict mode
+- Tailwind CSS v3.4.17 (NOT v4)
+- Recharts for charts
+- Lucide React for icons
+
+REQUIREMENTS:
+
+RF-02: GLOBAL FILTERS (update all charts simultaneously)
+- Date range picker
+- Quick filters: "Últimos 7 días", "Últimos 30 días"  
+- Dropdowns: Assistant, Domain
+- When filter changes → all visualizations update
+
+RF-03: KPI CARDS (from 7_kpis_summary.csv)
+4 cards showing:
+1. Total Messages: 1,710
+2. Total Conversations: 655
+3. Active Users: 48
+4. Avg Messages/User: 35.6
+Each with icon, trend indicator (+X%)
+
+RF-04: 5 CHARTS
+1. Activity Line Chart (3_daily_activity.csv) - messages per day
+2. Messages by Assistant Bar Chart (2_agent_performance.csv) - top 15 agents
+3. Hourly Area Chart (4_hourly_distribution.csv) - 24-hour distribution
+4. Messages by User Bar Chart (1_user_engagement.csv) - top 10 users, horizontal
+5. Domain Pie Chart (5_domain_distribution.csv) - all domains with %
+
+RF-05: TOP USERS TABLE (1_user_engagement.csv)
+Table: Email, Name, Messages (top 10, sorted descending)
+
+RF-06: AI ASSISTANT (basic structure)
+- Collapsible section
+- Left: 3-5 suggested questions
+- Right: Chat interface (input + send button)
+- Can be placeholder/mock for now
+
+RF-07: EXPORT BUTTONS
+- "Exportar (.xlsx, PDF)" button
+- "Programar Reporte" button
+- Basic click handlers (can be alerts for now)
+
+CODE QUALITY:
+✅ TypeScript interfaces for all data types
+✅ CSV parsing utilities
+✅ Shared filter state (React Context)
+✅ Responsive (mobile/tablet/desktop)
+✅ Spanish UI text (match mockup)
+✅ Loading & error states
+✅ <3s load, <2s filter time
+✅ Comments on key logic
+
+FILE STRUCTURE:
+1. src/app/estadisticas/page.tsx (main page)
+2. src/components/statistics/KPICards.tsx
+3. src/components/statistics/GlobalFilters.tsx  
+4. src/components/statistics/ActivityChart.tsx
+5. src/components/statistics/AgentMessagesChart.tsx
+6. src/components/statistics/HourlyDistributionChart.tsx
+7. src/components/statistics/UserMessagesChart.tsx
+8. src/components/statistics/DomainPieChart.tsx
+9. src/components/statistics/TopUsersTable.tsx
+10. src/components/statistics/AIAssistant.tsx
+11. src/components/statistics/ExportButtons.tsx
+12. src/lib/statistics-data.ts (CSV parsing)
+13. src/lib/statistics-filters.ts (filter logic)
+14. src/types/statistics.ts (TypeScript types)
+15. src/contexts/StatisticsContext.tsx (shared state)
+
+DESIGN:
+- Match mockup exactly (attached HTML)
+- Blue primary (#3b82f6)
+- White cards with shadow-sm, rounded-xl
+- Responsive grid
+- Professional, enterprise look
+- Spanish text everywhere
+
+DATA LOCATION:
+CSVs in: /public/data/statistics/ folder
+Load via: fetch('/data/statistics/filename.csv')
+
+CRITICAL:
+- Use Tailwind v3.4.17 classes (NOT v4)
+- All filters must update all charts
+- Spanish day names (lunes, martes, etc.)
+- Handle empty states gracefully
+- TypeScript strict (no 'any' types)
+
+OUTPUT:
+Complete code for all 15 files. Production-ready. Copy-paste-able. Professional quality.
+
+Generate now.
+

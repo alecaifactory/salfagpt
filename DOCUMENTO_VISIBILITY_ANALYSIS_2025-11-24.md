@@ -308,3 +308,6 @@ open https://salfagpt.salfagestion.cl/chat
 **Proyecto:** salfagpt  
 **Bucket:** gs://salfagpt-context-documents
 
+
+
+

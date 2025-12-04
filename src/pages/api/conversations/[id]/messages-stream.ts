@@ -155,7 +155,10 @@ export const POST: APIRoute = async ({ params, request }) => {
           let ragStats = null;
           let ragHadFallback = false;
           let ragResults: any[] = [];
-          let systemPromptToUse = systemPrompt || `Eres un asistente de IA útil, preciso y amigable.
+          // ⚡ CRITICAL FIX: Limit system prompt to prevent Gemini silent rejection
+          // Long system instructions (>1000 chars) cause done: true immediately
+          const MAX_SYSTEM_PROMPT_CHARS = 500;
+          let baseSystemPrompt = systemPrompt || `Eres un asistente de IA útil, preciso y amigable.
 
 FORMATO DE RESPUESTA OPTIMIZADO (máximo 300 tokens):
 1. Intro breve al tema (1-2 oraciones, ~50-80 tokens)
@@ -165,7 +168,15 @@ FORMATO DE RESPUESTA OPTIMIZADO (máximo 300 tokens):
    • Punto 3: Detalle importante
 3. 2-3 preguntas de seguimiento (~40-60 tokens)
 
-SÉ CONCISO: Prioriza claridad y acción sobre extensión. Responde directo al punto.`; // Can be modified if no relevant docs found
+SÉ CONCISO: Prioriza claridad y acción sobre extensión. Responde directo al punto.`;
+
+          // Trim if too long
+          if (baseSystemPrompt.length > MAX_SYSTEM_PROMPT_CHARS) {
+            console.warn(`⚠️ System prompt too long: ${baseSystemPrompt.length} chars, trimming to ${MAX_SYSTEM_PROMPT_CHARS}`);
+            baseSystemPrompt = baseSystemPrompt.substring(0, MAX_SYSTEM_PROMPT_CHARS) + '...';
+          }
+          
+          let systemPromptToUse = baseSystemPrompt; // Can be modified if no relevant docs found
           let shouldShowNoDocsMessage = false; // ✅ FIX: Declare at function scope for global access
 
           // Step 2: Context building - different strategies for Ally vs regular agents
@@ -644,7 +655,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
                 conversationId,
                 userId,
                 'user',
-                { type: 'text', text: message },
+                message, // ✅ FIX: Save as string directly, not object
                 Math.ceil(message.length / 4)
               );
               userMessageId = userMsg.id;
@@ -666,6 +677,12 @@ Usa la información de los documentos encontrados para responder, pero aclara la
           const CHUNK_SIZE_THRESHOLD = 500; // Chars before sending to client
           
           // Stream AI response
+          console.log('🤖 [STREAM] Starting Gemini streaming...');
+          console.log(`   Model: ${model || 'gemini-2.5-flash'}`);
+          console.log(`   Max tokens: 300`);
+          console.log(`   Has context: ${!!additionalContext}`);
+          console.log(`   Context length: ${additionalContext.length} chars`);
+          
           const aiStream = streamAIResponse(message, {
             model: model || 'gemini-2.5-flash',
             systemInstruction: systemPromptToUse, // Uses modified prompt if no relevant docs
@@ -675,7 +692,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
             maxTokens: 300, // ✅ OPTIMIZED: Concise responses for fast generation
           });
 
+          let chunkCount = 0;
           for await (const chunk of aiStream) {
+            chunkCount++;
+            console.log(`🤖 [CHUNK ${chunkCount}] Received: ${chunk.length} chars`);
+            
             fullResponse += chunk;
             chunkBuffer += chunk;
             
@@ -698,6 +719,11 @@ Usa la información de los documentos encontrados para responder, pero aclara la
             })}\n\n`;
             controller.enqueue(encoder.encode(data));
           }
+          
+          console.log(`🤖 [STREAM] Gemini streaming complete:`);
+          console.log(`   Total chunks received: ${chunkCount}`);
+          console.log(`   Full response length: ${fullResponse.length} chars`);
+          console.log(`   Preview: ${fullResponse.substring(0, 100)}`);
 
           sendStatus('generating', 'complete');
           
@@ -892,7 +918,7 @@ Usa la información de los documentos encontrados para responder, pero aclara la
                 conversationId,
                 userId, // ✅ Current user who made the request
                 'assistant',
-                { type: 'text', text: fullResponse },
+                fullResponse, // ✅ FIX: Save as string directly, not object
                 Math.ceil(fullResponse.length / 4),
                 undefined, // contextSections (not used here)
                 truncatedReferences.length > 0 ? truncatedReferences : undefined, // Save truncated references!

@@ -149,3 +149,6 @@ gcloud run deploy cr-salfagpt-ai-ft-prod \
 **¿Quieres que proceda con el build y deploy ahora?** 🚀
 
 
+
+
+

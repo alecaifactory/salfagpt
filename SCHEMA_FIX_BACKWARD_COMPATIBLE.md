@@ -179,3 +179,6 @@ FROM `salfagpt.flow_analytics.document_embeddings`
 **Proceso:** 🔄 Corriendo correctamente  
 **ETA:** ~14:30-15:00 PST
 
+
+
+

@@ -485,3 +485,6 @@ Cuando termine todo (en ~1-2 horas):
 **ETA para 100%:** ~1-2 horas  
 **Log:** `/tmp/s2v2-chunks-processing.log`
 
+
+
+

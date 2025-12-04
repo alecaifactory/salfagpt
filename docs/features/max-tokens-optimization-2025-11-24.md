@@ -327,3 +327,6 @@ Formato: Extracto completo
 
 **Resultado:** Sistema configurado para generar respuestas concisas (~150-300 tokens) optimizadas para velocidad sin sacrificar calidad. La estructura guiada (intro + bullets + preguntas) asegura respuestas completas y accionables. 🚀
 
+
+
+

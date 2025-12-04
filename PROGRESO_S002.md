@@ -75,3 +75,6 @@ npx tsx scripts/test-s2v2-rag.mjs
 
 **Proceso corriendo.** Todo automático. ✅
 
+
+
+

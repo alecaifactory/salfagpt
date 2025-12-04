@@ -390,3 +390,6 @@ Query → Embed (768) → BigQuery Cosine Sim → Top 5 Chunks → Format Refs �
 
 **READY TO CONTINUE** 🚀
 
+
+
+

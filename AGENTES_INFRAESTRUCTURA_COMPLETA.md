@@ -170,3 +170,6 @@ Cloud Storage:
 ---
 
 **Todos los agentes usan flow_analytics_east4 (us-east4) para RAG** ✅
+
+
+

@@ -58,10 +58,10 @@ function shouldUseOptimized(requestOrigin?: string): boolean {
   // Extract domain from origin
   const origin = requestOrigin.toLowerCase();
   
-  // Localhost → GREEN (testing)
+  // Localhost → BLUE (GREEN too slow - 30s+ vs BLUE 2-4s)
   if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    console.log(`  🎛️ Using GREEN (localhost detected: ${origin})`);
-    return true;
+    console.log(`  🎛️ Using BLUE (localhost - GREEN optimization pending: ${origin})`);
+    return false;  // ✅ Changed to BLUE
   }
   
   // Production domain → BLUE (stable)

@@ -161,3 +161,6 @@ Promedio: ~600ms
 
 **¿Crear índice en Console o dejar como está (600ms es aceptable)?**
 
+
+
+

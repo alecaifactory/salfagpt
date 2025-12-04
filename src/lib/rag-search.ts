@@ -254,13 +254,23 @@ export function buildRAGContext(results: RAGSearchResult[]): string {
     context += `\n\n=== [Referencia ${documentRefNumber}] ${name} ===\n`;
     context += `Relevancia promedio: ${relevance}% (${chunks.length} fragmentos consolidados)\n\n`;
     
-    // Include all chunks from this document (for full context)
-    chunks.forEach((chunk, i) => {
+    // ⚡ OPTIMIZED: Include only top 3 most relevant chunks (not all 20)
+    // This prevents 48KB context that Gemini silently rejects
+    const topChunks = chunks.slice(0, 3); // Max 3 chunks per document
+    
+    topChunks.forEach((chunk, i) => {
       const chunkRelevance = (chunk.similarity * 100).toFixed(1);
       context += `--- Fragmento ${i + 1}/${chunks.length} (Similitud: ${chunkRelevance}%) ---\n`;
-      context += chunk.text;
+      context += chunk.text.substring(0, 2000); // Max 2KB per chunk
+      if (chunk.text.length > 2000) {
+        context += '\n[...fragmento truncado...]';
+      }
       context += '\n\n';
     });
+    
+    if (chunks.length > 3) {
+      context += `--- Y ${chunks.length - 3} fragmentos adicionales disponibles (omitidos por brevedad) ---\n\n`;
+    }
     
     documentRefNumber++; // Next document gets next reference number
   }

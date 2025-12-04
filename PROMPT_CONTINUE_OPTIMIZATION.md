@@ -565,3 +565,6 @@ git revert HEAD
 
 **Estrategia: Incremental y segura** ✅
 
+
+
+

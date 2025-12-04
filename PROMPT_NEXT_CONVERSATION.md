@@ -174,3 +174,6 @@ ls -la upload-queue/ | grep "20251118"
 
 **¿Por dónde empezar?** Verificar Agent IDs y comenzar con S1-v2.
 
+
+
+

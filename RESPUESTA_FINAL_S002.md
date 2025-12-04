@@ -228,3 +228,6 @@ npx tsx scripts/process-s2v2-chunks.mjs
 **Monitorear:** `tail -f /tmp/s2v2-chunks-processing.log`  
 **ETA completitud:** ~15:30-16:00 PST
 
+
+
+

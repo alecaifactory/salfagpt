@@ -544,3 +544,6 @@ Cuando termine todo (en ~1-2 horas):
 **ETA para completitud:** ~1-2 horas  
 **Siguiente verificación:** Ejecutar test RAG cuando termine
 
+
+
+

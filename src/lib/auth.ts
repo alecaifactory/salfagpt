@@ -45,20 +45,54 @@ const BASE_URL = isLocalhost
 
 const REDIRECT_URI = `${BASE_URL}/auth/callback`;
 
-console.log('🔐 OAuth Configuration:');
-console.log(`  Environment: ${ENV_CONFIG?.name || 'local'}`);
-console.log(`  Is Localhost: ${isLocalhost ? 'YES ✅' : 'NO (Production)'}`);
-console.log(`  Project: ${process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET'}`);
-console.log(`  Client ID: ${GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET'}`);
-console.log(`  Base URL: ${BASE_URL}`);
-console.log(`  Redirect URI: ${REDIRECT_URI}`);
+// Lazy initialization function to ensure env vars are loaded
+let _oauth2Client: OAuth2Client | null = null;
 
-// Initialize OAuth2 client
-export const oauth2Client = new OAuth2Client(
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  REDIRECT_URI
-);
+function getOAuth2Client(): OAuth2Client {
+  if (_oauth2Client) {
+    return _oauth2Client;
+  }
+
+  // Re-check environment variables at runtime
+  const clientId = process.env.GOOGLE_CLIENT_ID 
+    || ENV_CONFIG?.oauth?.clientId 
+    || import.meta.env.GOOGLE_CLIENT_ID;
+
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET 
+    || import.meta.env.GOOGLE_CLIENT_SECRET;
+
+  console.log('🔐 Initializing OAuth2 Client:');
+  console.log(`  Environment: ${ENV_CONFIG?.name || 'local'}`);
+  console.log(`  Is Localhost: ${isLocalhost ? 'YES ✅' : 'NO (Production)'}`);
+  console.log(`  Project: ${process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET'}`);
+  console.log(`  Client ID: ${clientId ? '***' + clientId.slice(-10) : 'NOT SET ❌'}`);
+  console.log(`  Base URL: ${BASE_URL}`);
+  console.log(`  Redirect URI: ${REDIRECT_URI}`);
+
+  if (!clientId) {
+    throw new Error('GOOGLE_CLIENT_ID is not defined - check .env file');
+  }
+
+  if (!clientSecret) {
+    throw new Error('GOOGLE_CLIENT_SECRET is not defined - check .env file');
+  }
+
+  _oauth2Client = new OAuth2Client(
+    clientId,
+    clientSecret,
+    REDIRECT_URI
+  );
+
+  return _oauth2Client;
+}
+
+// Export the client (will be initialized on first use)
+export const oauth2Client = new Proxy({} as OAuth2Client, {
+  get(target, prop) {
+    const client = getOAuth2Client();
+    return (client as any)[prop];
+  }
+});
 
 // Generate authorization URL
 export function getAuthorizationUrl(): string {
@@ -70,13 +104,15 @@ export function getAuthorizationUrl(): string {
   // Explicitly pass redirect_uri to avoid production issues
   const redirectUri = `${BASE_URL}/auth/callback`;
   
-  console.log('OAuth Config:', {
-    clientId: GOOGLE_CLIENT_ID ? '***' + GOOGLE_CLIENT_ID.slice(-10) : 'NOT SET',
+  // Get the OAuth client (will initialize if needed)
+  const client = getOAuth2Client();
+  
+  console.log('🔗 Generating OAuth URL:', {
     baseUrl: BASE_URL,
     redirectUri,
   });
 
-  return oauth2Client.generateAuthUrl({
+  return client.generateAuthUrl({
     access_type: 'offline',
     scope: scopes,
     prompt: 'consent',
@@ -94,12 +130,15 @@ export async function exchangeCodeForTokens(code: string) {
     redirectUri,
   });
   
-  const { tokens } = await oauth2Client.getToken({
+  // Get the OAuth client (will initialize if needed)
+  const client = getOAuth2Client();
+  
+  const { tokens } = await client.getToken({
     code,
     redirect_uri: redirectUri, // Explicitly pass redirect_uri
   });
   
-  oauth2Client.setCredentials(tokens);
+  client.setCredentials(tokens);
   return tokens;
 }
 

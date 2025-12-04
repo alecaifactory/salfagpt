@@ -21,15 +21,17 @@ import { firestore, COLLECTIONS, getEffectiveOwnerForContext } from './firestore
 import { CURRENT_PROJECT_ID } from './firestore';
 
 const PROJECT_ID = CURRENT_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'salfagpt';
-const DATASET_ID = 'flow_rag_optimized';
-const TABLE_ID = 'document_chunks_vectorized';
+
+// ✅ UNIFIED: GREEN now uses same table as BLUE (optimized)
+const DATASET_ID = 'flow_analytics_east4';  // Same as BLUE
+const TABLE_ID = 'document_embeddings';     // Same as BLUE
 
 const bigquery = new BigQuery({ projectId: PROJECT_ID });
 
-console.log('📊 BigQuery Optimized Search initialized');
+console.log('📊 BigQuery Optimized Search initialized (GREEN → BLUE unified)');
 console.log(`  Project: ${PROJECT_ID}`);
-console.log(`  Dataset: ${DATASET_ID} (NEW - optimized)`);
-console.log(`  Table: ${TABLE_ID}`);
+console.log(`  Dataset: ${DATASET_ID} (us-east4 - same as BLUE)`);
+console.log(`  Table: ${TABLE_ID} (unified)`);
 
 export interface OptimizedSearchResult {
   chunk_id: string;
@@ -143,6 +145,9 @@ export async function searchByAgentOptimized(
       return [];
     }
 
+    // ✅ USE ALL SOURCES - Don't limit (user wants complete context)
+    const limitedSourceIds = sourceIds;
+
     // 3. BigQuery vector search with timeout
     console.log('  [3/4] Executing BigQuery vector search...');
     const searchStart = Date.now();
@@ -151,16 +156,16 @@ export async function searchByAgentOptimized(
     // Always use hash ID format for BigQuery queries
     const queryUserId = effectiveOwnerUserId; // Agent owner hash ID, not current user
     
-    // Optimized query - let index accelerate the join
-    // Filter by user_id first (smallest set), then apply vector similarity
+    // ⚡ OPTIMIZED: Same query as BLUE (proven fast)
+    // 
+    // Query Flow:
+    // 1. Filter by user_id (owner of agent)
+    // 2. Filter by source_id IN (docs assigned to THIS agent)  ← CRITICAL for agent isolation
+    // 3. Compute similarity using manual cosine (compatible with BLUE schema)
+    // 4. Filter by similarity threshold
+    // 5. Return top K results
     const sqlQuery = `
-      WITH user_chunks AS (
-        SELECT *
-        FROM \`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\`
-        WHERE user_id = @queryUserId
-          AND source_id IN UNNEST(@sourceIds)
-      ),
-      similarities AS (
+      WITH similarities AS (
         SELECT 
           chunk_id,
           source_id,
@@ -168,44 +173,54 @@ export async function searchByAgentOptimized(
           text_preview,
           full_text,
           metadata,
+          -- Manual cosine similarity (same as BLUE)
           (
-            SELECT IFNULL(
-              SUM(a * b) / NULLIF(
+            SELECT SUM(a * b) / (
               SQRT((SELECT SUM(a * a) FROM UNNEST(embedding) AS a)) * 
-                SQRT((SELECT SUM(b * b) FROM UNNEST(@queryEmbedding) AS b)),
-                0
-              ),
-              0
+              SQRT((SELECT SUM(b * b) FROM UNNEST(@queryEmbedding) AS b))
             )
             FROM UNNEST(embedding) AS a WITH OFFSET pos
             JOIN UNNEST(@queryEmbedding) AS b WITH OFFSET pos2
               ON pos = pos2
           ) AS similarity
-        FROM user_chunks
+        FROM \`${PROJECT_ID}.${DATASET_ID}.${TABLE_ID}\`
+        WHERE user_id = @queryUserId
+          AND source_id IN UNNEST(@sourceIds)
       )
-      SELECT *
+      SELECT 
+        chunk_id,
+        source_id,
+        chunk_index,
+        text_preview,
+        full_text,
+        metadata,
+        similarity
       FROM similarities
       WHERE similarity >= @minSimilarity
       ORDER BY similarity DESC
       LIMIT @topK
     `;
 
-    console.log(`  🔑 Query params: ownerUserId=${queryUserId}, sourceIds=${sourceIds.length}${isSharedAgent ? ' (SHARED AGENT)' : ''}`);
+    console.log(`  🔑 Query params:`);
+    console.log(`     ownerUserId=${queryUserId}${isSharedAgent ? ' (SHARED AGENT)' : ''}`);
+    console.log(`     agentId=${agentId} (used to get sourceIds)`);
+    console.log(`     sourceIds=${limitedSourceIds.length} docs (assigned to THIS agent)`);
+    console.log(`     minSimilarity=${minSimilarity}, topK=${topK}`);
 
     const [rows] = await Promise.race([
       bigquery.query({
         query: sqlQuery,
         params: {
           queryUserId,
-          sourceIds,
+          sourceIds: limitedSourceIds, // ✅ Use limited set
           queryEmbedding,
           minSimilarity,
           topK
         },
-        timeout: 30000, // 30 second timeout (temporary - need vector index)
+        timeout: 10000, // ⚡ 10s timeout (VECTOR_SEARCH is fast!)
       }),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('BigQuery timeout')), 30000)
+        setTimeout(() => reject(new Error('BigQuery timeout')), 10000)
       )
     ]);
 

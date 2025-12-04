@@ -1,10 +1,10 @@
 # 📊 Reporte de Feedback por Agente y Usuario
 
-**Fecha de generación:** 2025-11-24
+**Fecha de generación:** 2025-12-01
 
-**Total de feedbacks:** 59
+**Total de feedbacks:** 72
 
-**Total de agentes:** 35
+**Total de agentes:** 45
 
 ---
 
@@ -146,6 +146,65 @@
 - **NPS:** 9/10
 - **Ticket ID:** `B2aI2ZeXwnDwNzkmEJhW`
 - **Feedback ID:** `4y5JH29UyjEDt0NjyaB6`
+
+
+---
+
+## 🤖 Agente: Ayudame con estandar las bodegas suspel
+
+- **ID Agente:** `NGKUubXZ6Pph...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 4
+
+### 👤 Usuario: SALEGRIA@maqsa.cl
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_lgpx...` |
+| **User ID Completo** | `usr_lgpx7uf1nzuqdmzy8fg6` |
+| **Email** | SALEGRIA@maqsa.cl |
+| **Rol** | user |
+| **Organización** | Salfa Corp |
+| **Dominio** | maqsa.cl |
+| **Total Feedbacks** | 4 |
+
+**📊 Promedio CSAT:** 2.50/5 ⭐⭐⭐☆☆
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-28 16:00] - USER**
+
+- **Estrellas:** 1/5 ⭐☆☆☆☆
+- **CSAT:** 1/5
+- **Comentario:**
+  > Falta inforacion sobre Bodega Facil, como descargarla o como usarla.
+- **Ticket ID:** `TKT-1764345610859-u57vj`
+- **Feedback ID:** `dyMQSXjZ8GpA8L0n0Neq`
+
+**2. [2025-11-28 15:58] - USER**
+
+- **Estrellas:** 4/5 ⭐⭐⭐⭐☆
+- **CSAT:** 4/5
+- **Comentario:**
+  > Falto que nos preguntara si queria saber algo mas o sugrir preguntas...
+- **Ticket ID:** `TKT-1764345516405-pierux`
+- **Feedback ID:** `h9WHCKkLyC62YUGmzAbY`
+
+**3. [2025-11-28 15:55] - USER**
+
+- **Estrellas:** 4/5 ⭐⭐⭐⭐☆
+- **CSAT:** 4/5
+- **Ticket ID:** `TKT-1764345323134-62623`
+- **Feedback ID:** `jNY09SJoQeKgSd0YhJ2t`
+
+**4. [2025-11-28 15:53] - USER**
+
+- **Estrellas:** 1/5 ⭐☆☆☆☆
+- **CSAT:** 1/5
+- **Comentario:**
+  > El modelo no sabe que SUSPEL son Sustencias Peligrosas
+- **Ticket ID:** `TKT-1764345215151-aawhz2`
+- **Feedback ID:** `QJHvtTyzpslRJNOdZEuw`
 
 
 ---
@@ -709,6 +768,331 @@ Para el control de la Plataforma de control de asistencia y acceso vigente, el J
   > sdfsdfsdfxcfvs
 - **Ticket ID:** `TKT-1762431736554-yuhaqp`
 - **Feedback ID:** `FUMYIsNejvf48qzDTcMQ`
+
+
+---
+
+## 🤖 Agente: Nueva Conversación
+
+- **ID Agente:** `qrvoYj9qLtJ2...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: alec@getaifactory.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_uhwq...` |
+| **User ID Completo** | `usr_uhwqffaqag1wrryd82tw` |
+| **Email** | alec@getaifactory.com |
+| **Rol** | superadmin |
+| **Organización** | AI Factory |
+| **Dominio** | getaifactory.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 4.00/5 ⭐⭐⭐⭐☆
+
+**📊 Promedio NPS:** 7.00/10 (Pasivo)
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-29 14:59] - EXPERT**
+
+- **Rating Experto:** aceptable
+- **CSAT:** 4/5 ⭐⭐⭐⭐☆
+- **NPS:** 7/10
+- **Comentario:**
+  > aoisjdohajsod
+- **Ticket ID:** `TKT-1764428350647-jy1zs`
+- **Feedback ID:** `q2XgAuOjuLtiaLIEpdYn`
+
+
+---
+
+## 🤖 Agente: Hola, tienes procedimiento por venta chatarra
+
+- **ID Agente:** `r9IfGxHRcGVa...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: ABHERNANDEZ@maqsa.cl
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_9lt1...` |
+| **User ID Completo** | `usr_9lt1eodxqaesg6elqmxq` |
+| **Email** | ABHERNANDEZ@maqsa.cl |
+| **Rol** | user |
+| **Organización** | Salfa Corp |
+| **Dominio** | maqsa.cl |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 2.00/5 ⭐⭐☆☆☆
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-28 18:12] - USER**
+
+- **Estrellas:** 2/5 ⭐⭐☆☆☆
+- **CSAT:** 2/5
+- **Comentario:**
+  > No menciona ni tampoco lo trae como descarga, el procedimiento MAQ-LOG-CBO-I-009
+- **Ticket ID:** `TKT-1764353548582-bmplsw`
+- **Feedback ID:** `amdh6kfCVNiIGoUSRBLm`
+
+
+---
+
+## 🤖 Agente: Puedes enviar listado con todos los
+
+- **ID Agente:** `XEH3kctTOH6u...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: jriverof@iaconcagua.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_0gvw...` |
+| **User ID Completo** | `usr_0gvw57ef9emxgn6xkrlz` |
+| **Email** | jriverof@iaconcagua.com |
+| **Rol** | user |
+| **Organización** | Desconocido |
+| **Dominio** | iaconcagua.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 1.00/5 ⭐☆☆☆☆
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-28 16:26] - USER**
+
+- **Estrellas:** 1/5 ⭐☆☆☆☆
+- **CSAT:** 1/5
+- **Comentario:**
+  > Respuesta pobre e incompleta.
+- **Ticket ID:** `TKT-1764347161367-dgi3ye`
+- **Feedback ID:** `HItLkw9ES4K5hUD8yEAK`
+
+
+---
+
+## 🤖 Agente: Hola, que fuentes sacas informacion
+
+- **ID Agente:** `SixsMEyamH9T...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: SALEGRIA@maqsa.cl
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_lgpx...` |
+| **User ID Completo** | `usr_lgpx7uf1nzuqdmzy8fg6` |
+| **Email** | SALEGRIA@maqsa.cl |
+| **Rol** | user |
+| **Organización** | Salfa Corp |
+| **Dominio** | maqsa.cl |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 1.00/5 ⭐☆☆☆☆
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-28 15:57] - USER**
+
+- **Estrellas:** 1/5 ⭐☆☆☆☆
+- **CSAT:** 1/5
+- **Ticket ID:** `TKT-1764345455969-37q2tc`
+- **Feedback ID:** `Nj4a5Szlkrc3JFEj7ECd`
+
+
+---
+
+## 🤖 Agente: Que transaccion utilizo para ampliacion material.
+
+- **ID Agente:** `cYsDOlZnykyY...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: alec@getaifactory.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_uhwq...` |
+| **User ID Completo** | `usr_uhwqffaqag1wrryd82tw` |
+| **Email** | alec@getaifactory.com |
+| **Rol** | superadmin |
+| **Organización** | AI Factory |
+| **Dominio** | getaifactory.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 4.00/5 ⭐⭐⭐⭐☆
+
+**📊 Promedio NPS:** 8.00/10 (Pasivo)
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-25 20:45] - EXPERT**
+
+- **Rating Experto:** aceptable
+- **CSAT:** 4/5 ⭐⭐⭐⭐☆
+- **NPS:** 8/10
+- **Comentario:**
+  > REspondio bien, pero hay un documento que no me deja ver el archivo fuente: "📄 Paso a Paso Actualización de Materiales en Obra.pdf
+Texto extraído • 81.6 KB
+⚠️ Vista de solo texto - Archivo PDF original no disponible
+El texto extraído está disponible abajo, pero el archivo PDF original no se encuentra en Cloud Storage.
+¿Por qué ocurre esto?
+Documento subido antes de Octubre 2025 (solo se guardó el texto)
+Ruta de almacenamiento cambió tras migración de formato de usuario
+Archivo eliminado o no disponible en Google Cloud Storage"
+- **Ticket ID:** `TKT-1764103514353-19h5ol`
+- **Feedback ID:** `Kv341RFFBE69dVMj1bau`
+
+
+---
+
+## 🤖 Agente: Hola, consulta donde encuentro vale devolución
+
+- **ID Agente:** `9VBjW33vdU0x...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: alec@getaifactory.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_uhwq...` |
+| **User ID Completo** | `usr_uhwqffaqag1wrryd82tw` |
+| **Email** | alec@getaifactory.com |
+| **Rol** | superadmin |
+| **Organización** | AI Factory |
+| **Dominio** | getaifactory.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 4.00/5 ⭐⭐⭐⭐☆
+
+**📊 Promedio NPS:** 8.00/10 (Pasivo)
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-25 20:11] - EXPERT**
+
+- **Rating Experto:** sobresaliente
+- **CSAT:** 4/5 ⭐⭐⭐⭐☆
+- **NPS:** 8/10
+- **Comentario:**
+  > Esta ok, la pregunta es mas precisa y responde correctamente
+- **Ticket ID:** `TKT-1764101474233-3anl1`
+- **Feedback ID:** `Zmu35d6oY6g89rBoHMfB`
+
+
+---
+
+## 🤖 Agente: Hola, puedes hacer comparación entre nueva
+
+- **ID Agente:** `DPSZd6zoLdWJ...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: jriverof@iaconcagua.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_0gvw...` |
+| **User ID Completo** | `usr_0gvw57ef9emxgn6xkrlz` |
+| **Email** | jriverof@iaconcagua.com |
+| **Rol** | user |
+| **Organización** | Desconocido |
+| **Dominio** | iaconcagua.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 1.00/5 ⭐☆☆☆☆
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-25 18:33] - USER**
+
+- **Estrellas:** 1/5 ⭐☆☆☆☆
+- **CSAT:** 1/5
+- **Ticket ID:** `TKT-1764095630932-0cwgq`
+- **Feedback ID:** `u4ijRS4pOhLXYMG9qJ0e`
+
+
+---
+
+## 🤖 Agente: Indicame que filtros debo utilizar para
+
+- **ID Agente:** `69EX3vvlLXK2...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: alec@getaifactory.com
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_uhwq...` |
+| **User ID Completo** | `usr_uhwqffaqag1wrryd82tw` |
+| **Email** | alec@getaifactory.com |
+| **Rol** | superadmin |
+| **Organización** | AI Factory |
+| **Dominio** | getaifactory.com |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 2.00/5 ⭐⭐☆☆☆
+
+**📊 Promedio NPS:** 9.00/10 (Promotor)
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-24 18:13] - EXPERT**
+
+- **Rating Experto:** aceptable
+- **CSAT:** 2/5 ⭐⭐☆☆☆
+- **NPS:** 9/10
+- **Comentario:**
+  > Me parecio muy buena la experiencia para otros equipos, pero para mi en particular le falta que el documento este correctemente subido, porque no lo encuentra, al parecer falta la documentacion.  
+El documento que deberia usarse en este caso para esta pregunta es el: "... Manual Sany 123445..pdf"
+- **Ticket ID:** `TKT-1764008003962-nhmd8a`
+- **Feedback ID:** `8FGmf6pmGLfYdqPjzQ6M`
+
+
+---
+
+## 🤖 Agente: Como hacer pep
+
+- **ID Agente:** `0D5jwOsLja3Y...`
+- **Modelo:** gemini-2.5-flash
+- **Total Feedbacks:** 1
+
+### 👤 Usuario: sorellanac@salfagestion.cl
+
+| Campo | Valor |
+|-------|-------|
+| **Hash ID** | `usr_le7d...` |
+| **User ID Completo** | `usr_le7d1qco5iq07sy8yykg` |
+| **Email** | sorellanac@salfagestion.cl |
+| **Rol** | admin |
+| **Organización** | Salfa Corp |
+| **Dominio** | salfagestion.cl |
+| **Total Feedbacks** | 1 |
+
+**📊 Promedio CSAT:** 4.00/5 ⭐⭐⭐⭐☆
+
+**📊 Promedio NPS:** 8.00/10 (Pasivo)
+
+#### 📝 Historial de Feedbacks
+
+**1. [2025-11-24 12:47] - EXPERT**
+
+- **Rating Experto:** aceptable
+- **CSAT:** 4/5 ⭐⭐⭐⭐☆
+- **NPS:** 8/10
+- **Comentario:**
+  > msj de prueba. Rediseñar formato.
+- **Ticket ID:** `TKT-1763988455902-jgegak`
+- **Feedback ID:** `IVso3SqwzfqFzHXIuJpl`
 
 
 ---
@@ -1477,36 +1861,37 @@ Antes de cada Solped el JBOD deberá revisar el stock critico sistémico  determ
 
 ### Totales
 
-- **Usuarios únicos:** 11
-- **Agentes con feedback:** 35
-- **Total feedbacks:** 59
+- **Usuarios únicos:** 14
+- **Agentes con feedback:** 45
+- **Total feedbacks:** 72
 
 ### Por Organización
 
 | Organización | Usuarios | Feedbacks |
 |--------------|----------|----------|
-| AI Factory | 2 | 26 |
-| Salfa Corp | 3 | 17 |
-| Desconocido | 5 | 13 |
+| AI Factory | 2 | 30 |
+| Salfa Corp | 5 | 24 |
+| Desconocido | 6 | 15 |
 | Personal/Externo | 1 | 3 |
 
 ### Por Dominio
 
 | Dominio | Usuarios | Feedbacks |
 |---------|----------|----------|
-| getaifactory.com | 2 | 26 |
-| maqsa.cl | 3 | 17 |
+| getaifactory.com | 2 | 30 |
+| maqsa.cl | 4 | 23 |
+| iaconcagua.com | 3 | 8 |
 | novatec.cl | 2 | 6 |
-| iaconcagua.com | 2 | 6 |
 | gmail.com | 1 | 3 |
+| salfagestion.cl | 1 | 1 |
 | salfacloud.cl | 1 | 1 |
 
 ### Métricas de Satisfacción
 
-- **CSAT Promedio:** 3.00/5 ⭐⭐⭐☆☆ (de 59 ratings)
-- **NPS Promedio:** 7.85/10 (de 13 scores)
-- **NPS Score:** 38% (Promotores: 6, Pasivos: 6, Detractores: 1)
+- **CSAT Promedio:** 2.92/5 ⭐⭐⭐☆☆ (de 72 ratings)
+- **NPS Promedio:** 7.89/10 (de 18 scores)
+- **NPS Score:** 33% (Promotores: 7, Pasivos: 10, Detractores: 1)
 
 ---
 
-*Reporte generado automáticamente el 24/11/2025, 8:26:57*
+*Reporte generado automáticamente el 1/12/2025, 0:40:19*

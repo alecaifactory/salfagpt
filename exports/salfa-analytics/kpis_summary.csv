@@ -1,0 +1,9 @@
+Metric,Value,Period_Start,Period_End
+"Total Messages",2076,2025-09-01,2025-11-30
+"User Questions",1056,2025-09-01,2025-11-30
+"Assistant Responses",1020,2025-09-01,2025-11-30
+"Total Conversations",772,2025-09-01,2025-11-30
+"Active Users",49,2025-09-01,2025-11-30
+"Active Agents",41,2025-09-01,2025-11-30
+"Avg Messages Per User",42.37,2025-09-01,2025-11-30
+"Avg Messages Per Agent",50.63,2025-09-01,2025-11-30

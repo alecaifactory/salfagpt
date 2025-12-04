@@ -656,3 +656,6 @@ maxTokens: agentConfig.maxOutputTokens || 300
 **Compatibility:** 100% backward compatible  
 **Risk:** Bajo (rollback <60s disponible)
 
+
+
+

@@ -151,3 +151,6 @@ npm run dev
 
 **MIGRACIÓN COMPLETADA - LISTO PARA ACTIVAR** 🎯⚡
 
+
+
+

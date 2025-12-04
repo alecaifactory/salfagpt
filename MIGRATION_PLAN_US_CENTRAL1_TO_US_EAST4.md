@@ -687,3 +687,6 @@ UPDATE bigquery query to use:
 
 **PLAN COMPLETO DE MIGRACIÓN DOCUMENTADO** ✅  
 **Listo para ejecutar post-presentación** 🎯
+
+
+

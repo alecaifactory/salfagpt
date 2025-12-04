@@ -26,9 +26,13 @@ const bigquery = new BigQuery({
   projectId: PROJECT_ID,
 });
 
-// ✅ CORRECTED 2025-11-19: Fixed dataset and table names for RAG embeddings
-const DATASET_ID = 'flow_rag_optimized';
-const TABLE_ID = 'document_chunks_vectorized';
+// ✅ CORRECTED 2025-11-28: Respect USE_EAST4_BIGQUERY for us-east4 co-location
+const DATASET_ID = process.env.USE_EAST4_BIGQUERY === 'true'
+  ? 'flow_analytics_east4'       // GREEN: us-east4 ⚡ (co-located with Cloud Run)
+  : 'flow_rag_optimized';         // BLUE: us-central1 (fallback)
+const TABLE_ID = process.env.USE_EAST4_BIGQUERY === 'true'
+  ? 'document_embeddings'         // Standard table name
+  : 'document_chunks_vectorized'; // Legacy table name
 
 // Log configuration for debugging
 console.log('📊 BigQuery Vector Search initialized');

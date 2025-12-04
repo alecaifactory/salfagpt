@@ -8,6 +8,7 @@ interface MyFeedbackViewProps {
   isOpen: boolean;
   onClose: () => void;
   highlightTicketId?: string; // For showing "just created" ticket
+  onOpenRoadmap?: (ticketId?: string) => void; // For opening roadmap modal
 }
 
 export default function MyFeedbackView({ 
@@ -15,7 +16,8 @@ export default function MyFeedbackView({
   userEmail, 
   isOpen, 
   onClose,
-  highlightTicketId 
+  highlightTicketId,
+  onOpenRoadmap
 }: MyFeedbackViewProps) {
   const [myFeedback, setMyFeedback] = useState<MessageFeedback[]>([]);
   const [myTickets, setMyTickets] = useState<FeedbackTicket[]>([]);
@@ -697,10 +699,40 @@ export default function MyFeedbackView({
 
         {/* Footer */}
         <div className="p-6 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-          <div className="text-sm text-slate-600">
-            Seguimiento en tiempo real de tu feedback
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-600">
+              Seguimiento en tiempo real de tu feedback
+            </div>
+            
+            {/* Ticket count with "Ver en Roadmap" button */}
+            {myTickets.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-600">
+                  <span className="font-semibold">{myTickets.length}</span> tickets
+                </span>
+                <span className="text-slate-400">•</span>
+                <span className="text-sm font-semibold text-red-600">
+                  {myTickets.filter(t => t.status === 'new' || t.status === 'triaged').length} sin leer
+                </span>
+              </div>
+            )}
           </div>
+          
           <div className="flex gap-3">
+            {/* Ver en Roadmap button - Only show if onOpenRoadmap is provided */}
+            {onOpenRoadmap && myTickets.length > 0 && (
+              <button
+                onClick={() => {
+                  onOpenRoadmap(); // Open roadmap without specific ticket selection
+                  // Don't close this modal - let user see both
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-lg hover:from-violet-700 hover:to-purple-700 transition-all flex items-center gap-2 font-semibold text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Ver en Roadmap
+              </button>
+            )}
+            
             <button
               onClick={loadMyFeedback}
               className="px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 text-sm font-medium"

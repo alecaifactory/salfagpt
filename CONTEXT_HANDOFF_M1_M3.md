@@ -598,3 +598,6 @@ TOTAL RESTANTE: ~2-3 horas
 **BigQuery configuración estable** ✅  
 **RAG funcionando óptimamente** ✅
 
+
+
+

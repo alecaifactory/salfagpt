@@ -748,3 +748,6 @@ Query → Embed → BigQuery similarity → Top K chunks → Format refs → AI 
 **Scripts base:** En `scripts/` copiables  
 **Proceso probado:** 100% exitoso con S2-v2
 
+
+
+

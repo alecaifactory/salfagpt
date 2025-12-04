@@ -1,0 +1,1332 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+
+🚀 SalfaGPT CLI - Batch Document Upload
+═══════════════════════════════════════
+
+📋 Configuration:
+   📁 Folder: /Users/alec/salfagpt/upload-queue/M3-v2-20251125
+   🏷️  Tag: M3-v2-20251125-fixed
+   🤖 Agent: vStojK73ZKbjNsEnqANJ
+   👤 User: usr_uhwqffaqag1wrryd82tw (alec@getaifactory.com)
+   ⚡ Model: gemini-2.5-flash
+   🔑 Session: cli-upload-1764091462110-ienf49zez
+
+📦 Checking GCS bucket...
+✅ Bucket ready
+
+📂 Scanning folder for PDFs...
+✅ Found 62 PDF files
+
+📊 [DEV] Would track CLI event: {
+  type: 'cli_upload_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: undefined
+}
+📊 [DEV] Would track CLI session: {
+  command: 'upload --folder=/Users/alec/salfagpt/upload-queue/M3-v2-20251125 --tag=M3-v2-20251125-fixed --agent=vStojK73ZKbjNsEnqANJ',
+  user: 'alec@getaifactory.com',
+  duration: undefined,
+  events: 62
+}
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 1 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+📊 Progreso global: 0 completados, 62 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+   📤 13.1% (64.0 KB/488.1 KB) @ 20.83 MB/s   📤 26.2% (128.0 KB/488.1 KB) @ 17.86 MB/s   📤 39.3% (192.0 KB/488.1 KB) @ 23.44 MB/s   📤 52.4% (256.0 KB/488.1 KB) @ 249.0 KB/s   📤 65.6% (320.0 KB/488.1 KB) @ 311.0 KB/s   📤 78.7% (384.0 KB/488.1 KB) @ 371.0 KB/s   📤 91.8% (448.0 KB/488.1 KB) @ 429.1 KB/s   📤 100.0% (488.1 KB/488.1 KB) @ 466.6 KB/s   ✅ Subido en 2.2s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+
+   ✅ Upload exitoso en 2.2s (225.4 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+   📊 Tamaño: 488.08 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/1. PLANIFICACIÓN INICIAL DE LA OBRA/GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF
+   📊 Tamaño: 488.08 KB
+   🔄 Enviando a Gemini AI...
+.....................................................................................................................................
+   ✅ Extracción completa en 266.7s
+   📝 1,632,943 caracteres extraídos
+   🎯 ~408,236 tokens estimados
+   💰 Costo estimado: $0.122526
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed sequentially from page 1 to the last page, with Markdown formatting for structure and tables.
+
+---
+
+**Page 1**
+
+n
+EDIFICACIÓN
+
+| 1 ...
+   ✅ Extracción exitosa en 266.7s
+   📝 Caracteres extraídos: 1,632,943
+   🎯 Tokens estimados: ~408,236
+   📥 Input tokens: 730
+   📤 Output tokens: 408,236
+   💰 Costo: $0.122526
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (1,632,943 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: aDtoA6sBk4cceHcUkHhU
+   ⏱️  Tiempo: 1.5s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 1,632,943 caracteres
+   📊 Tokens estimados: ~408,236 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 456 chunks (with 102 token overlap)
+   📊 Average chunk size: 997 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 454 low-quality chunks
+   🗑️ Filtrados 454 chunks de baja calidad
+   ✅ 2 chunks útiles restantes
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-2...
+      ✅ Batch 1 complete: 2 embeddings generated
+   ✅ Generated 2 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 2 embeddings in Firestore...
+   ✅ Stored 2 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+📊 BigQuery Vector Search initialized
+  Project: salfagpt
+  Dataset: flow_rag_optimized
+  Table: document_chunks_vectorized
+   📤 BigQuery batch 1/1: Syncing 2 chunks...
+   ✅ BigQuery batch 1 complete: 2 chunks synced
+   ✅ Total synced to BigQuery: 2 chunks
+   ✅ Synced 2 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 2.0s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 1,616 tokens totales
+      💰 Costo embeddings: $0.000032
+   ✅ Chunking completado: 2 chunks creados
+   ✅ Embeddings generados: 2 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 808
+   💰 Costo embeddings: $0.000032
+   ⏱️  Tiempo RAG: 2.0s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 74 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-D-PI-1.PLANIFICACION INICIAL DE OBRA-(V.1) (1).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 2 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+📊 Progreso global: 1 completados, 61 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   📤 9.7% (64.0 KB/661.3 KB) @ 15.63 MB/s   📤 19.4% (128.0 KB/661.3 KB) @ 13.89 MB/s   📤 29.0% (192.0 KB/661.3 KB) @ 20.83 MB/s   📤 38.7% (256.0 KB/661.3 KB) @ 246.4 KB/s   📤 48.4% (320.0 KB/661.3 KB) @ 308.0 KB/s   📤 58.1% (384.0 KB/661.3 KB) @ 368.2 KB/s   📤 67.7% (448.0 KB/661.3 KB) @ 425.5 KB/s   📤 77.4% (512.0 KB/661.3 KB) @ 485.8 KB/s   📤 87.1% (576.0 KB/661.3 KB) @ 546.0 KB/s   📤 96.8% (640.0 KB/661.3 KB) @ 606.1 KB/s   📤 100.0% (661.3 KB/661.3 KB) @ 625.6 KB/s   ✅ Subido en 2.1s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+
+   ✅ Upload exitoso en 2.1s (316.2 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   📊 Tamaño: 661.28 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   📊 Tamaño: 661.28 KB
+   🔄 Enviando a Gemini AI...
+..................................................................................................................................
+   ✅ Extracción completa en 260.7s
+   📝 949,247 caracteres extraídos
+   🎯 ~237,312 tokens estimados
+   💰 Costo estimado: $0.071262
+   👁️  Preview: # MAQSA® Abastecimiento y Servicios
+
+| 07 | 27/07/23 | IOA | SAL | ADB | Se recodifica procedimiento, se actualizan Instructivos, Paso a Paso y Registros |
+|----|----------|-----|-----|-----|---------...
+   ✅ Extracción exitosa en 260.7s
+   📝 Caracteres extraídos: 949,247
+   🎯 Tokens estimados: ~237,312
+   📥 Input tokens: 907
+   📤 Output tokens: 237,312
+   💰 Costo: $0.071262
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (949,247 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: rpFZXvNjMPWaKS3XVf3y
+   ⏱️  Tiempo: 1.4s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 949,247 caracteres
+   📊 Tokens estimados: ~237,312 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 267 chunks (with 102 token overlap)
+   📊 Average chunk size: 990 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 254 low-quality chunks
+   🗑️ Filtrados 254 chunks de baja calidad
+   ✅ 13 chunks útiles restantes
+   🧬 Generating embeddings for 13 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-13...
+      ✅ Batch 1 complete: 13 embeddings generated
+   ✅ Generated 13 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 13 embeddings in Firestore...
+   ✅ Stored 13 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 13 chunks...
+   ✅ BigQuery batch 1 complete: 13 chunks synced
+   ✅ Total synced to BigQuery: 13 chunks
+   ✅ Synced 13 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 11.9s
+      📦 13 chunks creados
+      🧬 13 embeddings generados (768-dim)
+      🎯 11,802 tokens totales
+      💰 Costo embeddings: $0.000236
+   ✅ Chunking completado: 13 chunks creados
+   ✅ Embeddings generados: 13 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 908
+   💰 Costo embeddings: $0.000236
+   ⏱️  Tiempo RAG: 11.9s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 75 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 3 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: CONTRATACION DE SUBCONTRATISTAS.PDF
+📊 Progreso global: 2 completados, 60 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+   📤 2.2% (64.0 KB/2.83 MB) @ 31.25 MB/s   📤 4.4% (128.0 KB/2.83 MB) @ 20.83 MB/s   📤 6.6% (192.0 KB/2.83 MB) @ 31.25 MB/s   📤 8.8% (256.0 KB/2.83 MB) @ 996.1 KB/s   📤 11.1% (320.0 KB/2.83 MB) @ 1.22 MB/s   📤 13.3% (384.0 KB/2.83 MB) @ 1.43 MB/s   📤 15.5% (448.0 KB/2.83 MB) @ 1.61 MB/s   📤 17.7% (512.0 KB/2.83 MB) @ 1.83 MB/s   📤 19.9% (576.0 KB/2.83 MB) @ 2.02 MB/s   📤 22.1% (640.0 KB/2.83 MB) @ 2.24 MB/s   📤 24.3% (704.0 KB/2.83 MB) @ 2.43 MB/s   📤 26.5% (768.0 KB/2.83 MB) @ 919.8 KB/s   📤 28.7% (832.0 KB/2.83 MB) @ 995.2 KB/s   📤 31.0% (896.0 KB/2.83 MB) @ 1.04 MB/s   📤 33.2% (960.0 KB/2.83 MB) @ 1.12 MB/s   📤 35.4% (1.00 MB/2.83 MB) @ 1.18 MB/s   📤 37.6% (1.06 MB/2.83 MB) @ 903.7 KB/s   📤 39.8% (1.13 MB/2.83 MB) @ 938.9 KB/s   📤 42.0% (1.19 MB/2.83 MB) @ 869.8 KB/s   📤 44.2% (1.25 MB/2.83 MB) @ 885.8 KB/s   📤 46.4% (1.31 MB/2.83 MB) @ 927.5 KB/s   📤 48.6% (1.38 MB/2.83 MB) @ 855.9 KB/s   📤 50.8% (1.44 MB/2.83 MB) @ 894.3 KB/s   📤 53.1% (1.50 MB/2.83 MB) @ 933.2 KB/s   📤 55.3% (1.56 MB/2.83 MB) @ 971.5 KB/s   📤 57.5% (1.63 MB/2.83 MB) @ 1010.3 KB/s   📤 59.7% (1.69 MB/2.83 MB) @ 1.02 MB/s   📤 61.9% (1.75 MB/2.83 MB) @ 1.06 MB/s   📤 64.1% (1.81 MB/2.83 MB) @ 1.10 MB/s   📤 66.3% (1.88 MB/2.83 MB) @ 1.14 MB/s   📤 68.5% (1.94 MB/2.83 MB) @ 1.17 MB/s   📤 70.7% (2.00 MB/2.83 MB) @ 1.21 MB/s   📤 73.0% (2.06 MB/2.83 MB) @ 1.25 MB/s   📤 75.2% (2.13 MB/2.83 MB) @ 1.29 MB/s   📤 77.4% (2.19 MB/2.83 MB) @ 1.32 MB/s   📤 79.6% (2.25 MB/2.83 MB) @ 1.36 MB/s   📤 81.8% (2.31 MB/2.83 MB) @ 1.40 MB/s   📤 84.0% (2.38 MB/2.83 MB) @ 1.44 MB/s   📤 86.2% (2.44 MB/2.83 MB) @ 1.47 MB/s   📤 88.4% (2.50 MB/2.83 MB) @ 1.51 MB/s   📤 90.6% (2.56 MB/2.83 MB) @ 1.55 MB/s   📤 92.9% (2.63 MB/2.83 MB) @ 1.59 MB/s   📤 95.1% (2.69 MB/2.83 MB) @ 1.62 MB/s   📤 97.3% (2.75 MB/2.83 MB) @ 1.66 MB/s   📤 99.5% (2.81 MB/2.83 MB) @ 1.70 MB/s   📤 100.0% (2.83 MB/2.83 MB) @ 1.71 MB/s   ✅ Subido en 2.5s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+
+   ✅ Upload exitoso en 2.5s (1.12 MB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: CONTRATACION DE SUBCONTRATISTAS.PDF
+   📊 Tamaño: 2894.85 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/CONTRATACION DE SUBCONTRATISTAS.PDF
+   📊 Tamaño: 2894.85 KB
+   🔄 Enviando a Gemini AI...
+...........................................................
+   ✅ Extracción completa en 119.3s
+   📝 436,823 caracteres extraídos
+   🎯 ~109,206 tokens estimados
+   💰 Costo estimado: $0.033001
+   👁️  Preview: The complete text extracted from the PDF document is as follows:
+
+# PROCESO DE CONTRATACIÓN DE SUBCONTRATISTAS
+
+Sostenibilidad
+
+| 1   | 02/01/2024 | AUDITORIA INTERNA | CONTRALOR | CONTRALORA | Actual...
+   ✅ Extracción exitosa en 119.3s
+   📝 Caracteres extraídos: 436,823
+   🎯 Tokens estimados: ~109,206
+   📥 Input tokens: 3,194
+   📤 Output tokens: 109,206
+   💰 Costo: $0.033001
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (436,823 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: 0RWMnNyew1vXnaoGyNCT
+   ⏱️  Tiempo: 0.6s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 436,823 caracteres
+   📊 Tokens estimados: ~109,206 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 124 chunks (with 102 token overlap)
+   📊 Average chunk size: 982 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 123 low-quality chunks
+   🗑️ Filtrados 123 chunks de baja calidad
+   ✅ 1 chunks útiles restantes
+   🧬 Generating embeddings for 1 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-1...
+      ✅ Batch 1 complete: 1 embeddings generated
+   ✅ Generated 1 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 1 embeddings in Firestore...
+   ✅ Stored 1 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 1 chunks...
+   ✅ BigQuery batch 1 complete: 1 chunks synced
+   ✅ Total synced to BigQuery: 1 chunks
+   ✅ Synced 1 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 1.0s
+      📦 1 chunks creados
+      🧬 1 embeddings generados (768-dim)
+      🎯 503 tokens totales
+      💰 Costo embeddings: $0.000010
+   ✅ Chunking completado: 1 chunks creados
+   ✅ Embeddings generados: 1 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 503
+   💰 Costo embeddings: $0.000010
+   ⏱️  Tiempo RAG: 1.0s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 76 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ CONTRATACION DE SUBCONTRATISTAS.PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 4 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+📊 Progreso global: 3 completados, 59 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   📤 25.4% (64.0 KB/252.0 KB) @ 62.50 MB/s   📤 50.8% (128.0 KB/252.0 KB) @ 31.25 MB/s   📤 76.2% (192.0 KB/252.0 KB) @ 46.88 MB/s   📤 100.0% (252.0 KB/252.0 KB) @ 279.4 KB/s   ✅ Subido en 1.8s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+
+   ✅ Upload exitoso en 1.8s (142.2 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   📊 Tamaño: 252.04 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   📊 Tamaño: 252.04 KB
+   🔄 Enviando a Gemini AI...
+...........
+   ✅ Extracción completa en 23.1s
+   📝 13,023 caracteres extraídos
+   🎯 ~3,256 tokens estimados
+   💰 Costo estimado: $0.001013
+   👁️  Preview: ```markdown
+n
+EDIFICACIÓN
+
+| 0 | 26-07-2024 | GOP | GOP | GOP | Elaboración Documento |
+|---|---|---|---|---|---|
+| VER | FECHA | ELABORADO | REVISADO | APROBADO | MODIFICACIONES |
+| | | | | | GOP-P-P...
+   ✅ Extracción exitosa en 23.1s
+   📝 Caracteres extraídos: 13,023
+   🎯 Tokens estimados: ~3,256
+   📥 Input tokens: 488
+   📤 Output tokens: 3,256
+   💰 Costo: $0.001013
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: Ir2nF9fBgYJIxuHSOFzy
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 13,023 caracteres
+   📊 Tokens estimados: ~3,256 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 5 chunks (with 102 token overlap)
+   📊 Average chunk size: 733 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 5 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-5...
+      ✅ Batch 1 complete: 5 embeddings generated
+   ✅ Generated 5 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 5 embeddings in Firestore...
+   ✅ Stored 5 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 5 chunks...
+   ✅ BigQuery batch 1 complete: 5 chunks synced
+   ✅ Total synced to BigQuery: 5 chunks
+   ✅ Synced 5 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 4.0s
+      📦 5 chunks creados
+      🧬 5 embeddings generados (768-dim)
+      🎯 3,665 tokens totales
+      💰 Costo embeddings: $0.000073
+   ✅ Chunking completado: 5 chunks creados
+   ✅ Embeddings generados: 5 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 733
+   💰 Costo embeddings: $0.000073
+   ⏱️  Tiempo RAG: 4.0s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 77 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 5 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+📊 Progreso global: 4 completados, 58 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   📤 36.8% (64.0 KB/174.0 KB) @ 15.63 MB/s   📤 73.5% (128.0 KB/174.0 KB) @ 17.86 MB/s   📤 100.0% (174.0 KB/174.0 KB) @ 21.25 MB/s   ✅ Subido en 1.7s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+
+   ✅ Upload exitoso en 1.7s (100.4 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   📊 Tamaño: 174.04 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   📊 Tamaño: 174.04 KB
+   🔄 Enviando a Gemini AI...
+...........
+   ✅ Extracción completa en 22.1s
+   📝 9,687 caracteres extraídos
+   🎯 ~2,422 tokens estimados
+   💰 Costo estimado: $0.000757
+   👁️  Preview: The complete text extracted from the PDF document is as follows:
+
+# Page 1
+
+EDIFICACIÓN
+
+| 5 | 18-10-24 | GOP | GAG | CO | Se elimina ítem de acciones preventivas |
+|---|----------|-----|-----|----|--...
+   ✅ Extracción exitosa en 22.1s
+   📝 Caracteres extraídos: 9,687
+   🎯 Tokens estimados: ~2,422
+   📥 Input tokens: 408
+   📤 Output tokens: 2,422
+   💰 Costo: $0.000757
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: bITX3iKFXkMphUybiwDs
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 9,687 caracteres
+   📊 Tokens estimados: ~2,422 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 4 chunks (with 102 token overlap)
+   📊 Average chunk size: 682 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-4...
+      ✅ Batch 1 complete: 4 embeddings generated
+   ✅ Generated 4 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 4 chunks...
+   ✅ BigQuery batch 1 complete: 4 chunks synced
+   ✅ Total synced to BigQuery: 4 chunks
+   ✅ Synced 4 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 3.3s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 2,729 tokens totales
+      💰 Costo embeddings: $0.000055
+   ✅ Chunking completado: 4 chunks creados
+   ✅ Embeddings generados: 4 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 682
+   💰 Costo embeddings: $0.000055
+   ⏱️  Tiempo RAG: 3.3s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 78 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 6 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+📊 Progreso global: 5 completados, 57 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   📤 9.9% (64.0 KB/647.9 KB) @ 15.63 MB/s   📤 19.8% (128.0 KB/647.9 KB) @ 20.83 MB/s   📤 29.6% (192.0 KB/647.9 KB) @ 26.79 MB/s   📤 39.5% (256.0 KB/647.9 KB) @ 252.2 KB/s   📤 49.4% (320.0 KB/647.9 KB) @ 315.0 KB/s   📤 59.3% (384.0 KB/647.9 KB) @ 376.5 KB/s   📤 69.1% (448.0 KB/647.9 KB) @ 435.0 KB/s   📤 79.0% (512.0 KB/647.9 KB) @ 496.6 KB/s   📤 88.9% (576.0 KB/647.9 KB) @ 557.6 KB/s   📤 98.8% (640.0 KB/647.9 KB) @ 619.0 KB/s   📤 100.0% (647.9 KB/647.9 KB) @ 626.0 KB/s   ✅ Subido en 2.2s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+
+   ✅ Upload exitoso en 2.2s (288.5 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   📊 Tamaño: 647.92 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   📊 Tamaño: 647.92 KB
+   🔄 Enviando a Gemini AI...
+.............
+   ✅ Extracción completa en 27.9s
+   📝 16,154 caracteres extraídos
+   🎯 ~4,039 tokens estimados
+   💰 Costo estimado: $0.001279
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed page by page, with clear structure and tables in Markdown format:
+
+---
+
+# Page 1
+
+n
+EDIFICACIÓN
+
+| 0   | 18-10-2024 | GOP       | G...
+   ✅ Extracción exitosa en 27.9s
+   📝 Caracteres extraídos: 16,154
+   🎯 Tokens estimados: ~4,039
+   📥 Input tokens: 893
+   📤 Output tokens: 4,039
+   💰 Costo: $0.001279
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: D3EdMGq050axHgGgpf8W
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 16,154 caracteres
+   📊 Tokens estimados: ~4,039 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 6 chunks (with 102 token overlap)
+   📊 Average chunk size: 758 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-6...
+      ✅ Batch 1 complete: 6 embeddings generated
+   ✅ Generated 6 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 6 chunks...
+   ✅ BigQuery batch 1 complete: 6 chunks synced
+   ✅ Total synced to BigQuery: 6 chunks
+   ✅ Synced 6 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 4.8s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 4,550 tokens totales
+      💰 Costo embeddings: $0.000091
+   ✅ Chunking completado: 6 chunks creados
+   ✅ Embeddings generados: 6 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 758
+   💰 Costo embeddings: $0.000091
+   ⏱️  Tiempo RAG: 4.8s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 79 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 7 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+📊 Progreso global: 6 completados, 56 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   📤 18.1% (64.0 KB/354.4 KB) @ 31.25 MB/s   📤 36.1% (128.0 KB/354.4 KB) @ 25.00 MB/s   📤 54.2% (192.0 KB/354.4 KB) @ 37.50 MB/s   📤 72.2% (256.0 KB/354.4 KB) @ 276.2 KB/s   📤 90.3% (320.0 KB/354.4 KB) @ 344.8 KB/s   📤 100.0% (354.4 KB/354.4 KB) @ 380.6 KB/s   ✅ Subido en 1.9s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+
+   ✅ Upload exitoso en 1.9s (187.4 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   📊 Tamaño: 354.37 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   📊 Tamaño: 354.37 KB
+   🔄 Enviando a Gemini AI...
+........
+   ✅ Extracción completa en 17.9s
+   📝 7,892 caracteres extraídos
+   🎯 ~1,973 tokens estimados
+   💰 Costo estimado: $0.000636
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed sequentially from page 1 to the last page, with clear structure using Markdown headings and tables in Markdown format.
+
+---
+
+# Page...
+   ✅ Extracción exitosa en 17.9s
+   📝 Caracteres extraídos: 7,892
+   🎯 Tokens estimados: ~1,973
+   📥 Input tokens: 593
+   📤 Output tokens: 1,973
+   💰 Costo: $0.000636
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: XOgygg4Kljki0gqgWlJB
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 7,892 caracteres
+   📊 Tokens estimados: ~1,973 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 4 chunks (with 102 token overlap)
+   📊 Average chunk size: 570 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-4...
+      ✅ Batch 1 complete: 4 embeddings generated
+   ✅ Generated 4 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 4 embeddings in Firestore...
+   ✅ Stored 4 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 4 chunks...
+   ✅ BigQuery batch 1 complete: 4 chunks synced
+   ✅ Total synced to BigQuery: 4 chunks
+   ✅ Synced 4 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 2.9s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 2,280 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ Chunking completado: 4 chunks creados
+   ✅ Embeddings generados: 4 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 570
+   💰 Costo embeddings: $0.000046
+   ⏱️  Tiempo RAG: 2.9s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 80 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 8 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+📊 Progreso global: 7 completados, 55 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   📤 6.2% (64.0 KB/1.01 MB) @ 15.63 MB/s   📤 12.3% (128.0 KB/1.01 MB) @ 15.63 MB/s   📤 18.5% (192.0 KB/1.01 MB) @ 20.83 MB/s   📤 24.6% (256.0 KB/1.01 MB) @ 246.2 KB/s   📤 30.8% (320.0 KB/1.01 MB) @ 307.7 KB/s   📤 37.0% (384.0 KB/1.01 MB) @ 367.8 KB/s   📤 43.1% (448.0 KB/1.01 MB) @ 425.5 KB/s   📤 49.3% (512.0 KB/1.01 MB) @ 486.2 KB/s   📤 55.4% (576.0 KB/1.01 MB) @ 546.5 KB/s   📤 61.6% (640.0 KB/1.01 MB) @ 606.6 KB/s   📤 67.7% (704.0 KB/1.01 MB) @ 665.4 KB/s   📤 73.9% (768.0 KB/1.01 MB) @ 725.2 KB/s   📤 80.1% (832.0 KB/1.01 MB) @ 785.6 KB/s   📤 86.2% (896.0 KB/1.01 MB) @ 845.3 KB/s   📤 92.4% (960.0 KB/1.01 MB) @ 905.7 KB/s   📤 98.5% (1.00 MB/1.01 MB) @ 966.0 KB/s   📤 100.0% (1.01 MB/1.01 MB) @ 979.5 KB/s   ✅ Subido en 2.4s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+
+   ✅ Upload exitoso en 2.4s (428.0 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   📊 Tamaño: 1039.24 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   📊 Tamaño: 1039.24 KB
+   🔄 Enviando a Gemini AI...
+..........................
+   ✅ Extracción completa en 52.0s
+   📝 28,318 caracteres extraídos
+   🎯 ~7,080 tokens estimados
+   💰 Costo estimado: $0.002221
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed sequentially from beginning to end, with clear structure using Markdown headings and tables.
+
+---
+
+# Page 1
+
+## n
+## EDIFICACIÓN
+
+|...
+   ✅ Extracción exitosa en 52.0s
+   📝 Caracteres extraídos: 28,318
+   🎯 Tokens estimados: ~7,080
+   📥 Input tokens: 1,294
+   📤 Output tokens: 7,080
+   💰 Costo: $0.002221
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: kQneXoIYhicHHpQ74iOj
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 28,318 caracteres
+   📊 Tokens estimados: ~7,080 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 10 chunks (with 102 token overlap)
+   📊 Average chunk size: 800 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 10 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-10...
+      ✅ Batch 1 complete: 10 embeddings generated
+   ✅ Generated 10 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 10 embeddings in Firestore...
+   ✅ Stored 10 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 10 chunks...
+   ✅ BigQuery batch 1 complete: 10 chunks synced
+   ✅ Total synced to BigQuery: 10 chunks
+   ✅ Synced 10 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 7.8s
+      📦 10 chunks creados
+      🧬 10 embeddings generados (768-dim)
+      🎯 8,001 tokens totales
+      💰 Costo embeddings: $0.000160
+   ✅ Chunking completado: 10 chunks creados
+   ✅ Embeddings generados: 10 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 800
+   💰 Costo embeddings: $0.000160
+   ⏱️  Tiempo RAG: 7.8s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+✅ Updated conversation vStojK73ZKbjNsEnqANJ with 81 active sources
+Error saving conversation context: Error: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+    at callErrorFromStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/call.ts:84:17)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:360:55)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:466:34)
+    at Object.onReceiveStatus (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client-interceptors.ts:424:48)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/resolving-call.ts:170:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)
+for call at
+    at ServiceClientImpl.makeUnaryRequest (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/client.ts:325:42)
+    at ServiceClientImpl.<anonymous> (/Users/alec/salfagpt/node_modules/@grpc/grpc-js/src/make-client.ts:189:15)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/v1/firestore_client.js:242:33
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/timeout.ts:54:13)
+    at repeat (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:110:19)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/retries.ts:157:7)
+    at OngoingCallPromise.call (/Users/alec/salfagpt/node_modules/google-gax/src/call.ts:81:23)
+    at NormalApiCaller.call (/Users/alec/salfagpt/node_modules/google-gax/src/normalCalls/normalApiCaller.ts:43:15)
+    at <anonymous> (/Users/alec/salfagpt/node_modules/google-gax/src/createApiCall.ts:157:26)
+Caused by: Error
+    at _firestore._traceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:438:27)
+    at /Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:110:30
+    at NoopContextManager.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts:31:15)
+    at ContextAPI.with (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/api/context.ts:77:42)
+    at NoopTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts:98:27)
+    at ProxyTracer.startActiveSpan (/Users/alec/salfagpt/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts:51:20)
+    at EnabledTraceUtil.startActiveSpan (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/telemetry/enabled-trace-util.js:102:28)
+    at WriteBatch.commit (/Users/alec/salfagpt/node_modules/@google-cloud/firestore/build/src/write-batch.js:436:43)
+    at saveConversationContext (/Users/alec/salfagpt/src/lib/firestore.ts:1586:19)
+    at async uploadSingleFile (/Users/alec/salfagpt/cli/commands/upload.ts:465:5) {
+  code: 5,
+  details: 'No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp',
+  metadata: Metadata {
+    internalRepr: Map(1) { 'x-debug-tracking-id' => [Array] },
+    opaqueData: Map(0) {},
+    options: {}
+  },
+  note: 'Exception occurred in retry method that was not classified as transient'
+}
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: false
+}
+
+❌ GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF failed: 5 NOT_FOUND: No document to update: projects/salfagpt/databases/(default)/documents/context_sources/1EnH6gTnM6a33W4aUeNp
+
+══════════════════════════════════════════════════════════════════════
+📄 ARCHIVO 9 de 62
+══════════════════════════════════════════════════════════════════════
+📁 Archivo: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+📊 Progreso global: 8 completados, 54 restantes
+══════════════════════════════════════════════════════════════════════
+
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   📤 21.1% (64.0 KB/303.4 KB) @ 10.42 MB/s   📤 42.2% (128.0 KB/303.4 KB) @ 12.50 MB/s   📤 63.3% (192.0 KB/303.4 KB) @ 17.05 MB/s   📤 84.4% (256.0 KB/303.4 KB) @ 246.6 KB/s   📤 100.0% (303.4 KB/303.4 KB) @ 292.0 KB/s   ✅ Subido en 2.0s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+
+   ✅ Upload exitoso en 2.0s (153.5 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   📊 Tamaño: 303.42 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: /Users/alec/salfagpt/upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   📊 Tamaño: 303.42 KB
+   🔄 Enviando a Gemini AI...
+...........
+   ✅ Extracción completa en 23.5s
+   📝 3,539 caracteres extraídos
+   🎯 ~885 tokens estimados
+   💰 Costo estimado: $0.000306
+   👁️  Preview: # Document Header
+
+**EDIFICACIÓN**
+
+**MATRIZ DE OBJETIVOS DE CONTROL DE OBRA**
+
+**GOP-P-PCO-2.1.**
+**Versión:** 0
+**Date:** 13-05-2024
+
+# Extracted Table
+
+| N° | OBJETIVO | UNIDAD QUE CONTROLA | INDIC...
+   ✅ Extracción exitosa en 23.5s
+   📝 Caracteres extraídos: 3,539
+   🎯 Tokens estimados: ~885
+   📥 Input tokens: 541
+   📤 Output tokens: 885
+   💰 Costo: $0.000306
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-20251125-fixed]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ

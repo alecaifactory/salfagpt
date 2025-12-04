@@ -144,3 +144,6 @@ echo "✅ S2-v2 está 100% funcional con RAG y referencias correctas"
 
 **El sistema está trabajando automáticamente.** Todo estará listo en 1-2 horas. 🎉
 
+
+
+

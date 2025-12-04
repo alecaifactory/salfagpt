@@ -72,3 +72,6 @@ createVectorIndex()
     process.exit(1);
   });
 
+
+
+

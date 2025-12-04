@@ -88,3 +88,6 @@ echo "  2. Run: npx tsx scripts/test-m3v2-evaluation.mjs"
 echo "  3. Generate final reports"
 echo ""
 
+
+
+

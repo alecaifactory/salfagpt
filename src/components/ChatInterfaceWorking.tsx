@@ -47,6 +47,7 @@ import UserFeedbackPanel from './UserFeedbackPanel'; // ✅ Feedback system
 import MyFeedbackView from './MyFeedbackView'; // ✅ User's own feedback tracking
 import FeedbackSuccessToast from './FeedbackSuccessToast'; // ✅ Success notification
 import NotificationBell from './NotificationBell'; // ✅ NEW: Changelog notifications
+import { CanaryBadge } from './CanaryBadge'; // ✅ NEW: Canary deployment indicator
 import FeatureNotificationCenter from './FeatureNotificationCenter'; // ✅ NEW: Feature onboarding
 import ChangelogModal from './ChangelogModal'; // ✅ NEW: In-app changelog
 import APIPlaygroundModal from './APIPlaygroundModal'; // ✅ NEW: API testing playground
@@ -365,6 +366,47 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   const [selectedReference, setSelectedReference] = useState<SourceReference | null>(null);
   const [showDocumentViewer, setShowDocumentViewer] = useState(false);
   const [documentViewerSource, setDocumentViewerSource] = useState<ContextSource | null>(null);
+  
+  // 🔄 SESSION REFRESH: Refresh JWT on mount to get latest role/permissions
+  // This ensures role changes take effect without requiring full re-login
+  const [sessionRole, setSessionRole] = useState(userRole);
+  
+  useEffect(() => {
+    async function refreshSession() {
+      // Prevent infinite reload loop - only refresh once per page load
+      const lastRefresh = sessionStorage.getItem('session_refresh_time');
+      const now = Date.now();
+      if (lastRefresh && (now - parseInt(lastRefresh)) < 5000) {
+        console.log('Session refresh skipped - already refreshed recently');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/auth/refresh-session', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success && data.roleChanged) {
+          console.log('🔄 Session refreshed:', data);
+          setSessionRole(data.newRole);
+          // Mark refresh time before reload to prevent loop
+          sessionStorage.setItem('session_refresh_time', now.toString());
+          // Reload page to apply new role throughout the app
+          window.location.reload();
+        }
+      } catch (error) {
+        // Silent fail - session refresh is optional
+        console.log('Session refresh skipped:', error);
+      }
+    }
+    
+    refreshSession();
+  }, []);
+  
+  // Use refreshed role for permission checks (replaces userRole throughout component)
+  const effectiveUserRole = sessionRole || userRole;
+  
+  // Alias for backward compatibility - all userRole checks now use effectiveUserRole
+  const userRoleEffective = effectiveUserRole;
   
   // 🆕 ALLY: Load Ally conversation on mount
   useEffect(() => {
@@ -5030,9 +5072,13 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
   };
 
   return (
-    <div 
-      className="flex h-screen bg-slate-50 dark:bg-slate-900 relative"
-      onClick={stellaMagicMode ? handleMagicClick : undefined}
+    <>
+      {/* Canary Badge - Shows when user is testing new version */}
+      <CanaryBadge />
+      
+      <div 
+        className="flex h-screen bg-slate-50 dark:bg-slate-900 relative"
+        onClick={stellaMagicMode ? handleMagicClick : undefined}
     >
       {/* Left Sidebar - Conversations */}
       <div 
@@ -5266,7 +5312,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                       </button>
                       
                       {/* Admin-only: Archive button */}
-                      {userRole === 'admin' && (
+                      {effectiveUserRole === 'admin' && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -6133,7 +6179,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                   )}
                   
                   {/* COLUMN 5: Evaluaciones */}
-                  {(['admin', 'expert', 'superadmin'].includes(userRole) || userEmail === 'alec@getaifactory.com') && (
+                  {(['admin', 'expert', 'superadmin'].includes(effectiveUserRole) || userEmail === 'alec@getaifactory.com') && (
                     <div className="space-y-2">
                       <div className="px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
@@ -6569,7 +6615,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
               </div>
               
               {/* Model Selector with Dropdown - Only visible for admin role */}
-              {userRole === 'admin' && (
+              {effectiveUserRole === 'admin' && (
                 <div className="relative">
                   <button
                     onClick={(e) => {
@@ -6953,7 +6999,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
                               </span>
                               
                               {/* Expert Feedback (purple) - Only for admin, expert, superadmin */}
-                              {['admin', 'expert', 'superadmin'].includes(userRole || '') && (
+                              {['admin', 'expert', 'superadmin'].includes(effectiveUserRole || '') && (
                                 <button
                                   onClick={() => {
                                     setFeedbackMessageId(msg.id);
@@ -8996,6 +9042,12 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
             setHighlightTicketId(null);
           }}
           highlightTicketId={highlightTicketId || undefined}
+          onOpenRoadmap={(ticketId) => {
+            // Open roadmap modal with optional ticket selection
+            setSelectedTicketId(ticketId || undefined);
+            setShowRoadmap(true);
+            // Don't close MyFeedback - let user see both modals
+          }}
         />
       )}
 
@@ -9580,6 +9632,7 @@ function ChatInterfaceWorkingComponent({ userId, userEmail, userName, userRole }
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -1,0 +1,1716 @@
+---
+/**
+ * SalfaCorp Analytics Dashboard
+ * 
+ * Access Control:
+ * - SuperAdmin: Full access
+ * - SalfaCorp Admin: Full access to SalfaCorp data
+ * - SalfaCorp Expert: Read-only access to SalfaCorp data
+ * - Others: No access (404)
+ * 
+ * Features:
+ * - Multi-dimensional filtering
+ * - Advanced analytics for 4 main agents (M3, S1, S2, M1)
+ * - User engagement tracking
+ * - Domain-level insights
+ */
+
+import { getSession } from '../lib/auth';
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Get session
+const session = getSession(Astro as any);
+
+// Check if user is authenticated
+if (!session) {
+  return Astro.redirect('/auth/login');
+}
+
+// Load user data to check role and organization
+const { firestore, COLLECTIONS } = await import('../lib/firestore');
+
+const userDoc = await firestore.collection(COLLECTIONS.USERS).doc(session.id).get();
+
+if (!userDoc.exists) {
+  return Astro.redirect('/auth/login');
+}
+
+const userData = userDoc.data();
+const userRole = userData.role || 'user';
+const userEmail = userData.email || '';
+const userDomain = userEmail.split('@')[1] || '';
+const organizationId = userData.organizationId || '';
+
+// Access Control
+const isSuperAdmin = userRole === 'superadmin';
+const isSalfaCorpDomain = ['salfagestion.cl', 'salfa.cl', 'maqsa.cl', 'salfacloud.cl', 'novatec.cl', 'inoval.cl'].includes(userDomain);
+const isSalfaCorpUser = organizationId === 'salfa-corp' || isSalfaCorpDomain;
+const isAdminOrExpert = ['admin', 'expert'].includes(userRole);
+
+// Check access
+const hasAccess = isSuperAdmin || (isSalfaCorpUser && isAdminOrExpert);
+
+if (!hasAccess) {
+  return new Response('Forbidden - Access restricted to SalfaCorp administrators and experts', {
+    status: 403,
+    headers: { 'Content-Type': 'text/plain' }
+  });
+}
+
+const pageTitle = 'SalfaCorp Analytics';
+const pageDescription = isSuperAdmin 
+  ? 'Analytics dashboard for SalfaCorp organization (SuperAdmin access)'
+  : 'Analytics dashboard for SalfaCorp organization';
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{pageTitle} - SalfaGPT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-50">
+  
+  <!-- Access Badge -->
+  <div class="fixed top-4 right-4 z-50 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold">
+    {isSuperAdmin ? '👑 SuperAdmin' : isAdminOrExpert ? `🔑 ${userRole}` : '👤 User'} • SalfaCorp Analytics
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200">
+    <div class="max-w-7xl mx-auto px-8 py-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-bold text-slate-900">SalfaCorp Analytics</h1>
+          <p class="text-slate-600 mt-1">{pageDescription}</p>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <a 
+            href="/chat" 
+            class="px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2"
+          >
+            ← Volver al Chat
+          </a>
+          
+          <div class="relative">
+            <button 
+              id="exportBtn"
+              onclick="toggleExportMenu()"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Descargar Datos
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <!-- Export Menu -->
+            <div id="exportMenu" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-slate-200 z-10">
+              <div class="p-2">
+                <button 
+                  onclick="downloadJSON()"
+                  class="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg flex items-center gap-3 text-sm"
+                >
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <div class="flex-1">
+                    <p class="font-medium text-slate-900">JSON Completo</p>
+                    <p class="text-xs text-slate-500">215 KB • Multi-dimensional</p>
+                  </div>
+                </button>
+                
+                <button 
+                  onclick="downloadCSV()"
+                  class="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg flex items-center gap-3 text-sm mt-1"
+                >
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div class="flex-1">
+                    <p class="font-medium text-slate-900">CSV Normalizado</p>
+                    <p class="text-xs text-slate-500">11 KB • Excel-ready • Con feedback</p>
+                  </div>
+                </button>
+                
+                <button 
+                  onclick="downloadFeedback()"
+                  class="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-lg flex items-center gap-3 text-sm mt-1"
+                >
+                  <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                  <div class="flex-1">
+                    <p class="font-medium text-slate-900">Feedback Completo</p>
+                    <p class="text-xs text-slate-500">332 KB • Con contexto</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-8 py-8">
+    
+    <!-- Loading State -->
+    <div id="loadingState" class="flex items-center justify-center py-20">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p class="mt-4 text-slate-600">Cargando datos de analytics...</p>
+      </div>
+    </div>
+
+    <!-- Dashboard Content (hidden initially) -->
+    <div id="dashboardContent" class="hidden space-y-8">
+      
+      <!-- Access Notice -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-start gap-3">
+          <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div class="flex-1">
+            <h3 class="font-semibold text-blue-900">Acceso Restringido</h3>
+            <p class="text-sm text-blue-800 mt-1">
+              Esta sección es visible solo para SuperAdmin y usuarios Admin/Expert de SalfaCorp.
+              {isSuperAdmin && ' Tienes acceso completo como SuperAdmin.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters Section -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-slate-900">Filtros de Análisis</h2>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-slate-600" id="activeFiltersCount">Sin filtros activos</span>
+            <button 
+              id="clearAllFiltersBtn"
+              class="px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Limpiar Todos
+            </button>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <!-- Agent Filter -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              Agente
+              <span class="text-xs text-slate-500 ml-1" id="agentFilterHint"></span>
+            </label>
+            <select 
+              id="agentFilter" 
+              onchange="handleAgentFilterChange(this.value)"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">Todos los Agentes</option>
+              <option value="production">Solo Producción (5)</option>
+              <option value="private">Solo Privados (36)</option>
+              <optgroup label="Agentes Principales">
+                <option value="M3-v2">M3-v2: GOP GPT</option>
+                <option value="S1-v2">S1-v2: Gestión Bodegas</option>
+                <option value="S2-v2">S2-v2: Maqsa Mantenimiento</option>
+                <option value="M1-v2">M1-v2: Legal Territorial</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <!-- Domain Filter (Multi-select) -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              Filtrar Dominios
+              <span class="text-xs text-slate-500 ml-1" id="domainFilterCount"></span>
+            </label>
+            <div class="relative">
+              <button 
+                id="domainFilterBtn"
+                onclick="toggleDomainDropdown()"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-left flex items-center justify-between hover:bg-slate-50"
+              >
+                <span class="text-sm" id="domainFilterLabel">Todos los Dominios</span>
+                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              <!-- Dropdown Menu -->
+              <div 
+                id="domainDropdown" 
+                class="hidden absolute z-10 mt-1 w-full bg-white border border-slate-300 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+              >
+                <div class="p-2">
+                  <label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      value="all" 
+                      id="domain-all"
+                      onchange="handleDomainCheckbox('all')"
+                      class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
+                      checked
+                    />
+                    <span class="text-sm font-medium text-slate-700">Todos los Dominios</span>
+                  </label>
+                  <div class="border-t border-slate-200 my-2"></div>
+                  
+                  <!-- Domain checkboxes will be populated here -->
+                  <div id="domainCheckboxes"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date Range -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Período</label>
+            <select id="dateRangeFilter" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <option value="7">Últimos 7 días</option>
+              <option value="30" selected>Últimos 30 días</option>
+              <option value="all">Todo el período</option>
+            </select>
+          </div>
+
+          <!-- User Search -->
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">Buscar Usuario</label>
+            <input 
+              type="text" 
+              id="userSearchFilter"
+              placeholder="email@domain.com"
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          
+        </div>
+
+        <div class="mt-4 flex items-center justify-between">
+          <button 
+            id="applyFiltersBtn"
+            class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Aplicar Filtros
+          </button>
+          
+          <button 
+            id="resetFiltersBtn"
+            class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            Resetear
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs Section -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-slate-600">Total Mensajes</h3>
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+          </div>
+          <p id="kpi-totalMessages" class="text-3xl font-bold text-slate-900">-</p>
+          <p class="text-xs text-slate-500 mt-1">En el período seleccionado</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-slate-600">Usuarios Activos</h3>
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <p id="kpi-activeUsers" class="text-3xl font-bold text-slate-900">-</p>
+          <p class="text-xs text-slate-500 mt-1">Usuarios únicos</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-slate-600">Agentes en Producción</h3>
+            <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <p id="kpi-productionAgents" class="text-3xl font-bold text-slate-900">-</p>
+          <p class="text-xs text-slate-500 mt-1">Compartidos activamente</p>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-medium text-slate-600">Conversaciones</h3>
+            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+          </div>
+          <p id="kpi-conversations" class="text-3xl font-bold text-slate-900">-</p>
+          <p class="text-xs text-slate-500 mt-1">Chats únicos</p>
+        </div>
+
+      </div>
+
+      <!-- Main Agents Performance -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h2 class="text-lg font-bold text-slate-900 mb-6">Agentes Principales - Rendimiento</h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <!-- M3-v2 -->
+          <button 
+            onclick="selectAgent('M3-v2')" 
+            id="card-m3-v2"
+            class="border-2 border-purple-200 rounded-lg p-4 hover:border-purple-400 transition-all cursor-pointer text-left w-full hover:shadow-lg"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-slate-900">M3-v2</h3>
+              <span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded-full">Producción</span>
+            </div>
+            <p class="text-sm text-slate-600 mb-3">GOP GPT</p>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Mensajes:</span>
+                <span id="m3-messages" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Usuarios:</span>
+                <span id="m3-users" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Compartido:</span>
+                <span id="m3-shared" class="font-semibold">-</span>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-purple-100">
+              <p class="text-xs text-purple-600 font-medium">👆 Click para filtrar</p>
+            </div>
+          </button>
+
+          <!-- S1-v2 -->
+          <button 
+            onclick="selectAgent('S1-v2')" 
+            id="card-s1-v2"
+            class="border-2 border-green-200 rounded-lg p-4 hover:border-green-400 transition-all cursor-pointer text-left w-full hover:shadow-lg"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-slate-900">S1-v2</h3>
+              <span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">Producción</span>
+            </div>
+            <p class="text-sm text-slate-600 mb-3">Gestión Bodegas</p>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Mensajes:</span>
+                <span id="s1-messages" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Usuarios:</span>
+                <span id="s1-users" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Compartido:</span>
+                <span id="s1-shared" class="font-semibold">-</span>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-green-100">
+              <p class="text-xs text-green-600 font-medium">👆 Click para filtrar</p>
+            </div>
+          </button>
+
+          <!-- S2-v2 -->
+          <button 
+            onclick="selectAgent('S2-v2')" 
+            id="card-s2-v2"
+            class="border-2 border-blue-200 rounded-lg p-4 hover:border-blue-400 transition-all cursor-pointer text-left w-full hover:shadow-lg"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-slate-900">S2-v2</h3>
+              <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">Producción</span>
+            </div>
+            <p class="text-sm text-slate-600 mb-3">Maqsa Mantenimiento</p>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Mensajes:</span>
+                <span id="s2-messages" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Usuarios:</span>
+                <span id="s2-users" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Compartido:</span>
+                <span id="s2-shared" class="font-semibold">-</span>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-blue-100">
+              <p class="text-xs text-blue-600 font-medium">👆 Click para filtrar</p>
+            </div>
+          </button>
+
+          <!-- M1-v2 -->
+          <button 
+            onclick="selectAgent('M1-v2')" 
+            id="card-m1-v2"
+            class="border-2 border-orange-200 rounded-lg p-4 hover:border-orange-400 transition-all cursor-pointer text-left w-full hover:shadow-lg"
+          >
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="font-bold text-slate-900">M1-v2</h3>
+              <span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Producción</span>
+            </div>
+            <p class="text-sm text-slate-600 mb-3">Legal Territorial</p>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-slate-600">Mensajes:</span>
+                <span id="m1-messages" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Usuarios:</span>
+                <span id="m1-users" class="font-semibold">-</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-600">Compartido:</span>
+                <span id="m1-shared" class="font-semibold">-</span>
+              </div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-orange-100">
+              <p class="text-xs text-orange-600 font-medium">👆 Click para filtrar</p>
+            </div>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- Agent Detail Section (appears when agent is selected) -->
+      <div id="agentDetailSection" class="hidden space-y-6">
+        
+        <!-- Selected Agent Header -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-2xl font-bold" id="selectedAgentTitle">-</h2>
+              <p class="text-blue-100 mt-1" id="selectedAgentSubtitle">-</p>
+            </div>
+            <button 
+              onclick="clearAgentFilter()"
+              class="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+            >
+              ✕ Limpiar Filtro
+            </button>
+          </div>
+        </div>
+
+        <!-- Daily Timeline -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">📅 Uso Diario del Agente</h3>
+          <div id="dailyTimelineTable" class="overflow-x-auto">
+            <p class="text-center text-slate-400 py-4">Selecciona un agente para ver el detalle</p>
+          </div>
+        </div>
+
+        <!-- User Breakdown -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">👥 Desglose por Usuario</h3>
+          <div id="userBreakdownTable" class="overflow-x-auto">
+            <p class="text-center text-slate-400 py-4">Selecciona un agente para ver los usuarios</p>
+          </div>
+        </div>
+
+        <!-- Hourly Pattern -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">⏰ Patrón de Uso por Hora del Día</h3>
+          <div id="hourlyPatternTable" class="overflow-x-auto">
+            <p class="text-center text-slate-400 py-4">Selecciona un agente para ver patrones</p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Daily Activity Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">📅 Actividad Diaria</h3>
+          <div id="dailyActivityChart" class="space-y-1"></div>
+        </div>
+
+        <!-- Agent Comparison Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">🤖 Comparación de Agentes</h3>
+          <div id="agentComparisonChart" class="space-y-2"></div>
+        </div>
+
+        <!-- Hourly Pattern Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">⏰ Patrones por Hora del Día</h3>
+          <div id="hourlyPatternChart" class="space-y-1"></div>
+        </div>
+
+        <!-- Domain Distribution Chart -->
+        <div class="bg-white rounded-xl shadow-sm p-6">
+          <h3 class="font-bold text-slate-900 mb-4">🌐 Distribución por Dominio</h3>
+          <div id="domainDistributionChart" class="space-y-2"></div>
+        </div>
+
+      </div>
+
+      <!-- User Engagement Table -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-bold text-slate-900 mb-4">Top 10 Usuarios Más Activos</h3>
+        
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-100 border-b border-slate-200">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-slate-700">#</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-700">Dominio</th>
+                <th class="px-4 py-3 text-right font-semibold text-slate-700">Mensajes</th>
+                <th class="px-4 py-3 text-right font-semibold text-slate-700">Días Activos</th>
+              </tr>
+            </thead>
+            <tbody id="topUsersTable">
+              <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-slate-400">
+                  Cargando datos...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Conversations List with Feedback -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-bold text-slate-900 mb-4">Conversaciones Recientes</h3>
+        
+        <div id="conversationsList" class="space-y-2 max-h-96 overflow-y-auto">
+          <p class="text-center text-slate-400 py-8">Cargando conversaciones...</p>
+        </div>
+      </div>
+
+      <!-- Feedback Summary -->
+      <div class="bg-white rounded-xl shadow-sm p-6">
+        <h3 class="font-bold text-slate-900 mb-4">⭐ Feedback de Usuarios</h3>
+        
+        <div id="feedbackSummary">
+          <p class="text-center text-slate-400 py-8">Cargando feedback...</p>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    // Load analytics data
+    let analyticsData = null;
+    let feedbackData = null;
+
+    async function loadAnalyticsData() {
+      try {
+        const [analyticsResponse, feedbackResponse] = await Promise.all([
+          fetch('/data/analytics-complete.json'),
+          fetch('/data/feedback-with-context.json')
+        ]);
+        
+        analyticsData = await analyticsResponse.json();
+        feedbackData = await feedbackResponse.json();
+        
+        console.log('✅ Analytics cargados:', analyticsData);
+        console.log('✅ Feedback cargado:', feedbackData);
+        
+        // Hide loading, show dashboard
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
+        
+        // Populate domain checkboxes
+        populateDomainCheckboxes();
+        
+        // Render initial data
+        updateDashboard();
+        
+      } catch (error) {
+        console.error('❌ Error cargando datos:', error);
+        document.getElementById('loadingState').innerHTML = `
+          <div class="text-center">
+            <p class="text-red-600 font-semibold">Error cargando datos</p>
+            <p class="text-slate-600 mt-2">${error.message}</p>
+            <button onclick="location.reload()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg">
+              Reintentar
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // Populate domain checkboxes
+    function populateDomainCheckboxes() {
+      if (!analyticsData) return;
+      
+      allDomains = analyticsData.domains.map(d => d.domain).sort();
+      
+      const html = allDomains.map(domain => `
+        <label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 rounded cursor-pointer">
+          <input 
+            type="checkbox" 
+            value="${domain}" 
+            id="domain-${domain.replace(/\./g, '-')}"
+            onchange="handleDomainCheckbox('${domain}')"
+            class="rounded text-blue-600 focus:ring-2 focus:ring-blue-500"
+            checked
+          />
+          <span class="text-sm text-slate-700">${domain}</span>
+          <span class="text-xs text-slate-400 ml-auto">
+            (${analyticsData.domains.find(d => d.domain === domain)?.userCount || 0})
+          </span>
+        </label>
+      `).join('');
+      
+      document.getElementById('domainCheckboxes').innerHTML = html;
+    }
+
+    // Toggle domain dropdown
+    window.toggleDomainDropdown = function() {
+      const dropdown = document.getElementById('domainDropdown');
+      dropdown.classList.toggle('hidden');
+    };
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('domainDropdown');
+      const btn = document.getElementById('domainFilterBtn');
+      
+      if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+        dropdown.classList.add('hidden');
+      }
+    });
+
+    // Handle domain checkbox changes
+    window.handleDomainCheckbox = function(domain) {
+      const allCheckbox = document.getElementById('domain-all');
+      
+      if (domain === 'all') {
+        // Toggle all
+        const isChecked = allCheckbox.checked;
+        excludedDomains = isChecked ? [] : [...allDomains];
+        
+        // Update all checkboxes
+        allDomains.forEach(d => {
+          const checkbox = document.getElementById(`domain-${d.replace(/\./g, '-')}`);
+          if (checkbox) checkbox.checked = isChecked;
+        });
+      } else {
+        // Toggle individual domain
+        const checkbox = document.getElementById(`domain-${domain.replace(/\./g, '-')}`);
+        
+        if (checkbox.checked) {
+          // Include domain (remove from excluded)
+          excludedDomains = excludedDomains.filter(d => d !== domain);
+        } else {
+          // Exclude domain
+          if (!excludedDomains.includes(domain)) {
+            excludedDomains.push(domain);
+          }
+        }
+        
+        // Update "all" checkbox
+        allCheckbox.checked = excludedDomains.length === 0;
+      }
+      
+      // Update UI
+      updateDomainFilterLabel();
+      updateDashboard();
+      
+      // If agent is selected, update its detail
+      if (selectedAgentCode) {
+        showAgentDetail(selectedAgentCode);
+      }
+    };
+
+    function updateDomainFilterLabel() {
+      const activeCount = allDomains.length - excludedDomains.length;
+      const label = document.getElementById('domainFilterLabel');
+      const count = document.getElementById('domainFilterCount');
+      
+      if (excludedDomains.length === 0) {
+        label.textContent = 'Todos los Dominios';
+        count.textContent = '';
+      } else if (activeCount === 1) {
+        const activeDomain = allDomains.find(d => !excludedDomains.includes(d));
+        label.textContent = `@${activeDomain}`;
+        count.textContent = '(1 dominio)';
+      } else {
+        label.textContent = `${activeCount} dominios seleccionados`;
+        count.textContent = `(${excludedDomains.length} excluidos)`;
+      }
+      
+      // Update active filters count
+      updateActiveFiltersCount();
+    }
+
+    function updateActiveFiltersCount() {
+      const count = document.getElementById('activeFiltersCount');
+      const agentHint = document.getElementById('agentFilterHint');
+      let activeFilters = 0;
+      
+      if (excludedDomains.length > 0) activeFilters++;
+      if (agentFilterType !== 'all') activeFilters++;
+      
+      if (activeFilters === 0) {
+        count.textContent = 'Sin filtros activos';
+        count.classList.remove('text-blue-600', 'font-semibold');
+      } else {
+        count.textContent = `${activeFilters} filtro${activeFilters > 1 ? 's' : ''} activo${activeFilters > 1 ? 's' : ''}`;
+        count.classList.add('text-blue-600', 'font-semibold');
+      }
+      
+      // Update agent filter hint
+      if (agentFilterType !== 'all') {
+        agentHint.textContent = '(filtrando)';
+        agentHint.classList.add('text-blue-600');
+      } else {
+        agentHint.textContent = '';
+        agentHint.classList.remove('text-blue-600');
+      }
+    }
+
+    // Clear all filters
+    document.getElementById('clearAllFiltersBtn')?.addEventListener('click', () => {
+      // Reset domains
+      excludedDomains = [];
+      allDomains.forEach(d => {
+        const checkbox = document.getElementById(`domain-${d.replace(/\./g, '-')}`);
+        if (checkbox) checkbox.checked = true;
+      });
+      const allCheckbox = document.getElementById('domain-all');
+      if (allCheckbox) allCheckbox.checked = true;
+      
+      // Reset agent filter
+      agentFilterType = 'all';
+      selectedAgentCode = null;
+      const agentDropdown = document.getElementById('agentFilter');
+      if (agentDropdown) agentDropdown.value = 'all';
+      
+      // Clear agent cards highlight
+      updateAgentCards(null);
+      
+      // Hide agent detail section
+      document.getElementById('agentDetailSection').classList.add('hidden');
+      
+      // Update UI
+      updateDomainFilterLabel();
+      updateDashboard();
+      updateActiveFiltersCount();
+    });
+
+    function getFilteredData() {
+      if (!analyticsData) return { dailyInteractions: [], hourlyInteractions: [], users: [] };
+      
+      // Filter by excluded domains
+      let filteredDaily = analyticsData.dailyInteractions.filter(d => 
+        !excludedDomains.includes(d.domain)
+      );
+      
+      let filteredHourly = analyticsData.hourlyInteractions.filter(h => 
+        !excludedDomains.includes(h.domain)
+      );
+      
+      let filteredUsers = analyticsData.users.filter(u => 
+        !excludedDomains.includes(u.domain)
+      );
+      
+      // Filter by agent type
+      if (agentFilterType !== 'all') {
+        if (agentFilterType === 'production') {
+          // Only production agents
+          filteredDaily = filteredDaily.filter(d => d.status === 'Producción');
+          filteredHourly = filteredHourly.filter(h => h.status === 'Producción');
+        } else if (agentFilterType === 'private') {
+          // Only private agents
+          filteredDaily = filteredDaily.filter(d => d.status === 'Privado');
+          filteredHourly = filteredHourly.filter(h => h.status === 'Privado');
+        } else {
+          // Specific agent code (M3-v2, S1-v2, etc.)
+          filteredDaily = filteredDaily.filter(d => d.agentCode === agentFilterType);
+          filteredHourly = filteredHourly.filter(h => h.agentCode === agentFilterType);
+        }
+      }
+      
+      return { 
+        dailyInteractions: filteredDaily, 
+        hourlyInteractions: filteredHourly,
+        users: filteredUsers 
+      };
+    }
+
+    function updateDashboard() {
+      if (!analyticsData) return;
+      
+      const { dailyInteractions, users } = getFilteredData();
+      
+      // Calculate filtered KPIs
+      const totalMessages = dailyInteractions.reduce((sum, d) => sum + d.totalMessages, 0);
+      const uniqueUsers = new Set(dailyInteractions.map(d => d.userId)).size;
+      const uniqueConversations = new Set(
+        analyticsData.conversations
+          .filter(c => !excludedDomains.includes(c.domain))
+          .map(c => c.conversationId)
+      ).size;
+      
+      // Count production agents (filtering those with activity in selected domains)
+      const productionAgentsWithActivity = new Set(
+        dailyInteractions
+          .filter(d => d.status === 'Producción')
+          .map(d => d.agentId)
+      ).size;
+      
+      // Update KPIs with filtered data
+      document.getElementById('kpi-totalMessages').textContent = 
+        totalMessages.toLocaleString();
+      document.getElementById('kpi-activeUsers').textContent = 
+        uniqueUsers.toLocaleString();
+      document.getElementById('kpi-productionAgents').textContent = 
+        productionAgentsWithActivity;
+      document.getElementById('kpi-conversations').textContent = 
+        uniqueConversations.toLocaleString();
+      
+      // Update main agents cards (with filtered data)
+      const mainAgents = ['M3-v2', 'S1-v2', 'S2-v2', 'M1-v2'];
+      
+      mainAgents.forEach(code => {
+        const agent = analyticsData.agents.find(a => a.agentCode === code);
+        const dailyData = dailyInteractions.filter(d => d.agentCode === code);
+        
+        const totalMessages = dailyData.reduce((sum, d) => sum + d.totalMessages, 0);
+        const uniqueUsers = new Set(dailyData.map(d => d.userId)).size;
+        
+        const prefix = code.toLowerCase().replace('-v2', '');
+        document.getElementById(`${prefix}-messages`).textContent = totalMessages;
+        document.getElementById(`${prefix}-users`).textContent = uniqueUsers;
+        document.getElementById(`${prefix}-shared`).textContent = agent ? agent.sharedWithCount : 0;
+      });
+      
+      // Update top users table
+      updateTopUsersTable();
+      
+      // Update conversations list
+      updateConversationsList();
+      
+      // Update charts
+      updateCharts();
+      
+      // Update feedback summary
+      updateFeedbackSummary();
+    }
+    
+    function updateCharts() {
+      if (!analyticsData) return;
+      
+      const { dailyInteractions, hourlyInteractions } = getFilteredData();
+      
+      renderDailyActivityChart(dailyInteractions);
+      renderAgentComparisonChart(dailyInteractions);
+      renderHourlyPatternChart(hourlyInteractions);
+      renderDomainDistributionChart(dailyInteractions);
+    }
+    
+    function renderDailyActivityChart(dailyData) {
+      // Group by date
+      const byDate = {};
+      dailyData.forEach(d => {
+        if (!byDate[d.date]) {
+          byDate[d.date] = { date: d.date, dayName: d.dayName, totalMessages: 0 };
+        }
+        byDate[d.date].totalMessages += d.totalMessages;
+      });
+      
+      const sortedDates = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+      const maxMessages = Math.max(...sortedDates.map(d => d.totalMessages), 1);
+      
+      const html = sortedDates.map(day => {
+        const width = (day.totalMessages / maxMessages) * 100;
+        const dateObj = new Date(day.date);
+        const dateLabel = dateObj.toLocaleDateString('es-CL', { month: 'short', day: 'numeric' });
+        
+        return `
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium text-slate-600 w-16">${dateLabel}</span>
+            <span class="text-xs text-slate-500 w-20 capitalize">${day.dayName}</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
+              <div 
+                class="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-all"
+                style="width: ${width}%"
+              ></div>
+              <div class="absolute inset-0 flex items-center px-3">
+                <span class="text-xs font-semibold ${day.totalMessages > 0 ? 'text-white' : 'text-slate-400'}">
+                  ${day.totalMessages > 0 ? `${day.totalMessages} mensajes` : ''}
+                </span>
+              </div>
+            </div>
+            <span class="text-sm font-semibold text-slate-700 w-12 text-right">${day.totalMessages}</span>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('dailyActivityChart').innerHTML = html || '<p class="text-center text-slate-400 py-8">Sin datos en el período seleccionado</p>';
+    }
+    
+    function renderAgentComparisonChart(dailyData) {
+      const mainAgents = ['M3-v2', 'S1-v2', 'S2-v2', 'M1-v2'];
+      
+      const agentStats = mainAgents.map(code => {
+        const agentData = dailyData.filter(d => d.agentCode === code);
+        const totalMessages = agentData.reduce((sum, d) => sum + d.totalMessages, 0);
+        const uniqueUsers = new Set(agentData.map(d => d.userId)).size;
+        const agent = analyticsData.agents.find(a => a.agentCode === code);
+        
+        return {
+          code,
+          title: agent?.agentTitle || code,
+          totalMessages,
+          uniqueUsers,
+          color: code === 'M3-v2' ? 'purple' : code === 'S1-v2' ? 'green' : code === 'S2-v2' ? 'blue' : 'orange'
+        };
+      }).sort((a, b) => b.totalMessages - a.totalMessages);
+      
+      const maxMessages = Math.max(...agentStats.map(a => a.totalMessages), 1);
+      
+      const html = agentStats.map(agent => {
+        const width = (agent.totalMessages / maxMessages) * 100;
+        
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-sm">
+              <span class="font-medium text-slate-700">${agent.code}</span>
+              <span class="text-xs text-slate-500">${agent.uniqueUsers} usuarios</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 bg-slate-100 rounded-full h-8 relative overflow-hidden">
+                <div 
+                  class="absolute inset-y-0 left-0 bg-${agent.color}-500 rounded-full transition-all"
+                  style="width: ${width}%"
+                ></div>
+                <div class="absolute inset-0 flex items-center px-3">
+                  <span class="text-xs font-semibold ${agent.totalMessages > 0 ? 'text-white' : 'text-slate-400'}">
+                    ${agent.title}
+                  </span>
+                </div>
+              </div>
+              <span class="text-sm font-bold text-slate-900 w-16 text-right">${agent.totalMessages}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('agentComparisonChart').innerHTML = html || '<p class="text-center text-slate-400 py-8">Sin datos</p>';
+    }
+    
+    function renderHourlyPatternChart(hourlyData) {
+      // Group by hour
+      const byHour = {};
+      for (let h = 0; h < 24; h++) {
+        byHour[h] = { hour: h, totalMessages: 0, users: new Set() };
+      }
+      
+      hourlyData.forEach(h => {
+        byHour[h.hour].totalMessages += h.totalMessages;
+        byHour[h.hour].users.add(h.userEmail);
+      });
+      
+      const sortedHours = Object.values(byHour);
+      const maxMessages = Math.max(...sortedHours.map(h => h.totalMessages), 1);
+      
+      const html = sortedHours.map(h => {
+        const width = (h.totalMessages / maxMessages) * 100;
+        const hourLabel = h.hour.toString().padStart(2, '0') + ':00';
+        
+        return `
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-medium text-slate-600 w-12">${hourLabel}</span>
+            <div class="flex-1 bg-slate-100 rounded-full h-6 relative overflow-hidden">
+              <div 
+                class="absolute inset-y-0 left-0 ${h.totalMessages > 0 ? 'bg-indigo-500' : 'bg-slate-200'} rounded-full transition-all"
+                style="width: ${width}%"
+              ></div>
+              <div class="absolute inset-0 flex items-center px-3">
+                <span class="text-xs font-semibold ${h.totalMessages > 0 ? 'text-white' : 'text-slate-400'}">
+                  ${h.totalMessages > 0 ? `${h.totalMessages} msg • ${h.users.size} usuarios` : ''}
+                </span>
+              </div>
+            </div>
+            <span class="text-xs text-slate-600 w-8">${h.totalMessages}</span>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('hourlyPatternChart').innerHTML = html;
+    }
+    
+    function renderDomainDistributionChart(dailyData) {
+      // Group by domain
+      const byDomain = {};
+      dailyData.forEach(d => {
+        if (!byDomain[d.domain]) {
+          byDomain[d.domain] = { domain: d.domain, totalMessages: 0, users: new Set() };
+        }
+        byDomain[d.domain].totalMessages += d.totalMessages;
+        byDomain[d.domain].users.add(d.userId);
+      });
+      
+      const sortedDomains = Object.values(byDomain)
+        .sort((a, b) => b.totalMessages - a.totalMessages)
+        .slice(0, 10); // Top 10
+      
+      const maxMessages = Math.max(...sortedDomains.map(d => d.totalMessages), 1);
+      
+      const colors = [
+        'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 
+        'bg-pink-500', 'bg-cyan-500', 'bg-yellow-500', 'bg-red-500',
+        'bg-indigo-500', 'bg-teal-500'
+      ];
+      
+      const html = sortedDomains.map((domain, index) => {
+        const width = (domain.totalMessages / maxMessages) * 100;
+        const percentage = ((domain.totalMessages / dailyData.reduce((sum, d) => sum + d.totalMessages, 0)) * 100).toFixed(1);
+        
+        return `
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-sm">
+              <span class="font-medium text-slate-700">@${domain.domain}</span>
+              <span class="text-xs text-slate-500">${domain.users.size} usuarios • ${percentage}%</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <div class="flex-1 bg-slate-100 rounded-full h-7 relative overflow-hidden">
+                <div 
+                  class="absolute inset-y-0 left-0 ${colors[index % colors.length]} rounded-full transition-all"
+                  style="width: ${width}%"
+                ></div>
+                <div class="absolute inset-0 flex items-center px-3">
+                  <span class="text-xs font-semibold ${domain.totalMessages > 0 ? 'text-white' : 'text-slate-400'}">
+                    ${domain.totalMessages} mensajes
+                  </span>
+                </div>
+              </div>
+              <span class="text-sm font-bold text-slate-900 w-12 text-right">${domain.totalMessages}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('domainDistributionChart').innerHTML = html || '<p class="text-center text-slate-400 py-8">Sin datos</p>';
+    }
+
+    function updateTopUsersTable() {
+      const { dailyInteractions } = getFilteredData();
+      
+      const users = analyticsData.users
+        .filter(u => !excludedDomains.includes(u.domain))
+        .map(user => {
+          const userDaily = dailyInteractions.filter(d => d.userId === user.userId);
+          const totalMessages = userDaily.reduce((sum, d) => sum + d.totalMessages, 0);
+          const daysActive = new Set(userDaily.map(d => d.date)).size;
+          
+          return {
+            ...user,
+            totalMessages,
+            daysActive
+          };
+        })
+        .sort((a, b) => b.totalMessages - a.totalMessages)
+        .slice(0, 10);
+      
+      const tbody = document.getElementById('topUsersTable');
+      tbody.innerHTML = users.map((user, index) => `
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+          <td class="px-4 py-3 text-slate-600">${index + 1}</td>
+          <td class="px-4 py-3">
+            <div class="font-medium text-slate-900">${user.userName}</div>
+            <div class="text-xs text-slate-500">${user.userEmail}</div>
+          </td>
+          <td class="px-4 py-3 text-slate-600">${user.domain}</td>
+          <td class="px-4 py-3 text-right font-semibold">${user.totalMessages}</td>
+          <td class="px-4 py-3 text-right text-slate-600">${user.daysActive}</td>
+        </tr>
+      `).join('');
+    }
+
+    function updateConversationsList() {
+      const conversations = analyticsData.conversations
+        .filter(c => !excludedDomains.includes(c.domain))
+        .sort((a, b) => new Date(b.lastMessage) - new Date(a.lastMessage))
+        .slice(0, 20);
+      
+      const container = document.getElementById('conversationsList');
+      container.innerHTML = conversations.map(conv => {
+        const date = new Date(conv.lastMessage).toLocaleDateString('es-CL');
+        const agentColor = conv.agentCode === 'M3-v2' ? 'purple' :
+                          conv.agentCode === 'S1-v2' ? 'green' :
+                          conv.agentCode === 'S2-v2' ? 'blue' :
+                          conv.agentCode === 'M1-v2' ? 'orange' : 'slate';
+        
+        return `
+          <div class="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50">
+            <div class="flex-shrink-0">
+              <span class="px-2 py-1 bg-${agentColor}-100 text-${agentColor}-700 text-xs font-semibold rounded">
+                ${conv.agentCode || 'Other'}
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-slate-900 truncate">${conv.conversationTitle}</p>
+              <p class="text-xs text-slate-500">${conv.userEmail} • ${date}</p>
+            </div>
+            <div class="text-right">
+              <p class="text-sm font-semibold text-slate-900">${conv.totalMessages}</p>
+              <p class="text-xs text-slate-500">mensajes</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Toggle export menu
+    window.toggleExportMenu = function() {
+      const menu = document.getElementById('exportMenu');
+      menu.classList.toggle('hidden');
+    };
+    
+    // Close export menu when clicking outside
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('exportMenu');
+      const btn = document.getElementById('exportBtn');
+      
+      if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.add('hidden');
+      }
+    });
+    
+    // Download JSON
+    window.downloadJSON = async function() {
+      try {
+        const response = await fetch('/data/analytics-complete.json');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `salfacorp-analytics-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        document.getElementById('exportMenu').classList.add('hidden');
+      } catch (error) {
+        console.error('Error downloading JSON:', error);
+        alert('Error al descargar JSON');
+      }
+    };
+    
+    // Download CSV
+    window.downloadCSV = async function() {
+      try {
+        const response = await fetch('/data/analytics-normalized.csv');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `salfacorp-analytics-normalized-${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        document.getElementById('exportMenu').classList.add('hidden');
+      } catch (error) {
+        console.error('Error downloading CSV:', error);
+        alert('Error al descargar CSV');
+      }
+    };
+    
+    // Download Feedback
+    window.downloadFeedback = async function() {
+      try {
+        const response = await fetch('/data/feedback-with-context.json');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `salfacorp-feedback-${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        
+        document.getElementById('exportMenu').classList.add('hidden');
+      } catch (error) {
+        console.error('Error downloading feedback:', error);
+        alert('Error al descargar feedback');
+      }
+    };
+
+    // Global state
+    let selectedAgentCode = null;
+    let agentFilterType = 'all'; // 'all', 'production', 'private', or specific code
+    let excludedDomains = []; // Dominios excluidos del análisis
+    let allDomains = [];
+
+    // Handle agent filter dropdown change
+    window.handleAgentFilterChange = function(value) {
+      agentFilterType = value;
+      
+      // If specific agent selected, also set as selected agent
+      if (['M3-v2', 'S1-v2', 'S2-v2', 'M1-v2'].includes(value)) {
+        selectedAgentCode = value;
+        updateAgentCards(value);
+        showAgentDetail(value);
+        
+        // Scroll to detail
+        setTimeout(() => {
+          document.getElementById('agentDetailSection')?.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+          });
+        }, 100);
+      } else {
+        // Clear agent selection if filter type changed
+        clearAgentFilter();
+      }
+      
+      // Update all data
+      updateDashboard();
+      updateActiveFiltersCount();
+    };
+    
+    // Select agent (filter by agent from card click)
+    window.selectAgent = function(agentCode) {
+      selectedAgentCode = agentCode;
+      agentFilterType = agentCode;
+      
+      // Update dropdown to match
+      const dropdown = document.getElementById('agentFilter');
+      if (dropdown) dropdown.value = agentCode;
+      
+      // Update UI
+      updateAgentCards(agentCode);
+      showAgentDetail(agentCode);
+      updateDashboard();
+      updateActiveFiltersCount();
+      
+      // Scroll to detail section
+      document.getElementById('agentDetailSection').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    };
+
+    // Clear agent filter
+    window.clearAgentFilter = function() {
+      selectedAgentCode = null;
+      agentFilterType = 'all';
+      
+      // Update dropdown
+      const dropdown = document.getElementById('agentFilter');
+      if (dropdown) dropdown.value = 'all';
+      
+      updateAgentCards(null);
+      document.getElementById('agentDetailSection').classList.add('hidden');
+      updateDashboard();
+      updateActiveFiltersCount();
+    };
+
+    function updateAgentCards(selectedCode) {
+      const cards = ['M3-v2', 'S1-v2', 'S2-v2', 'M1-v2'];
+      
+      cards.forEach(code => {
+        const cardId = `card-${code.toLowerCase()}`;
+        const card = document.getElementById(cardId);
+        
+        if (card) {
+          if (selectedCode === code) {
+            // Highlight selected
+            card.classList.add('ring-4', 'ring-offset-2');
+            if (code === 'M3-v2') card.classList.add('ring-purple-400');
+            if (code === 'S1-v2') card.classList.add('ring-green-400');
+            if (code === 'S2-v2') card.classList.add('ring-blue-400');
+            if (code === 'M1-v2') card.classList.add('ring-orange-400');
+          } else {
+            // Remove highlight
+            card.classList.remove('ring-4', 'ring-offset-2', 'ring-purple-400', 'ring-green-400', 'ring-blue-400', 'ring-orange-400');
+          }
+        }
+      });
+    }
+
+    function showAgentDetail(agentCode) {
+      if (!analyticsData) return;
+      
+      // Show section
+      document.getElementById('agentDetailSection').classList.remove('hidden');
+      
+      // Get agent info
+      const agent = analyticsData.agents.find(a => a.agentCode === agentCode);
+      
+      // Filter by agent AND excluded domains
+      const agentData = analyticsData.dailyInteractions.filter(d => 
+        d.agentCode === agentCode && !excludedDomains.includes(d.domain)
+      );
+      
+      // Update header
+      document.getElementById('selectedAgentTitle').textContent = agent.agentTitle;
+      document.getElementById('selectedAgentSubtitle').textContent = 
+        `${agentCode} • ${agent.status} • Compartido con ${agent.sharedWithCount} usuarios`;
+      
+      // 1. Daily Timeline
+      renderDailyTimeline(agentCode, agentData);
+      
+      // 2. User Breakdown
+      renderUserBreakdown(agentCode, agentData);
+      
+      // 3. Hourly Pattern
+      renderHourlyPattern(agentCode);
+    }
+
+    function renderDailyTimeline(agentCode, dailyData) {
+      // Group by date
+      const byDate = {};
+      dailyData.forEach(d => {
+        if (!byDate[d.date]) {
+          byDate[d.date] = {
+            date: d.date,
+            dayName: d.dayName,
+            questions: 0,
+            responses: 0,
+            totalMessages: 0,
+            users: new Set()
+          };
+        }
+        byDate[d.date].questions += d.questions;
+        byDate[d.date].responses += d.responses;
+        byDate[d.date].totalMessages += d.totalMessages;
+        byDate[d.date].users.add(d.userEmail);
+      });
+      
+      const sortedDates = Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
+      
+      const html = `
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">Fecha</th>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">Día</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Preguntas</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Respuestas</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Total</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Usuarios</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedDates.map(day => `
+              <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-4 py-3 font-medium text-slate-900">${day.date}</td>
+                <td class="px-4 py-3 text-slate-600 capitalize">${day.dayName}</td>
+                <td class="px-4 py-3 text-right">${day.questions}</td>
+                <td class="px-4 py-3 text-right">${day.responses}</td>
+                <td class="px-4 py-3 text-right font-semibold">${day.totalMessages}</td>
+                <td class="px-4 py-3 text-right text-blue-600">${day.users.size}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      document.getElementById('dailyTimelineTable').innerHTML = html;
+    }
+
+    function renderUserBreakdown(agentCode, dailyData) {
+      // Group by user
+      const byUser = {};
+      dailyData.forEach(d => {
+        if (!byUser[d.userId]) {
+          byUser[d.userId] = {
+            userId: d.userId,
+            userEmail: d.userEmail,
+            userName: d.userName,
+            domain: d.domain,
+            questions: 0,
+            responses: 0,
+            totalMessages: 0,
+            daysActive: new Set()
+          };
+        }
+        byUser[d.userId].questions += d.questions;
+        byUser[d.userId].responses += d.responses;
+        byUser[d.userId].totalMessages += d.totalMessages;
+        byUser[d.userId].daysActive.add(d.date);
+      });
+      
+      const sortedUsers = Object.values(byUser)
+        .sort((a, b) => b.totalMessages - a.totalMessages);
+      
+      const html = `
+        <table class="w-full text-sm">
+          <thead class="bg-slate-100 border-b border-slate-200">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">#</th>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">Usuario</th>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">Dominio</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Preguntas</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Respuestas</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Total</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-700">Días</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedUsers.map((user, index) => `
+              <tr class="border-b border-slate-100 hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-600">${index + 1}</td>
+                <td class="px-4 py-3">
+                  <div class="font-medium text-slate-900">${user.userName}</div>
+                  <div class="text-xs text-slate-500">${user.userEmail}</div>
+                </td>
+                <td class="px-4 py-3 text-slate-600">${user.domain}</td>
+                <td class="px-4 py-3 text-right">${user.questions}</td>
+                <td class="px-4 py-3 text-right">${user.responses}</td>
+                <td class="px-4 py-3 text-right font-semibold">${user.totalMessages}</td>
+                <td class="px-4 py-3 text-right text-blue-600">${user.daysActive.size}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      document.getElementById('userBreakdownTable').innerHTML = html;
+    }
+
+    function renderHourlyPattern(agentCode) {
+      const hourlyData = analyticsData.hourlyInteractions.filter(h => 
+        h.agentCode === agentCode && !excludedDomains.includes(h.domain)
+      );
+      
+      // Group by hour
+      const byHour = {};
+      for (let h = 0; h < 24; h++) {
+        byHour[h] = { hour: h, totalMessages: 0, users: new Set() };
+      }
+      
+      hourlyData.forEach(h => {
+        byHour[h.hour].totalMessages += h.totalMessages;
+        byHour[h.hour].users.add(h.userEmail);
+      });
+      
+      const sortedHours = Object.values(byHour).sort((a, b) => a.hour - b.hour);
+      
+      const maxMessages = Math.max(...sortedHours.map(h => h.totalMessages), 1);
+      
+      const html = `
+        <div class="space-y-2">
+          ${sortedHours.map(h => {
+            const width = (h.totalMessages / maxMessages) * 100;
+            const hourLabel = h.hour.toString().padStart(2, '0') + ':00';
+            
+            return `
+              <div class="flex items-center gap-4">
+                <span class="text-sm font-medium text-slate-600 w-16">${hourLabel}</span>
+                <div class="flex-1 bg-slate-100 rounded-full h-8 relative overflow-hidden">
+                  <div 
+                    class="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-all"
+                    style="width: ${width}%"
+                  ></div>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-xs font-semibold ${h.totalMessages > 0 ? 'text-white' : 'text-slate-400'}">
+                      ${h.totalMessages > 0 ? `${h.totalMessages} mensajes • ${h.users.size} usuarios` : 'Sin actividad'}
+                    </span>
+                  </div>
+                </div>
+                <span class="text-sm text-slate-600 w-8">${h.totalMessages}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      
+      document.getElementById('hourlyPatternTable').innerHTML = html;
+    }
+    
+    function updateFeedbackSummary() {
+      if (!feedbackData || !analyticsData) {
+        document.getElementById('feedbackSummary').innerHTML = '<p class="text-center text-slate-400 py-8">Sin datos de feedback</p>';
+        return;
+      }
+      
+      const { dailyInteractions } = getFilteredData();
+      
+      // Get conversations that match current filters
+      const filteredConversationIds = new Set(dailyInteractions.map(d => d.agentId));
+      
+      // Filter feedback by visible conversations and selected agent
+      let filteredFeedbackList = feedbackData.feedbacksWithContext.filter(f => {
+        // Filter by domain
+        if (f.feedbackBy && excludedDomains.includes(f.feedbackBy.email.split('@')[1])) {
+          return false;
+        }
+        
+        // Filter by agent if selected
+        if (selectedAgentCode) {
+          const agentTitle = f.agent?.agentTitle || f.conversation?.title || '';
+          return agentTitle.includes(selectedAgentCode);
+        }
+        
+        return true;
+      });
+      
+      // Calculate aggregates
+      const totalFeedbacks = filteredFeedbackList.length;
+      const feedbacksWithStars = filteredFeedbackList.filter(f => f.userStars !== undefined);
+      const avgStars = feedbacksWithStars.length > 0
+        ? feedbacksWithStars.reduce((sum, f) => sum + f.userStars, 0) / feedbacksWithStars.length
+        : 0;
+      
+      const expertCount = filteredFeedbackList.filter(f => f.feedbackType === 'expert').length;
+      const conversationsWithFeedback = new Set(filteredFeedbackList.map(f => f.conversation?.conversationId)).size;
+      
+      // Recent feedbacks (already sorted)
+      const recentFeedbacks = filteredFeedbackList.slice(0, 10);
+      
+      const html = `
+        <div class="space-y-6">
+          
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-blue-50 rounded-lg p-4">
+              <p class="text-sm text-blue-600 font-medium">Total Feedbacks</p>
+              <p class="text-2xl font-bold text-blue-900">${totalFeedbacks}</p>
+            </div>
+            
+            <div class="bg-green-50 rounded-lg p-4">
+              <p class="text-sm text-green-600 font-medium">Promedio Estrellas</p>
+              <p class="text-2xl font-bold text-green-900">${avgStars > 0 ? avgStars.toFixed(1) : 'N/A'} ⭐</p>
+            </div>
+            
+            <div class="bg-purple-50 rounded-lg p-4">
+              <p class="text-sm text-purple-600 font-medium">Conversaciones</p>
+              <p class="text-2xl font-bold text-purple-900">${conversationsWithFeedback}</p>
+              <p class="text-xs text-purple-600 mt-1">con feedback</p>
+            </div>
+            
+            <div class="bg-orange-50 rounded-lg p-4">
+              <p class="text-sm text-orange-600 font-medium">Expert Reviews</p>
+              <p class="text-2xl font-bold text-orange-900">${expertCount}</p>
+            </div>
+          </div>
+          
+          <!-- Recent Feedbacks with Context -->
+          <div>
+            <h4 class="font-semibold text-slate-900 mb-3">Feedbacks Recientes con Contexto</h4>
+            <div class="space-y-3">
+              ${recentFeedbacks.map(f => {
+                const date = new Date(f.timestamp).toLocaleDateString('es-CL', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const starsHTML = f.userStars !== undefined
+                  ? '⭐'.repeat(f.userStars) + (f.userStars < 5 ? '☆'.repeat(5 - f.userStars) : '')
+                  : '';
+                
+                return `
+                  <div class="border border-slate-200 rounded-lg p-4 hover:bg-slate-50 hover:border-slate-300 transition-all">
+                    <!-- Feedback Header -->
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                          <span class="text-sm font-semibold text-slate-900">${f.feedbackBy?.name || 'Unknown'}</span>
+                          <span class="text-xs text-slate-500">(${f.feedbackBy?.email || 'unknown'})</span>
+                          <span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-full">
+                            ${f.feedbackType === 'expert' ? '👨‍💼 Expert' : '👤 User'}
+                          </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          ${f.feedbackType === 'user' && f.userStars !== undefined ? 
+                            `<span class="text-lg">${starsHTML}</span>
+                             <span class="text-xs text-slate-600">${f.userStars}/5</span>` : ''}
+                          ${f.feedbackType === 'expert' && f.expertRating ? 
+                            `<span class="px-2 py-1 ${
+                              f.expertRating === 'sobresaliente' ? 'bg-green-100 text-green-700' :
+                              f.expertRating === 'aceptable' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                            } text-xs font-semibold rounded-full capitalize">${f.expertRating}</span>` : ''}
+                          <span class="text-xs text-slate-500">${date}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Conversation Context -->
+                    ${f.conversation ? `
+                      <div class="bg-slate-50 rounded-lg p-3 mb-2">
+                        <div class="flex items-center gap-2 mb-1">
+                          <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                          </svg>
+                          <span class="text-xs font-medium text-slate-700">Conversación: ${f.conversation.title}</span>
+                          ${f.conversation.isAgent ? '<span class="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">Agente</span>' : ''}
+                        </div>
+                        <div class="text-xs text-slate-600">
+                          <span>Modelo: ${f.conversation.agentModel || 'Unknown'}</span>
+                          <span class="mx-2">•</span>
+                          <span>${f.conversation.messageCount || 0} mensajes</span>
+                          <span class="mx-2">•</span>
+                          <span>Owner: ${f.conversation.owner?.email || 'unknown'}</span>
+                        </div>
+                      </div>
+                    ` : ''}
+                    
+                    <!-- Evaluated Message Preview -->
+                    ${f.evaluatedMessage ? `
+                      <div class="bg-blue-50 rounded-lg p-3 mb-2">
+                        <p class="text-xs font-medium text-blue-900 mb-1">
+                          ${f.evaluatedMessage.role === 'user' ? '❓ Pregunta Evaluada:' : '💬 Respuesta Evaluada:'}
+                        </p>
+                        <p class="text-xs text-blue-800 italic">"${f.evaluatedMessage.content.substring(0, 200)}${f.evaluatedMessage.contentLength > 200 ? '...' : ''}"</p>
+                        ${f.evaluatedMessage.contextSources && f.evaluatedMessage.contextSources.length > 0 ? `
+                          <div class="mt-2 flex flex-wrap gap-1">
+                            <span class="text-xs text-blue-700 font-medium">Contexto usado:</span>
+                            ${f.evaluatedMessage.contextSources.slice(0, 3).map(src => 
+                              `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">${src}</span>`
+                            ).join('')}
+                            ${f.evaluatedMessage.contextSources.length > 3 ? `<span class="text-xs text-blue-600">+${f.evaluatedMessage.contextSources.length - 3} más</span>` : ''}
+                          </div>
+                        ` : ''}
+                      </div>
+                    ` : ''}
+                    
+                    <!-- Feedback Content -->
+                    ${f.userComment ? `<p class="text-sm text-slate-700 mb-2">"${f.userComment}"</p>` : ''}
+                    ${f.expertNotes ? `<p class="text-sm text-slate-700 italic mb-2">${f.expertNotes.substring(0, 200)}${f.expertNotes.length > 200 ? '...' : ''}</p>` : ''}
+                    
+                    ${f.npsScore !== undefined ? `
+                      <div class="flex items-center gap-2 mt-2">
+                        <span class="text-xs text-slate-600">NPS:</span>
+                        <span class="text-xs font-semibold ${f.npsScore >= 9 ? 'text-green-600' : f.npsScore >= 7 ? 'text-yellow-600' : 'text-red-600'}">
+                          ${f.npsScore}/10 ${f.npsScore >= 9 ? '(Promotor)' : f.npsScore >= 7 ? '(Pasivo)' : '(Detractor)'}
+                        </span>
+                      </div>
+                    ` : ''}
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('feedbackSummary').innerHTML = html;
+    }
+
+    // Load data on page load
+    loadAnalyticsData();
+  </script>
+
+</body>
+</html>
+

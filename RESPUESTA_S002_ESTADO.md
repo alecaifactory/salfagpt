@@ -234,3 +234,6 @@ npx tsx scripts/test-s2v2-rag.mjs
 **ETA:** 1-2 horas para RAG 100% funcional  
 **Monitoreo:** `tail -f /tmp/s2v2-chunks-processing.log`
 
+
+
+

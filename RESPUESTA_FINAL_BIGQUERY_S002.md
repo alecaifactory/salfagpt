@@ -169,3 +169,6 @@ npm run reprocess:embeddings -- --semantic
 **ETA RAG funcional:** ~14:00-15:00 PST  
 **Proceso:** ✅ Corriendo correctamente ahora
 
+
+
+

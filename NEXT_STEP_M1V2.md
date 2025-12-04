@@ -250,3 +250,6 @@ Final:       4/4 agentes, ~20,000 chunks, ~$0.30, ~7-8h
 
 **Ver:** `CONTEXT_HANDOFF_M1_M3.md` para detalles completos
 
+
+
+

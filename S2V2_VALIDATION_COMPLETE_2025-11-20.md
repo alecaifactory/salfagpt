@@ -324,3 +324,6 @@
 **Status:** ✅ Validación completa  
 **Próximo paso:** Resolver extracción de PDFs grandes (Chat B)
 
+
+
+

@@ -1,0 +1,1583 @@
+🌍 Environment: Local Development
+📦 Project: salfagpt
+🔧 Initializing Firestore client...
+📦 Project ID: salfagpt
+🌍 Environment: local
+🏗️  Node ENV: development
+✅ Firestore client initialized successfully
+💡 Local dev: Ensure you have run "gcloud auth application-default login"
+💡 Production: Uses Workload Identity automatically
+
+🚀 SalfaGPT CLI - Batch Document Upload
+═══════════════════════════════════════
+
+📋 Configuration:
+   📁 Folder: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA
+   🏷️  Tag: M3-v2-retry
+   🤖 Agent: vStojK73ZKbjNsEnqANJ
+   👤 User: usr_uhwqffaqag1wrryd82tw (alec@getaifactory.com)
+   ⚡ Model: gemini-2.5-flash
+   🔑 Session: cli-upload-1764096480101-n85sbmqt3
+
+📦 Checking GCS bucket...
+✅ Bucket ready
+
+📂 Scanning folder for PDFs...
+✅ Found 12 PDF files
+
+📊 [DEV] Would track CLI event: {
+  type: 'cli_upload_failed',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: undefined
+}
+📊 [DEV] Would track CLI session: {
+  command: 'upload --folder=upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA --tag=M3-v2-retry --agent=vStojK73ZKbjNsEnqANJ',
+  user: 'alec@getaifactory.com',
+  duration: undefined,
+  events: 12
+}
+
+🚀 PARALLEL PROCESSING: 15 files at a time
+   Total batches: 1
+   Expected speedup: 15× faster
+
+
+══════════════════════════════════════════════════════════════════════
+🔄 BATCH 1/1: Processing 12 files in parallel
+   Files 1-12 of 12
+══════════════════════════════════════════════════════════════════════
+
+   [1/12] 🚀 Starting: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   [2/12] 🚀 Starting: CONTRATACION DE SUBCONTRATISTAS.PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+   [3/12] 🚀 Starting: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   [4/12] 🚀 Starting: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   [5/12] 🚀 Starting: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   [6/12] 🚀 Starting: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   [7/12] 🚀 Starting: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   [8/12] 🚀 Starting: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   [9/12] 🚀 Starting: GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+   [10/12] 🚀 Starting: GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+   [11/12] 🚀 Starting: GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+   [12/12] 🚀 Starting: RESUMEN Y PREGUNTAS.docx.pdf
+📤 Paso 1/5: Subiendo a Cloud Storage...
+   📤 Subiendo a GCS: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/RESUMEN Y PREGUNTAS.docx.pdf
+   📤 36.8% (64.0 KB/174.0 KB) @ 15.63 MB/s   📤 21.1% (64.0 KB/303.4 KB) @ 8.93 MB/s   📤 6.2% (64.0 KB/1.01 MB) @ 6.94 MB/s   📤 9.9% (64.0 KB/647.9 KB) @ 5.68 MB/s   📤 2.8% (64.0 KB/2.22 MB) @ 5.21 MB/s   📤 5.2% (64.0 KB/1.21 MB) @ 4.81 MB/s   📤 3.5% (64.0 KB/1.78 MB) @ 4.46 MB/s   📤 9.7% (64.0 KB/661.3 KB) @ 3.47 MB/s   📤 18.1% (64.0 KB/354.4 KB) @ 3.47 MB/s   📤 25.4% (64.0 KB/252.0 KB) @ 3.13 MB/s   📤 2.2% (64.0 KB/2.83 MB) @ 2.98 MB/s   📤 55.7% (64.0 KB/115.0 KB) @ 3.13 MB/s   📤 73.5% (128.0 KB/174.0 KB) @ 5.43 MB/s   📤 42.2% (128.0 KB/303.4 KB) @ 5.43 MB/s   📤 12.3% (128.0 KB/1.01 MB) @ 5.43 MB/s   📤 19.8% (128.0 KB/647.9 KB) @ 5.00 MB/s   📤 5.6% (128.0 KB/2.22 MB) @ 5.00 MB/s   📤 10.3% (128.0 KB/1.21 MB) @ 5.00 MB/s   📤 7.0% (128.0 KB/1.78 MB) @ 4.81 MB/s   📤 19.4% (128.0 KB/661.3 KB) @ 4.31 MB/s   📤 36.1% (128.0 KB/354.4 KB) @ 4.46 MB/s   📤 50.8% (128.0 KB/252.0 KB) @ 4.31 MB/s   📤 4.4% (128.0 KB/2.83 MB) @ 4.31 MB/s   📤 100.0% (115.0 KB/115.0 KB) @ 3.87 MB/s   📤 100.0% (174.0 KB/174.0 KB) @ 5.67 MB/s   📤 63.3% (192.0 KB/303.4 KB) @ 6.25 MB/s   📤 18.5% (192.0 KB/1.01 MB) @ 6.25 MB/s   📤 29.6% (192.0 KB/647.9 KB) @ 6.05 MB/s   📤 8.5% (192.0 KB/2.22 MB) @ 6.25 MB/s   📤 15.5% (192.0 KB/1.21 MB) @ 6.25 MB/s   📤 10.6% (192.0 KB/1.78 MB) @ 6.25 MB/s   📤 29.0% (192.0 KB/661.3 KB) @ 5.86 MB/s   📤 54.2% (192.0 KB/354.4 KB) @ 6.05 MB/s   📤 76.2% (192.0 KB/252.0 KB) @ 6.05 MB/s   📤 6.6% (192.0 KB/2.83 MB) @ 6.05 MB/s   📤 14.1% (256.0 KB/1.78 MB) @ 283.5 KB/s   📤 17.6% (320.0 KB/1.78 MB) @ 353.6 KB/s   📤 21.1% (384.0 KB/1.78 MB) @ 423.8 KB/s   📤 11.3% (256.0 KB/2.22 MB) @ 281.6 KB/s   📤 100.0% (252.0 KB/252.0 KB) @ 276.4 KB/s   📤 8.8% (256.0 KB/2.83 MB) @ 280.4 KB/s   📤 14.1% (320.0 KB/2.22 MB) @ 350.9 KB/s   📤 11.1% (320.0 KB/2.83 MB) @ 350.1 KB/s   📤 16.9% (384.0 KB/2.22 MB) @ 420.1 KB/s   📤 24.6% (448.0 KB/1.78 MB) @ 490.2 KB/s   📤 28.2% (512.0 KB/1.78 MB) @ 559.6 KB/s   📤 13.3% (384.0 KB/2.83 MB) @ 418.8 KB/s   📤 31.7% (576.0 KB/1.78 MB) @ 628.8 KB/s   📤 35.2% (640.0 KB/1.78 MB) @ 697.9 KB/s   📤 39.5% (256.0 KB/647.9 KB) @ 278.6 KB/s   📤 38.7% (704.0 KB/1.78 MB) @ 766.1 KB/s   📤 49.4% (320.0 KB/647.9 KB) @ 347.8 KB/s   📤 42.2% (768.0 KB/1.78 MB) @ 835.7 KB/s   📤 45.8% (832.0 KB/1.78 MB) @ 904.3 KB/s   📤 49.3% (896.0 KB/1.78 MB) @ 973.9 KB/s   📤 19.7% (448.0 KB/2.22 MB) @ 486.4 KB/s   📤 22.5% (512.0 KB/2.22 MB) @ 555.3 KB/s   📤 52.8% (960.0 KB/1.78 MB) @ 1.02 MB/s   📤 25.4% (576.0 KB/2.22 MB) @ 624.7 KB/s   📤 56.3% (1.00 MB/1.78 MB) @ 1.08 MB/s   📤 72.2% (256.0 KB/354.4 KB) @ 276.5 KB/s   📤 59.8% (1.06 MB/1.78 MB) @ 1.15 MB/s   📤 90.3% (320.0 KB/354.4 KB) @ 345.2 KB/s   📤 59.3% (384.0 KB/647.9 KB) @ 414.2 KB/s   📤 63.3% (1.13 MB/1.78 MB) @ 1.21 MB/s   📤 66.9% (1.19 MB/1.78 MB) @ 1.28 MB/s   📤 28.2% (640.0 KB/2.22 MB) @ 689.7 KB/s   📤 15.5% (448.0 KB/2.83 MB) @ 482.2 KB/s   📤 70.4% (1.25 MB/1.78 MB) @ 1.35 MB/s   📤 31.0% (704.0 KB/2.22 MB) @ 757.0 KB/s   📤 17.7% (512.0 KB/2.83 MB) @ 549.9 KB/s   📤 33.8% (768.0 KB/2.22 MB) @ 825.8 KB/s   📤 19.9% (576.0 KB/2.83 MB) @ 618.0 KB/s   📤 36.6% (832.0 KB/2.22 MB) @ 891.7 KB/s   📤 73.9% (1.31 MB/1.78 MB) @ 1.41 MB/s   📤 39.5% (896.0 KB/2.22 MB) @ 959.3 KB/s   📤 42.3% (960.0 KB/2.22 MB) @ 1.00 MB/s   📤 100.0% (354.4 KB/354.4 KB) @ 378.2 KB/s   📤 45.1% (1.00 MB/2.22 MB) @ 1.07 MB/s   📤 77.4% (1.38 MB/1.78 MB) @ 1.47 MB/s   📤 22.1% (640.0 KB/2.83 MB) @ 682.3 KB/s   📤 47.9% (1.06 MB/2.22 MB) @ 1.13 MB/s   📤 80.9% (1.44 MB/1.78 MB) @ 1.53 MB/s   📤 24.3% (704.0 KB/2.83 MB) @ 748.9 KB/s   📤 50.7% (1.13 MB/2.22 MB) @ 1.20 MB/s   📤 53.5% (1.19 MB/2.22 MB) @ 1.26 MB/s   📤 26.5% (768.0 KB/2.83 MB) @ 815.3 KB/s   📤 84.5% (1.50 MB/1.78 MB) @ 1.59 MB/s   📤 56.4% (1.25 MB/2.22 MB) @ 1.33 MB/s   📤 59.2% (1.31 MB/2.22 MB) @ 1.39 MB/s   📤 69.1% (448.0 KB/647.9 KB) @ 474.6 KB/s   📤 88.0% (1.56 MB/1.78 MB) @ 1.66 MB/s   📤 79.0% (512.0 KB/647.9 KB) @ 541.8 KB/s   📤 62.0% (1.38 MB/2.22 MB) @ 1.46 MB/s   📤 28.7% (832.0 KB/2.83 MB) @ 879.5 KB/s   📤 88.9% (576.0 KB/647.9 KB) @ 608.9 KB/s   📤 91.5% (1.63 MB/1.78 MB) @ 1.72 MB/s   📤 31.0% (896.0 KB/2.83 MB) @ 946.1 KB/s   📤 64.8% (1.44 MB/2.22 MB) @ 1.52 MB/s   📤 95.0% (1.69 MB/1.78 MB) @ 1.78 MB/s   📤 67.6% (1.50 MB/2.22 MB) @ 1.58 MB/s   📤 33.2% (960.0 KB/2.83 MB) @ 1011.6 KB/s   📤 70.5% (1.56 MB/2.22 MB) @ 1.65 MB/s   📤 98.5% (1.75 MB/1.78 MB) @ 1.84 MB/s   📤 35.4% (1.00 MB/2.83 MB) @ 1.05 MB/s   📤 98.8% (640.0 KB/647.9 KB) @ 673.0 KB/s   📤 73.3% (1.63 MB/2.22 MB) @ 1.71 MB/s   📤 100.0% (1.78 MB/1.78 MB) @ 1.86 MB/s   📤 100.0% (647.9 KB/647.9 KB) @ 679.2 KB/s   📤 76.1% (1.69 MB/2.22 MB) @ 1.77 MB/s   📤 37.6% (1.06 MB/2.83 MB) @ 1.11 MB/s   📤 78.9% (1.75 MB/2.22 MB) @ 1.83 MB/s   📤 81.7% (1.81 MB/2.22 MB) @ 1.90 MB/s   📤 39.8% (1.13 MB/2.83 MB) @ 1.18 MB/s   📤 84.5% (1.88 MB/2.22 MB) @ 1.96 MB/s   📤 87.4% (1.94 MB/2.22 MB) @ 2.02 MB/s   📤 90.2% (2.00 MB/2.22 MB) @ 2.08 MB/s   📤 93.0% (2.06 MB/2.22 MB) @ 2.15 MB/s   📤 95.8% (2.13 MB/2.22 MB) @ 2.21 MB/s   📤 98.6% (2.19 MB/2.22 MB) @ 2.27 MB/s   📤 42.0% (1.19 MB/2.83 MB) @ 1.23 MB/s   📤 100.0% (2.22 MB/2.22 MB) @ 2.30 MB/s   📤 38.7% (256.0 KB/661.3 KB) @ 256.8 KB/s   📤 48.4% (320.0 KB/661.3 KB) @ 321.0 KB/s   📤 58.1% (384.0 KB/661.3 KB) @ 383.6 KB/s   📤 67.7% (448.0 KB/661.3 KB) @ 444.9 KB/s   📤 77.4% (512.0 KB/661.3 KB) @ 506.9 KB/s   📤 87.1% (576.0 KB/661.3 KB) @ 569.7 KB/s   📤 96.8% (640.0 KB/661.3 KB) @ 633.0 KB/s   📤 100.0% (661.3 KB/661.3 KB) @ 651.5 KB/s   📤 20.6% (256.0 KB/1.21 MB) @ 249.3 KB/s   📤 25.8% (320.0 KB/1.21 MB) @ 311.3 KB/s   📤 84.4% (256.0 KB/303.4 KB) @ 248.5 KB/s   📤 100.0% (303.4 KB/303.4 KB) @ 294.6 KB/s   📤 30.9% (384.0 KB/1.21 MB) @ 371.7 KB/s   📤 24.6% (256.0 KB/1.01 MB) @ 245.9 KB/s   📤 30.8% (320.0 KB/1.01 MB) @ 307.1 KB/s   📤 37.0% (384.0 KB/1.01 MB) @ 367.8 KB/s   📤 36.1% (448.0 KB/1.21 MB) @ 429.1 KB/s   📤 41.2% (512.0 KB/1.21 MB) @ 490.0 KB/s   📤 46.4% (576.0 KB/1.21 MB) @ 551.2 KB/s   📤 43.1% (448.0 KB/1.01 MB) @ 426.7 KB/s   📤 49.3% (512.0 KB/1.01 MB) @ 487.6 KB/s   📤 51.6% (640.0 KB/1.21 MB) @ 608.9 KB/s   📤 55.4% (576.0 KB/1.01 MB) @ 547.5 KB/s   📤 56.7% (704.0 KB/1.21 MB) @ 669.2 KB/s   📤 61.6% (640.0 KB/1.01 MB) @ 607.8 KB/s   📤 61.9% (768.0 KB/1.21 MB) @ 729.3 KB/s   📤 67.7% (704.0 KB/1.01 MB) @ 667.9 KB/s   📤 67.0% (832.0 KB/1.21 MB) @ 789.4 KB/s   📤 73.9% (768.0 KB/1.01 MB) @ 728.7 KB/s   📤 72.2% (896.0 KB/1.21 MB) @ 849.3 KB/s   📤 80.1% (832.0 KB/1.01 MB) @ 788.6 KB/s   📤 77.3% (960.0 KB/1.21 MB) @ 909.1 KB/s   📤 86.2% (896.0 KB/1.01 MB) @ 848.5 KB/s   📤 82.5% (1.00 MB/1.21 MB) @ 968.8 KB/s   📤 92.4% (960.0 KB/1.01 MB) @ 908.2 KB/s   📤 87.7% (1.06 MB/1.21 MB) @ 1.01 MB/s   📤 98.5% (1.00 MB/1.01 MB) @ 967.9 KB/s   📤 92.8% (1.13 MB/1.21 MB) @ 1.06 MB/s   📤 100.0% (1.01 MB/1.01 MB) @ 981.3 KB/s   📤 98.0% (1.19 MB/1.21 MB) @ 1.12 MB/s   📤 100.0% (1.21 MB/1.21 MB) @ 1.14 MB/s   📤 44.2% (1.25 MB/2.83 MB) @ 1.01 MB/s   📤 46.4% (1.31 MB/2.83 MB) @ 1.03 MB/s   📤 48.6% (1.38 MB/2.83 MB) @ 985.3 KB/s   📤 50.8% (1.44 MB/2.83 MB) @ 1.00 MB/s   📤 53.1% (1.50 MB/2.83 MB) @ 1.05 MB/s   📤 55.3% (1.56 MB/2.83 MB) @ 1.09 MB/s   📤 57.5% (1.63 MB/2.83 MB) @ 1.13 MB/s   📤 59.7% (1.69 MB/2.83 MB) @ 1.15 MB/s   📤 61.9% (1.75 MB/2.83 MB) @ 1.19 MB/s   ✅ Subido en 1.6s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+
+   ✅ Upload exitoso en 1.6s (110.9 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   📊 Tamaño: 174.04 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+   📊 Tamaño: 174.04 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 1.6s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/RESUMEN Y PREGUNTAS.docx.pdf
+
+   ✅ Upload exitoso en 1.6s (70.1 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/RESUMEN Y PREGUNTAS.docx.pdf
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: RESUMEN Y PREGUNTAS.docx.pdf
+   📊 Tamaño: 114.96 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/RESUMEN Y PREGUNTAS.docx.pdf
+   📊 Tamaño: 114.96 KB
+   🔄 Enviando a Gemini AI...
+   📤 64.1% (1.81 MB/2.83 MB) @ 1.10 MB/s   📤 66.3% (1.88 MB/2.83 MB) @ 1.13 MB/s   📤 68.5% (1.94 MB/2.83 MB) @ 1.17 MB/s   📤 70.7% (2.00 MB/2.83 MB) @ 1.17 MB/s   📤 73.0% (2.06 MB/2.83 MB) @ 1.21 MB/s   📤 75.2% (2.13 MB/2.83 MB) @ 1.24 MB/s   📤 77.4% (2.19 MB/2.83 MB) @ 1.28 MB/s   📤 79.6% (2.25 MB/2.83 MB) @ 1.31 MB/s   ✅ Subido en 1.8s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+
+   ✅ Upload exitoso en 1.8s (142.2 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   📊 Tamaño: 252.04 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+   📊 Tamaño: 252.04 KB
+   🔄 Enviando a Gemini AI...
+   📤 81.8% (2.31 MB/2.83 MB) @ 1.25 MB/s   📤 84.0% (2.38 MB/2.83 MB) @ 1.28 MB/s   📤 86.2% (2.44 MB/2.83 MB) @ 1.31 MB/s   📤 88.4% (2.50 MB/2.83 MB) @ 1.35 MB/s   📤 90.6% (2.56 MB/2.83 MB) @ 1.38 MB/s   📤 92.9% (2.63 MB/2.83 MB) @ 1.41 MB/s   📤 95.1% (2.69 MB/2.83 MB) @ 1.44 MB/s   📤 97.3% (2.75 MB/2.83 MB) @ 1.48 MB/s   📤 99.5% (2.81 MB/2.83 MB) @ 1.51 MB/s   📤 100.0% (2.83 MB/2.83 MB) @ 1.52 MB/s   ✅ Subido en 1.9s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+
+   ✅ Upload exitoso en 1.9s (159.9 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   📊 Tamaño: 303.42 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+   📊 Tamaño: 303.42 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 1.9s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+
+   ✅ Upload exitoso en 1.9s (186.1 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   📊 Tamaño: 354.37 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+   📊 Tamaño: 354.37 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.1s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+
+   ✅ Upload exitoso en 2.1s (319.8 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   📊 Tamaño: 661.28 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+   📊 Tamaño: 661.28 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.1s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+
+   ✅ Upload exitoso en 2.1s (311.9 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   📊 Tamaño: 647.92 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+   📊 Tamaño: 647.92 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.2s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+
+   ✅ Upload exitoso en 2.2s (813.7 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+   📊 Tamaño: 1818.51 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+   📊 Tamaño: 1818.51 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.3s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+
+   ✅ Upload exitoso en 2.3s (970.5 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+   📊 Tamaño: 2270.97 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+   📊 Tamaño: 2270.97 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.4s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+
+   ✅ Upload exitoso en 2.4s (1.19 MB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/CONTRATACION DE SUBCONTRATISTAS.PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: CONTRATACION DE SUBCONTRATISTAS.PDF
+   📊 Tamaño: 2894.85 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/CONTRATACION DE SUBCONTRATISTAS.PDF
+   📊 Tamaño: 2894.85 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.4s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+
+   ✅ Upload exitoso en 2.4s (427.5 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   📊 Tamaño: 1039.24 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+   📊 Tamaño: 1039.24 KB
+   🔄 Enviando a Gemini AI...
+   ✅ Subido en 2.5s: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+
+   ✅ Upload exitoso en 2.5s (499.7 KB/s)
+   📍 GCS Path: gs://salfagpt-context-documents/usr_uhwqffaqag1wrryd82tw/vStojK73ZKbjNsEnqANJ/GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_uploaded',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+
+🤖 Paso 2/5: Extrayendo contenido con Gemini AI...
+   📄 Archivo: GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+   📊 Tamaño: 1241.23 KB
+   🤖 Modelo: gemini-2.5-flash
+   ⏳ Procesando con Gemini...
+   🤖 Extrayendo con gemini-2.5-flash...
+   📄 Leyendo archivo: upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA/GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+   📊 Tamaño: 1241.23 KB
+   🔄 Enviando a Gemini AI...
+...................................................
+   ✅ Extracción completa en 10.3s
+   📝 1,693 caracteres extraídos
+   🎯 ~424 tokens estimados
+   💰 Costo estimado: $0.000153
+   👁️  Preview: # Proceso Contratación Subcontratistas:
+
+## a) Precalificación Administrativa
+
+Durante el proceso de selección y previo a la cotización, el ESO deberá verificar que los participantes a cotizar se encu...
+   ✅ Extracción exitosa en 10.3s
+   📝 Caracteres extraídos: 1,693
+   🎯 Tokens estimados: ~424
+   📥 Input tokens: 348
+   📤 Output tokens: 424
+   💰 Costo: $0.000153
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+.........   ✅ Documento guardado exitosamente
+   🆔 Source ID: xqLhZXE9sbMcwA94H33S
+   ⏱️  Tiempo: 1.1s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 1,693 caracteres
+   📊 Tokens estimados: ~424 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 2 chunks (with 102 token overlap)
+   📊 Average chunk size: 263 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-2...
+..      ✅ Batch 1 complete: 2 embeddings generated
+   ✅ Generated 2 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 2 embeddings in Firestore...
+.....   ✅ Stored 2 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+.📊 BigQuery Vector Search initialized
+  Project: salfagpt
+  Dataset: flow_rag_optimized
+  Table: document_chunks_vectorized
+   📤 BigQuery batch 1/1: Syncing 2 chunks...
+...   ✅ BigQuery batch 1 complete: 2 chunks synced
+   ✅ Total synced to BigQuery: 2 chunks
+   ✅ Synced 2 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 1.8s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 526 tokens totales
+      💰 Costo embeddings: $0.000011
+   ✅ Chunking completado: 2 chunks creados
+   ✅ Embeddings generados: 2 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 263
+   💰 Costo embeddings: $0.000011
+   ⏱️  Tiempo RAG: 1.8s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+.   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+..........   ✅ Actualizado activeContextSourceIds: 149 → 150
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: RESUMEN Y PREGUNTAS.docx.pdf
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 17.0s
+📝 Caracteres: 1,693
+📐 Chunks: 2
+🧬 Embeddings: 2
+💰 Costo total: $0.000164
+🆔 Source ID: xqLhZXE9sbMcwA94H33S
+────────────────────────────────────────────────────────────
+
+   [12/12] ✅ DONE: RESUMEN Y PREGUNTAS.docx.pdf (2 chunks, $0.0002)
+.............
+   ✅ Extracción completa en 18.0s
+   📝 7,997 caracteres extraídos
+   🎯 ~2,000 tokens estimados
+   💰 Costo estimado: $0.000644
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed sequentially from page 1 to the last page, with clear Markdown structure:
+
+---
+
+# Page 1
+
+n
+EDIFICACIÓN
+
+| 0 | 23-10-2024 | GOP | G...
+   ✅ Extracción exitosa en 18.0s
+   📝 Caracteres extraídos: 7,997
+   🎯 Tokens estimados: ~2,000
+   📥 Input tokens: 593
+   📤 Output tokens: 2,000
+   💰 Costo: $0.000644
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+...   ✅ Documento guardado exitosamente
+   🆔 Source ID: DxhWKvP7VBkN8l7KK8pB
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 7,997 caracteres
+   📊 Tokens estimados: ~2,000 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 4 chunks (with 102 token overlap)
+   📊 Average chunk size: 577 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-4...
+.....
+   ✅ Extracción completa en 19.4s
+   📝 3,483 caracteres extraídos
+   🎯 ~871 tokens estimados
+   💰 Costo estimado: $0.000302
+   👁️  Preview: # MATRIZ DE OBJETIVOS DE CONTROL DE OBRA
+
+**GOP-P-PCO-2.1.**
+**Versión:** 0
+**Fecha:** 13-05-2024
+
+| N° | OBJETIVO | UNIDAD QUE CONTROLA | INDICADOR | FORMULA | META | COMENTARIO | ¿QUÉ PASA SI NO SE ...
+   ✅ Extracción exitosa en 19.4s
+   📝 Caracteres extraídos: 3,483
+   🎯 Tokens estimados: ~871
+   📥 Input tokens: 541
+   📤 Output tokens: 871
+   💰 Costo: $0.000302
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: zadC0EfAX4rfoxCkBQmX
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 3,483 caracteres
+   📊 Tokens estimados: ~871 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 2 chunks (with 102 token overlap)
+   📊 Average chunk size: 487 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-2...
+........      ✅ Batch 1 complete: 4 embeddings generated
+   ✅ Generated 4 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 4 embeddings in Firestore...
+.      ✅ Batch 1 complete: 2 embeddings generated
+   ✅ Generated 2 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 2 embeddings in Firestore...
+
+   ✅ Extracción completa en 21.5s
+   📝 9,788 caracteres extraídos
+   🎯 ~2,447 tokens estimados
+   💰 Costo estimado: $0.000765
+   👁️  Preview: The complete text extracted from the PDF document is as follows:
+
+# Page 1
+
+EDIFICACIÓN
+
+| 5 | 18-10-24 | GOP | GAG | CO | Se elimina ítem de acciones preventivas |
+|---|----------|-----|-----|----|--...
+   ✅ Extracción exitosa en 21.5s
+   📝 Caracteres extraídos: 9,788
+   🎯 Tokens estimados: ~2,447
+   📥 Input tokens: 408
+   📤 Output tokens: 2,447
+   💰 Costo: $0.000765
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Stored 4 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 4 chunks...
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: v2eYXGMP0NC1qYwGb04T
+   ⏱️  Tiempo: 0.3s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 9,788 caracteres
+   📊 Tokens estimados: ~2,447 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 4 chunks (with 102 token overlap)
+   📊 Average chunk size: 689 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-4...
+   ✅ BigQuery batch 1 complete: 4 chunks synced
+   ✅ Total synced to BigQuery: 4 chunks
+   ✅ Synced 4 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 3.3s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 2,307 tokens totales
+      💰 Costo embeddings: $0.000046
+   ✅ Chunking completado: 4 chunks creados
+   ✅ Embeddings generados: 4 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 577
+   💰 Costo embeddings: $0.000046
+   ⏱️  Tiempo RAG: 3.3s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Stored 2 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 2 chunks...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+.   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ BigQuery batch 1 complete: 2 chunks synced
+   ✅ Total synced to BigQuery: 2 chunks
+   ✅ Synced 2 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 2.5s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 973 tokens totales
+      💰 Costo embeddings: $0.000019
+   ✅ Chunking completado: 2 chunks creados
+   ✅ Embeddings generados: 2 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 487
+   💰 Costo embeddings: $0.000019
+   ⏱️  Tiempo RAG: 2.5s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+.   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+...   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+...   ✅ Actualizado activeContextSourceIds: 150 → 151
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 24.5s
+📝 Caracteres: 7,997
+📐 Chunks: 4
+🧬 Embeddings: 4
+💰 Costo total: $0.000691
+🆔 Source ID: DxhWKvP7VBkN8l7KK8pB
+────────────────────────────────────────────────────────────
+
+   [6/12] ✅ DONE: GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF (4 chunks, $0.0007)
+   ✅ Actualizado activeContextSourceIds: 151 → 152
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 25.0s
+📝 Caracteres: 3,483
+📐 Chunks: 2
+🧬 Embeddings: 2
+💰 Costo total: $0.000321
+🆔 Source ID: zadC0EfAX4rfoxCkBQmX
+────────────────────────────────────────────────────────────
+
+   [8/12] ✅ DONE: GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF (2 chunks, $0.0003)
+      ✅ Batch 1 complete: 4 embeddings generated
+   ✅ Generated 4 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 4 embeddings in Firestore...
+.   ✅ Stored 4 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 4 chunks...
+....   ✅ BigQuery batch 1 complete: 4 chunks synced
+   ✅ Total synced to BigQuery: 4 chunks
+   ✅ Synced 4 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 3.0s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 2,754 tokens totales
+      💰 Costo embeddings: $0.000055
+   ✅ Chunking completado: 4 chunks creados
+   ✅ Embeddings generados: 4 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 689
+   💰 Costo embeddings: $0.000055
+   ⏱️  Tiempo RAG: 3.0s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+...   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 152 → 153
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 27.3s
+📝 Caracteres: 9,788
+📐 Chunks: 4
+🧬 Embeddings: 4
+💰 Costo total: $0.000820
+🆔 Source ID: v2eYXGMP0NC1qYwGb04T
+────────────────────────────────────────────────────────────
+
+   [4/12] ✅ DONE: GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF (4 chunks, $0.0009)
+................
+   ✅ Extracción completa en 28.7s
+   📝 16,081 caracteres extraídos
+   🎯 ~4,021 tokens estimados
+   💰 Costo estimado: $0.001273
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed page by page, adhering to all your critical requirements:
+
+---
+
+# Page 1
+
+n
+EDIFICACIÓN
+
+| 0   | 18-10-2024 | GOP       | GOP      ...
+   ✅ Extracción exitosa en 28.7s
+   📝 Caracteres extraídos: 16,081
+   🎯 Tokens estimados: ~4,021
+   📥 Input tokens: 893
+   📤 Output tokens: 4,021
+   💰 Costo: $0.001273
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: wtCeu5DjgMEtdCVW1QM8
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 16,081 caracteres
+   📊 Tokens estimados: ~4,021 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 6 chunks (with 102 token overlap)
+   📊 Average chunk size: 755 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 6 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-6...
+..............      ✅ Batch 1 complete: 6 embeddings generated
+   ✅ Generated 6 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 6 embeddings in Firestore...
+   ✅ Stored 6 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 6 chunks...
+...   ✅ BigQuery batch 1 complete: 6 chunks synced
+   ✅ Total synced to BigQuery: 6 chunks
+   ✅ Synced 6 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 5.3s
+      📦 6 chunks creados
+      🧬 6 embeddings generados (768-dim)
+      🎯 4,532 tokens totales
+      💰 Costo embeddings: $0.000091
+   ✅ Chunking completado: 6 chunks creados
+   ✅ Embeddings generados: 6 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 755
+   💰 Costo embeddings: $0.000091
+   ⏱️  Tiempo RAG: 5.3s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+..   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+..   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 153 → 154
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 37.4s
+📝 Caracteres: 16,081
+📐 Chunks: 6
+🧬 Embeddings: 6
+💰 Costo total: $0.001364
+🆔 Source ID: wtCeu5DjgMEtdCVW1QM8
+────────────────────────────────────────────────────────────
+
+   [5/12] ✅ DONE: GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF (6 chunks, $0.0015)
+.
+   ✅ Extracción completa en 35.9s
+   📝 28,122 caracteres extraídos
+   🎯 ~7,031 tokens estimados
+   💰 Costo estimado: $0.002177
+   👁️  Preview: MAQSA®
+Abastecimiento y Servicios
+
+| 07 | 27/07/23 | IOA | SAL | ADB | Se recodifica procedimiento, se actualizan Instructivos, Paso a Paso y Registros |
+|---|---|---|---|---|---|
+| 06 | 30/08/21 | DV...
+   ✅ Extracción exitosa en 35.9s
+   📝 Caracteres extraídos: 28,122
+   🎯 Tokens estimados: ~7,031
+   📥 Input tokens: 907
+   📤 Output tokens: 7,031
+   💰 Costo: $0.002177
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: Ovcm6Qk7qfJ9ITWuown3
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 28,122 caracteres
+   📊 Tokens estimados: ~7,031 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 10 chunks (with 102 token overlap)
+   📊 Average chunk size: 795 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 10 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-10...
+.................      ✅ Batch 1 complete: 10 embeddings generated
+   ✅ Generated 10 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 10 embeddings in Firestore...
+......   ✅ Stored 10 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 10 chunks...
+.   ✅ BigQuery batch 1 complete: 10 chunks synced
+   ✅ Total synced to BigQuery: 10 chunks
+   ✅ Synced 10 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 7.7s
+      📦 10 chunks creados
+      🧬 10 embeddings generados (768-dim)
+      🎯 7,952 tokens totales
+      💰 Costo embeddings: $0.000159
+   ✅ Chunking completado: 10 chunks creados
+   ✅ Embeddings generados: 10 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 795
+   💰 Costo embeddings: $0.000159
+   ⏱️  Tiempo RAG: 7.7s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+.   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+....   ✅ Actualizado activeContextSourceIds: 154 → 155
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 46.8s
+📝 Caracteres: 28,122
+📐 Chunks: 10
+🧬 Embeddings: 10
+💰 Costo total: $0.002336
+🆔 Source ID: Ovcm6Qk7qfJ9ITWuown3
+────────────────────────────────────────────────────────────
+
+   [1/12] ✅ DONE: 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF (10 chunks, $0.0026)
+....................................
+   ✅ Extracción completa en 57.2s
+   📝 30,447 caracteres extraídos
+   🎯 ~7,612 tokens estimados
+   💰 Costo estimado: $0.002381
+   👁️  Preview: The complete text from the PDF document is extracted below, processing every page sequentially and preserving structure.
+
+---
+
+**Page 1**
+
+![Logo: A stylized 'n' in red above the word "EDIFICACIÓN" in...
+   ✅ Extracción exitosa en 57.2s
+   📝 Caracteres extraídos: 30,447
+   🎯 Tokens estimados: ~7,612
+   📥 Input tokens: 1,294
+   📤 Output tokens: 7,612
+   💰 Costo: $0.002381
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+.   ✅ Documento guardado exitosamente
+   🆔 Source ID: 6qgeUEdzojjvaFwGfspW
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 30,447 caracteres
+   📊 Tokens estimados: ~7,612 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 11 chunks (with 102 token overlap)
+   📊 Average chunk size: 785 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 11 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-11...
+...............      ✅ Batch 1 complete: 11 embeddings generated
+   ✅ Generated 11 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 11 embeddings in Firestore...
+......   ✅ Stored 11 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 11 chunks...
+...   ✅ BigQuery batch 1 complete: 11 chunks synced
+   ✅ Total synced to BigQuery: 11 chunks
+   ✅ Synced 11 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 9.1s
+      📦 11 chunks creados
+      🧬 11 embeddings generados (768-dim)
+      🎯 8,635 tokens totales
+      💰 Costo embeddings: $0.000173
+   ✅ Chunking completado: 11 chunks creados
+   ✅ Embeddings generados: 11 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 785
+   💰 Costo embeddings: $0.000173
+   ⏱️  Tiempo RAG: 9.1s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 155 → 156
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 69.8s
+📝 Caracteres: 30,447
+📐 Chunks: 11
+🧬 Embeddings: 11
+💰 Costo total: $0.002553
+🆔 Source ID: 6qgeUEdzojjvaFwGfspW
+────────────────────────────────────────────────────────────
+
+   [7/12] ✅ DONE: GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF (11 chunks, $0.0029)
+.................................
+   ✅ Extracción completa en 80.1s
+   📝 41,430 caracteres extraídos
+   🎯 ~10,358 tokens estimados
+   💰 Costo estimado: $0.003299
+   👁️  Preview: # Extracted Text from PDF Document
+
+## Page 1
+
+n
+EDIFICACIÓN
+
+| VER | FECHA | ELABORADO | REVISADO | APROBADO | MODIFICACIONES |
+|---|---|---|---|---|---|
+| 2 | 17-03-2025 | GOP | GOP | GE | Actualiza...
+   ✅ Extracción exitosa en 80.1s
+   📝 Caracteres extraídos: 41,430
+   🎯 Tokens estimados: ~10,358
+   📥 Input tokens: 2,555
+   📤 Output tokens: 10,358
+   💰 Costo: $0.003299
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+..   ✅ Documento guardado exitosamente
+   🆔 Source ID: iIMAdoC9tKd89qqrRdyS
+   ⏱️  Tiempo: 0.2s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 41,430 caracteres
+   📊 Tokens estimados: ~10,358 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 14 chunks (with 102 token overlap)
+   📊 Average chunk size: 835 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🧬 Generating embeddings for 14 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-14...
+................      ✅ Batch 1 complete: 14 embeddings generated
+   ✅ Generated 14 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 14 embeddings in Firestore...
+.....   ✅ Stored 14 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 14 chunks...
+..   ✅ BigQuery batch 1 complete: 14 chunks synced
+   ✅ Total synced to BigQuery: 14 chunks
+   ✅ Synced 14 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 11.9s
+      📦 14 chunks creados
+      🧬 14 embeddings generados (768-dim)
+      🎯 11,689 tokens totales
+      💰 Costo embeddings: $0.000234
+   ✅ Chunking completado: 14 chunks creados
+   ✅ Embeddings generados: 14 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 835
+   💰 Costo embeddings: $0.000234
+   ⏱️  Tiempo RAG: 11.9s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+.   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 156 → 157
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 95.7s
+📝 Caracteres: 41,430
+📐 Chunks: 14
+🧬 Embeddings: 14
+💰 Costo total: $0.003533
+🆔 Source ID: iIMAdoC9tKd89qqrRdyS
+────────────────────────────────────────────────────────────
+
+   [9/12] ✅ DONE: GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF (14 chunks, $0.0039)
+................................................................................................
+   ✅ Extracción completa en 141.1s
+   📝 181,464 caracteres extraídos
+   🎯 ~45,366 tokens estimados
+   💰 Costo estimado: $0.013849
+   👁️  Preview: The following is the complete extracted text from the PDF document, processed sequentially from beginning to end, with clear structure using Markdown headings where appropriate.
+
+---
+
+**Page 1**
+
+Sost...
+   ✅ Extracción exitosa en 141.1s
+   📝 Caracteres extraídos: 181,464
+   🎯 Tokens estimados: ~45,366
+   📥 Input tokens: 3,194
+   📤 Output tokens: 45,366
+   💰 Costo: $0.013849
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (181,464 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+.   ✅ Documento guardado exitosamente
+   🆔 Source ID: MDWAbm5IfSd0N2h1cgTe
+   ⏱️  Tiempo: 0.5s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 181,464 caracteres
+   📊 Tokens estimados: ~45,366 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 54 chunks (with 102 token overlap)
+   📊 Average chunk size: 940 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 23 low-quality chunks
+   🗑️ Filtrados 23 chunks de baja calidad
+   ✅ 31 chunks útiles restantes
+   🧬 Generating embeddings for 31 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-31...
+..........................      ✅ Batch 1 complete: 31 embeddings generated
+   ✅ Generated 31 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 31 embeddings in Firestore...
+.........   ✅ Stored 31 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 31 chunks...
+...   ✅ BigQuery batch 1 complete: 31 chunks synced
+   ✅ Total synced to BigQuery: 31 chunks
+   ✅ Synced 31 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 24.7s
+      📦 31 chunks creados
+      🧬 31 embeddings generados (768-dim)
+      🎯 27,832 tokens totales
+      💰 Costo embeddings: $0.000557
+   ✅ Chunking completado: 31 chunks creados
+   ✅ Embeddings generados: 31 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 898
+   💰 Costo embeddings: $0.000557
+   ⏱️  Tiempo RAG: 24.7s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+.   ✅ Actualizado activeContextSourceIds: 158 → 159
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: CONTRATACION DE SUBCONTRATISTAS.PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 170.2s
+📝 Caracteres: 181,464
+📐 Chunks: 31
+🧬 Embeddings: 31
+💰 Costo total: $0.014406
+🆔 Source ID: MDWAbm5IfSd0N2h1cgTe
+────────────────────────────────────────────────────────────
+
+   [2/12] ✅ DONE: CONTRATACION DE SUBCONTRATISTAS.PDF (31 chunks, $0.0170)
+................................................................................................................................
+   ✅ Extracción completa en 253.4s
+   📝 1,888,790 caracteres extraídos
+   🎯 ~472,198 tokens estimados
+   💰 Costo estimado: $0.141772
+   👁️  Preview: The complete text extracted from the PDF document is as follows:
+
+# PROCEDIMIENTO ENTREGA OBRA A POST VENTA
+
+## Page 1
+
+n
+EDIFICACIÓN
+
+| VER | FECHA      | ELABORADO | GO-GP-Área Cliente | REVISADO | ...
+   ✅ Extracción exitosa en 253.4s
+   📝 Caracteres extraídos: 1,888,790
+   🎯 Tokens estimados: ~472,198
+   📥 Input tokens: 1,501
+   📤 Output tokens: 472,198
+   💰 Costo: $0.141772
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (1,888,790 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+..   ✅ Documento guardado exitosamente
+   🆔 Source ID: Q1c6S68chPpHjPafsxs4
+   ⏱️  Tiempo: 0.6s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 1,888,790 caracteres
+   📊 Tokens estimados: ~472,198 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 527 chunks (with 102 token overlap)
+   📊 Average chunk size: 998 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 525 low-quality chunks
+   🗑️ Filtrados 525 chunks de baja calidad
+   ✅ 2 chunks útiles restantes
+   🧬 Generating embeddings for 2 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-2...
+      ✅ Batch 1 complete: 2 embeddings generated
+   ✅ Generated 2 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 2 embeddings in Firestore...
+.   ✅ Stored 2 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 2 chunks...
+.   ✅ BigQuery batch 1 complete: 2 chunks synced
+   ✅ Total synced to BigQuery: 2 chunks
+   ✅ Synced 2 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 2.0s
+      📦 2 chunks creados
+      🧬 2 embeddings generados (768-dim)
+      🎯 1,981 tokens totales
+      💰 Costo embeddings: $0.000040
+   ✅ Chunking completado: 2 chunks creados
+   ✅ Embeddings generados: 2 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 991
+   💰 Costo embeddings: $0.000040
+   ⏱️  Tiempo RAG: 2.0s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 159 → 160
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 259.8s
+📝 Caracteres: 1,888,790
+📐 Chunks: 2
+🧬 Embeddings: 2
+💰 Costo total: $0.141812
+🆔 Source ID: Q1c6S68chPpHjPafsxs4
+────────────────────────────────────────────────────────────
+
+   [10/12] ✅ DONE: GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF (2 chunks, $0.1771)
+...
+   ✅ Extracción completa en 259.8s
+   📝 1,708,359 caracteres extraídos
+   🎯 ~427,090 tokens estimados
+   💰 Costo estimado: $0.128284
+   👁️  Preview: The complete text extracted from the PDF document, processed sequentially from page 1 to the last page, is provided below with clear Markdown structure.
+
+---
+
+# PROCEDIMIENTO INICIO DE OBRAS DE EDIFIC...
+   ✅ Extracción exitosa en 259.8s
+   📝 Caracteres extraídos: 1,708,359
+   🎯 Tokens estimados: ~427,090
+   📥 Input tokens: 2,092
+   📤 Output tokens: 427,090
+   💰 Costo: $0.128284
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (1,708,359 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: f0i4kSethQmi1nj0w7RL
+   ⏱️  Tiempo: 0.5s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 1,708,359 caracteres
+   📊 Tokens estimados: ~427,090 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 477 chunks (with 102 token overlap)
+   📊 Average chunk size: 997 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 474 low-quality chunks
+   🗑️ Filtrados 474 chunks de baja calidad
+   ✅ 3 chunks útiles restantes
+   🧬 Generating embeddings for 3 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-3...
+
+   ✅ Extracción completa en 260.9s
+   📝 986,080 caracteres extraídos
+   🎯 ~246,520 tokens estimados
+   💰 Costo estimado: $0.073993
+   👁️  Preview: Here is the complete extracted text from the PDF document, processed sequentially from page 1 to the last page, with clear structure using Markdown headings and tables.
+
+---
+
+# Page 1
+
+n
+EDIFICACIÓN
+
+...
+   ✅ Extracción exitosa en 260.9s
+   📝 Caracteres extraídos: 986,080
+   🎯 Tokens estimados: ~246,520
+   📥 Input tokens: 488
+   📤 Output tokens: 246,520
+   💰 Costo: $0.073993
+📊 [DEV] Would track CLI event: {
+  type: 'cli_file_extracted',
+  user: 'alec@getaifactory.com',
+  operation: 'extract',
+  success: true
+}
+
+💾 Paso 3/5: Guardando en Firestore...
+   📦 Collection: context_sources
+   🏷️  Tags: [M3-v2-retry]
+   🤖 Assigned to: vStojK73ZKbjNsEnqANJ
+   ⚠️  Large extraction (986,080 chars)
+   📝 Storing preview only (100,000 chars) in Firestore
+   ℹ️  Full text will be in chunks and BigQuery
+   ✅ Documento guardado exitosamente
+   🆔 Source ID: 0Lq6yPKcv6fGBPYiGh1f
+   ⏱️  Tiempo: 0.6s
+
+🧬 Paso 4/5: Procesando para RAG (chunking + embeddings)...
+   📊 Texto a procesar: 986,080 caracteres
+   📊 Tokens estimados: ~246,520 tokens
+
+   🔬 Paso 4/5: Preparando para RAG (Retrieval-Augmented Generation)... cyan
+   📐 Chunking text (1000 tokens/chunk, 102 token overlap = 10%)...
+   ✅ Created 276 chunks (with 102 token overlap)
+   📊 Average chunk size: 995 tokens
+   📊 Overlap: 102 tokens (10.2%)
+   🗑️ Filtered 272 low-quality chunks
+   🗑️ Filtrados 272 chunks de baja calidad
+   ✅ 4 chunks útiles restantes
+   🧬 Generating embeddings for 4 chunks...
+   🤖 Model: text-embedding-004
+   📦 Batch size: 32 chunks (optimized for throughput)
+      📦 Batch 1/1: Processing chunks 1-4...
+      ✅ Batch 1 complete: 3 embeddings generated
+   ✅ Generated 3 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 3 embeddings in Firestore...
+   ✅ Stored 3 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 3 chunks...
+      ✅ Batch 1 complete: 4 embeddings generated
+   ✅ Generated 4 embeddings (768 dimensions each)
+   📊 Processed in 1 batches
+   💾 Storing 4 embeddings in Firestore...
+   ✅ BigQuery batch 1 complete: 3 chunks synced
+   ✅ Total synced to BigQuery: 3 chunks
+   ✅ Synced 3 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 3.1s
+      📦 3 chunks creados
+      🧬 3 embeddings generados (768-dim)
+      🎯 2,906 tokens totales
+      💰 Costo embeddings: $0.000058
+   ✅ Chunking completado: 3 chunks creados
+   ✅ Embeddings generados: 3 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 969
+   💰 Costo embeddings: $0.000058
+   ⏱️  Tiempo RAG: 3.1s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Stored 4 chunks in collection 'document_chunks'
+   📍 Collection: https://console.firebase.google.com/project/gen-lang-client-0986191192/firestore/data/~2Fdocument_chunks
+   📊 Syncing to BigQuery for vector search...
+   📤 BigQuery batch 1/1: Syncing 4 chunks...
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ BigQuery batch 1 complete: 4 chunks synced
+   ✅ Total synced to BigQuery: 4 chunks
+   ✅ Synced 4 chunks to BigQuery
+   ✅ Paso 4/5: RAG process completado en 3.3s
+      📦 4 chunks creados
+      🧬 4 embeddings generados (768-dim)
+      🎯 3,536 tokens totales
+      💰 Costo embeddings: $0.000071
+   ✅ Chunking completado: 4 chunks creados
+   ✅ Embeddings generados: 4 vectores (768 dimensiones)
+   📊 Promedio tokens/chunk: 884
+   💰 Costo embeddings: $0.000071
+   ⏱️  Tiempo RAG: 3.3s
+
+📝 Paso 5/5: Actualizando metadata RAG...
+   ✅ Metadata actualizada
+   🔍 RAG enabled: Yes
+
+🔗 Asignando a agente y activando...
+   🤖 Agente: vStojK73ZKbjNsEnqANJ
+   ✅ Actualizado activeContextSourceIds: 160 → 161
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 267.0s
+📝 Caracteres: 1,708,359
+📐 Chunks: 3
+🧬 Embeddings: 3
+💰 Costo total: $0.128342
+🆔 Source ID: f0i4kSethQmi1nj0w7RL
+────────────────────────────────────────────────────────────
+
+   [11/12] ✅ DONE: GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF (3 chunks, $0.1602)
+   ✅ Documento asignado a agente via assignedToAgents field
+   ✅ RAG habilitado: Yes
+   ✅ Estado: active
+   ✅ Actualizado activeContextSourceIds: 161 → 162
+
+────────────────────────────────────────────────────────────
+✅ ARCHIVO COMPLETADO: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+────────────────────────────────────────────────────────────
+⏱️  Tiempo total: 267.9s
+📝 Caracteres: 986,080
+📐 Chunks: 4
+🧬 Embeddings: 4
+💰 Costo total: $0.074063
+🆔 Source ID: 0Lq6yPKcv6fGBPYiGh1f
+────────────────────────────────────────────────────────────
+
+   [3/12] ✅ DONE: GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF (4 chunks, $0.0924)
+
+📊 BATCH 1 COMPLETE:
+   ✅ Succeeded: 12/12
+   ❌ Failed: 0/12
+
+📊 PROGRESO ACUMULADO (12/12):
+   ✅ Exitosos: 12
+   ❌ Fallidos: 0
+   📝 Total caracteres: 4,903,734
+   📐 Total chunks: 93
+   💰 Costo acumulado: $0.4597
+   ⏱️  Tiempo transcurrido: 4.5 min
+📊 [DEV] Would track CLI event: {
+  type: 'cli_upload_complete',
+  user: 'alec@getaifactory.com',
+  operation: 'upload',
+  success: true
+}
+📊 [DEV] Would track CLI session: {
+  command: 'upload --folder=upload-queue/M3-v2-20251125/DOCUMENTOS PORTAL EDIFICACIÓN/Primera carga de documentacion/2. PLAN DE CALIDAD Y OPERACIÓN DE OBRA/2.1. CALIDAD Y OPERACIÓN DE OBRA --tag=M3-v2-retry --agent=vStojK73ZKbjNsEnqANJ',
+  user: 'alec@getaifactory.com',
+  duration: 268948,
+  events: 12
+}
+
+
+════════════════════════════════════════════════════════════
+📊 RESUMEN DE CARGA
+════════════════════════════════════════════════════════════
+
+📁 Total de archivos: 12
+✅ Exitosos: 12 (100.0%)
+❌ Fallidos: 0
+⏱️  Tiempo total: 268.9s
+💰 Costo estimado: $0.4597
+
+✅ Archivos Exitosos:
+   --------------------------------------------------------
+   📄 6.5 MAQ-LOG-CBO-P-001 GESTION DE BODEGAS DE OBRAS REV.07.PDF
+      🆔 Source ID: Ovcm6Qk7qfJ9ITWuown3
+      📝 Chars: 28,122
+      📐 Chunks: 10
+      🧬 Embeddings: 10
+      ⏱️  Duration: 46.8s
+
+   📄 CONTRATACION DE SUBCONTRATISTAS.PDF
+      🆔 Source ID: MDWAbm5IfSd0N2h1cgTe
+      📝 Chars: 181,464
+      📐 Chunks: 31
+      🧬 Embeddings: 31
+      ⏱️  Duration: 170.2s
+
+   📄 GOP-P-PCO-2.1.ANEXO RESUMEN REVISIONES MITO-(V.0).PDF
+      🆔 Source ID: 0Lq6yPKcv6fGBPYiGh1f
+      📝 Chars: 986,080
+      📐 Chunks: 4
+      🧬 Embeddings: 4
+      ⏱️  Duration: 267.9s
+
+   📄 GOP-P-PCO-2.1.DETECCION DE HALLAZGOS Y NO CONFORMIDADES-(V.5).PDF
+      🆔 Source ID: v2eYXGMP0NC1qYwGb04T
+      📝 Chars: 9,788
+      📐 Chunks: 4
+      🧬 Embeddings: 4
+      ⏱️  Duration: 27.3s
+
+   📄 GOP-P-PCO-2.1.EVALUACION SUBCONTRATOS-(V.0).PDF
+      🆔 Source ID: wtCeu5DjgMEtdCVW1QM8
+      📝 Chars: 16,081
+      📐 Chunks: 6
+      🧬 Embeddings: 6
+      ⏱️  Duration: 37.4s
+
+   📄 GOP-P-PCO-2.1.INSTRUCTIVO CALCULO DE STOCK CRITICO-(V.0).PDF
+      🆔 Source ID: DxhWKvP7VBkN8l7KK8pB
+      📝 Chars: 7,997
+      📐 Chunks: 4
+      🧬 Embeddings: 4
+      ⏱️  Duration: 24.5s
+
+   📄 GOP-P-PCO-2.1.INSTRUCTIVO MODULADOR DE BODEGAS-(V.0).PDF
+      🆔 Source ID: 6qgeUEdzojjvaFwGfspW
+      📝 Chars: 30,447
+      📐 Chunks: 11
+      🧬 Embeddings: 11
+      ⏱️  Duration: 69.8s
+
+   📄 GOP-P-PCO-2.1.MATRIZ DE OBJETIVOS DE CONTROL DE OBRA-(V.0).PDF
+      🆔 Source ID: zadC0EfAX4rfoxCkBQmX
+      📝 Chars: 3,483
+      📐 Chunks: 2
+      🧬 Embeddings: 2
+      ⏱️  Duration: 25.0s
+
+   📄 GOP-P-PCO-2.1.PROCEDIMIENTO DE GESTION DE CONSTRUCCION EN OBRA-(V.2).PDF
+      🆔 Source ID: iIMAdoC9tKd89qqrRdyS
+      📝 Chars: 41,430
+      📐 Chunks: 14
+      🧬 Embeddings: 14
+      ⏱️  Duration: 95.7s
+
+   📄 GOP-P-PCO-2.1.PROCEDIMIENTO ENTREGA OBRA A POST VENTA-(V.0).PDF
+      🆔 Source ID: Q1c6S68chPpHjPafsxs4
+      📝 Chars: 1,888,790
+      📐 Chunks: 2
+      🧬 Embeddings: 2
+      ⏱️  Duration: 259.8s
+
+   📄 GOP-P-PCO-2.1.PROCEDIMIENTO INICIO DE OBRAS DE EDIFICACION-(V.0).PDF
+      🆔 Source ID: f0i4kSethQmi1nj0w7RL
+      📝 Chars: 1,708,359
+      📐 Chunks: 3
+      🧬 Embeddings: 3
+      ⏱️  Duration: 267.0s
+
+   📄 RESUMEN Y PREGUNTAS.docx.pdf
+      🆔 Source ID: xqLhZXE9sbMcwA94H33S
+      📝 Chars: 1,693
+      📐 Chunks: 2
+      🧬 Embeddings: 2
+      ⏱️  Duration: 17.0s
+
+════════════════════════════════════════════════════════════
+
+
+✅ Upload completed successfully!
